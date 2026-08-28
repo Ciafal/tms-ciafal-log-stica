@@ -339,8 +339,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: permissions.canViewAuditLogs,
         },
         {
-          title: 'Monitor de Integrações',
+          title: 'Monitor Central de Integrações',
           path: '/tms/monitor-integracoes',
+          badge: 'Sprint 4',
+          badgeColor: 'bg-[#005596]',
           show: true,
         },
       ],
@@ -350,6 +352,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       title: 'ADMINISTRAÇÃO',
       icon: Sliders,
       items: [
+        {
+          title: 'Blueprint SAP / Barramento',
+          path: '/tms/sap-blueprint',
+          show: true,
+        },
+        {
+          title: 'Fila de Erros & Retry SAP',
+          path: '/tms/sap-monitor',
+          show: true,
+        },
         {
           title: 'Parâmetros Operacionais',
           path: '/tms/parametros',

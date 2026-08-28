@@ -345,14 +345,17 @@ export const SalesWalletPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs font-mono bg-slate-50">
-            Importação Oficial SAP Controlada
-          </Badge>
+          <div className="flex flex-col items-end mr-1">
+            <Badge variant="outline" className="text-[10px] font-mono bg-slate-50 text-slate-600">
+              Atualizado em: {new Date().toLocaleTimeString('pt-BR')}
+            </Badge>
+            <span className="text-[9px] text-slate-400">TTL Cache: 15 min (Rate Limited)</span>
+          </div>
           <Button
             onClick={fetchData}
             variant="outline"
             size="sm"
-            className="text-xs h-8"
+            className="text-xs h-8 border-slate-300"
             disabled={isLoading}
           >
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />

@@ -402,6 +402,22 @@ export const App: React.FC = () => {
               </Layout>
             }
           />
+          <Route
+            path="/tms/sap-blueprint"
+            element={
+              <Layout>
+                <IntegrationsMonitorPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/sap-monitor"
+            element={
+              <Layout>
+                <IntegrationsMonitorPage />
+              </Layout>
+            }
+          />
 
           {/* 8. ADMINISTRAÇÃO */}
           <Route
