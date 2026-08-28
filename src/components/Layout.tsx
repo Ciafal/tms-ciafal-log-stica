@@ -369,6 +369,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       icon: Sliders,
       items: [
         {
+          title: 'Arquitetura TMS CIAFAL',
+          path: '/tms/arquitetura',
+          badge: 'Macro Fluxo',
+          badgeColor: 'bg-[#005596]',
+          show: true,
+        },
+        {
           title: 'Readiness de Produção',
           path: '/tms/readiness-producao',
           badge: 'GO / NO-GO',

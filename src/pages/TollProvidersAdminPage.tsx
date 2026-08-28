@@ -125,7 +125,7 @@ export const TollProvidersAdminPage: React.FC = () => {
         distanceKm: distance,
         axlesCount: selectedAxles,
         vehicleType: vType,
-        tollBoothsCount: result.tollBoothsCount,
+        tollBoothsCount: result.totalTollsCount,
         calculatedValue: result.totalTollCost,
         expectedValue: expected,
         diffValue: diff,
@@ -136,7 +136,7 @@ export const TollProvidersAdminPage: React.FC = () => {
 
       toast({
         title: 'Teste de Pedágio Concluído',
-        description: `Pedágio calculado: R$ ${result.totalTollCost.toFixed(2)} (${result.tollBoothsCount} praças identificadas).`,
+        description: `Pedágio calculado: R$ ${result.totalTollCost.toFixed(2)} (${result.totalTollsCount} praças identificadas).`,
       })
     } finally {
       setIsTesting(false)

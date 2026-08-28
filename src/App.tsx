@@ -37,6 +37,7 @@ import { TollProvidersAdminPage } from '@/pages/TollProvidersAdminPage'
 import { AnttOfficialSourcePage } from '@/pages/AnttOfficialSourcePage'
 import { TelegramIntegrationPage } from '@/pages/TelegramIntegrationPage'
 import { ProductionReadinessPage } from '@/pages/ProductionReadinessPage'
+import { ArchitecturePage } from '@/pages/ArchitecturePage'
 import { SecurityLgpdPage } from '@/pages/SecurityLgpdPage'
 import { StubModulePage } from '@/pages/StubModulePage'
 import NotFound from '@/pages/NotFound'
@@ -441,10 +442,18 @@ export const App: React.FC = () => {
             }
           />
           <Route
-            path="/tms/monitor-integracoes"
+            path="/tms/readiness-producao"
             element={
               <Layout>
-                <IntegrationsMonitorPage />
+                <ProductionReadinessPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/arquitetura"
+            element={
+              <Layout>
+                <ArchitecturePage />
               </Layout>
             }
           />

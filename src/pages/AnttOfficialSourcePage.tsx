@@ -44,10 +44,10 @@ export const AnttOfficialSourcePage: React.FC = () => {
   // Tabela de Fontes / Resoluções ANTT com identificação mandatória de NÃO OFICIAL / SIMULAÇÃO
   const [sources, setSources] = useState<AnttOfficialSourceMetadata[]>([
     {
-      id: 'SRC-ANTT-2026-01',
+      id: 'SRC-ANTT-SIMULACAO-01',
       sourceName: 'Tabela Paramétrica de Referência Operacional (Simulação)',
-      responsibleEntity: 'Engenharia de Custos TMS CIAFAL (Base Resolução ANTT 5.867/2020)',
-      sourceUrl: 'https://dados.antt.gov.br/dataset/piso-minimo-frete (Pendente Homologação)',
+      responsibleEntity: 'Engenharia de Custos TMS CIAFAL (Parametrização Interna)',
+      sourceUrl: 'https://dados.antt.gov.br/dataset/piso-minimo-frete (AGUARDANDO FONTE OFICIAL)',
       sourceFormat: 'JSON',
       updateFrequency: 'Semestral / Reajuste Diesel > 5%',
       effectiveDateStart: '2026-01-01',
@@ -56,22 +56,22 @@ export const AnttOfficialSourcePage: React.FC = () => {
       status: 'AGUARDANDO FONTE OFICIAL',
       isOfficialProductionReady: false,
       notes:
-        'IDENTIFICAÇÃO MANDATÓRIA: Esta fonte é tratada como "NÃO OFICIAL / SIMULAÇÃO" para fins de leilão até o fornecimento e validação formal da API/Fonte oficial da ANTT.',
+        'IDENTIFICAÇÃO MANDATÓRIA: Esta fonte é tratada como "NÃO OFICIAL / SIMULAÇÃO" para fins de leilão até o fornecimento e validação formal da API/Fonte oficial da ANTT. Nenhuma tabela é inventada.',
     },
     {
-      id: 'SRC-ANTT-2025-02',
-      sourceName: 'Resolução ANTT 6.035/2024 (Histórico de Referência)',
-      responsibleEntity: 'Agência Nacional de Transportes Terrestres',
+      id: 'SRC-ANTT-HIST-02',
+      sourceName: 'Resolução ANTT nº 5.867/2019 / Portaria SUROC nº 12/2024 (Histórico)',
+      responsibleEntity: 'Agência Nacional de Transportes Terrestres (ANTT)',
       sourceUrl: 'https://www.in.gov.br/antt',
       sourceFormat: 'PDF Diário Oficial',
       updateFrequency: 'Conforme Portaria Extraordinária',
-      effectiveDateStart: '2025-07-01',
+      effectiveDateStart: '2024-07-01',
       effectiveDateEnd: '2025-12-31',
-      version: 'v2025.2-HISTORICO',
+      version: 'v2024.2-HISTORICO',
       integrityHash: 'sha256-8a7c1b3d5e7f9a2b4c6d8e0f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a9b',
       status: 'HOMOLOGADA',
       isOfficialProductionReady: false,
-      notes: 'Tabela histórica encerrada.',
+      notes: 'Tabela histórica encerrada para fins de auditoria e cálculo de períodos pretéritos.',
     },
   ])
 
@@ -305,35 +305,57 @@ export const AnttOfficialSourcePage: React.FC = () => {
           <Card className="border-slate-200">
             <CardHeader className="p-4 bg-slate-50 border-b border-slate-100">
               <CardTitle className="text-base font-bold text-slate-900">
-                Importação e Validação de Schema de Tarifas ANTT
+                Workflow de Importação e Validação de Schema ANTT (Quando Fornecida)
               </CardTitle>
               <CardDescription className="text-xs text-slate-500">
-                Cole a estrutura fornecida para validação de integridade, cálculo de SHA-256 e teste
-                de regressão de cálculo.
+                Cole a estrutura oficial fornecida para: 1. Importar; 2. Validar Schema; 3. Validar
+                Vigência; 4. Calcular Hash SHA-256; 5. Comparar com Versão Anterior; 6. Executar
+                Testes de Cálculo; 7. Homologar.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-5 space-y-4 text-xs">
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                <div className="font-bold text-slate-800">
+                  Campos Obrigatórios de Validação da Fonte:
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 font-mono text-[10px]">
+                  <div>• nome_fonte (string)</div>
+                  <div>• entidade_responsavel (string)</div>
+                  <div>• url_origem (URL oficial)</div>
+                  <div>• formato (JSON / CSV / XML)</div>
+                  <div>• atualizacao (frequência)</div>
+                  <div>• vigencia_inicio (YYYY-MM-DD)</div>
+                  <div>• versao (ex: v2026.1)</div>
+                  <div>• hash_integridade (SHA-256)</div>
+                  <div>• status (homologação)</div>
+                </div>
+              </div>
+
               <div>
                 <label className="font-bold text-slate-700 block mb-1">
-                  JSON de Tarifas da Resolução Oficial:
+                  JSON / Estrutura da Tabela Tarifária Oficial Fornecida:
                 </label>
                 <textarea
-                  rows={6}
+                  rows={7}
                   value={importJsonText}
                   onChange={(e) => setImportJsonText(e.target.value)}
-                  placeholder={`{\n  "resolution": "ANTT-2026-X",\n  "effectiveDate": "2026-09-01",\n  "categories": [\n    { "type": "Granel Solido", "axles": 5, "ccd": 4.12, "cc": 380.50 }\n  ]\n}`}
+                  placeholder={`{\n  "sourceName": "Resolução ANTT Oficial 2026",\n  "responsibleEntity": "Agência Nacional de Transportes Terrestres",\n  "sourceUrl": "https://dados.antt.gov.br/api/piso-minimo/2026",\n  "effectiveDateStart": "2026-09-01",\n  "version": "v2026.2-OFICIAL",\n  "ratesByAxles": {\n    "2": { "ccd": 2.85, "cc": 1.45 },\n    "5": { "ccd": 5.15, "cc": 2.90 },\n    "9": { "ccd": 7.95, "cc": 4.60 }\n  }\n}`}
                   className="w-full p-3 font-mono text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#005596]"
                 />
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                <div className="text-[11px] text-slate-500">
+                  Validação automática: schema, formato de datas, integridade e ausência de campos
+                  nulos.
+                </div>
                 <Button
                   onClick={handleValidateAndImport}
                   disabled={isProcessing}
                   className="bg-[#005596] text-xs gap-1.5"
                 >
                   <Upload className="w-3.5 h-3.5" />
-                  Importar, Calcular Hash e Validar Schema
+                  Importar, Validar Schema & Calcular Hash
                 </Button>
               </div>
             </CardContent>
@@ -347,31 +369,55 @@ export const AnttOfficialSourcePage: React.FC = () => {
               <CardTitle className="text-base font-bold text-slate-900">
                 Workflow Formal de Homologação da ANTT (7 Etapas Obrigatórias)
               </CardTitle>
+              <CardDescription className="text-xs text-slate-500">
+                Processo obrigatório para garantir conformidade jurídica e proteger a Mesa de Fretes
+                e Leilão.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="p-5 text-xs space-y-3">
+            <CardContent className="p-5 text-xs space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-7 gap-2 font-mono text-center text-[11px]">
                 {[
-                  { step: '1', name: 'Fornecer Fonte', desc: 'URL/Portaria', status: 'Concluído' },
-                  { step: '2', name: 'Importar', desc: 'Payload Raw', status: 'Concluído' },
-                  { step: '3', name: 'Validar Schema', desc: 'JSON/Campos', status: 'Concluído' },
+                  {
+                    step: '1',
+                    name: 'Fornecer Fonte',
+                    desc: 'URL Oficial / DOU',
+                    status: 'Pendente Oficial',
+                  },
+                  { step: '2', name: 'Importar', desc: 'Payload Raw', status: 'Pronto p/ Receber' },
+                  {
+                    step: '3',
+                    name: 'Validar Schema',
+                    desc: 'Campos e Tipos',
+                    status: 'Validador Pronto',
+                  },
                   {
                     step: '4',
                     name: 'Validar Vigência',
-                    desc: 'Data Início/Fim',
-                    status: 'Concluído',
+                    desc: 'Início e Fim',
+                    status: 'Validador Pronto',
                   },
-                  { step: '5', name: 'Calcular Hash', desc: 'SHA-256', status: 'Concluído' },
+                  {
+                    step: '5',
+                    name: 'Calcular Hash',
+                    desc: 'SHA-256 Imutável',
+                    status: 'Calculador Pronto',
+                  },
                   {
                     step: '6',
-                    name: 'Teste de Cálculo',
-                    desc: 'Regressão',
-                    status: 'Em Simulação',
+                    name: 'Testes de Cálculo',
+                    desc: 'Comparativo Regressão',
+                    status: 'Motor Paramétrico',
                   },
-                  { step: '7', name: 'Homologar', desc: 'Go-Live Mesa', status: 'Pendente' },
+                  {
+                    step: '7',
+                    name: 'Homologar',
+                    desc: 'Liberação Produção',
+                    status: 'Aprovação Humana',
+                  },
                 ].map((s) => (
                   <div
                     key={s.step}
-                    className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex flex-col justify-between"
+                    className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex flex-col justify-between shadow-xs"
                   >
                     <span className="font-bold text-slate-900 text-xs">
                       {s.step}. {s.name}
@@ -382,6 +428,19 @@ export const AnttOfficialSourcePage: React.FC = () => {
                     </Badge>
                   </div>
                 ))}
+              </div>
+
+              <div className="bg-sky-50 border border-sky-200 p-3.5 rounded-lg text-sky-950 text-[11px] space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-[#005596]" />
+                  Garantia Operacional até a Homologação Oficial:
+                </div>
+                <p className="text-sky-900">
+                  Enquanto a fonte oficial não for homologada, a Mesa de Fretes e o Planejador
+                  utilizam a Tabela Paramétrica de Simulação expressamente identificada como{' '}
+                  <strong>"NÃO OFICIAL / SIMULAÇÃO"</strong>, sem gerar bloqueios indevidos mas
+                  garantindo transparência jurídica plena.
+                </p>
               </div>
             </CardContent>
           </Card>

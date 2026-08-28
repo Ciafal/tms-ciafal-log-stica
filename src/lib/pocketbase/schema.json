@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T19:35:57.605Z",
+  "generatedAt": "2026-08-28T19:53:42.521Z",
   "collections": [
     {
       "name": "users",
@@ -433,7 +433,9 @@
         "CREATE INDEX idx_queue_type_status ON queue_entries (type, status)",
         "CREATE INDEX idx_queue_driver ON queue_entries (driver)",
         "CREATE INDEX idx_queue_status ON queue_entries (status)",
-        "CREATE INDEX idx_queue_entry_time ON queue_entries (entry_time DESC)"
+        "CREATE INDEX idx_queue_entry_time ON queue_entries (entry_time DESC)",
+        "CREATE INDEX `idx_queue_driver_status` ON `queue_entries` (driver, status)",
+        "CREATE INDEX `idx_queue_assigned_cargo` ON `queue_entries` (reason)"
       ]
     },
     {
@@ -1027,7 +1029,9 @@
       "indexes": [
         "CREATE INDEX idx_freight_cargo ON freight_offers (cargo_id)",
         "CREATE INDEX idx_freight_status ON freight_offers (status)",
-        "CREATE INDEX idx_freight_group ON freight_offers (current_group)"
+        "CREATE INDEX idx_freight_group ON freight_offers (current_group)",
+        "CREATE INDEX `idx_freight_correlation` ON `freight_offers` (correlation_id)",
+        "CREATE INDEX `idx_freight_winner_driver` ON `freight_offers` (winner_driver)"
       ]
     },
     {
@@ -1487,7 +1491,10 @@
       "indexes": [
         "CREATE UNIQUE INDEX idx_sales_order_number ON sap_sales_orders (order_number)",
         "CREATE INDEX idx_sales_order_itinerary ON sap_sales_orders (itinerary_code)",
-        "CREATE INDEX idx_sales_order_status ON sap_sales_orders (status)"
+        "CREATE INDEX idx_sales_order_status ON sap_sales_orders (status)",
+        "CREATE INDEX `idx_sales_customer_code` ON `sap_sales_orders` (customer_code)",
+        "CREATE INDEX `idx_sales_dates` ON `sap_sales_orders` (order_date, desired_date)",
+        "CREATE INDEX `idx_sales_assigned_load` ON `sap_sales_orders` (assigned_load_id)"
       ]
     },
     {
@@ -1589,7 +1596,9 @@
         "CREATE INDEX idx_proposals_offer ON freight_proposals (offer_id)",
         "CREATE INDEX idx_proposals_driver ON freight_proposals (driver_id)",
         "CREATE INDEX idx_proposals_status ON freight_proposals (status)",
-        "CREATE INDEX idx_proposals_created ON freight_proposals (created)"
+        "CREATE INDEX idx_proposals_created ON freight_proposals (created)",
+        "CREATE INDEX `idx_proposals_correlation` ON `freight_proposals` (correlation_id)",
+        "CREATE INDEX `idx_proposals_offer_value` ON `freight_proposals` (offer_id, value)"
       ]
     },
     {
@@ -2404,7 +2413,9 @@
       "indexes": [
         "CREATE INDEX idx_scen_itinerary ON load_simulation_scenarios (itinerary_code)",
         "CREATE INDEX idx_scen_classification ON load_simulation_scenarios (classification)",
-        "CREATE INDEX idx_scen_status ON load_simulation_scenarios (status)"
+        "CREATE INDEX idx_scen_status ON load_simulation_scenarios (status)",
+        "CREATE INDEX `idx_scen_date_status` ON `load_simulation_scenarios` (planned_date, status)",
+        "CREATE INDEX `idx_scen_generated_load` ON `load_simulation_scenarios` (generated_load_id)"
       ]
     },
     {

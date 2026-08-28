@@ -50,7 +50,8 @@ export const SapIntegrationReadinessPage: React.FC = () => {
       reason: 'Objeto técnico RFC não disponibilizado pela consultoria ABAP.',
       interfacesCount: 1,
       impact: 'Alimenta o Planejador de Cargas com saldos e pedidos abertos.',
-      nextStep: 'Consultoria SAP confirmar se reutilizará Function Module do programa ZSD35 ou criará RFC Z.',
+      nextStep:
+        'Consultoria SAP confirmar se reutilizará Function Module do programa ZSD35 ou criará RFC Z.',
     },
     {
       id: 'VEICULOS',
@@ -129,12 +130,23 @@ export const SapIntegrationReadinessPage: React.FC = () => {
   const stats = {
     total: blueprintItems.length,
     confirmadas: blueprintItems.filter(
-      (b) => b.status === 'Standard SAP' || b.status === 'Confirmado tecnicamente' || b.status === 'Confirmado funcionalmente',
+      (b) =>
+        b.status === 'Standard SAP' ||
+        b.status === 'Confirmado tecnicamente' ||
+        b.status === 'Confirmado funcionalmente',
     ).length,
-    aConfirmar: blueprintItems.filter((b) => b.status?.includes('A CONFIRMAR') || b.status === 'A confirmar no Blueprint').length,
-    rfcExistente: blueprintItems.filter((b) => b.rfc_bapi_idoc?.includes('BAPI') || b.rfc_bapi_idoc?.includes('READ_TEXT')).length,
-    rfcADesenvolver: blueprintItems.filter((b) => b.status === 'RFC a desenvolver' || b.status?.includes('ZSD35')).length,
-    homologadas: blueprintItems.filter((b) => b.status === 'Standard SAP' || b.status === 'Homologado').length,
+    aConfirmar: blueprintItems.filter(
+      (b) => b.status?.includes('A CONFIRMAR') || b.status === 'A confirmar no Blueprint',
+    ).length,
+    rfcExistente: blueprintItems.filter(
+      (b) => b.rfc_bapi_idoc?.includes('BAPI') || b.rfc_bapi_idoc?.includes('READ_TEXT'),
+    ).length,
+    rfcADesenvolver: blueprintItems.filter(
+      (b) => b.status === 'RFC a desenvolver' || b.status?.includes('ZSD35'),
+    ).length,
+    homologadas: blueprintItems.filter(
+      (b) => b.status === 'Standard SAP' || b.status === 'Homologado',
+    ).length,
     bloqueadas: blueprintItems.filter((b) => b.id === 'BP-08' || b.id === 'BP-01').length,
   }
 
@@ -221,7 +233,8 @@ export const SapIntegrationReadinessPage: React.FC = () => {
             <Badge className="bg-[#005596] text-white text-xs">Blueprint SAP-TMS v0.4</Badge>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Matriz técnica de prontidão por fluxo e artefato completo campo a campo para envio à consultoria SAP.
+            Matriz técnica de prontidão por fluxo e artefato completo campo a campo para envio à
+            consultoria SAP.
           </p>
         </div>
 
@@ -262,9 +275,12 @@ export const SapIntegrationReadinessPage: React.FC = () => {
           <span>REGRA INEGOCIÁVEL — OBJETO FUNCIONAL ≠ OBJETO DE INTEGRAÇÃO TÉCNICA:</span>
         </div>
         <p className="leading-relaxed text-amber-900/90">
-          A existência da transação <strong>ZSD35 (Carteira)</strong> ou da view <strong>ZSD004V_V2 (Motoristas/Veículos)</strong> não implica que exista RFC correspondente pronta para chamada.
-          O sistema separa rigorosamente "Origem Funcional" de "Objeto Técnico de Integração". Interfaces não confirmadas são registradas formalmente como{' '}
-          <strong className="text-amber-950">"A CONFIRMAR COM CONSULTORIA SAP"</strong> sem inventar chamadas fictícias.
+          A existência da transação <strong>ZSD35 (Carteira)</strong> ou da view{' '}
+          <strong>ZSD004V_V2 (Motoristas/Veículos)</strong> não implica que exista RFC
+          correspondente pronta para chamada. O sistema separa rigorosamente "Origem Funcional" de
+          "Objeto Técnico de Integração". Interfaces não confirmadas são registradas formalmente
+          como <strong className="text-amber-950">"A CONFIRMAR COM CONSULTORIA SAP"</strong> sem
+          inventar chamadas fictícias.
         </p>
       </div>
 
@@ -272,7 +288,9 @@ export const SapIntegrationReadinessPage: React.FC = () => {
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         <Card className="border-slate-200">
           <CardHeader className="p-3 pb-1">
-            <CardTitle className="text-[10px] text-slate-500 font-bold uppercase">Total Itens</CardTitle>
+            <CardTitle className="text-[10px] text-slate-500 font-bold uppercase">
+              Total Itens
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0">
             <div className="text-2xl font-black text-slate-900">{stats.total}</div>
@@ -282,7 +300,9 @@ export const SapIntegrationReadinessPage: React.FC = () => {
 
         <Card className="border-slate-200">
           <CardHeader className="p-3 pb-1">
-            <CardTitle className="text-[10px] text-emerald-700 font-bold uppercase">Confirmadas</CardTitle>
+            <CardTitle className="text-[10px] text-emerald-700 font-bold uppercase">
+              Confirmadas
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0">
             <div className="text-2xl font-black text-emerald-600">{stats.confirmadas}</div>
@@ -292,7 +312,9 @@ export const SapIntegrationReadinessPage: React.FC = () => {
 
         <Card className="border-slate-200">
           <CardHeader className="p-3 pb-1">
-            <CardTitle className="text-[10px] text-amber-700 font-bold uppercase">A Confirmar</CardTitle>
+            <CardTitle className="text-[10px] text-amber-700 font-bold uppercase">
+              A Confirmar
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0">
             <div className="text-2xl font-black text-amber-600">{stats.aConfirmar}</div>
@@ -302,7 +324,9 @@ export const SapIntegrationReadinessPage: React.FC = () => {
 
         <Card className="border-slate-200">
           <CardHeader className="p-3 pb-1">
-            <CardTitle className="text-[10px] text-sky-700 font-bold uppercase">RFC Existente</CardTitle>
+            <CardTitle className="text-[10px] text-sky-700 font-bold uppercase">
+              RFC Existente
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0">
             <div className="text-2xl font-black text-sky-600">{stats.rfcExistente}</div>
@@ -312,8 +336,11 @@ export const SapIntegrationReadinessPage: React.FC = () => {
 
         <Card className="border-slate-200">
           <CardHeader className="p-3 pb-1">
-            <CardTitle className="text-[10px] text-indigo-700 font-bold uppercase">RFC a Desenvolver</CardTitle>
-          </CardHeaderContent className="p-3 pt-0">
+            <CardTitle className="text-[10px] text-indigo-700 font-bold uppercase">
+              RFC a Desenvolver
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
             <div className="text-2xl font-black text-indigo-600">{stats.rfcADesenvolver}</div>
             <span className="text-[10px] text-slate-400">escopo ABAP</span>
           </CardContent>
@@ -321,7 +348,9 @@ export const SapIntegrationReadinessPage: React.FC = () => {
 
         <Card className="border-slate-200">
           <CardHeader className="p-3 pb-1">
-            <CardTitle className="text-[10px] text-teal-700 font-bold uppercase">Homologadas</CardTitle>
+            <CardTitle className="text-[10px] text-teal-700 font-bold uppercase">
+              Homologadas
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0">
             <div className="text-2xl font-black text-teal-600">{stats.homologadas}</div>
@@ -331,7 +360,9 @@ export const SapIntegrationReadinessPage: React.FC = () => {
 
         <Card className="border-slate-200">
           <CardHeader className="p-3 pb-1">
-            <CardTitle className="text-[10px] text-rose-700 font-bold uppercase">Bloqueadas</CardTitle>
+            <CardTitle className="text-[10px] text-rose-700 font-bold uppercase">
+              Bloqueadas
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0">
             <div className="text-2xl font-black text-rose-600">{stats.bloqueadas}</div>
@@ -358,11 +389,17 @@ export const SapIntegrationReadinessPage: React.FC = () => {
         <TabsContent value="fluxos" className="space-y-4 mt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {sapFlows.map((flow) => (
-              <Card key={flow.id} className="border-slate-200 shadow-sm hover:border-slate-300 transition flex flex-col justify-between">
+              <Card
+                key={flow.id}
+                className="border-slate-200 shadow-sm hover:border-slate-300 transition flex flex-col justify-between"
+              >
                 <div>
                   <CardHeader className="p-4 pb-2 bg-slate-50 border-b border-slate-100">
                     <div className="flex items-start justify-between gap-2">
-                      <Badge variant="outline" className="font-mono text-[10px] font-bold text-slate-700">
+                      <Badge
+                        variant="outline"
+                        className="font-mono text-[10px] font-bold text-slate-700"
+                      >
                         {flow.id}
                       </Badge>
                       <Badge className={`${flow.badgeColor} text-white text-[10px]`}>
@@ -378,11 +415,17 @@ export const SapIntegrationReadinessPage: React.FC = () => {
                   </CardHeader>
                   <CardContent className="p-4 space-y-2.5 text-xs">
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Status & Justificativa:</span>
-                      <p className="text-slate-700 leading-tight font-medium mt-0.5">{flow.reason}</p>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                        Status & Justificativa:
+                      </span>
+                      <p className="text-slate-700 leading-tight font-medium mt-0.5">
+                        {flow.reason}
+                      </p>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Impacto no TMS:</span>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                        Impacto no TMS:
+                      </span>
                       <p className="text-slate-600 leading-tight mt-0.5">{flow.impact}</p>
                     </div>
                   </CardContent>
@@ -407,7 +450,8 @@ export const SapIntegrationReadinessPage: React.FC = () => {
                     Mapeamento Técnico de Integrações (Blueprint SAP ↔ TMS CIAFAL)
                   </CardTitle>
                   <CardDescription className="text-xs text-slate-500">
-                    Artefato formalizado contendo especificação de origens funcionais, objetos de integração, chaves, frequência e transformações.
+                    Artefato formalizado contendo especificação de origens funcionais, objetos de
+                    integração, chaves, frequência e transformações.
                   </CardDescription>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -442,12 +486,22 @@ export const SapIntegrationReadinessPage: React.FC = () => {
                         <td className="p-3 font-bold text-slate-900">{b.id}</td>
                         <td className="p-3 font-sans font-bold text-slate-800">{b.process_name}</td>
                         <td className="p-3 font-sans text-slate-600">{b.tms_module || 'TMS'}</td>
-                        <td className="p-3 font-sans text-slate-700 font-semibold">{b.sap_object}</td>
-                        <td className="p-3 text-[#005596] font-semibold">{b.table_or_view || 'N/D'}</td>
-                        <td className="p-3 text-slate-800 text-[10px] max-w-xs truncate" title={b.sap_field}>
+                        <td className="p-3 font-sans text-slate-700 font-semibold">
+                          {b.sap_object}
+                        </td>
+                        <td className="p-3 text-[#005596] font-semibold">
+                          {b.table_or_view || 'N/D'}
+                        </td>
+                        <td
+                          className="p-3 text-slate-800 text-[10px] max-w-xs truncate"
+                          title={b.sap_field}
+                        >
                           {b.sap_field}
                         </td>
-                        <td className="p-3 text-slate-800 text-[10px] max-w-xs truncate" title={b.tms_field}>
+                        <td
+                          className="p-3 text-slate-800 text-[10px] max-w-xs truncate"
+                          title={b.tms_field}
+                        >
                           {b.tms_field}
                         </td>
                         <td className="p-3 font-sans">
@@ -456,7 +510,9 @@ export const SapIntegrationReadinessPage: React.FC = () => {
                           </Badge>
                         </td>
                         <td className="p-3 font-sans text-[10px] text-slate-600">{b.frequency}</td>
-                        <td className="p-3 text-sky-800 font-semibold text-[10px]">{b.rfc_bapi_idoc || 'N/D'}</td>
+                        <td className="p-3 text-sky-800 font-semibold text-[10px]">
+                          {b.rfc_bapi_idoc || 'N/D'}
+                        </td>
                         <td className="p-3 font-sans">
                           <Badge
                             className={
@@ -470,7 +526,9 @@ export const SapIntegrationReadinessPage: React.FC = () => {
                             {b.status}
                           </Badge>
                         </td>
-                        <td className="p-3 font-sans text-[10px] text-rose-700 max-w-xs">{b.pending_item || 'Nenhuma'}</td>
+                        <td className="p-3 font-sans text-[10px] text-rose-700 max-w-xs">
+                          {b.pending_item || 'Nenhuma'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -494,27 +552,81 @@ export const SapIntegrationReadinessPage: React.FC = () => {
             <CardContent className="p-5 text-xs space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-9 gap-2 font-mono text-[11px] text-center">
                 {[
-                  { step: '1', name: 'Identificada', status: 'Concluído', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-                  { step: '2', name: 'Mapeada', status: 'Concluído', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-                  { step: '3', name: 'Validada Func.', status: 'Concluído', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-                  { step: '4', name: 'Validada Técn.', status: 'Em andamento', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-                  { step: '5', name: 'Desenv. SAP', status: 'Pendente ABAP', color: 'bg-amber-100 text-amber-800 border-amber-300' },
-                  { step: '6', name: 'Testada DEV', status: 'Parcial', color: 'bg-amber-100 text-amber-800 border-amber-300' },
-                  { step: '7', name: 'Testada QAS', status: 'Aguardando', color: 'bg-slate-100 text-slate-700 border-slate-300' },
-                  { step: '8', name: 'Homologada', status: 'Bloqueada', color: 'bg-slate-100 text-slate-700 border-slate-300' },
-                  { step: '9', name: 'Produção', status: 'Bloqueada', color: 'bg-slate-100 text-slate-700 border-slate-300' },
+                  {
+                    step: '1',
+                    name: 'Identificada',
+                    status: 'Concluído',
+                    color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                  },
+                  {
+                    step: '2',
+                    name: 'Mapeada',
+                    status: 'Concluído',
+                    color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                  },
+                  {
+                    step: '3',
+                    name: 'Validada Func.',
+                    status: 'Concluído',
+                    color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                  },
+                  {
+                    step: '4',
+                    name: 'Validada Técn.',
+                    status: 'Em andamento',
+                    color: 'bg-blue-100 text-blue-800 border-blue-300',
+                  },
+                  {
+                    step: '5',
+                    name: 'Desenv. SAP',
+                    status: 'Pendente ABAP',
+                    color: 'bg-amber-100 text-amber-800 border-amber-300',
+                  },
+                  {
+                    step: '6',
+                    name: 'Testada DEV',
+                    status: 'Parcial',
+                    color: 'bg-amber-100 text-amber-800 border-amber-300',
+                  },
+                  {
+                    step: '7',
+                    name: 'Testada QAS',
+                    status: 'Aguardando',
+                    color: 'bg-slate-100 text-slate-700 border-slate-300',
+                  },
+                  {
+                    step: '8',
+                    name: 'Homologada',
+                    status: 'Bloqueada',
+                    color: 'bg-slate-100 text-slate-700 border-slate-300',
+                  },
+                  {
+                    step: '9',
+                    name: 'Produção',
+                    status: 'Bloqueada',
+                    color: 'bg-slate-100 text-slate-700 border-slate-300',
+                  },
                 ].map((st) => (
-                  <div key={st.step} className={`p-3 rounded-lg border flex flex-col justify-between ${st.color}`}>
-                    <div className="font-bold text-xs">{st.step}. {st.name}</div>
+                  <div
+                    key={st.step}
+                    className={`p-3 rounded-lg border flex flex-col justify-between ${st.color}`}
+                  >
+                    <div className="font-bold text-xs">
+                      {st.step}. {st.name}
+                    </div>
                     <div className="text-[10px] mt-2 font-sans font-semibold">{st.status}</div>
                   </div>
                 ))}
               </div>
 
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-                <span className="font-bold text-slate-900 block text-xs">Diretriz de Passagem para QAS/Produção:</span>
+                <span className="font-bold text-slate-900 block text-xs">
+                  Diretriz de Passagem para QAS/Produção:
+                </span>
                 <p className="text-slate-600 leading-relaxed text-xs">
-                  Nenhuma interface é promovida para Homologada ou Produção sem evidência de testes em QAS com mandante dedicado, validação de rollback em caso de falha de gravação de transporte (VT01N) e auditoria de correlation_id em logs estruturados.
+                  Nenhuma interface é promovida para Homologada ou Produção sem evidência de testes
+                  em QAS com mandante dedicado, validação de rollback em caso de falha de gravação
+                  de transporte (VT01N) e auditoria de correlation_id em logs estruturados.
                 </p>
               </div>
             </CardContent>

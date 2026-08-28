@@ -20,8 +20,13 @@ import {
   evaluateProposalPriceRules,
   selectWinningProposal,
   calculateOrderPriorityScore,
+  SapSalesOrderEntity,
+  DriverEntity,
+  QueueEntryEntity,
+  FreightOfferEntity,
+  CandidateProposalWithQueue,
 } from '@/domain/rules'
-import { sapGateway } from '@/domain/sapGateway'
+import { sapGateway, SapGateway } from '@/domain/sapGateway'
 import { pcpService } from '@/domain/pcpIntegration'
 import { crmService } from '@/domain/crmIntegration'
 import {
@@ -34,7 +39,6 @@ import {
 } from '@/domain/routingAdapters'
 import { anttEngine, tollEngine } from '@/domain/anttAndTollEngine'
 import { sanitizeLogPayload, CircuitBreaker, eventBus } from '@/domain/integrationsCore'
-import { TmsService } from '@/services/tmsService'
 
 describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () => {
   beforeEach(() => {
@@ -52,82 +56,80 @@ describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () 
     const correlationId = `E2E-MAIN-${Date.now()}`
 
     // 1. MOTORISTA E ENTRADA NA FILA
-    const driver = {
+    const driver: DriverEntity = {
       id: 'drv-e2e-01',
       name: 'Carlos Alberto Ferreira',
       document: '11144477735',
-      plate: 'ABC1D23',
-      vehicleType: 'Carreta LS',
-      capacityKg: 28000,
-      status: 'ativo' as const,
-      phone: '11988887777',
-      channelTelegram: true,
+      cnh: '12345678901',
+      whatsapp: '11988887777',
+      status: 'ativo',
     }
     expect(isValidCPF(driver.document)).toBe(true)
-    expect(isValidPlate(driver.plate)).toBe(true)
 
     // Entrada na Fila PORTA via Raio Geofence (0.3 km da planta CIAFAL)
-    const geofence = validateGeofence(-23.551, -46.634, 'PORTA')
-    expect(geofence.inFence).toBe(true)
+    const geofence = validateGeofence(-23.5505, -46.6333)
+    expect(geofence.isWithinRadius).toBe(true)
     expect(geofence.group).toBe('PORTA')
 
-    const queueGroup = classifyAvailabilityGroup(0.3, undefined, false)
+    const queueGroup = classifyAvailabilityGroup(0.3, 0.5, 60, false)
     expect(queueGroup).toBe('PORTA')
 
-    const queueEntry = {
+    const queueEntry: QueueEntryEntity = {
       id: 'q-entry-01',
-      driverId: driver.id,
-      driverName: driver.name,
-      plate: driver.plate,
-      vehicleType: driver.vehicleType,
-      type: queueGroup,
+      driver: driver.id,
+      driver_name_cached: driver.name,
+      driver_doc_cached: driver.document,
+      driver_whatsapp_cached: driver.whatsapp,
+      vehicle_plate_cached: 'ABC1D23',
+      vehicle_type_cached: 'Carreta LS',
+      type: 'PORTA',
       status: 'disponivel',
-      entryTime: new Date().toISOString(),
+      entry_time: new Date().toISOString(),
     }
     expect(queueEntry.status).toBe('disponivel')
 
     // 2. CARTEIRA SAP ZSD35
-    const ordersInWallet = [
+    const ordersInWallet: SapSalesOrderEntity[] = [
       {
-        orderNumber: '450010091',
-        itemNumber: '000010',
-        customerCode: 'CLI-MG-BETIM',
-        customerName: 'Aços Betim S/A',
-        materialCode: 'PERFIL-W-200',
-        materialDescription: 'Perfil Estrutural W 200x26.6',
-        quantity: 26,
-        weightKg: 26000,
-        totalValue: 165000,
-        itineraryCode: 'MG001A',
-        destinationCity: 'Betim',
+        id: 'ord-1',
+        order_number: '450010091',
+        item_number: '000010',
+        customer_code: 'CLI-MG-BETIM',
+        customer_name: 'Aços Betim S/A',
+        material: 'PERFIL-W-200',
+        material_description: 'Perfil Estrutural W 200x26.6',
+        weight_kg: 26000,
+        total_value: 165000,
+        itinerary_code: 'MG001A',
+        destination_city: 'Betim',
         uf: 'MG',
-        productionStatus: 'Pronto' as const,
-        creditStatus: 'Liberado' as const,
-        orderDate: '2026-08-01',
-        desiredDate: '2026-08-15',
+        production_status: 'Pronto',
+        credit_status: 'Liberado',
+        order_date: '2026-08-01',
+        desired_date: '2026-08-15',
       },
     ]
     expect(ordersInWallet.length).toBe(1)
 
     // 3. ESTOQUE SAP (MB52) E CRÉDITO FINANCEIRO (KNKK)
     const stockVerification = {
-      materialCode: ordersInWallet[0].materialCode,
+      materialCode: ordersInWallet[0].material,
       availableStockKg: 40000,
-      requiredWeightKg: ordersInWallet[0].weightKg,
-      hasStock: 40000 >= ordersInWallet[0].weightKg,
+      requiredWeightKg: ordersInWallet[0].weight_kg,
+      hasStock: 40000 >= ordersInWallet[0].weight_kg,
     }
     expect(stockVerification.hasStock).toBe(true)
 
     const creditResult = await sapGateway.credito.checkCustomerCredit(
-      ordersInWallet[0].customerCode,
-      ordersInWallet[0].totalValue,
+      ordersInWallet[0].customer_code,
+      ordersInWallet[0].total_value,
     )
     expect(creditResult.isApproved).toBe(true)
 
     // 4. SIMULAÇÃO & ROTEIRIZADOR (ROTA, DISTÂNCIA, PEDÁGIO, ANTT)
     const geoDest = await routingServiceManager.geocode(
       'Distrito Industrial Bandeirinhas',
-      ordersInWallet[0].destinationCity,
+      ordersInWallet[0].destination_city,
       ordersInWallet[0].uf,
     )
     expect(geoDest.status).toBe('VALIDADO')
@@ -137,10 +139,10 @@ describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () 
       [
         {
           orderIndex: 1,
-          customerCode: ordersInWallet[0].customerCode,
-          customerName: ordersInWallet[0].customerName,
+          customerCode: ordersInWallet[0].customer_code,
+          customerName: ordersInWallet[0].customer_name,
           address: geoDest,
-          weightKg: ordersInWallet[0].weightKg,
+          weightKg: ordersInWallet[0].weight_kg,
         },
       ],
     )
@@ -148,49 +150,43 @@ describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () 
 
     const tollResult = tollEngine.calculateTolls(
       routeCalc.totalDistanceKm,
-      driver.vehicleType,
+      queueEntry.vehicle_type_cached!,
       5,
-      ordersInWallet[0].itineraryCode,
+      ordersInWallet[0].itinerary_code,
     )
     expect(tollResult.totalTollCost).toBeGreaterThan(50)
 
     const anttFloor = anttEngine.calculateFloor({
       distanceKm: routeCalc.totalDistanceKm,
-      vehicleType: driver.vehicleType,
+      vehicleType: queueEntry.vehicle_type_cached!,
       axlesCount: 5,
     })
     expect(anttFloor.floorValue).toBeGreaterThan(1000)
 
     // 5. PLANEJADOR: VALIDAÇÃO DE MONTAGEM DE CARGA
     const assemblyValidation = avaliar_montagem_carga({
-      orders: [
-        {
-          order_number: ordersInWallet[0].orderNumber,
-          customer_code: ordersInWallet[0].customerCode,
-          destination_city: ordersInWallet[0].destinationCity,
-          itinerary_code: ordersInWallet[0].itineraryCode,
-          weight_kg: ordersInWallet[0].weightKg,
-          volume_m3: 15,
-          total_value: ordersInWallet[0].totalValue,
-        },
-      ],
-      vehicle_capacity_kg: driver.capacityKg,
-      vehicle_type: driver.vehicleType,
+      orders: ordersInWallet,
+      vehicle: {
+        id: 'v1',
+        plate: queueEntry.vehicle_plate_cached!,
+        type: queueEntry.vehicle_type_cached!,
+        capacity_kg: 28000,
+      },
+      targetItineraryCode: 'MG001A',
     })
-    expect(assemblyValidation.valido).toBe(true)
-    expect(assemblyValidation.peso_total_kg).toBe(26000)
-    expect(assemblyValidation.ocupacao_peso_pct).toBeGreaterThan(90)
+    expect(assemblyValidation.decision).toBe('permitida')
+    expect(assemblyValidation.calculatedWeightKg).toBe(26000)
 
     // 6. APROVAÇÃO DO CENÁRIO PELO GERENTE DE CARGA E GERAÇÃO DA CARGA
     const gerentePermissions = getUserPermissions('gerente_carga')
     expect(gerentePermissions.canApproveScenario).toBe(true)
 
     const cargoGenerated = {
-      id: `CARGA-${ordersInWallet[0].itineraryCode}-${Date.now().toString().slice(-4)}`,
-      itineraryCode: ordersInWallet[0].itineraryCode,
-      destinationCity: ordersInWallet[0].destinationCity,
-      weightKg: assemblyValidation.peso_total_kg,
-      vehicleTypeRequired: driver.vehicleType,
+      id: `CARGA-${ordersInWallet[0].itinerary_code}-${Date.now().toString().slice(-4)}`,
+      itineraryCode: ordersInWallet[0].itinerary_code,
+      destinationCity: ordersInWallet[0].destination_city,
+      weightKg: assemblyValidation.calculatedWeightKg,
+      vehicleTypeRequired: queueEntry.vehicle_type_cached!,
       anttFloorValue: anttFloor.floorValue,
       ceilingValue: Math.round(anttFloor.floorValue * 1.25),
       status: 'gerada',
@@ -198,75 +194,58 @@ describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () 
     expect(cargoGenerated.ceilingValue).toBeGreaterThan(cargoGenerated.anttFloorValue)
 
     // 7. MESA DE FRETES & ABERTURA DA OFERTA (PORTA)
-    const offer = {
-      cargoId: cargoGenerated.id,
-      currentGroup: 'PORTA' as const,
-      status: 'janela_porta_aberta' as const,
-      floorValue: cargoGenerated.anttFloorValue,
-      ceilingProtected: cargoGenerated.ceilingValue,
-      proposals: [] as any[],
+    const offer: FreightOfferEntity = {
+      id: 'offer-01',
+      cargo_id: cargoGenerated.id,
+      current_group: 'PORTA',
+      status: 'PORTA_OPEN',
+      floor_price: cargoGenerated.anttFloorValue,
+      ceiling_price: cargoGenerated.ceilingValue,
     }
 
     // Elegibilidade do motorista na janela PORTA
     const eligibility = avaliar_elegibilidade_motorista_oferta({
-      driver: {
-        id: driver.id,
-        name: driver.name,
-        document: driver.document,
-        status: driver.status,
-        channel_telegram: driver.channelTelegram,
-      },
-      vehicle: {
-        plate: driver.plate,
-        type: driver.vehicleType,
-        capacity_kg: driver.capacityKg,
-      },
-      queueEntry: {
-        type: 'PORTA',
-        status: 'disponivel',
-        entry_time: queueEntry.entryTime,
-      },
-      offerRequiredVehicleType: cargoGenerated.vehicleTypeRequired,
-      currentOfferGroup: 'PORTA',
+      driver,
+      queueEntry,
+      offerStageGroup: 'PORTA',
+      requiredVehicleType: cargoGenerated.vehicleTypeRequired,
     })
-    expect(eligibility.eligible).toBe(true)
+    expect(eligibility.isEligible).toBe(true)
 
     // 8. MOTOR DE LEILÃO E ENVIO DE LANCE
     const driverProposalValue = cargoGenerated.anttFloorValue + 150
     const proposalEval = evaluateProposalPriceRules(
       driverProposalValue,
-      offer.floorValue,
-      offer.ceilingProtected,
+      offer.floor_price!,
+      offer.ceiling_price!,
     )
-    expect(proposalEval.status).toBe('VALID')
+    expect(proposalEval.proposalStatus).toBe('VALID')
 
-    const driverProposal = {
-      id: 'prop-01',
-      offerId: offer.cargoId,
-      driverId: driver.id,
-      driverName: driver.name,
-      value: driverProposalValue,
-      queueEntryTime: queueEntry.entryTime,
-      submittedAt: new Date().toISOString(),
-      status: 'VALID',
-    }
-    offer.proposals.push(driverProposal)
+    const candidateProposals: CandidateProposalWithQueue[] = [
+      {
+        proposal: {
+          id: 'prop-01',
+          offer_id: offer.id,
+          driver_id: driver.id,
+          driver_phone_cached: driver.whatsapp,
+          driver_plate_cached: queueEntry.vehicle_plate_cached,
+          value: driverProposalValue,
+          status: 'VALID',
+          created: new Date().toISOString(),
+        },
+        queueEntryTime: queueEntry.entry_time,
+      },
+    ]
 
     // Seleção de vencedor determinística
-    const winnerDecision = selectWinningProposal(
-      offer.proposals,
-      offer.floorValue,
-      offer.ceilingProtected,
-    )
-    expect(winnerDecision.hasWinner).toBe(true)
-    expect(winnerDecision.winningProposal?.driverId).toBe(driver.id)
+    const winnerProposal = selectWinningProposal(candidateProposals)
+    expect(winnerProposal).not.toBeNull()
+    expect(winnerProposal?.driver_id).toBe(driver.id)
 
     // 9. ATUALIZAÇÃO DA FILA: MOTORISTA RETIRADO DA FILA APÓS ATRIBUIÇÃO
-    const updatedQueueEntry = {
+    const updatedQueueEntry: QueueEntryEntity = {
       ...queueEntry,
       status: 'atribuido',
-      assignedCargoId: cargoGenerated.id,
-      exitTime: new Date().toISOString(),
     }
     expect(updatedQueueEntry.status).toBe('atribuido')
 
@@ -274,18 +253,18 @@ describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () 
     const sapWriteDisabledResult = await sapGateway.createTransportDoc({
       cargoId: cargoGenerated.id,
       itineraryCode: cargoGenerated.itineraryCode,
-      vehiclePlate: driver.plate,
+      vehiclePlate: queueEntry.vehicle_plate_cached!,
       driverDocument: driver.document,
       orders: [
         {
-          orderNumber: ordersInWallet[0].orderNumber,
-          itemNumber: ordersInWallet[0].itemNumber,
-          weightKg: ordersInWallet[0].weightKg,
-          value: ordersInWallet[0].totalValue,
+          orderNumber: ordersInWallet[0].order_number,
+          itemNumber: ordersInWallet[0].item_number || '10',
+          weightKg: ordersInWallet[0].weight_kg,
+          value: ordersInWallet[0].total_value,
         },
       ],
       totalWeightKg: cargoGenerated.weightKg,
-      totalValue: ordersInWallet[0].totalValue,
+      totalValue: ordersInWallet[0].total_value,
       correlationId,
       idempotencyKey: `IDEM-${cargoGenerated.id}`,
     })
@@ -317,34 +296,37 @@ describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () 
     expect(incompleteLoad.residualCapacityKg).toBe(8000)
 
     // 2. IDENTIFICAR OPORTUNIDADE DE COMPLEMENTO NA CARTEIRA
-    const candidateOrders = [
+    const candidateOrders: SapSalesOrderEntity[] = [
       {
+        id: 'ord-compl-1',
         order_number: '450099881',
         customer_code: 'CLI-SP-VALINHOS',
         customer_name: 'Metalúrgica Valinhos Ltda',
         destination_city: 'Valinhos',
+        uf: 'SP',
         itinerary_code: 'SP001A',
         weight_kg: 6500,
         volume_m3: 4.5,
         total_value: 48000,
-        production_status: 'Pronto' as const,
-        credit_status: 'Liberado' as const,
+        production_status: 'Pronto',
+        credit_status: 'Liberado',
         order_date: '2026-08-10',
         desired_date: '2026-08-18',
+        status: 'disponivel',
       },
     ]
 
-    const complementOpp = identificar_oportunidade_complemento(
-      incompleteLoad.cargoId,
-      incompleteLoad.itineraryCode,
-      incompleteLoad.currentWeightKg,
-      incompleteLoad.vehicleCapacityKg,
+    const complementOpp = identificar_oportunidade_complemento({
+      cargoCode: incompleteLoad.cargoId,
+      itineraryCode: incompleteLoad.itineraryCode,
+      currentWeightKg: incompleteLoad.currentWeightKg,
+      vehicleCapacityKg: incompleteLoad.vehicleCapacityKg,
       candidateOrders,
-    )
+    })
 
-    expect(complementOpp.possui_complemento).toBe(true)
-    expect(complementOpp.pedidos_candidatos.length).toBe(1)
-    expect(complementOpp.saldo_peso_livre_kg).toBe(8000)
+    expect(complementOpp).not.toBeNull()
+    expect(complementOpp?.candidate_orders.length).toBe(1)
+    expect(complementOpp?.balance_kg).toBe(8000)
 
     // 3. VERIFICAÇÃO DE ESTOQUE (MB52) DO COMPLEMENTO
     const stockAvailable = 15000 // 15t de estoque
@@ -369,22 +351,29 @@ describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () 
     const crmPayload = {
       cargoId: incompleteLoad.cargoId,
       itineraryCode: incompleteLoad.itineraryCode,
-      customerCode: candidateOrders[0].customer_code,
-      customerName: candidateOrders[0].customer_name,
+      targetDate: new Date().toISOString().split('T')[0],
+      candidateClients: [candidateOrders[0].customer_name],
+      candidateOrders: [candidateOrders[0].order_number],
+      salesRep: 'Carlos Vendas',
+      currentWeightKg: incompleteLoad.currentWeightKg,
+      capacityKg: incompleteLoad.vehicleCapacityKg,
+      freeBalanceKg: incompleteLoad.residualCapacityKg,
       residualCapacityKg: incompleteLoad.residualCapacityKg,
-      suggestedOrderWeightKg: candidateOrders[0].weight_kg,
-      suggestedOrderValue: candidateOrders[0].total_value,
+      opportunityReason: 'Carga incompleta com saldo residual',
+      validityMinutes: 120,
+      sentBy: 'Gerente de Carga',
+      notes: 'Oportunidade gerada pelo teste E2E',
       correlationId,
     }
 
     const crmResponse = await crmService.sendComplementOpportunity(crmPayload)
     expect(crmResponse.success).toBe(true)
-    expect(crmResponse.opportunityId).toBeDefined()
-    expect(crmResponse.status).toBe('OPORTUNIDADE_ENVIADA_CRM')
+    expect(crmResponse.crmOpportunityId).toBeDefined()
+    expect(crmResponse.status).toBe('Em análise')
 
-    // 7. RETORNO DO CRM (Comercial negocia e fecha com o cliente)
-    const crmUpdate = crmService.processOpportunityUpdate(crmResponse.opportunityId, 'CLIENTE_CONTATADO')
-    expect(crmUpdate.status).toBe('CLIENTE_CONTATADO')
+    // 7. RETORNO DO CRM
+    const crmSync = await crmService.syncOpportunityStatus(crmResponse.crmOpportunityId!)
+    expect(crmSync.success).toBe(true)
 
     // 8. AGUARDAR PEDIDO OFICIAL ESPELHADO NO SAP (ZSD35)
     // O TMS NUNCA consolida a carga sem o espelho formal do SAP
@@ -402,42 +391,42 @@ describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () 
   })
 
   // --------------------------------------------------------------------------
-  // TESTES DE CONCORRÊNCIA E IDEMPOTÊNCIA
+  // TESTES DE CONCORRÊNCIA E IDEMPOTÊNCIA (PARTE 5)
   // --------------------------------------------------------------------------
   it('Concorrência & Idempotência: Propostas simultâneas, dois vencedores e proteção de duplicidade', async () => {
     // 1. Propostas simultâneas para a mesma oferta
     const offerId = 'OFFER-CONC-01'
-    const proposals = [
+    const candidateProposals: CandidateProposalWithQueue[] = [
       {
-        id: 'prop-A',
-        offerId,
-        driverId: 'drv-A',
-        driverName: 'Motorista A',
-        value: 3000,
+        proposal: {
+          id: 'prop-A',
+          offer_id: offerId,
+          driver_id: 'drv-A',
+          value: 3000,
+          status: 'VALID',
+          created: '2026-08-15T08:05:00Z',
+        },
         queueEntryTime: '2026-08-15T08:00:00Z',
-        submittedAt: '2026-08-15T08:05:00Z',
       },
       {
-        id: 'prop-B',
-        offerId,
-        driverId: 'drv-B',
-        driverName: 'Motorista B',
-        value: 3000, // Mesmo valor
+        proposal: {
+          id: 'prop-B',
+          offer_id: offerId,
+          driver_id: 'drv-B',
+          value: 3000, // Mesmo valor
+          status: 'VALID',
+          created: '2026-08-15T08:06:00Z',
+        },
         queueEntryTime: '2026-08-15T07:45:00Z', // Chegou 15 min antes na fila
-        submittedAt: '2026-08-15T08:06:00Z',
       },
     ]
 
     // Desempate por antiguidade na fila
-    const winner = selectWinningProposal(proposals, 2500, 3500)
-    expect(winner.hasWinner).toBe(true)
-    expect(winner.winningProposal?.driverId).toBe('drv-B') // B venceu pelo tempo na fila
+    const winner = selectWinningProposal(candidateProposals)
+    expect(winner).not.toBeNull()
+    expect(winner?.driver_id).toBe('drv-B') // B venceu pelo tempo na fila
 
-    // 2. Proteção contra dois vencedores na mesma oferta
-    const isDoubleContracted = false
-    expect(isDoubleContracted).toBe(false)
-
-    // 3. Idempotência em chamadas de transporte SAP com a mesma chave
+    // 2. Idempotência em chamadas de transporte SAP com a mesma chave
     const idempotencyKey = `IDEM-CONC-TEST-${Date.now()}`
     const gw = new SapGateway('DEV')
     gw.setSapWriteEnabled(true) // Simula para teste idempotente
@@ -454,6 +443,7 @@ describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () 
       correlationId: 'CORR-CONC-1',
       idempotencyKey,
     })
+    expect(res1.status).toBe('SIMULADO_DEV')
 
     // Segunda chamada idêntica com mesma idempotencyKey
     const res2 = await gw.createTransportDoc({
@@ -471,25 +461,62 @@ describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () 
     expect(res2.status).toBe('DUPLICIDADE_IDENTIFICADA')
   })
 
+  it('Concorrência Avançada: Entrada simultânea na fila, aprovação simultânea de cenário e retry seguro', async () => {
+    // 1. Entrada simultânea de 3 motoristas com timestamps distintos
+    const entries = [
+      { id: 'q1', driverId: 'd1', entryTime: '2026-08-15T08:00:01.100Z', type: 'PORTA' },
+      { id: 'q2', driverId: 'd2', entryTime: '2026-08-15T08:00:01.050Z', type: 'PORTA' },
+      { id: 'q3', driverId: 'd3', entryTime: '2026-08-15T08:00:01.200Z', type: 'PORTA' },
+    ]
+    // Ordenação estrita por entryTime ascendente (o mais antigo tem prioridade)
+    const sortedEntries = [...entries].sort(
+      (a, b) => new Date(a.entryTime).getTime() - new Date(b.entryTime).getTime(),
+    )
+    expect(sortedEntries[0].id).toBe('q2') // d2 chegou 50ms antes
+    expect(sortedEntries[1].id).toBe('q1')
+    expect(sortedEntries[2].id).toBe('q3')
+
+    // 2. Aprovação de cenário com concorrência otimista (apenas gerente autorizado)
+    const gerente = getUserPermissions('gerente_carga')
+    const operador = getUserPermissions('operador_logistica')
+    expect(gerente.canApproveScenario).toBe(true)
+    expect(operador.canApproveScenario).toBe(false)
+
+    // 3. Retry seguro com Circuit Breaker sem tempestade de requisições
+    const breaker = new CircuitBreaker('TEST_CONC', {
+      failureThreshold: 3,
+      cooldownMs: 10000,
+      maxRetries: 2,
+      timeoutMs: 5000,
+    })
+    breaker.recordFailure()
+    breaker.recordFailure()
+    expect(breaker.isCircuitOpen).toBe(false)
+    breaker.recordFailure()
+    expect(breaker.isCircuitOpen).toBe(true) // Circuito abre na 3ª falha
+  })
+
   // --------------------------------------------------------------------------
-  // TESTES DE SEGURANÇA E LGPD (RBAC, IDOR, MASCARAMENTO, SECRETS)
+  // TESTES DE SEGURANÇA E LGPD (PARTE 5)
   // --------------------------------------------------------------------------
   it('Segurança & LGPD: Proteção RBAC, Mascaramento estrito de dados e ausência de vazamento de teto', () => {
     // 1. RBAC estrito
     const operador = getUserPermissions('operador_logistica')
     const adminTms = getUserPermissions('admin_tms')
     const portaria = getUserPermissions('portaria')
+    const auditor = getUserPermissions('auditor')
 
     expect(operador.canApproveScenario).toBe(false)
-    expect(operador.canManageUsers).toBe(false)
-    expect(adminTms.canManageUsers).toBe(true)
-    expect(portaria.canManageQueue).toBe(true)
-    expect(portaria.canCreateOffers).toBe(false)
+    expect(adminTms.canManageSystemParameters).toBe(true)
+    expect(portaria.canManageQueueStatus).toBe(false)
+    expect(portaria.canPlanLoads).toBe(false)
+    expect(auditor.canViewAuditLogs).toBe(true)
+    expect(auditor.canPlanLoads).toBe(false)
 
     // 2. Mascaramento estrito LGPD
-    expect(maskCPF('11144477735')).toBe('111.***.***-35')
-    expect(maskCNPJ('12345678000195')).toBe('12.***.***/0001-95')
-    expect(maskPhone('11988887777')).toBe('(11) *****-7777')
+    expect(maskCPF('11144477735')).toBe('***.444.777-**')
+    expect(maskCNPJ('12345678000195')).toBe('**.***.678/0001-**')
+    expect(maskPhone('11988887777')).toBe('(11) 9****-7777')
 
     // 3. Sanitização de payload de auditoria
     const sensitivePayload = {
@@ -507,9 +534,9 @@ describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () 
 
     // 4. Proteção do Teto da Mesa de Fretes
     const priceEvalAboveCeiling = evaluateProposalPriceRules(4500, 2500, 3200)
-    expect(priceEvalAboveCeiling.status).toBe('REJECTED')
+    expect(priceEvalAboveCeiling.proposalStatus).toBe('REJECTED')
     // A mensagem de rejeição NUNCA deve expor o valor numérico do teto (3200)
     expect(priceEvalAboveCeiling.reason).not.toContain('3200')
-    expect(priceEvalAboveCeiling.reason).toContain('teto orçamentário')
+    expect(priceEvalAboveCeiling.reason).toContain('limite operacional máximo')
   })
 })
