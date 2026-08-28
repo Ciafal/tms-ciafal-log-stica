@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T16:18:22.298Z",
+  "generatedAt": "2026-08-28T16:48:57.676Z",
   "collections": [
     {
       "name": "users",
@@ -1392,6 +1392,96 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "customer_tier",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sales_rep",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "segment",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "order_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "desired_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "production_forecast_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "item_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "material_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "balance_quantity",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unit",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "street_address",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "postal_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dest_latitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dest_longitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "address_validated",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -1500,6 +1590,913 @@
         "CREATE INDEX idx_proposals_driver ON freight_proposals (driver_id)",
         "CREATE INDEX idx_proposals_status ON freight_proposals (status)",
         "CREATE INDEX idx_proposals_created ON freight_proposals (created)"
+      ]
+    },
+    {
+      "name": "sap_stock_current",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "material_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "material_description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "plant",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "storage_location",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "batch",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "quantity",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "unit",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "weight_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "available_qty",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "reserved_qty",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "blocked_qty",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "read_timestamp",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "source",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_stock_material ON sap_stock_current (material_code)",
+        "CREATE INDEX idx_stock_plant ON sap_stock_current (plant)"
+      ]
+    },
+    {
+      "name": "pcp_production_orders",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "production_order_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "material_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "material_description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "line",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "quantity_planned",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "quantity_produced",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unit",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "weight_kg_planned",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "scheduled_date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "shift",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Programada", "Em Produção", "Reprogramada", "Concluída", "Cancelada"]
+        },
+        {
+          "name": "confidence_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "related_sales_order",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_pcp_material ON pcp_production_orders (material_code)",
+        "CREATE INDEX idx_pcp_date ON pcp_production_orders (scheduled_date)",
+        "CREATE INDEX idx_pcp_status ON pcp_production_orders (status)"
+      ]
+    },
+    {
+      "name": "stock_confirmation_requests",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "order_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "item_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "material_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "material_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "required_quantity",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "stock_informed",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unit",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requested_by",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "requester_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deadline",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assigned_to",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "response_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "confirmed_quantity",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "response_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Solicitada",
+            "Em análise",
+            "Confirmada",
+            "Confirmada parcialmente",
+            "Negada",
+            "Expirada"
+          ]
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_stock_req_order ON stock_confirmation_requests (order_number)",
+        "CREATE INDEX idx_stock_req_status ON stock_confirmation_requests (status)"
+      ]
+    },
+    {
+      "name": "credit_reassessment_requests",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "order_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "order_value",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "credit_limit",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_exposure",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requested_value",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "logistic_reason",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "related_load_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "desired_delivery_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "days_overdue",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requested_by",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "requester_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "financial_analyst",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "analyst_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approved_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "response_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Solicitada",
+            "Em análise",
+            "Aprovada",
+            "Aprovada parcialmente",
+            "Rejeitada",
+            "Expirada"
+          ]
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_credit_req_customer ON credit_reassessment_requests (customer_code)",
+        "CREATE INDEX idx_credit_req_order ON credit_reassessment_requests (order_number)",
+        "CREATE INDEX idx_credit_req_status ON credit_reassessment_requests (status)"
+      ]
+    },
+    {
+      "name": "load_simulation_scenarios",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "scenario_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "custom",
+            "max_occupancy",
+            "prioritize_overdue",
+            "lowest_cost",
+            "tomorrow_pcp",
+            "max_complement"
+          ]
+        },
+        {
+          "name": "classification",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["VIÁVEL", "VIÁVEL COM APROVAÇÃO", "NÃO VIÁVEL", "SIMULAÇÃO FUTURA"]
+        },
+        {
+          "name": "reasons",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "planned_date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "queue_group",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "selected_orders",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_sequence",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_weight_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "total_volume_m3",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_capacity_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "occupancy_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "orders_count",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customers_count",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "distance_km",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "duration_minutes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tolls_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tolls_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "antt_floor_value",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "antt_version",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estimated_freight_cost",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cost_per_ton",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "orders_total_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "blocked_credit_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "confirmed_stock_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "future_stock_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "overdue_orders_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complement_possible_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "routing_provider",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_address_validated",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "route_polyline",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_favorite",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["simulado", "aprovado", "descartado", "convertido_carga"]
+        },
+        {
+          "name": "generated_load_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_scen_itinerary ON load_simulation_scenarios (itinerary_code)",
+        "CREATE INDEX idx_scen_classification ON load_simulation_scenarios (classification)",
+        "CREATE INDEX idx_scen_status ON load_simulation_scenarios (status)"
+      ]
+    },
+    {
+      "name": "antt_rate_tables",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "table_version",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "resolution_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "effective_date_start",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "effective_date_end",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cargo_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Geral", "Granel Sólido", "Granel Líquido", "Frigorificada", "Perigosa"]
+        },
+        {
+          "name": "rates_json",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "source_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "registered_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_antt_version_cargo ON antt_rate_tables (table_version, cargo_type)",
+        "CREATE INDEX idx_antt_active ON antt_rate_tables (is_active)"
       ]
     }
   ]

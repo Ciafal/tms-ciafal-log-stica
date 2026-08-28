@@ -20,6 +20,10 @@ import { UsersRolesPage } from '@/pages/UsersRolesPage'
 import { TmsDashboard } from '@/pages/TmsDashboard'
 import { IntegrationsMonitorPage } from '@/pages/IntegrationsMonitorPage'
 import { LoadPlannerPage } from '@/pages/LoadPlannerPage'
+import { LoadRouterAndSimulatorPage } from '@/pages/LoadRouterAndSimulatorPage'
+import { SalesWalletPage } from '@/pages/SalesWalletPage'
+import { StockAndProductionPage } from '@/pages/StockAndProductionPage'
+import { AnttRatesPage } from '@/pages/AnttRatesPage'
 import { FutureProgrammingPage } from '@/pages/FutureProgrammingPage'
 import { ComplementCargosPage } from '@/pages/ComplementCargosPage'
 import { SapItinerariesPage } from '@/pages/SapItinerariesPage'
@@ -101,6 +105,30 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/tms/roteirizador-simulador"
+            element={
+              <Layout>
+                <LoadRouterAndSimulatorPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/carteira-pedidos"
+            element={
+              <Layout>
+                <SalesWalletPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/estoque-producao"
+            element={
+              <Layout>
+                <StockAndProductionPage />
+              </Layout>
+            }
+          />
+          <Route
             path="/tms/programacao-futura"
             element={
               <Layout>
@@ -151,14 +179,18 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/tms/tabela-antt"
+            element={
+              <Layout>
+                <AnttRatesPage />
+              </Layout>
+            }
+          />
+          <Route
             path="/tms/tabela-fretes"
             element={
               <Layout>
-                <StubModulePage
-                  title="Tabela de Fretes & ANTT"
-                  subtitle="Tabelas tarifárias, piso regulatório e faixas de negociação."
-                  moduleKey="tabela_fretes"
-                />
+                <AnttRatesPage />
               </Layout>
             }
           />

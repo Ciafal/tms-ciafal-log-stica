@@ -134,6 +134,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: true,
         },
         {
+          title: 'Roteirizador / Simulador',
+          path: '/tms/roteirizador-simulador',
+          badge: 'Sprint 3',
+          badgeColor: 'bg-emerald-600',
+          show: true,
+        },
+        {
           title: 'Programação Futura',
           path: '/tms/programacao-futura',
           show: true,
@@ -143,6 +150,20 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           path: '/tms/complemento-cargas',
           badge: 'CRM',
           badgeColor: 'bg-purple-600',
+          show: true,
+        },
+        {
+          title: 'Carteira (SAP ZSD35)',
+          path: '/tms/carteira-pedidos',
+          badge: 'Oficial',
+          badgeColor: 'bg-[#005596]',
+          show: true,
+        },
+        {
+          title: 'Estoque & Produção',
+          path: '/tms/estoque-producao',
+          badge: 'MB52 + PCP',
+          badgeColor: 'bg-sky-600',
           show: true,
         },
         {
@@ -174,9 +195,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: true,
         },
         {
-          title: 'Tabela de Fretes & ANTT',
-          path: '/tms/tabela-fretes',
-          inDev: true,
+          title: 'Tabela ANTT Oficial',
+          path: '/tms/tabela-antt',
+          badge: 'Oficial',
+          badgeColor: 'bg-[#005596]',
           show: true,
         },
         {

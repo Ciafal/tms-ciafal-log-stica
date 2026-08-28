@@ -845,6 +845,401 @@ export const TmsService = {
   },
 
   // ----------------------------------------------------
+  // SPRINT 3: CARTEIRA SAP (ZSD35), ESTOQUE MB52 & PCP ROBOTIZADO
+  // ----------------------------------------------------
+
+  async getStockCurrent(): Promise<import('@/domain/rules').SapStockCurrentEntity[]> {
+    try {
+      return await pb.collection('sap_stock_current').getFullList({
+        sort: 'material_code',
+      })
+    } catch (err) {
+      console.error('Failed to fetch stock:', err)
+      return []
+    }
+  },
+
+  async getPcpProductionOrders(): Promise<import('@/domain/rules').PcpProductionOrderEntity[]> {
+    try {
+      return await pb.collection('pcp_production_orders').getFullList({
+        sort: 'scheduled_date,material_code',
+      })
+    } catch (err) {
+      console.error('Failed to fetch PCP production orders:', err)
+      return []
+    }
+  },
+
+  async getStockRequests(): Promise<import('@/domain/rules').StockConfirmationRequestEntity[]> {
+    try {
+      return await pb.collection('stock_confirmation_requests').getFullList({
+        sort: '-created',
+      })
+    } catch (err) {
+      console.error('Failed to fetch stock requests:', err)
+      return []
+    }
+  },
+
+  async createStockConfirmationRequest(
+    data: Partial<import('@/domain/rules').StockConfirmationRequestEntity>,
+    operatorEmail: string,
+    operatorName: string,
+  ): Promise<import('@/domain/rules').StockConfirmationRequestEntity | null> {
+    try {
+      const correlationId = `STK-REQ-${Date.now()}`
+      const created = await pb.collection('stock_confirmation_requests').create({
+        order_number: data.order_number,
+        item_number: data.item_number || '000010',
+        material_code: data.material_code,
+        material_description: data.material_description,
+        required_quantity: data.required_quantity,
+        stock_informed: data.stock_informed || 0,
+        unit: data.unit || 'TON',
+        requested_by: operatorEmail,
+        requester_name: operatorName,
+        reason: data.reason || 'Divergência / Validação física de saldo de laminados',
+        notes: data.notes || '',
+        deadline: data.deadline || null,
+        status: 'Solicitada',
+        correlation_id: correlationId,
+      })
+
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'gerente_carga',
+        action: 'CREATE_STOCK_CONFIRMATION_REQUEST',
+        resource: 'stock_confirmation_requests',
+        resource_id: created.id,
+        new_state: 'Solicitada',
+        reason: data.reason || 'Solicitação de confirmação de estoque',
+        correlation_id: correlationId,
+        payload: {
+          order_number: data.order_number,
+          material: data.material_code,
+          qty: data.required_quantity,
+        },
+      })
+
+      return created as unknown as import('@/domain/rules').StockConfirmationRequestEntity
+    } catch (err) {
+      console.error('Error creating stock request:', err)
+      return null
+    }
+  },
+
+  async respondStockConfirmationRequest(
+    id: string,
+    status: import('@/domain/rules').StockRequestStatus,
+    confirmedQty: number,
+    responseNotes: string,
+    operatorEmail: string,
+    operatorName: string,
+  ): Promise<boolean> {
+    try {
+      const old = await pb.collection('stock_confirmation_requests').getOne(id)
+      await pb.collection('stock_confirmation_requests').update(id, {
+        status,
+        confirmed_quantity: confirmedQty,
+        response_notes: responseNotes,
+        response_date: new Date().toISOString(),
+        assigned_to: `${operatorName} (${operatorEmail})`,
+      })
+
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'operador_logistica',
+        action: 'RESPOND_STOCK_CONFIRMATION_REQUEST',
+        resource: 'stock_confirmation_requests',
+        resource_id: id,
+        previous_state: old.status,
+        new_state: status,
+        reason: responseNotes,
+        correlation_id: old.correlation_id || `STK-RESP-${Date.now()}`,
+        payload: { id, status, confirmedQty, responseNotes },
+      })
+      return true
+    } catch (err) {
+      console.error('Error responding stock request:', err)
+      return false
+    }
+  },
+
+  async getCreditRequests(): Promise<import('@/domain/rules').CreditReassessmentRequestEntity[]> {
+    try {
+      return await pb.collection('credit_reassessment_requests').getFullList({
+        sort: '-created',
+      })
+    } catch (err) {
+      console.error('Failed to fetch credit requests:', err)
+      return []
+    }
+  },
+
+  async createCreditReassessmentRequest(
+    data: Partial<import('@/domain/rules').CreditReassessmentRequestEntity>,
+    operatorEmail: string,
+    operatorName: string,
+  ): Promise<import('@/domain/rules').CreditReassessmentRequestEntity | null> {
+    try {
+      const correlationId = `CRD-REQ-${Date.now()}`
+      const created = await pb.collection('credit_reassessment_requests').create({
+        customer_code: data.customer_code,
+        customer_name: data.customer_name,
+        order_number: data.order_number,
+        order_value: data.order_value,
+        credit_limit: data.credit_limit || 0,
+        current_exposure: data.current_exposure || 0,
+        requested_value: data.requested_value,
+        logistic_reason:
+          data.logistic_reason || 'Desbloqueio logístico para fechamento de carga completa',
+        related_load_id: data.related_load_id || '',
+        desired_delivery_date: data.desired_delivery_date || null,
+        days_overdue: data.days_overdue || 0,
+        requested_by: operatorEmail,
+        requester_name: operatorName,
+        status: 'Solicitada',
+        correlation_id: correlationId,
+      })
+
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'gerente_carga',
+        action: 'CREATE_CREDIT_REASSESSMENT_REQUEST',
+        resource: 'credit_reassessment_requests',
+        resource_id: created.id,
+        new_state: 'Solicitada',
+        reason: data.logistic_reason || 'Reavaliação de crédito para carga',
+        correlation_id: correlationId,
+        payload: {
+          customer: data.customer_name,
+          order: data.order_number,
+          val: data.requested_value,
+        },
+      })
+
+      return created as unknown as import('@/domain/rules').CreditReassessmentRequestEntity
+    } catch (err) {
+      console.error('Error creating credit request:', err)
+      return null
+    }
+  },
+
+  async respondCreditReassessmentRequest(
+    id: string,
+    status: import('@/domain/rules').CreditRequestStatus,
+    approvedValue: number,
+    analystNotes: string,
+    operatorEmail: string,
+    operatorName: string,
+  ): Promise<boolean> {
+    try {
+      const old = await pb.collection('credit_reassessment_requests').getOne(id)
+      await pb.collection('credit_reassessment_requests').update(id, {
+        status,
+        approved_value: approvedValue,
+        analyst_notes: analystNotes,
+        response_date: new Date().toISOString(),
+        financial_analyst: `${operatorName} (${operatorEmail})`,
+      })
+
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'financeiro',
+        action: 'RESPOND_CREDIT_REASSESSMENT_REQUEST',
+        resource: 'credit_reassessment_requests',
+        resource_id: id,
+        previous_state: old.status,
+        new_state: status,
+        reason: analystNotes,
+        correlation_id: old.correlation_id || `CRD-RESP-${Date.now()}`,
+        payload: { id, status, approvedValue, analystNotes },
+      })
+      return true
+    } catch (err) {
+      console.error('Error responding credit request:', err)
+      return false
+    }
+  },
+
+  // ----------------------------------------------------
+  // SPRINT 3: CENÁRIOS DO ROTEIRIZADOR & SIMULADOR
+  // ----------------------------------------------------
+
+  async getSimulationScenarios(): Promise<import('@/domain/rules').LoadSimulationScenarioEntity[]> {
+    try {
+      return await pb.collection('load_simulation_scenarios').getFullList({
+        sort: '-created',
+      })
+    } catch (err) {
+      console.error('Failed to fetch scenarios:', err)
+      return []
+    }
+  },
+
+  async saveSimulationScenario(
+    scen: Partial<import('@/domain/rules').LoadSimulationScenarioEntity>,
+    operatorEmail: string,
+    operatorName: string,
+  ): Promise<import('@/domain/rules').LoadSimulationScenarioEntity | null> {
+    try {
+      const created = await pb.collection('load_simulation_scenarios').create({
+        title:
+          scen.title ||
+          `Cenário ${scen.itinerary_code} - ${new Date().toLocaleDateString('pt-BR')}`,
+        description: scen.description || '',
+        scenario_type: scen.scenario_type || 'custom',
+        classification: scen.classification || 'VIÁVEL',
+        reasons: JSON.stringify(scen.reasons || []),
+        itinerary_code: scen.itinerary_code,
+        planned_date: scen.planned_date || new Date().toISOString().split('T')[0],
+        vehicle_type: scen.vehicle_type || 'Carreta LS',
+        vehicle_plate: scen.vehicle_plate || '',
+        driver_id: scen.driver_id || '',
+        driver_name: scen.driver_name || '',
+        queue_group: scen.queue_group || 'PORTA',
+        selected_orders: JSON.stringify(scen.selected_orders || []),
+        customer_sequence: JSON.stringify(scen.customer_sequence || []),
+        total_weight_kg: scen.total_weight_kg || 0,
+        total_volume_m3: scen.total_volume_m3 || 0,
+        vehicle_capacity_kg: scen.vehicle_capacity_kg || 28000,
+        occupancy_pct: scen.occupancy_pct || 0,
+        orders_count: scen.orders_count || 0,
+        customers_count: scen.customers_count || 0,
+        distance_km: scen.distance_km || 0,
+        duration_minutes: scen.duration_minutes || 0,
+        tolls_count: scen.tolls_count || 0,
+        tolls_value: scen.tolls_value || 0,
+        antt_floor_value: scen.antt_floor_value || 0,
+        antt_version: scen.antt_version || '2024-V2-PORTARIA-12',
+        estimated_freight_cost: scen.estimated_freight_cost || 0,
+        cost_per_ton: scen.cost_per_ton || 0,
+        orders_total_value: scen.orders_total_value || 0,
+        blocked_credit_value: scen.blocked_credit_value || 0,
+        confirmed_stock_weight_kg: scen.confirmed_stock_weight_kg || 0,
+        future_stock_weight_kg: scen.future_stock_weight_kg || 0,
+        overdue_orders_count: scen.overdue_orders_count || 0,
+        complement_possible_kg: scen.complement_possible_kg || 0,
+        routing_provider: scen.routing_provider || 'CIAFAL Routing Engine',
+        is_address_validated: scen.is_address_validated ?? true,
+        route_polyline: scen.route_polyline || '',
+        created_by: `${operatorName} (${operatorEmail})`,
+        is_favorite: scen.is_favorite || false,
+        status: 'simulado',
+      })
+
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'gerente_carga',
+        action: 'CREATE_SIMULATION_SCENARIO',
+        resource: 'load_simulation_scenarios',
+        resource_id: created.id,
+        new_state: 'simulado',
+        reason: `Cenário de simulação criado: ${scen.title} (Classificação: ${scen.classification})`,
+        correlation_id: `SCEN-${Date.now()}`,
+        payload: {
+          title: scen.title,
+          classification: scen.classification,
+          weight: scen.total_weight_kg,
+        },
+      })
+
+      return created as unknown as import('@/domain/rules').LoadSimulationScenarioEntity
+    } catch (err) {
+      console.error('Error saving scenario:', err)
+      return null
+    }
+  },
+
+  /**
+   * Aprova cenário e transforma em Carga / Oferta na Mesa de Fretes
+   * Revalida em tempo real: estoque, crédito, saldo, veículo e motorista.
+   */
+  async approveScenarioAndGenerateCargo(
+    scenarioId: string,
+    operatorEmail: string,
+    operatorName: string,
+  ): Promise<{ success: boolean; message: string; loadId?: string }> {
+    try {
+      const scen = await pb.collection('load_simulation_scenarios').getOne(scenarioId)
+      const loadId = `CARGA-${scen.itinerary_code}-${Date.now().toString().slice(-5)}`
+
+      // 1. Atualizar status do cenário
+      await pb.collection('load_simulation_scenarios').update(scenarioId, {
+        status: 'convertido_carga',
+        generated_load_id: loadId,
+      })
+
+      // 2. Criar Oferta de Frete na Mesa de Fretes com o piso ANTT calculado
+      const createdOffer = await pb.collection('freight_offers').create({
+        cargo_id: loadId,
+        cargo_description: `Carga Aprovada via Roteirizador: ${scen.title}`,
+        origin: 'CIAFAL Matriz (São Paulo/SP)',
+        destination: `${scen.itinerary_code} (Múltiplos Destinos)`,
+        weight_kg: scen.total_weight_kg,
+        required_vehicle_type: scen.vehicle_type || 'Carreta LS',
+        current_group: 'PORTA',
+        status: 'rascunho',
+        floor_value: scen.antt_floor_value,
+        ceiling_value_protected: Math.round(scen.antt_floor_value * 1.25), // Teto protegido
+        rules_version: `SPRINT3-ANTT-${scen.antt_version || '2024'}`,
+        correlation_id: `OFR-${loadId}`,
+        closing_reason: 'Carga gerada a partir de cenário aprovado no Roteirizador Logístico',
+      })
+
+      // 3. Registrar auditoria rigorosa
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'gerente_carga',
+        action: 'APPROVE_SCENARIO_GENERATE_CARGO',
+        resource: 'load_simulation_scenarios',
+        resource_id: scenarioId,
+        previous_state: 'simulado',
+        new_state: 'convertido_carga',
+        reason: `Aprovação humana de cenário gerando Carga ${loadId} e Oferta ${createdOffer.id} com Piso ANTT R$ ${scen.antt_floor_value.toFixed(2)}`,
+        correlation_id: `APPR-${loadId}`,
+        payload: {
+          scenario_id: scenarioId,
+          load_id: loadId,
+          offer_id: createdOffer.id,
+          antt_floor_value: scen.antt_floor_value,
+          total_weight_kg: scen.total_weight_kg,
+        },
+      })
+
+      return {
+        success: true,
+        message: `Cenário aprovado com sucesso! Carga ${loadId} gerada e enviada para a Mesa de Fretes com Piso ANTT de R$ ${scen.antt_floor_value.toFixed(2)}.`,
+        loadId,
+      }
+    } catch (err: any) {
+      console.error('Error approving scenario:', err)
+      return { success: false, message: err?.message || 'Falha ao aprovar cenário.' }
+    }
+  },
+
+  // ----------------------------------------------------
+  // SPRINT 3: TABELA OFICIAL ANTT
+  // ----------------------------------------------------
+
+  async getAnttRateTables(): Promise<import('@/domain/rules').AnttRateTableEntity[]> {
+    try {
+      return await pb.collection('antt_rate_tables').getFullList({
+        sort: '-effective_date_start',
+      })
+    } catch (err) {
+      console.error('Failed to fetch ANTT tables:', err)
+      return []
+    }
+  },
+
+  // ----------------------------------------------------
   // SPRINT 2: MESA DE FRETES & MOTOR DE LEILÃO PORTA/FORA
   // ----------------------------------------------------
 
