@@ -50,11 +50,35 @@ export interface RouteCalculatedResult {
   timestamp: string
 }
 
+export type RoutingHomologationStatus = 'Em avaliação' | 'POC' | 'Homologado' | 'Rejeitado'
+
+export interface RoutingProviderFeatureEvaluation {
+  id: string
+  name: string
+  coverageBrazil: 'Disponível' | 'Não disponível' | 'A confirmar'
+  heavyVehicleRouting: 'Disponível' | 'Não disponível' | 'A confirmar'
+  truckRestrictions: 'Disponível' | 'Não disponível' | 'A confirmar'
+  alternativeRoutes: 'Disponível' | 'Não disponível' | 'A confirmar'
+  geocodingPrecision: 'Disponível' | 'Não disponível' | 'A confirmar'
+  distanceMatrix: 'Disponível' | 'Não disponível' | 'A confirmar'
+  realTimeTraffic: 'Disponível' | 'Não disponível' | 'A confirmar'
+  costEstimate: string
+  slaPct: string
+  requestLimit: string
+  supportLevel: string
+  tollSupport: 'Disponível' | 'Não disponível' | 'A confirmar'
+  lgpdCompliance: 'Disponível' | 'Não disponível' | 'A confirmar'
+  externalDataTransfer: 'Sim' | 'Não'
+  homologationStatus: RoutingHomologationStatus
+}
+
 export interface RoutingProviderAdapter {
   readonly id: string
   readonly name: string
   readonly type: 'GOOGLE' | 'HERE' | 'MAPBOX' | 'OSRM'
   isConfigured(): boolean
+  getHomologationStatus(): RoutingHomologationStatus
+  setHomologationStatus(status: RoutingHomologationStatus): void
   geocodeAddress(rawAddress: string, city: string, uf: string): Promise<GeocodedAddress>
   calculateRoute(
     origin: { latitude: number; longitude: number; name?: string },
@@ -108,9 +132,18 @@ export class GoogleMapsAdapter implements RoutingProviderAdapter {
   readonly type = 'GOOGLE'
   private apiKey = ''
   private circuitBreaker = new CircuitBreaker('GOOGLE_MAPS')
+  private homologationStatus: RoutingHomologationStatus = 'Homologado'
 
   constructor(apiKey = '') {
     this.apiKey = apiKey
+  }
+
+  getHomologationStatus(): RoutingHomologationStatus {
+    return this.homologationStatus
+  }
+
+  setHomologationStatus(st: RoutingHomologationStatus) {
+    this.homologationStatus = st
   }
 
   isConfigured(): boolean {
@@ -240,9 +273,18 @@ export class HereMapsAdapter implements RoutingProviderAdapter {
   readonly name = 'HERE Technologies (Truck Routing & Geocoding)'
   readonly type = 'HERE'
   private apiKey = ''
+  private homologationStatus: RoutingHomologationStatus = 'POC'
 
   constructor(apiKey = '') {
     this.apiKey = apiKey
+  }
+
+  getHomologationStatus(): RoutingHomologationStatus {
+    return this.homologationStatus
+  }
+
+  setHomologationStatus(st: RoutingHomologationStatus) {
+    this.homologationStatus = st
   }
 
   isConfigured(): boolean {
@@ -266,9 +308,18 @@ export class MapboxAdapter implements RoutingProviderAdapter {
   readonly name = 'Mapbox Directions & Geocoding'
   readonly type = 'MAPBOX'
   private accessToken = ''
+  private homologationStatus: RoutingHomologationStatus = 'Em avaliação'
 
   constructor(token = '') {
     this.accessToken = token
+  }
+
+  getHomologationStatus(): RoutingHomologationStatus {
+    return this.homologationStatus
+  }
+
+  setHomologationStatus(st: RoutingHomologationStatus) {
+    this.homologationStatus = st
   }
 
   isConfigured(): boolean {
@@ -292,9 +343,18 @@ export class OsrmAdapter implements RoutingProviderAdapter {
   readonly name = 'OSRM / OpenStreetMap (Open Source Self-Hosted)'
   readonly type = 'OSRM'
   private serverUrl = ''
+  private homologationStatus: RoutingHomologationStatus = 'Em avaliação'
 
   constructor(url = '') {
     this.serverUrl = url
+  }
+
+  getHomologationStatus(): RoutingHomologationStatus {
+    return this.homologationStatus
+  }
+
+  setHomologationStatus(st: RoutingHomologationStatus) {
+    this.homologationStatus = st
   }
 
   isConfigured(): boolean {

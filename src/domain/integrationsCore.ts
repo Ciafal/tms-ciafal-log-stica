@@ -12,6 +12,15 @@ export type IntegrationStatus =
   | 'Desabilitado'
   | 'Simulação'
 
+export type HomologationStatus =
+  | 'Não iniciada'
+  | 'Configuração pendente'
+  | 'Pronta para teste'
+  | 'Em homologação'
+  | 'Homologada'
+  | 'Bloqueada'
+  | 'Produção'
+
 export interface IntegrationHealthMetric {
   id: string
   name: string
@@ -19,6 +28,11 @@ export interface IntegrationHealthMetric {
   protocol: string
   environment: IntegrationEnvironment
   status: IntegrationStatus
+  maskedEndpointOrDest: string
+  isContractConfigured: boolean
+  isCredentialConfigured: boolean
+  isConnectionTested: boolean
+  lastTestTimestamp?: string
   lastCommunication?: string
   lastSuccess?: string
   lastError?: string
@@ -29,6 +43,8 @@ export interface IntegrationHealthMetric {
   contractVersion: string
   isCircuitOpen: boolean
   failureCount: number
+  technicalOwner: string
+  homologationStatus: HomologationStatus
   description: string
   blueprintStatus:
     | 'Confirmado'
@@ -37,6 +53,22 @@ export interface IntegrationHealthMetric {
     | 'Será Z'
     | 'Em desenvolvimento'
     | 'Homologado'
+}
+
+export interface DeadLetterEntry {
+  id: string
+  integrationId: string
+  correlationId: string
+  idempotencyKey: string
+  direction: 'INBOUND' | 'OUTBOUND'
+  endpointOrRfc: string
+  payloadMasked: Record<string, any>
+  attempts: number
+  maxAttempts: number
+  lastError: string
+  nextAttempt?: string
+  createdAt: string
+  status: 'QUEUED' | 'RETRYING' | 'DEAD_LETTER' | 'RESOLVED'
 }
 
 export interface CorrelationContext {

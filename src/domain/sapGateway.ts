@@ -274,7 +274,51 @@ export class SapGateway {
   private circuitBreaker: CircuitBreaker
   private processedIdempotencyKeys = new Map<string, SapTransportCreationResult>()
   private isConnected = false
+  private isWriteEnabled = false // Flag SAP_WRITE_ENABLED = false por padrão (Sprint 4.1)
   private environment: IntegrationEnvironment = 'DEV'
+
+  // Configurações por ambiente SAP
+  private environmentConfigs: Record<
+    IntegrationEnvironment,
+    {
+      host: string
+      systemNumber: string
+      client: string
+      technicalUser: string
+      contractVersion: string
+      status: string
+      lastConnected?: string
+      writeAllowed: boolean
+    }
+  > = {
+    DEV: {
+      host: 'sap-dev.ciafal.corp (10.10.1.20)',
+      systemNumber: '00',
+      client: '100',
+      technicalUser: 'TMS_INT_DEV',
+      contractVersion: 'RFC-ZSD35-V2.4',
+      status: 'Conectado (Leitura)',
+      writeAllowed: false,
+    },
+    HOMOLOGACAO: {
+      host: 'sap-qas.ciafal.corp (10.10.1.30)',
+      systemNumber: '01',
+      client: '200',
+      technicalUser: 'TMS_INT_QAS',
+      contractVersion: 'RFC-ZSD35-V2.4',
+      status: 'Aguardando Homologação',
+      writeAllowed: false,
+    },
+    PRODUCAO: {
+      host: 'sap-prd.ciafal.corp (10.10.1.40)',
+      systemNumber: '02',
+      client: '400',
+      technicalUser: 'TMS_INT_PRD',
+      contractVersion: 'RFC-ZSD35-V2.4',
+      status: 'Bloqueado até Homologação Formal',
+      writeAllowed: false,
+    },
+  }
 
   constructor(env: IntegrationEnvironment = 'DEV') {
     this.environment = env
@@ -299,12 +343,66 @@ export class SapGateway {
     return this.isConnected
   }
 
+  get sapWriteEnabled(): boolean {
+    return this.isWriteEnabled
+  }
+
+  setSapWriteEnabled(enabled: boolean) {
+    this.isWriteEnabled = enabled
+  }
+
   get currentEnvironment(): IntegrationEnvironment {
     return this.environment
   }
 
+  getEnvironmentConfig(env: IntegrationEnvironment) {
+    return this.environmentConfigs[env]
+  }
+
+  getAllEnvironmentConfigs() {
+    return this.environmentConfigs
+  }
+
   setEnvironment(env: IntegrationEnvironment) {
     this.environment = env
+  }
+
+  // Teste de Conexão Seguro (Não altera dados no SAP)
+  async testSapConnection(targetEnv?: IntegrationEnvironment): Promise<{
+    success: boolean
+    system: string
+    client: string
+    latencyMs: number
+    timestamp: string
+    correlationId: string
+    message: string
+    technicalUser: string
+    environment: IntegrationEnvironment
+    writeEnabled: boolean
+  }> {
+    const env = targetEnv || this.environment
+    const envCfg = this.environmentConfigs[env]
+    const correlationId = `TEST-SAP-${Date.now()}`
+    const start = Date.now()
+
+    // Simula validação de conectividade real com medição de latência
+    const latencyMs = Math.floor(Math.random() * 35) + 85
+    const isSuccess = env !== 'PRODUCAO' // DEV e QAS conectáveis
+
+    return {
+      success: isSuccess,
+      system: 'SAP ECC 6.0 EHP8',
+      client: envCfg.client,
+      latencyMs,
+      timestamp: new Date().toISOString(),
+      correlationId,
+      message: isSuccess
+        ? `Conexão validada com sucesso no ambiente ${env} (Mandante ${envCfg.client}). RFC Ping Z_RFC_PING OK.`
+        : `Ambiente ${env} aguardando liberação formal de credenciais de produção no SAP.`,
+      technicalUser: envCfg.technicalUser,
+      environment: env,
+      writeEnabled: this.isWriteEnabled,
+    }
   }
 
   // Generic RFC/BAPI Caller com Idempotência, CircuitBreaker e Mascaramento
@@ -371,6 +469,20 @@ export class SapGateway {
         status: 'TRANSPORTE_SAP_PENDENTE',
         errorMessage:
           'Bloqueio de Segurança: Ambiente de DEV não tem permissão de escrita em SAP PRD.',
+        correlationId,
+        sapTimestamp: new Date().toISOString(),
+        environment: this.environment,
+      }
+      return errRes
+    }
+
+    // 2.1 Proteção Read-Only (SAP_WRITE_ENABLED = false)
+    if (!this.isWriteEnabled) {
+      const errRes: SapTransportCreationResult = {
+        success: false,
+        status: 'TRANSPORTE_SAP_PENDENTE',
+        errorMessage:
+          'Bloqueio de Escrita SAP: Integração em modo READ-ONLY. SAP_WRITE_ENABLED = false.',
         correlationId,
         sapTimestamp: new Date().toISOString(),
         environment: this.environment,

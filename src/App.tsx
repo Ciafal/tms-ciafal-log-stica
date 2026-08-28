@@ -27,6 +27,16 @@ import { AnttRatesPage } from '@/pages/AnttRatesPage'
 import { FutureProgrammingPage } from '@/pages/FutureProgrammingPage'
 import { ComplementCargosPage } from '@/pages/ComplementCargosPage'
 import { SapItinerariesPage } from '@/pages/SapItinerariesPage'
+import { SapConsultingChecklistPage } from '@/pages/SapConsultingChecklistPage'
+import { SapReceivedDataPage } from '@/pages/SapReceivedDataPage'
+import { SapReconciliationPage } from '@/pages/SapReconciliationPage'
+import { PcpContractPage } from '@/pages/PcpContractPage'
+import { CrmContractPage } from '@/pages/CrmContractPage'
+import { RoutingProvidersAdminPage } from '@/pages/RoutingProvidersAdminPage'
+import { TollProvidersAdminPage } from '@/pages/TollProvidersAdminPage'
+import { AnttOfficialSourcePage } from '@/pages/AnttOfficialSourcePage'
+import { TelegramIntegrationPage } from '@/pages/TelegramIntegrationPage'
+import { ProductionReadinessPage } from '@/pages/ProductionReadinessPage'
 import { SecurityLgpdPage } from '@/pages/SecurityLgpdPage'
 import { StubModulePage } from '@/pages/StubModulePage'
 import NotFound from '@/pages/NotFound'
@@ -287,7 +297,7 @@ export const App: React.FC = () => {
             }
           />
 
-          {/* 6. INTEGRAÇÕES */}
+          {/* 6. INTEGRAÇÕES & HOMOLOGAÇÃO TÉCNICA (SPRINT 4.1) */}
           <Route
             path="/tms/integracao-sap"
             element={
@@ -297,16 +307,42 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/tms/sap-consultoria"
+            element={
+              <Layout>
+                <SapConsultingChecklistPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/sap-dados"
+            element={
+              <Layout>
+                <SapReceivedDataPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/sap-reconciliacao"
+            element={
+              <Layout>
+                <SapReconciliationPage />
+              </Layout>
+            }
+          />
+          <Route
             path="/tms/integracao-pcp"
             element={
               <Layout>
-                <StubModulePage
-                  title="PCP Robotizado (Automação Industrial)"
-                  subtitle="Integração de saldo de laminados e programação de produção."
-                  moduleKey="pcp"
-                  statusText="Integração Preparada"
-                  statusColor="bg-blue-600"
-                />
+                <PcpContractPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/pcp-contrato"
+            element={
+              <Layout>
+                <PcpContractPage />
               </Layout>
             }
           />
@@ -314,13 +350,23 @@ export const App: React.FC = () => {
             path="/tms/integracao-crm"
             element={
               <Layout>
-                <StubModulePage
-                  title="CRM 360° (Gestão Comercial)"
-                  subtitle="Disparo de oportunidades logísticas e alertas de complemento de carga."
-                  moduleKey="crm"
-                  statusText="Integração Preparada"
-                  statusColor="bg-emerald-600"
-                />
+                <CrmContractPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/crm-contrato"
+            element={
+              <Layout>
+                <CrmContractPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/antt-fonte-oficial"
+            element={
+              <Layout>
+                <AnttOfficialSourcePage />
               </Layout>
             }
           />
@@ -328,7 +374,7 @@ export const App: React.FC = () => {
             path="/tms/integracao-telegram"
             element={
               <Layout>
-                <IntegrationsMonitorPage />
+                <TelegramIntegrationPage />
               </Layout>
             }
           />
@@ -420,6 +466,30 @@ export const App: React.FC = () => {
           />
 
           {/* 8. ADMINISTRAÇÃO */}
+          <Route
+            path="/tms/providers-rota"
+            element={
+              <Layout>
+                <RoutingProvidersAdminPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/providers-pedagio"
+            element={
+              <Layout>
+                <TollProvidersAdminPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/readiness-producao"
+            element={
+              <Layout>
+                <ProductionReadinessPage />
+              </Layout>
+            }
+          />
           <Route
             path="/tms/parametros"
             element={

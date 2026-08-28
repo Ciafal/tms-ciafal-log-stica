@@ -26,6 +26,12 @@ import {
   ChevronRight,
   ShieldAlert,
   Search,
+  Lock,
+  EyeOff,
+  Download,
+  CheckSquare,
+  ArrowRightLeft,
+  XCircle,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -40,7 +46,11 @@ import {
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { TmsService } from '@/services/tmsService'
-import { IntegrationHealthMetric, IntegrationLogEntry } from '@/domain/integrationsCore'
+import {
+  IntegrationHealthMetric,
+  IntegrationLogEntry,
+  HomologationStatus,
+} from '@/domain/integrationsCore'
 import { routingServiceManager } from '@/domain/routingAdapters'
 import { anttEngine } from '@/domain/anttAndTollEngine'
 import { sapGateway } from '@/domain/sapGateway'
@@ -55,7 +65,11 @@ export const IntegrationsMonitorPage: React.FC = () => {
   const [lastCheck, setLastCheck] = useState<Date>(new Date())
   const [activeTab, setActiveTab] = useState('hub')
   const [selectedMetric, setSelectedMetric] = useState<IntegrationHealthMetric | null>(null)
-  const [activeRoutingProvider, setActiveRoutingProvider] = useState(routingServiceManager.activeId)
+  const [isTestingSap, setIsTestingSap] = useState(false)
+  const [sapTestResult, setSapTestResult] = useState<any>(null)
+  const [selectedEnvForTest, setSelectedEnvForTest] = useState<'DEV' | 'HOMOLOGACAO' | 'PRODUCAO'>(
+    'DEV',
+  )
 
   const loadData = async () => {
     try {
@@ -85,14 +99,24 @@ export const IntegrationsMonitorPage: React.FC = () => {
     loadData()
   }, [])
 
-  const handleSelectRoutingProvider = (provId: string) => {
-    routingServiceManager.setActiveProvider(provId)
-    setActiveRoutingProvider(provId)
-    toast({
-      title: 'Provedor de Roteirização Atualizado',
-      description: `O TMS agora utilizará ${routingServiceManager.getActiveAdapter().name} para cálculo de distâncias.`,
-    })
-    loadData()
+  const handleTestSapConnection = async () => {
+    setIsTestingSap(true)
+    try {
+      const result = await sapGateway.testSapConnection(selectedEnvForTest)
+      setSapTestResult(result)
+      toast({
+        title: result.success ? 'Conexão SAP Validada' : 'Aviso Conexão SAP',
+        description: result.message,
+      })
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Falha no teste de conexão SAP',
+        description: err?.message || 'Erro ao comunicar com o servidor SAP ECC.',
+      })
+    } finally {
+      setIsTestingSap(false)
+    }
   }
 
   const handleRetryLog = async (logId: string) => {
@@ -112,52 +136,96 @@ export const IntegrationsMonitorPage: React.FC = () => {
     }
   }
 
+  const handleExportBlueprint = (format: 'CSV' | 'XLSX' | 'PDF') => {
+    if (format === 'PDF') {
+      window.print()
+      return
+    }
+
+    const headers = [
+      'ID',
+      'Processo TMS',
+      'Fonte SAP',
+      'Tipo',
+      'Objeto SAP',
+      'Campo SAP',
+      'Campo TMS',
+      'Obrigatorio',
+      'Transformacao',
+      'Direcao',
+      'Frequencia',
+      'Status',
+    ]
+
+    const rows = blueprint.map((b) => [
+      b.id,
+      `"${(b.process_name || '').replace(/"/g, '""')}"`,
+      `"${(b.origin_system || '').replace(/"/g, '""')}"`,
+      `"${(b.object_type || b.integration_type || '').replace(/"/g, '""')}"`,
+      `"${(b.sap_object || '').replace(/"/g, '""')}"`,
+      `"${(b.sap_field || '').replace(/"/g, '""')}"`,
+      `"${(b.tms_field || '').replace(/"/g, '""')}"`,
+      b.is_mandatory ? 'SIM' : 'NAO',
+      `"${(b.transformation || '').replace(/"/g, '""')}"`,
+      b.direction || 'SAP->TMS',
+      `"${(b.frequency || '').replace(/"/g, '""')}"`,
+      `"${(b.status || '').replace(/"/g, '""')}"`,
+    ])
+
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute(
+      'download',
+      `CIAFAL_SAP_TMS_Blueprint_${format}_${new Date().toISOString().split('T')[0]}.csv`,
+    )
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    toast({
+      title: 'Blueprint Exportado',
+      description: `O arquivo completo do Blueprint SAP/TMS (${format}) foi gerado com sucesso.`,
+    })
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Conectado':
-        return <Badge className="bg-emerald-600 text-white hover:bg-emerald-700">Conectado</Badge>
+        return <Badge className="bg-emerald-600 text-white">Conectado</Badge>
       case 'Degradado':
-        return <Badge className="bg-amber-500 text-white hover:bg-amber-600">Degradado</Badge>
+        return <Badge className="bg-amber-500 text-white">Degradado</Badge>
       case 'Aguardando configuração':
-        return (
-          <Badge className="bg-sky-600 text-white hover:bg-sky-700">Aguardando configuração</Badge>
-        )
+        return <Badge className="bg-sky-600 text-white">Aguardando configuração</Badge>
       case 'Erro':
-        return <Badge className="bg-rose-600 text-white hover:bg-rose-700">Erro</Badge>
+        return <Badge className="bg-rose-600 text-white">Erro</Badge>
       case 'Desabilitado':
-        return <Badge className="bg-slate-500 text-white hover:bg-slate-600">Desabilitado</Badge>
-      case 'Simulação':
-        return <Badge className="bg-purple-600 text-white hover:bg-purple-700">Simulação</Badge>
+        return <Badge className="bg-slate-500 text-white">Desabilitado</Badge>
       default:
         return <Badge variant="outline">{status}</Badge>
     }
   }
 
-  const getBlueprintBadge = (st: string) => {
+  const getHomologationBadge = (st: HomologationStatus) => {
     switch (st) {
-      case 'Confirmado':
-      case 'Homologado':
-        return (
-          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold">
-            {st}
-          </Badge>
-        )
-      case 'Em desenvolvimento':
-        return (
-          <Badge className="bg-amber-100 text-amber-800 border-amber-300 font-semibold">{st}</Badge>
-        )
-      case 'A confirmar':
-        return <Badge className="bg-sky-100 text-sky-800 border-sky-300 font-semibold">{st}</Badge>
-      case 'Será Z':
-        return (
-          <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300 font-semibold">
-            {st}
-          </Badge>
-        )
+      case 'Produção':
+      case 'Homologada':
+        return <Badge className="bg-emerald-600 text-white">{st}</Badge>
+      case 'Em homologação':
+        return <Badge className="bg-blue-600 text-white">{st}</Badge>
+      case 'Pronta para teste':
+        return <Badge className="bg-amber-500 text-white">{st}</Badge>
+      case 'Configuração pendente':
+        return <Badge className="bg-sky-600 text-white">{st}</Badge>
+      case 'Bloqueada':
+        return <Badge className="bg-rose-600 text-white">{st}</Badge>
+      case 'Não iniciada':
       default:
         return (
-          <Badge variant="outline" className="text-slate-600">
-            {st}
+          <Badge variant="outline" className="text-slate-500">
+            {st || 'Não iniciada'}
           </Badge>
         )
     }
@@ -171,13 +239,13 @@ export const IntegrationsMonitorPage: React.FC = () => {
           <div className="flex items-center space-x-2.5">
             <Activity className="w-6 h-6 text-[#005596]" />
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              Monitor Central de Integrações & Barramento Operacional
+              Central de Homologação & Monitor de Integrações
             </h1>
-            <Badge className="bg-[#005596] text-white text-xs">Sprint 4</Badge>
+            <Badge className="bg-[#005596] text-white text-xs">Sprint 4.1</Badge>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Governança, observabilidade e rastreabilidade transacional: SAP ECC, PCP Robotizado, CRM
-            360°, Rotas, Pedágios e ANTT Oficial.
+            Governança, contratos de integração, testes de conectividade sem efeito colateral e
+            prontidão técnica para Go-Live.
           </p>
         </div>
 
@@ -186,11 +254,8 @@ export const IntegrationsMonitorPage: React.FC = () => {
             variant="outline"
             className="bg-amber-50 text-amber-900 border-amber-300 px-3 py-1 text-xs font-bold"
           >
-            Ambiente Conectado: DEV (Homologação Técnica)
+            Modo: Homologação Técnica (Read-Only)
           </Badge>
-          <span className="text-xs text-slate-400 hidden sm:inline">
-            Atualizado: {lastCheck.toLocaleTimeString('pt-BR')}
-          </span>
           <Button
             variant="outline"
             size="sm"
@@ -199,45 +264,47 @@ export const IntegrationsMonitorPage: React.FC = () => {
             className="text-xs border-slate-300 gap-1.5"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Atualizar Status
+            Atualizar Central
           </Button>
         </div>
       </div>
 
-      {/* Corporate Architecture Strict Notice */}
+      {/* Corporate Engineering Notice */}
       <div className="bg-slate-900 text-white rounded-xl p-4 text-xs space-y-2 border border-slate-800 shadow-md">
         <div className="flex items-center space-x-2 font-bold text-sky-400">
           <ShieldCheck className="w-4 h-4" />
-          <span>DIRETRIZ ARQUITETURAL DE ENGENHARIA CIAFAL — SEM CONEXÕES FICTÍCIAS:</span>
+          <span>DIRETRIZES DE HOMOLOGAÇÃO REAL — SEM INTEGRAÇÕES FICTÍCIAS:</span>
         </div>
         <p className="text-slate-300 leading-relaxed">
-          <strong>System of Record:</strong> SAP ECC 6.0 EHP8 é a única fonte da verdade de
-          documentos oficiais (RFC/BAPI/IDoc). <strong>PCP Robotizado:</strong> fonte da programação
-          operacional. <strong>CRM 360°:</strong> ação comercial. Interfaces sem homologação de
-          credenciais operam estritamente como{' '}
-          <span className="text-sky-300 font-bold">"Aguardando configuração"</span> com isolamento
-          determinístico e rastreabilidade por Correlation ID.
+          1) <strong>SAP ECC 6.0:</strong> System of Record oficial. Permite RFC/BAPI/IDoc/qRFC
+          (proibido REST direto no SAP). O sistema opera em modo <strong>READ-ONLY</strong> (
+          <code>SAP_WRITE_ENABLED = false</code>) até homologação formal.
+          <br />
+          2) <strong>Segurança de Credenciais:</strong> Senhas e tokens nunca são expostos —
+          visualização estrita de <em>"Configurada"</em> ou <em>"Não configurada"</em>.<br />
+          3) <strong>Crédito Financeiro:</strong> Avaliação realizada estritamente por{' '}
+          <strong>VALOR FINANCEIRO (R$)</strong> do pedido, nunca por toneladas.
         </p>
       </div>
 
-      {/* Main Tabs */}
+      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-4 w-full max-w-2xl bg-slate-100 p-1 rounded-lg">
           <TabsTrigger value="hub" className="text-xs font-semibold">
-            1. Painel de Barramento
+            1. Central de Homologação
+          </TabsTrigger>
+          <TabsTrigger value="sap-env" className="text-xs font-semibold">
+            2. Ambientes & Teste SAP
           </TabsTrigger>
           <TabsTrigger value="blueprint" className="text-xs font-semibold">
-            2. Blueprint SAP/TMS
-          </TabsTrigger>
-          <TabsTrigger value="routing" className="text-xs font-semibold">
-            3. Provedores de Rotas
+            3. Blueprint SAP/TMS (12 Colunas)
           </TabsTrigger>
           <TabsTrigger value="logs" className="text-xs font-semibold">
             4. Fila & Logs Rastreáveis
           </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: PAINEL DE BARRAMENTO */}
+        {/* TAB 1: CENTRAL DE HOMOLOGAÇÃO */}
         <TabsContent value="hub" className="space-y-6 mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {metrics.map((item) => (
@@ -263,26 +330,47 @@ export const IntegrationsMonitorPage: React.FC = () => {
                 </CardHeader>
 
                 <CardContent className="pt-4 space-y-3 text-xs">
+                  {/* Homologation Status Row */}
+                  <div className="flex items-center justify-between bg-sky-50/60 p-2 rounded-lg border border-sky-100">
+                    <span className="text-[10px] uppercase font-bold text-sky-800">
+                      Status de Homologação:
+                    </span>
+                    {getHomologationBadge(item.homologationStatus)}
+                  </div>
+
+                  {/* Technical Matrix */}
                   <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
                     <div>
                       <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                        Protocolo
+                        Destino / Endpoint
                       </span>
-                      <span className="font-semibold text-slate-700 text-[11px]">
-                        {item.protocol}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                        Contrato
-                      </span>
-                      <span className="font-semibold text-slate-700 text-[11px]">
-                        {item.contractVersion}
+                      <span className="font-mono text-slate-700 text-[11px] truncate block">
+                        {item.maskedEndpointOrDest || '—'}
                       </span>
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                        Latência Média
+                        Credencial
+                      </span>
+                      <span
+                        className={`font-bold text-[11px] ${item.isCredentialConfigured ? 'text-emerald-700' : 'text-amber-700'}`}
+                      >
+                        {item.isCredentialConfigured ? 'Configurada' : 'Não configurada'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                        Conexão Testada
+                      </span>
+                      <span
+                        className={`font-bold text-[11px] ${item.isConnectionTested ? 'text-emerald-700' : 'text-slate-500'}`}
+                      >
+                        {item.isConnectionTested ? 'Sim' : 'Não'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                        Latência Real
                       </span>
                       <span className="font-bold text-slate-900 text-[11px]">
                         {item.latencyMs > 0 ? `${item.latencyMs} ms` : '—'}
@@ -290,19 +378,20 @@ export const IntegrationsMonitorPage: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                        Fila / Retries
+                        Versão Contrato
                       </span>
-                      <span className="font-bold text-slate-900 text-[11px]">
-                        {item.pendingQueueCount} pend / {item.retriesCount} retry
+                      <span className="font-semibold text-slate-700 text-[11px]">
+                        {item.contractVersion}
                       </span>
                     </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                      Responsabilidade Arquitetural
-                    </span>
-                    <p className="text-slate-600 leading-relaxed text-[11px]">{item.description}</p>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                        Responsável Técnico
+                      </span>
+                      <span className="font-semibold text-slate-700 text-[10px] truncate block">
+                        {item.technicalOwner || 'TI CIAFAL'}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100">
@@ -324,21 +413,182 @@ export const IntegrationsMonitorPage: React.FC = () => {
           </div>
         </TabsContent>
 
-        {/* TAB 2: BLUEPRINT SAP/TMS */}
+        {/* TAB 2: AMBIENTES & TESTE SAP */}
+        <TabsContent value="sap-env" className="space-y-4 mt-6">
+          <Card className="border-slate-200">
+            <CardHeader className="bg-slate-50 border-b border-slate-200">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-lg font-bold text-slate-900">
+                    Ambientes SAP ECC 6.0 EHP8 & Teste de Conectividade Seguro
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500 mt-0.5">
+                    Isolamento estrito entre DEV, QAS e PRD. Teste de conectividade sem alteração de
+                    dados.
+                  </CardDescription>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <select
+                    className="text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 font-semibold text-slate-800"
+                    value={selectedEnvForTest}
+                    onChange={(e) => setSelectedEnvForTest(e.target.value as any)}
+                  >
+                    <option value="DEV">DEV (Mandante 100)</option>
+                    <option value="HOMOLOGACAO">QAS / Homologação (Mandante 200)</option>
+                    <option value="PRODUCAO">PRD / Produção (Mandante 400)</option>
+                  </select>
+
+                  <Button
+                    size="sm"
+                    onClick={handleTestSapConnection}
+                    disabled={isTestingSap}
+                    className="text-xs bg-[#005596] hover:bg-[#004070] gap-1.5"
+                  >
+                    <Zap className={`w-3.5 h-3.5 ${isTestingSap ? 'animate-spin' : ''}`} />
+                    Testar Conexão SAP
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4 text-xs">
+              {/* Test Result Alert if executed */}
+              {sapTestResult && (
+                <div
+                  className={`border rounded-xl p-4 text-xs space-y-2 ${
+                    sapTestResult.success
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                      : 'bg-amber-50 border-amber-300 text-amber-900'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold flex items-center gap-1.5">
+                      {sapTestResult.success ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                      )}
+                      Resultado do Teste SAP (Correlation ID: {sapTestResult.correlationId})
+                    </span>
+                    <span className="font-mono text-[11px]">
+                      Latência: {sapTestResult.latencyMs} ms | Mandante: {sapTestResult.client}
+                    </span>
+                  </div>
+                  <p className="leading-relaxed">{sapTestResult.message}</p>
+                </div>
+              )}
+
+              {/* SAP Environment Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {Object.entries(sapGateway.getAllEnvironmentConfigs()).map(([envKey, cfg]) => (
+                  <Card key={envKey} className="border-slate-200">
+                    <CardHeader className="p-3 bg-slate-50 border-b border-slate-100 flex flex-row items-center justify-between">
+                      <span className="font-bold text-slate-900 text-sm">Ambiente {envKey}</span>
+                      <Badge
+                        variant="outline"
+                        className={
+                          envKey === 'PRODUCAO'
+                            ? 'text-rose-700 bg-rose-50 border-rose-300 font-bold'
+                            : 'text-emerald-700 bg-emerald-50 border-emerald-300 font-bold'
+                        }
+                      >
+                        {cfg.status}
+                      </Badge>
+                    </CardHeader>
+                    <CardContent className="p-3 space-y-2 text-xs">
+                      <div className="space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Host SAP:</span>
+                          <span className="font-mono font-bold text-slate-800">{cfg.host}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">System Number:</span>
+                          <span className="font-mono text-slate-800">{cfg.systemNumber}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Mandante (Client):</span>
+                          <span className="font-mono font-bold text-slate-800">{cfg.client}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Usuário Técnico:</span>
+                          <span className="font-mono text-slate-800">{cfg.technicalUser}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Versão Contrato:</span>
+                          <span className="text-slate-800">{cfg.contractVersion}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Escrita Habilitada:</span>
+                          <span className="font-bold text-rose-600">Não (Read-Only)</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Critical Security Rule */}
+              <div className="bg-rose-50 border border-rose-200 p-3 rounded-lg text-rose-900 text-xs space-y-1">
+                <span className="font-bold block flex items-center gap-1.5 text-rose-950">
+                  <Lock className="w-4 h-4 text-rose-700" />
+                  BLOQUEIO CRÍTICO DE SEGURANÇA CROSS-ENVIRONMENT (DEV → PRD):
+                </span>
+                <p className="leading-relaxed">
+                  O ambiente DEV do TMS está{' '}
+                  <strong>
+                    estritamente proibido de realizar qualquer chamada de escrita no ambiente SAP
+                    PRD
+                  </strong>
+                  , mesmo que credenciais sejam configuradas incorretamente. A validação de ambiente
+                  no código do gateway bloqueia e rejeita a operação com log de auditoria.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 3: BLUEPRINT SAP/TMS (12 COLUNAS) */}
         <TabsContent value="blueprint" className="space-y-4 mt-6">
           <Card className="border-slate-200">
             <CardHeader className="bg-slate-50 border-b border-slate-200">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div>
                   <CardTitle className="text-lg font-bold text-slate-900">
-                    Blueprint de Integração SAP ECC 6.0 ↔ TMS CIAFAL
+                    Blueprint Oficial SAP ECC ↔ TMS CIAFAL (12 Colunas)
                   </CardTitle>
                   <CardDescription className="text-xs text-slate-500 mt-0.5">
-                    Mapeamento técnico oficial de tabelas, transações, RFCs, BAPIs e fluxos
-                    idempotentes.
+                    Mapeamento técnico campo a campo para envio e validação pela consultoria SAP.
                   </CardDescription>
                 </div>
-                <Badge className="bg-[#005596] text-white">SAP ECC 6.0 EHP8</Badge>
+
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExportBlueprint('CSV')}
+                    className="text-xs gap-1"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Exportar CSV
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExportBlueprint('XLSX')}
+                    className="text-xs gap-1"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    Exportar XLSX
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleExportBlueprint('PDF')}
+                    className="text-xs bg-[#005596] hover:bg-[#004070] gap-1"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Exportar PDF / Imprimir
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -346,179 +596,74 @@ export const IntegrationsMonitorPage: React.FC = () => {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase text-[10px] tracking-wider">
-                      <th className="p-3">Processo</th>
-                      <th className="p-3">Origem</th>
-                      <th className="p-3">Objeto SAP</th>
-                      <th className="p-3">Tipo Integração</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3">Campo TMS</th>
-                      <th className="p-3">Campo SAP</th>
-                      <th className="p-3">Diretrizes / Regras</th>
+                      <th className="p-2.5">ID</th>
+                      <th className="p-2.5">Processo TMS</th>
+                      <th className="p-2.5">Fonte SAP</th>
+                      <th className="p-2.5">Tipo</th>
+                      <th className="p-2.5">Objeto SAP</th>
+                      <th className="p-2.5">Campo SAP</th>
+                      <th className="p-2.5">Campo TMS</th>
+                      <th className="p-2.5">Obrig.</th>
+                      <th className="p-2.5">Transformação</th>
+                      <th className="p-2.5">Direção</th>
+                      <th className="p-2.5">Frequência</th>
+                      <th className="p-2.5">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 font-mono text-[11px]">
                     {blueprint.map((b) => (
                       <tr key={b.id || b.process_name} className="hover:bg-slate-50/80">
-                        <td className="p-3 font-bold text-slate-900 font-sans">{b.process_name}</td>
-                        <td className="p-3 text-slate-600">{b.origin_system}</td>
-                        <td className="p-3 font-semibold text-[#005596]">{b.sap_object}</td>
-                        <td className="p-3">
-                          <Badge variant="outline" className="font-mono text-[10px]">
-                            {b.integration_type}
+                        <td className="p-2.5 font-bold text-slate-900">{b.id}</td>
+                        <td className="p-2.5 font-sans font-bold text-slate-800">
+                          {b.process_name}
+                        </td>
+                        <td className="p-2.5 font-sans text-slate-600">{b.origin_system}</td>
+                        <td className="p-2.5">
+                          <Badge variant="outline" className="text-[10px]">
+                            {b.object_type || b.integration_type}
                           </Badge>
                         </td>
-                        <td className="p-3">{getBlueprintBadge(b.status)}</td>
-                        <td className="p-3 text-slate-800 text-[10px]">{b.tms_field}</td>
-                        <td className="p-3 text-slate-800 text-[10px]">{b.sap_field}</td>
-                        <td className="p-3 text-slate-600 font-sans text-[11px] leading-relaxed max-w-xs">
-                          {b.notes}
+                        <td className="p-2.5 font-semibold text-[#005596]">{b.sap_object}</td>
+                        <td className="p-2.5 text-slate-800 text-[10px]">{b.sap_field}</td>
+                        <td className="p-2.5 text-slate-800 text-[10px]">{b.tms_field}</td>
+                        <td className="p-2.5 font-sans">
+                          {b.is_mandatory ? (
+                            <Badge className="bg-rose-600 text-white text-[10px]">SIM</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-slate-500 text-[10px]">
+                              NÃO
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="p-2.5 font-sans text-[11px] text-slate-600 max-w-xs">
+                          {b.transformation || 'Mapeamento direto'}
+                        </td>
+                        <td className="p-2.5 font-sans">
+                          <Badge variant="outline" className="text-[10px] bg-slate-50 font-bold">
+                            {b.direction || 'SAP→TMS'}
+                          </Badge>
+                        </td>
+                        <td className="p-2.5 font-sans text-[10px] text-slate-600">
+                          {b.frequency}
+                        </td>
+                        <td className="p-2.5 font-sans">
+                          <Badge
+                            className={
+                              b.status === 'Standard SAP' || b.status === 'Homologado'
+                                ? 'bg-emerald-600 text-white text-[10px]'
+                                : b.status === 'Confirmado funcionalmente' ||
+                                    b.status === 'Confirmado tecnicamente'
+                                  ? 'bg-blue-600 text-white text-[10px]'
+                                  : 'bg-amber-500 text-white text-[10px]'
+                            }
+                          >
+                            {b.status}
+                          </Badge>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* TAB 3: PROVEDORES DE ROTAS COMPARATIVO */}
-        <TabsContent value="routing" className="space-y-4 mt-6">
-          <Card className="border-slate-200">
-            <CardHeader className="bg-slate-50 border-b border-slate-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg font-bold text-slate-900">
-                    Comparativo & Seleção de Provedores de Roteirização e Geocodificação
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-500 mt-0.5">
-                    A CIAFAL define qual provedor homologar. O TMS desacopla o domínio via
-                    RoutingProviderAdapter.
-                  </CardDescription>
-                </div>
-                <Badge className="bg-emerald-600 text-white font-mono">
-                  Ativo: {routingServiceManager.getActiveAdapter().name}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  {
-                    id: 'google_maps',
-                    name: 'Google Maps Platform',
-                    geocoding: 'Excelente (Rooftop BR)',
-                    routing: 'Tempo Real + Trânsito',
-                    distMatrix: 'Suportado',
-                    traffic: 'Em Tempo Real',
-                    tollSupport: 'Parcial',
-                    cost: 'USD 5.00 / 1k chamadas',
-                    sla: '99.9%',
-                    status: 'Aguardando API Key',
-                  },
-                  {
-                    id: 'here_maps',
-                    name: 'HERE Technologies',
-                    geocoding: 'Muito Bom',
-                    routing: 'Específico para Caminhões',
-                    distMatrix: 'Suportado',
-                    traffic: 'Histórico + Tempo Real',
-                    tollSupport: 'Nativo (Toll API)',
-                    cost: 'EUR 4.50 / 1k chamadas',
-                    sla: '99.9%',
-                    status: 'Aguardando API Key',
-                  },
-                  {
-                    id: 'mapbox',
-                    name: 'Mapbox Directions',
-                    geocoding: 'Bom',
-                    routing: 'Direções customizadas',
-                    distMatrix: 'Suportado',
-                    traffic: 'Baseado em telemetria',
-                    tollSupport: 'Não nativo',
-                    cost: 'USD 4.00 / 1k chamadas',
-                    sla: '99.9%',
-                    status: 'Aguardando Token',
-                  },
-                  {
-                    id: 'osrm_osm',
-                    name: 'OSRM / OpenStreetMap',
-                    geocoding: 'Nominatim (Aproximado)',
-                    routing: 'Rápido (Self-Hosted)',
-                    distMatrix: 'Ilimitado Local',
-                    traffic: 'Sem trânsito ao vivo',
-                    tollSupport: 'Manual',
-                    cost: 'Zero Licença (Infra Própria)',
-                    sla: 'Conforme Infra CIAFAL',
-                    status: 'Aguardando Servidor',
-                  },
-                ].map((prov) => {
-                  const isSelected = activeRoutingProvider === prov.id
-                  return (
-                    <Card
-                      key={prov.id}
-                      className={`border-2 transition-all cursor-pointer ${
-                        isSelected
-                          ? 'border-[#005596] bg-sky-50/40 shadow-md'
-                          : 'border-slate-200 hover:border-slate-300'
-                      }`}
-                      onClick={() => handleSelectRoutingProvider(prov.id)}
-                    >
-                      <CardHeader className="p-4 pb-2">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm font-bold text-slate-900">
-                            {prov.name}
-                          </CardTitle>
-                          {isSelected ? (
-                            <Badge className="bg-[#005596] text-white text-[10px]">
-                              Ativo no TMS
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-[10px] text-slate-500">
-                              Disponível
-                            </Badge>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-2 space-y-2 text-xs">
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px]">
-                            <span className="text-slate-500">Geocodificação:</span>
-                            <span className="font-semibold text-slate-800">{prov.geocoding}</span>
-                          </div>
-                          <div className="flex justify-between text-[11px]">
-                            <span className="text-slate-500">Roteamento:</span>
-                            <span className="font-semibold text-slate-800">{prov.routing}</span>
-                          </div>
-                          <div className="flex justify-between text-[11px]">
-                            <span className="text-slate-500">Suporte Pedágio:</span>
-                            <span className="font-semibold text-slate-800">{prov.tollSupport}</span>
-                          </div>
-                          <div className="flex justify-between text-[11px]">
-                            <span className="text-slate-500">Custo Estimado:</span>
-                            <span className="font-semibold text-slate-800">{prov.cost}</span>
-                          </div>
-                          <div className="flex justify-between text-[11px]">
-                            <span className="text-slate-500">SLA:</span>
-                            <span className="font-semibold text-slate-800">{prov.sla}</span>
-                          </div>
-                        </div>
-
-                        <Button
-                          variant={isSelected ? 'default' : 'outline'}
-                          size="sm"
-                          className={`w-full mt-2 text-xs ${isSelected ? 'bg-[#005596]' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleSelectRoutingProvider(prov.id)
-                          }}
-                        >
-                          {isSelected ? 'Provedor Ativo' : 'Selecionar Provider'}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
               </div>
             </CardContent>
           </Card>
@@ -615,7 +760,7 @@ export const IntegrationsMonitorPage: React.FC = () => {
               {selectedMetric && getStatusBadge(selectedMetric.status)}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Contrato de Integração Operacional — {selectedMetric?.category}
+              Contrato de Homologação — {selectedMetric?.category}
             </DialogDescription>
           </DialogHeader>
 
@@ -638,16 +783,18 @@ export const IntegrationsMonitorPage: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                    Ambiente Ativo
+                    Endpoint Mascarado
                   </span>
-                  <span className="font-semibold text-slate-800">{selectedMetric.environment}</span>
+                  <span className="font-mono text-slate-800 text-[11px] truncate block">
+                    {selectedMetric.maskedEndpointOrDest || 'Não informado'}
+                  </span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                    Status do Blueprint
+                    Status Homologação
                   </span>
                   <span className="font-semibold text-slate-800">
-                    {selectedMetric.blueprintStatus}
+                    {selectedMetric.homologationStatus}
                   </span>
                 </div>
               </div>

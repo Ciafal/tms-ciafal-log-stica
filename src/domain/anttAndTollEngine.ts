@@ -174,11 +174,29 @@ export interface TollEngineResult {
   statusText: string
 }
 
+export interface TollProviderEvaluation {
+  id: string
+  name: string
+  coverage: 'Nacional (Concessionárias)' | 'Regional' | 'A confirmar'
+  vehicleCategories: string
+  axleSupport: string
+  tariffUpdateSource: string
+  costEstimate: string
+  sla: string
+  precision: string
+  status: 'Homologado' | 'Em avaliação' | 'POC' | 'Aguardando Fonte'
+}
+
 export class TollCalculationEngine {
   private isConnected = false
+  private homologationStatus: 'Homologado' | 'Em avaliação' | 'POC' = 'Homologado'
 
   isConfigured(): boolean {
     return this.isConnected
+  }
+
+  getHomologationStatus() {
+    return this.homologationStatus
   }
 
   calculateTolls(

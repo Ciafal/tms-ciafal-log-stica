@@ -22,6 +22,7 @@ import {
   sanitizeLogPayload,
   STALE_POLICIES,
 } from '@/domain/integrationsCore'
+import { TmsService } from '@/services/tmsService'
 
 // -------------------------------------------------------------------------
 // 1. SAP ECC (10 TESTES)
@@ -689,5 +690,99 @@ describe('8. Segurança, Ambientes e Mascaramento de Logs', () => {
     expect(masked.apiKey).toContain('***')
     expect(masked.cpf).toContain('***')
     expect(masked.weightKg).toBe(25000)
+  })
+})
+
+// -------------------------------------------------------------------------
+// 9. SPRINT 4.1: HOMOLOGAÇÃO TÉCNICA E CONEXÕES REAIS
+// -------------------------------------------------------------------------
+describe('9. Sprint 4.1 — Homologação Técnica, Contratos e Readiness', () => {
+  it('9.1 SAP ECC: bloqueio de escrita com SAP_WRITE_ENABLED = false por padrão', async () => {
+    const gw = new SapGateway('DEV')
+    expect(gw.sapWriteEnabled).toBe(false)
+
+    const res = await gw.createTransportDoc({
+      cargoId: 'CARG-TEST-S41',
+      itineraryCode: 'ROU-SP01',
+      vehiclePlate: 'ABC1D23',
+      driverDocument: '12345678901',
+      orders: [{ orderNumber: '45008912', itemNumber: '10', weightKg: 25000, value: 50000 }],
+      totalWeightKg: 25000,
+      totalValue: 50000,
+      correlationId: 'CORR-TEST-S41',
+      idempotencyKey: 'IDEM-TEST-S41',
+    })
+
+    expect(res.success).toBe(false)
+    expect(res.status).toBe('TRANSPORTE_SAP_PENDENTE')
+    expect(res.errorMessage).toContain('Bloqueio de Escrita SAP: Integração em modo READ-ONLY')
+  })
+
+  it('9.2 SAP ECC: teste de conexão seguro em memória sem alterar dados', async () => {
+    const gw = new SapGateway('DEV')
+    const testRes = await gw.testSapConnection('DEV')
+    expect(testRes.success).toBe(true)
+    expect(testRes.client).toBe('100')
+    expect(testRes.latencyMs).toBeGreaterThan(0)
+    expect(testRes.correlationId).toContain('TEST-SAP-')
+  })
+
+  it('9.3 PCP Robotizado: validação estrita de schema JSON e rejeição com SCHEMA_INCOMPATIVEL', () => {
+    const invalidPayload: any = { linha: 'LINHA-01' }
+    const validation = pcpService.validatePayloadSchema(invalidPayload)
+    expect(validation.valid).toBe(false)
+    expect(validation.error).toContain('SCHEMA_INCOMPATIVEL')
+
+    const validPayload = {
+      materialCode: 'PERFIL-I-200',
+      quantityPlanned: 50,
+      scheduledDate: '2026-08-10',
+    }
+    expect(pcpService.validatePayloadSchema(validPayload).valid).toBe(true)
+  })
+
+  it('9.4 PCP Robotizado: teste de conectividade e schema', async () => {
+    const testRes = await pcpService.testPcpConnection()
+    expect(testRes.success).toBe(true)
+    expect(testRes.schemaValid).toBe(true)
+    expect(testRes.version).toBe('PCP-PROD-2026.08')
+  })
+
+  it('9.5 CRM 360°: teste de conexão com validação de webhook seguro', async () => {
+    const testRes = await crmService.testCrmConnection()
+    expect(testRes.success).toBe(true)
+    expect(testRes.responseCode).toBe(200)
+    expect(testRes.webhookStatus).toContain('Operacional')
+  })
+
+  it('9.6 Blueprint SAP/TMS: colunas completas e status OBJETO RFC A CONFIRMAR para ZSD35', async () => {
+    const bp = await TmsService.getSapBlueprintMappings()
+    expect(bp.length).toBeGreaterThanOrEqual(9)
+    const carteira = bp.find((b) => b.id === 'BP-01')
+    expect(carteira.process_name).toContain('Leitura da Carteira')
+    expect(carteira.sap_object).toContain('ZSD35')
+    expect(carteira.status).toBe('OBJETO RFC A CONFIRMAR')
+    expect(carteira.direction).toBe('SAP→TMS')
+
+    const veiculos = bp.find((b) => b.id === 'BP-02')
+    expect(veiculos.sap_object).toContain('ZSD004V_V2')
+    expect(veiculos.status).toBe('Confirmado funcionalmente')
+
+    const credito = bp.find((b) => b.id === 'BP-07')
+    expect(credito.transformation).toContain('VALOR FINANCEIRO')
+  })
+
+  it('9.7 Provedor de Rotas: somente status HOMOLOGADO pode ser ativado', () => {
+    const google = new GoogleMapsAdapter('key-test')
+    expect(google.getHomologationStatus()).toBe('Homologado')
+
+    const here = new HereMapsAdapter('key-test')
+    expect(here.getHomologationStatus()).toBe('POC')
+
+    const mapbox = new MapboxAdapter('token-test')
+    expect(mapbox.getHomologationStatus()).toBe('Em avaliação')
+
+    const osrm = new OsrmAdapter('http://localhost:5000')
+    expect(osrm.getHomologationStatus()).toBe('Em avaliação')
   })
 })
