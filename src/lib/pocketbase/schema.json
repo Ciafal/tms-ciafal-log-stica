@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T12:24:16.982Z",
+  "generatedAt": "2026-08-28T14:06:22.762Z",
   "collections": [
     {
       "name": "users",
@@ -461,13 +461,6 @@
           "selectValues": ["PORTA", "FORA"]
         },
         {
-          "name": "status",
-          "type": "select",
-          "required": true,
-          "system": false,
-          "selectValues": ["pendente", "em_analise", "aprovado", "rejeitado"]
-        },
-        {
           "name": "latitude",
           "type": "number",
           "required": false,
@@ -516,6 +509,23 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "novo",
+            "em_analise",
+            "contato_realizado",
+            "aguardando_doc",
+            "encaminhado_sap",
+            "cadastro_confirmado",
+            "rejeitado",
+            "pendente",
+            "aprovado"
+          ]
         }
       ],
       "indexes": [
@@ -801,6 +811,152 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "freight_offers",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cargo_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "required_vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opened_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_group",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["PORTA", "FORA", "PUBLICO", "ENCERRADO"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "rascunho",
+            "janela_porta_aberta",
+            "janela_fora_aberta",
+            "negociacao",
+            "atribuido",
+            "expirado",
+            "cancelado"
+          ]
+        },
+        {
+          "name": "window_start",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "window_end",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "floor_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ceiling_value_protected",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "winner_driver",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "drivers"
+        },
+        {
+          "name": "winner_vehicle",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "vehicles"
+        },
+        {
+          "name": "closing_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_freight_cargo ON freight_offers (cargo_id)",
+        "CREATE INDEX idx_freight_status ON freight_offers (status)",
+        "CREATE INDEX idx_freight_group ON freight_offers (current_group)"
+      ]
     }
   ]
 }

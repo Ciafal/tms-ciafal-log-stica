@@ -33,6 +33,17 @@ export type QueueStatus =
   | 'removido'
   | 'bloqueado'
 
+export type PreRegistrationStatus =
+  | 'novo'
+  | 'em_analise'
+  | 'contato_realizado'
+  | 'aguardando_doc'
+  | 'encaminhado_sap'
+  | 'cadastro_confirmado'
+  | 'rejeitado'
+  | 'pendente'
+  | 'aprovado'
+
 export interface DriverEntity {
   id: string
   name: string
@@ -99,7 +110,7 @@ export interface PreRegistrationEntity {
   vehicle_type?: string
   plate?: string
   origin: QueueGroup
-  status: 'pendente' | 'em_analise' | 'aprovado' | 'rejeitado'
+  status: PreRegistrationStatus
   latitude?: number
   longitude?: number
   ip_address?: string
@@ -127,6 +138,45 @@ export interface AuditLogEntity {
   created?: string
 }
 
+export interface SystemParameterEntity {
+  id: string
+  key: string
+  value: string
+  description?: string
+  created?: string
+  updated?: string
+}
+
+export interface FreightOfferEntity {
+  id: string
+  cargo_id: string
+  cargo_description?: string
+  origin?: string
+  destination?: string
+  weight_kg?: number
+  required_vehicle_type?: string
+  opened_at?: string
+  current_group: 'PORTA' | 'FORA' | 'PUBLICO' | 'ENCERRADO'
+  status:
+    | 'rascunho'
+    | 'janela_porta_aberta'
+    | 'janela_fora_aberta'
+    | 'negociacao'
+    | 'atribuido'
+    | 'expirado'
+    | 'cancelado'
+  window_start?: string
+  window_end?: string
+  floor_value?: number
+  ceiling_value_protected?: number // Never exposed to drivers or LLMs
+  winner_driver?: string
+  winner_vehicle?: string
+  closing_reason?: string
+  correlation_id?: string
+  created?: string
+  updated?: string
+}
+
 // ----------------------------------------------------
 // VALIDATIONS & DOMAIN RULES
 // ----------------------------------------------------
@@ -138,7 +188,6 @@ export function isValidCPF(cpfRaw: string): boolean {
   if (!cpfRaw) return false
   const cpf = cpfRaw.replace(/\D/g, '')
   if (cpf.length !== 11) return false
-  // Reject all same digits (00000000000, 11111111111, etc.)
   if (/^(\d)\1{10}$/.test(cpf)) return false
 
   let sum = 0
@@ -234,7 +283,8 @@ export const CIAFAL_PLANT_LOCATION = {
 }
 
 /**
- * Validates if coordinates are within the 60km Geofence of CIAFAL
+ * Validates if coordinates are within the configured Geofence of CIAFAL
+ * Includes checks for invalid coordinates, non-Brazil coordinates and zero values
  */
 export function validateGeofence(
   lat: number,
@@ -242,19 +292,54 @@ export function validateGeofence(
   plantLat = CIAFAL_PLANT_LOCATION.latitude,
   plantLon = CIAFAL_PLANT_LOCATION.longitude,
   maxKm = CIAFAL_PLANT_LOCATION.maxRadiusKm,
-): { isWithinRadius: boolean; distanceKm: number } {
-  if (!lat || !lon || isNaN(lat) || isNaN(lon) || (lat === 0 && lon === 0)) {
-    return { isWithinRadius: false, distanceKm: -1 }
+  accuracyMeters = 0,
+  maxAccuracyTolerance = 500,
+): { isWithinRadius: boolean; distanceKm: number; reason?: string } {
+  if (
+    lat === undefined ||
+    lon === undefined ||
+    lat === null ||
+    lon === null ||
+    isNaN(lat) ||
+    isNaN(lon) ||
+    (lat === 0 && lon === 0)
+  ) {
+    return {
+      isWithinRadius: false,
+      distanceKm: -1,
+      reason: 'Coordenadas geográficas não fornecidas ou inválidas.',
+    }
   }
+
+  // Basic sanity check for Brazil coordinate bounds
+  // Lat: roughly +5 to -34, Lon: roughly -34 to -74
+  if (lat > 6 || lat < -35 || lon > -30 || lon < -75) {
+    return {
+      isWithinRadius: false,
+      distanceKm: -1,
+      reason: 'Coordenadas geográficas fora do território nacional (Brasil).',
+    }
+  }
+
+  if (accuracyMeters > 0 && accuracyMeters > maxAccuracyTolerance) {
+    return {
+      isWithinRadius: false,
+      distanceKm: -1,
+      reason: `Precisão do GPS inadequada (${Math.round(accuracyMeters)}m). Máximo permitido: ${maxAccuracyTolerance}m.`,
+    }
+  }
+
   const dist = calculateDistanceKm(lat, lon, plantLat, plantLon)
   return {
     isWithinRadius: dist <= maxKm,
     distanceKm: dist,
+    reason:
+      dist > maxKm ? `Distância de ${dist} km excede o raio máximo de ${maxKm} km.` : undefined,
   }
 }
 
 // ----------------------------------------------------
-// SECURITY & DATA MASKING
+// SECURITY & DATA MASKING (LGPD)
 // ----------------------------------------------------
 
 /**
@@ -475,4 +560,206 @@ export function getUserPermissions(role?: UserRole): Permissions {
     }
   }
   return ROLE_PERMISSIONS[role]
+}
+
+// ----------------------------------------------------
+// SPRINT 1.1: DETERMINISTIC ELIGIBILITY EVALUATION
+// ----------------------------------------------------
+
+export interface DriverEligibilityEvaluation {
+  isEligible: boolean
+  reasons: string[] // COMPLETE list of reasons (never just the first one)
+  evaluatedAt: string
+  ruleEngineVersion: string
+  details: {
+    inQueue: boolean
+    activeRegistration: boolean
+    activeAvailability: boolean
+    noAssignedCargo: boolean
+    compatibleVehicle: boolean
+    validCommunicationChannel: boolean
+    notBlocked: boolean
+    correctAuctionGroup: boolean
+  }
+}
+
+export interface EvaluateEligibilityInput {
+  driver: DriverEntity | null
+  queueEntry: QueueEntryEntity | null
+  offerStageGroup: 'PORTA' | 'FORA'
+  requiredVehicleType?: string
+}
+
+/**
+ * Deterministic freight offer eligibility service
+ * Evaluates all 8 corporate rules and returns full diagnostic breakdown
+ */
+export function avaliar_elegibilidade_motorista_oferta(
+  input: EvaluateEligibilityInput,
+): DriverEligibilityEvaluation {
+  const reasons: string[] = []
+  const evaluatedAt = new Date().toISOString()
+  const ruleEngineVersion = '1.1.0-SPRINT1.1'
+
+  const { driver, queueEntry, offerStageGroup, requiredVehicleType } = input
+
+  // 1. Motorista na fila
+  const inQueue = !!queueEntry && queueEntry.status !== 'removido'
+  if (!inQueue) {
+    reasons.push('Motorista não se encontra registrado na fila operacional.')
+  }
+
+  // 2. Cadastro ativo
+  const activeRegistration = !!driver && driver.status === 'ativo'
+  if (!driver) {
+    reasons.push('Cadastro do motorista não localizado no sistema.')
+  } else if (driver.status !== 'ativo') {
+    reasons.push(`Cadastro do motorista não está ativo no SAP (Status: ${driver.status}).`)
+  }
+
+  // 3. Disponibilidade ativa
+  const activeAvailability =
+    !!queueEntry && (queueEntry.status === 'disponivel' || queueEntry.status === 'validacao')
+  if (queueEntry && queueEntry.status !== 'disponivel' && queueEntry.status !== 'validacao') {
+    reasons.push(
+      `Disponibilidade não está em estado apto (Status atual na fila: ${queueEntry.status}).`,
+    )
+  }
+
+  // 4. Sem carga já atribuída
+  const noAssignedCargo = !queueEntry || queueEntry.status !== 'atribuido'
+  if (queueEntry && queueEntry.status === 'atribuido') {
+    reasons.push('Motorista já possui carga atribuída em andamento.')
+  }
+
+  // 5. Veículo compatível quando a regra for conhecida
+  let compatibleVehicle = true
+  if (requiredVehicleType && queueEntry?.vehicle_type_cached) {
+    const vType = queueEntry.vehicle_type_cached.toLowerCase()
+    const reqType = requiredVehicleType.toLowerCase()
+    compatibleVehicle = vType.includes(reqType) || reqType.includes(vType)
+    if (!compatibleVehicle) {
+      reasons.push(
+        `Veículo atual (${queueEntry.vehicle_type_cached}) incompatível com o tipo exigido para a carga (${requiredVehicleType}).`,
+      )
+    }
+  }
+
+  // 6. Canal de comunicação válido
+  const whatsapp = driver?.whatsapp || queueEntry?.driver_whatsapp_cached || ''
+  const validCommunicationChannel = !!whatsapp && whatsapp.replace(/\D/g, '').length >= 10
+  if (!validCommunicationChannel) {
+    reasons.push('Motorista não possui canal de comunicação válido (WhatsApp cadastrado).')
+  }
+
+  // 7. Não bloqueado
+  const notBlocked = !!driver && driver.status !== 'bloqueado' && queueEntry?.status !== 'bloqueado'
+  if ((driver && driver.status === 'bloqueado') || queueEntry?.status === 'bloqueado') {
+    reasons.push('Motorista com restrição ou bloqueio administrativo ativo.')
+  }
+
+  // 8. Pertence ao grupo correto da etapa do leilão (PORTA na 1ª janela, FORA na 2ª janela)
+  const correctAuctionGroup = !!queueEntry && queueEntry.type === offerStageGroup
+  if (queueEntry && queueEntry.type !== offerStageGroup) {
+    reasons.push(
+      `Motorista pertence ao grupo ${queueEntry.type}, incompatível com a etapa da oferta atual (${offerStageGroup}).`,
+    )
+  }
+
+  const isEligible =
+    inQueue &&
+    activeRegistration &&
+    activeAvailability &&
+    noAssignedCargo &&
+    compatibleVehicle &&
+    validCommunicationChannel &&
+    notBlocked &&
+    correctAuctionGroup
+
+  return {
+    isEligible,
+    reasons,
+    evaluatedAt,
+    ruleEngineVersion,
+    details: {
+      inQueue,
+      activeRegistration,
+      activeAvailability,
+      noAssignedCargo,
+      compatibleVehicle,
+      validCommunicationChannel,
+      notBlocked,
+      correctAuctionGroup,
+    },
+  }
+}
+
+// ----------------------------------------------------
+// SPRINT 1.1: ABSTRACT MESSAGING INTERFACES (ADAPTER PATTERN)
+// ----------------------------------------------------
+
+export interface OutboundMessagePayload {
+  recipientDocument: string
+  recipientPhone: string
+  recipientName: string
+  templateId: string
+  parameters: Record<string, string | number>
+  correlationId: string
+}
+
+export interface MessageDispatchResult {
+  success: boolean
+  channel: 'telegram' | 'whatsapp' | 'mock'
+  dispatchId: string
+  dispatchedAt: string
+  error?: string
+}
+
+export interface CanalMensagem {
+  readonly channelName: string
+  isConfigured(): boolean
+  sendMessage(payload: OutboundMessagePayload): Promise<MessageDispatchResult>
+}
+
+/**
+ * WhatsApp Adapter - Sprint 1.1 Simulation & Readiness for Sprint 2
+ */
+export class WhatsAppAdapter implements CanalMensagem {
+  readonly channelName = 'whatsapp'
+  private isConnected = false
+
+  isConfigured(): boolean {
+    return this.isConnected
+  }
+
+  async sendMessage(payload: OutboundMessagePayload): Promise<MessageDispatchResult> {
+    // Sprint 1.1: Simulation only, no fake credentials or real network calls
+    return {
+      success: true,
+      channel: 'whatsapp',
+      dispatchId: `WPP-${Date.now()}-${payload.correlationId}`,
+      dispatchedAt: new Date().toISOString(),
+    }
+  }
+}
+
+/**
+ * Telegram Adapter - Sprint 1.1 Simulation & Readiness for Sprint 2
+ */
+export class TelegramAdapter implements CanalMensagem {
+  readonly channelName = 'telegram'
+  private isConnected = false
+
+  isConfigured(): boolean {
+    return this.isConnected
+  }
+
+  async sendMessage(payload: OutboundMessagePayload): Promise<MessageDispatchResult> {
+    return {
+      success: true,
+      channel: 'telegram',
+      dispatchId: `TG-${Date.now()}-${payload.correlationId}`,
+      dispatchedAt: new Date().toISOString(),
+    }
+  }
 }

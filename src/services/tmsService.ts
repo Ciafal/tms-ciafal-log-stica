@@ -6,8 +6,13 @@ import {
   QueueEntryEntity,
   PreRegistrationEntity,
   AuditLogEntity,
+  FreightOfferEntity,
+  SystemParameterEntity,
+  PreRegistrationStatus,
+  QueueStatus,
   isValidDocument,
   validateGeofence,
+  CIAFAL_PLANT_LOCATION,
 } from '@/domain/rules'
 
 export interface CreateQueueEntryParams {
@@ -18,6 +23,7 @@ export interface CreateQueueEntryParams {
   type: 'PORTA' | 'FORA'
   latitude?: number
   longitude?: number
+  accuracy?: number
   clientIp?: string
 }
 
@@ -36,11 +42,12 @@ export const TmsService = {
     }
   },
 
-  // Check if driver is already in queue
+  // Check if driver is already in queue (active entry)
   async findActiveQueueEntryByDriver(driverId: string): Promise<QueueEntryEntity | null> {
     try {
       const records = await pb.collection('queue_entries').getList<QueueEntryEntity>(1, 1, {
-        filter: `driver = "${driverId}" && (status != "removido" && status != "atribuido")`,
+        filter: `driver = "${driverId}" && (status != "removido" && status != "atribuido" && status != "bloqueado")`,
+        sort: '-created',
       })
       return records.items[0] || null
     } catch (_) {
@@ -48,11 +55,11 @@ export const TmsService = {
     }
   },
 
-  // Get full operational queue
+  // Get full operational queue sorted with PORTA first, then arrival time
   async getOperationalQueue(): Promise<QueueEntryEntity[]> {
     try {
       const records = await pb.collection('queue_entries').getFullList<QueueEntryEntity>({
-        sort: '-type,entry_time', // PORTA first, then by earliest entry_time
+        sort: '-type,entry_time', // PORTA first, then earlier entry_time
         expand: 'driver,vehicle',
       })
       return records
@@ -62,12 +69,65 @@ export const TmsService = {
     }
   },
 
-  // Submit Totem Entry (PORTA)
-  async submitTotemEntry(
-    params: CreateQueueEntryParams,
-  ): Promise<{ success: boolean; message: string; data?: any; isPreReg?: boolean }> {
+  // Fetch dynamic system parameters
+  async getSystemParameters(): Promise<SystemParameterEntity[]> {
+    try {
+      return await pb.collection('system_parameters').getFullList<SystemParameterEntity>({
+        sort: 'key',
+      })
+    } catch (err) {
+      console.error('Failed to fetch system parameters:', err)
+      return []
+    }
+  },
+
+  async updateSystemParameter(
+    id: string,
+    key: string,
+    value: string,
+    description: string,
+    operatorEmail: string,
+    operatorName: string,
+  ): Promise<boolean> {
+    try {
+      const old = await pb.collection('system_parameters').getOne<SystemParameterEntity>(id)
+      await pb.collection('system_parameters').update(id, {
+        value,
+        description,
+      })
+
+      // Audit parameter change
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'admin_tms',
+        action: 'UPDATE_SYSTEM_PARAMETER',
+        resource: 'system_parameters',
+        resource_id: id,
+        previous_state: `${old.key}=${old.value}`,
+        new_state: `${key}=${value}`,
+        reason: `Alteração do parâmetro operacional ${key}`,
+        correlation_id: `PARAM-${Date.now()}`,
+        payload: { key, oldValue: old.value, newValue: value, description },
+      })
+      return true
+    } catch (err) {
+      console.error('Failed to update system parameter:', err)
+      return false
+    }
+  },
+
+  // Submit Totem Entry (PORTA) with Controlled Transition (FORA -> PORTA) & Duplicate Prevention
+  async submitTotemEntry(params: CreateQueueEntryParams): Promise<{
+    success: boolean
+    message: string
+    data?: any
+    isPreReg?: boolean
+    transitionedFromFora?: boolean
+  }> {
     const cleanDoc = params.document.replace(/\D/g, '')
     const cleanPhone = params.whatsapp.replace(/\D/g, '').replace(/^55/, '')
+    const cleanPlate = (params.plate || '').toUpperCase().trim()
 
     const docValidation = isValidDocument(cleanDoc)
     if (!docValidation.valid) {
@@ -87,11 +147,26 @@ export const TmsService = {
           name: 'Motorista Não Cadastrado (Totem)',
           whatsapp: cleanPhone,
           vehicle_type: params.vehicleType,
-          plate: params.plate.toUpperCase().trim(),
+          plate: cleanPlate,
           origin: 'PORTA',
-          status: 'pendente',
+          status: 'novo',
           reviewer_notes: 'Entrada pelo Totem da Portaria. CPF/CNPJ sem cadastro ativo no SAP.',
         })
+
+        // Audit pre-registration creation
+        await pb.collection('audit_logs').create({
+          user_email: 'totem@ciafal.internal',
+          user_name: 'Totem Portaria Autoatendimento',
+          user_role: 'portaria',
+          action: 'CREATE_PRE_REGISTRATION',
+          resource: 'pre_registrations',
+          resource_id: pre.id,
+          new_state: 'novo',
+          reason: 'Tentativa de entrada no Totem por motorista não cadastrado no SAP',
+          correlation_id: `PREREG-${Date.now()}`,
+          payload: { document: cleanDoc, plate: cleanPlate, origin: 'PORTA' },
+        })
+
         return {
           success: true,
           isPreReg: true,
@@ -111,18 +186,55 @@ export const TmsService = {
       }
     }
 
-    // Check duplicate
+    // Duplicate Check & Transition FORA -> PORTA
     const activeEntry = await this.findActiveQueueEntryByDriver(driver.id)
+    let transitionedFromFora = false
+
     if (activeEntry) {
-      return {
-        success: false,
-        message: `Motorista já se encontra na fila (Grupo: ${activeEntry.type}, Status: ${activeEntry.status.toUpperCase()}).`,
+      if (activeEntry.type === 'PORTA') {
+        return {
+          success: false,
+          message: 'Motorista já possui entrada ativa na Fila PORTA.',
+        }
+      } else if (activeEntry.type === 'FORA') {
+        // Transição Controlada FORA -> PORTA
+        // 1. Encerrar o estado FORA com auditoria e histórico
+        const arrivalTime = new Date().toISOString()
+        await pb.collection('queue_entries').update(activeEntry.id, {
+          status: 'removido',
+          exit_time: arrivalTime,
+          reason: 'Promovido para PORTA por chegada física confirmada no Totem Portaria',
+          last_event: 'Transição FORA → PORTA (Chegada Física ao Pátio)',
+          last_operator: 'Totem Portaria Autoatendimento',
+        })
+
+        // 2. Criar log de auditoria específico da transição
+        await pb.collection('audit_logs').create({
+          user_email: 'totem@ciafal.internal',
+          user_name: 'Totem Portaria Autoatendimento',
+          user_role: 'portaria',
+          action: 'TRANSITION_FORA_TO_PORTA',
+          resource: 'queue_entries',
+          resource_id: activeEntry.id,
+          previous_state: 'FORA',
+          new_state: 'PORTA',
+          reason:
+            'Chegada física no Totem da Portaria promovendo disponibilidade externa para física',
+          correlation_id: `TRANS-${Date.now()}`,
+          payload: {
+            driver_id: driver.id,
+            driver_name: driver.name,
+            previous_entry_time: activeEntry.entry_time,
+            physical_arrival_time: arrivalTime,
+          },
+        })
+
+        transitionedFromFora = true
       }
     }
 
     // Find or create vehicle
     let vehicleId = ''
-    const cleanPlate = (params.plate || '').toUpperCase().trim()
     if (cleanPlate) {
       try {
         const vehicles = await pb
@@ -143,14 +255,15 @@ export const TmsService = {
       }
     }
 
-    // Create entry in PORTA
+    // Create entry in PORTA with real effective arrival time
     try {
+      const entryTime = new Date().toISOString()
       const entry = await pb.collection('queue_entries').create({
         driver: driver.id,
         vehicle: vehicleId || null,
         type: 'PORTA',
         status: 'disponivel',
-        entry_time: new Date().toISOString(),
+        entry_time: entryTime,
         location_status: 'validada',
         distance_km: 0,
         driver_name_cached: driver.name,
@@ -158,14 +271,21 @@ export const TmsService = {
         driver_whatsapp_cached: cleanPhone || driver.whatsapp,
         vehicle_plate_cached: cleanPlate,
         vehicle_type_cached: params.vehicleType || 'Carreta',
-        reason: 'Entrada registrada via Totem da Portaria',
-        last_event: 'Entrada na Fila (PORTA)',
+        reason: transitionedFromFora
+          ? 'Transição FORA → PORTA confirmada pelo Totem da Portaria'
+          : 'Entrada física registrada via Totem da Portaria',
+        last_event: transitionedFromFora
+          ? 'Transição FORA → PORTA (Presença Confirmada)'
+          : 'Entrada na Fila (PORTA)',
         last_operator: 'Totem Portaria',
       })
 
       return {
         success: true,
-        message: 'Entrada na Fila PORTA registrada com sucesso!',
+        transitionedFromFora,
+        message: transitionedFromFora
+          ? 'Transição FORA → PORTA realizada com sucesso! Presença física confirmada no pátio com nova prioridade temporal.'
+          : 'Entrada na Fila PORTA registrada com sucesso!',
         data: entry,
       }
     } catch (err: any) {
@@ -179,6 +299,7 @@ export const TmsService = {
   ): Promise<{ success: boolean; message: string; data?: any; isPreReg?: boolean }> {
     const cleanDoc = params.document.replace(/\D/g, '')
     const cleanPhone = params.whatsapp.replace(/\D/g, '').replace(/^55/, '')
+    const cleanPlate = (params.plate || '').toUpperCase().trim()
 
     const docValidation = isValidDocument(cleanDoc)
     if (!docValidation.valid) {
@@ -186,7 +307,7 @@ export const TmsService = {
     }
 
     // Geolocation check
-    if (!params.latitude || !params.longitude) {
+    if (params.latitude === undefined || params.longitude === undefined) {
       return {
         success: false,
         message:
@@ -194,11 +315,61 @@ export const TmsService = {
       }
     }
 
-    const geoCheck = validateGeofence(params.latitude, params.longitude)
+    // Retrieve plant dynamic parameters or defaults
+    let plantLat = CIAFAL_PLANT_LOCATION.latitude
+    let plantLon = CIAFAL_PLANT_LOCATION.longitude
+    let maxRadiusKm = CIAFAL_PLANT_LOCATION.maxRadiusKm
+    let accuracyTolerance = 500
+
+    try {
+      const pLat = await pb
+        .collection('system_parameters')
+        .getFirstListItem('key = "PLANT_LATITUDE"')
+      plantLat = parseFloat(pLat.value) || plantLat
+    } catch {
+      /* intentionally ignored */
+    }
+    try {
+      const pLon = await pb
+        .collection('system_parameters')
+        .getFirstListItem('key = "PLANT_LONGITUDE"')
+      plantLon = parseFloat(pLon.value) || plantLon
+    } catch {
+      /* intentionally ignored */
+    }
+    try {
+      const pRad = await pb
+        .collection('system_parameters')
+        .getFirstListItem('key = "MAX_RADIUS_KM"')
+      maxRadiusKm = parseFloat(pRad.value) || maxRadiusKm
+    } catch {
+      /* intentionally ignored */
+    }
+    try {
+      const pAcc = await pb
+        .collection('system_parameters')
+        .getFirstListItem('key = "GEO_ACCURACY_TOLERANCE_METERS"')
+      accuracyTolerance = parseFloat(pAcc.value) || accuracyTolerance
+    } catch {
+      /* intentionally ignored */
+    }
+
+    const geoCheck = validateGeofence(
+      params.latitude,
+      params.longitude,
+      plantLat,
+      plantLon,
+      maxRadiusKm,
+      params.accuracy || 0,
+      accuracyTolerance,
+    )
+
     if (!geoCheck.isWithinRadius) {
       return {
         success: false,
-        message: `Localização fora do raio permitido: Você está a ${geoCheck.distanceKm} km da CIAFAL. O limite máximo é de 60 km.`,
+        message:
+          geoCheck.reason ||
+          `Localização fora do raio permitido: Você está a ${geoCheck.distanceKm} km da CIAFAL. O limite máximo é de ${maxRadiusKm} km.`,
       }
     }
 
@@ -212,13 +383,33 @@ export const TmsService = {
           name: 'Motorista Externo (Link)',
           whatsapp: cleanPhone,
           vehicle_type: params.vehicleType,
-          plate: params.plate?.toUpperCase().trim(),
+          plate: cleanPlate,
           origin: 'FORA',
-          status: 'pendente',
+          status: 'novo',
           latitude: params.latitude,
           longitude: params.longitude,
-          reviewer_notes: `Check-in Externo GPS a ${geoCheck.distanceKm} km da CIAFAL. CPF/CNPJ sem cadastro ativo.`,
+          reviewer_notes: `Check-in Externo GPS a ${geoCheck.distanceKm} km da CIAFAL. CPF/CNPJ sem cadastro ativo no SAP.`,
         })
+
+        // Audit pre-registration
+        await pb.collection('audit_logs').create({
+          user_email: 'checkin@ciafal.public',
+          user_name: 'Link Externo Motorista',
+          user_role: 'portaria',
+          action: 'CREATE_PRE_REGISTRATION',
+          resource: 'pre_registrations',
+          resource_id: pre.id,
+          new_state: 'novo',
+          reason: `Check-in externo sem cadastro ativo no SAP (${geoCheck.distanceKm} km)`,
+          correlation_id: `PREREG-EXT-${Date.now()}`,
+          payload: {
+            document: cleanDoc,
+            plate: cleanPlate,
+            distance_km: geoCheck.distanceKm,
+            origin: 'FORA',
+          },
+        })
+
         return {
           success: true,
           isPreReg: true,
@@ -249,7 +440,6 @@ export const TmsService = {
 
     // Create entry in FORA
     try {
-      const cleanPlate = (params.plate || '').toUpperCase().trim()
       const entry = await pb.collection('queue_entries').create({
         driver: driver.id,
         type: 'FORA',
@@ -264,7 +454,7 @@ export const TmsService = {
         driver_whatsapp_cached: cleanPhone || driver.whatsapp,
         vehicle_plate_cached: cleanPlate,
         vehicle_type_cached: params.vehicleType || 'Carreta',
-        reason: `Disponibilidade informada via link externo (Distância: ${geoCheck.distanceKm} km)`,
+        reason: `Disponibilidade informada via link externo (Distância recalculada: ${geoCheck.distanceKm} km)`,
         last_event: 'Check-in Externo (FORA)',
         last_operator: 'Motorista via Web App',
       })
@@ -279,10 +469,10 @@ export const TmsService = {
     }
   },
 
-  // Update Queue Status with Operator Audit
+  // Update Queue Status with Operator Audit & State Tracking
   async updateQueueStatus(
     entryId: string,
-    newStatus: string,
+    newStatus: QueueStatus,
     reason: string,
     operatorEmail: string,
     operatorName: string,
@@ -303,7 +493,7 @@ export const TmsService = {
           : null,
       })
 
-      // Also explicitly write to audit_logs
+      // Explicit audit log
       await pb.collection('audit_logs').create({
         user_email: operatorEmail,
         user_name: operatorName,
@@ -318,6 +508,7 @@ export const TmsService = {
         payload: {
           driver: entry.driver_name_cached,
           doc: entry.driver_doc_cached,
+          group: entry.type,
           notes: operatorNotes,
         },
       })
@@ -329,7 +520,7 @@ export const TmsService = {
     }
   },
 
-  // Pre-registrations
+  // Pre-registrations CRUD
   async getPreRegistrations(): Promise<PreRegistrationEntity[]> {
     try {
       return await pb.collection('pre_registrations').getFullList<PreRegistrationEntity>({
@@ -343,12 +534,13 @@ export const TmsService = {
 
   async updatePreRegistrationStatus(
     id: string,
-    status: 'pendente' | 'em_analise' | 'aprovado' | 'rejeitado',
+    status: PreRegistrationStatus,
     reviewerUser: string,
     reviewerNotes: string,
     rejectionReason?: string,
   ): Promise<boolean> {
     try {
+      const prev = await pb.collection('pre_registrations').getOne<PreRegistrationEntity>(id)
       await pb.collection('pre_registrations').update(id, {
         status,
         reviewer_user: reviewerUser,
@@ -364,8 +556,15 @@ export const TmsService = {
         action: 'UPDATE_PREREG_STATUS',
         resource: 'pre_registrations',
         resource_id: id,
+        previous_state: prev.status,
         new_state: status,
-        reason: reviewerNotes || rejectionReason || 'Análise de pré-cadastro',
+        reason: reviewerNotes || rejectionReason || 'Análise e triagem de pré-cadastro',
+        correlation_id: `PREREG-REV-${Date.now()}`,
+        payload: {
+          candidate_name: prev.name,
+          document: prev.document,
+          plate: prev.plate,
+        },
       })
 
       return true
@@ -384,6 +583,18 @@ export const TmsService = {
       })
     } catch (err) {
       console.error('Failed to fetch audit logs:', err)
+      return []
+    }
+  },
+
+  // Freight Offers (Sprint 1.1 Model Inspection / Preparation)
+  async getFreightOffers(): Promise<FreightOfferEntity[]> {
+    try {
+      return await pb.collection('freight_offers').getFullList<FreightOfferEntity>({
+        sort: '-created',
+      })
+    } catch (err) {
+      console.error('Failed to fetch freight offers:', err)
       return []
     }
   },

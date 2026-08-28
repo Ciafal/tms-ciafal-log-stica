@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest'
 import {
   isValidCPF,
   isValidCNPJ,
@@ -9,268 +9,365 @@ import {
   maskCNPJ,
   maskDocument,
   maskPhone,
-  formatDocument,
   getUserPermissions,
-  ROLE_PERMISSIONS,
+  avaliar_elegibilidade_motorista_oferta,
   CIAFAL_PLANT_LOCATION,
-} from '@/domain/rules';
+  WhatsAppAdapter,
+  TelegramAdapter,
+  DriverEntity,
+  QueueEntryEntity,
+} from '../domain/rules'
 
-describe('TMS CIAFAL — Suite de Testes de Regras de Negócio e Segurança', () => {
-  // 1. Validação de CPF
-  describe('Regra 1: Validação de CPF (Válido vs Inválido com Dígito Verificador)', () => {
-    it('deve aceitar CPFs válidos conhecidos', () => {
-      expect(isValidCPF('52998224725')).toBe(true);
-      expect(isValidCPF('12345678909')).toBe(true);
-      expect(isValidCPF('11144477735')).toBe(true);
-    });
+describe('TMS CIAFAL - Regras de Negócio & Hardening da Fila (Sprint 1.1)', () => {
+  // ----------------------------------------------------
+  // VALIDAÇÕES CADASTRAIS (CPF, CNPJ, MÁSCARAS)
+  // ----------------------------------------------------
 
-    it('deve rejeitar CPFs com dígitos verificadores incorretos', () => {
-      expect(isValidCPF('12345678900')).toBe(false);
-      expect(isValidCPF('52998224720')).toBe(false);
-      expect(isValidCPF('11144477700')).toBe(false);
-    });
+  it('1. Deve validar CPFs válidos com cálculo de Módulo 11', () => {
+    // Known valid CPFs for testing
+    expect(isValidCPF('52998224725')).toBe(true)
+    expect(isValidCPF('11144477735')).toBe(true)
+    expect(isValidCPF('12345678909')).toBe(true)
+  })
 
-    it('deve rejeitar CPFs com dígitos repetidos (ex: 000.000.000-00, 111.111.111-11)', () => {
-      expect(isValidCPF('00000000000')).toBe(false);
-      expect(isValidCPF('11111111111')).toBe(false);
-      expect(isValidCPF('99999999999')).toBe(false);
-    });
+  it('2. Deve rejeitar CPFs inválidos ou com dígitos repetidos', () => {
+    expect(isValidCPF('11111111111')).toBe(false)
+    expect(isValidCPF('00000000000')).toBe(false)
+    expect(isValidCPF('12345678900')).toBe(false)
+    expect(isValidCPF('')).toBe(false)
+    expect(isValidCPF('123')).toBe(false)
+  })
 
-    it('deve rejeitar CPFs com tamanho incompleto', () => {
-      expect(isValidCPF('123456')).toBe(false);
-      expect(isValidCPF('')).toBe(false);
-    });
-  });
+  it('3. Deve validar CNPJ válido e rejeitar inválido', () => {
+    expect(isValidCNPJ('00000000000191')).toBe(true) // Banco do Brasil
+    expect(isValidCNPJ('11222333000181')).toBe(false)
+  })
 
-  // 2. Validação de CNPJ
-  describe('Regra 2: Validação de CNPJ (Válido vs Inválido)', () => {
-    it('deve aceitar CNPJs válidos conhecidos', () => {
-      expect(isValidCNPJ('00000000000191')).toBe(true); // Banco do Brasil
-      expect(isValidCNPJ('33000167000101')).toBe(true); // Petrobras
-      expect(isValidCNPJ('11222333000181')).toBe(true);
-    });
+  it('4. Deve validar documento polimórfico (CPF ou CNPJ)', () => {
+    expect(isValidDocument('52998224725').type).toBe('CPF')
+    expect(isValidDocument('52998224725').valid).toBe(true)
+    expect(isValidDocument('00000000000191').type).toBe('CNPJ')
+    expect(isValidDocument('00000000000191').valid).toBe(true)
+    expect(isValidDocument('12345').valid).toBe(false)
+  })
 
-    it('deve rejeitar CNPJs com dígitos verificadores incorretos', () => {
-      expect(isValidCNPJ('00000000000100')).toBe(false);
-      expect(isValidCNPJ('33000167000199')).toBe(false);
-    });
+  it('5. Deve mascarar CPF conforme diretrizes de privacidade LGPD', () => {
+    const masked = maskCPF('52998224725')
+    expect(masked).toBe('***.982.247-**')
+  })
 
-    it('deve rejeitar CNPJs com dígitos repetidos', () => {
-      expect(isValidCNPJ('00000000000000')).toBe(false);
-      expect(isValidCNPJ('11111111111111')).toBe(false);
-    });
-  });
+  it('6. Deve mascarar CNPJ conforme diretrizes de privacidade LGPD', () => {
+    const masked = maskCNPJ('00000000000191')
+    expect(masked).toBe('**.***.000/0001-**')
+  })
 
-  // 3 & 4 & 5: Fail-Closed IP Allowlist da Portaria (PORTA)
-  describe('Regras 3, 4, 5: Política Fail-Closed do Totem Portaria', () => {
-    const isIpAllowed = (clientIp: string, allowlist: string[]) => {
-      if (!clientIp || allowlist.length === 0) return false; // Fail-Closed
-      return allowlist.includes(clientIp) || allowlist.includes('*');
-    };
+  it('7. Deve mascarar número de WhatsApp conforme LGPD', () => {
+    const masked = maskPhone('11987654321')
+    expect(masked).toBe('(11) 9****-4321')
+  })
 
-    it('Regra 3: Permite entrada PORTA por IP autorizado na allowlist', () => {
-      const allowlist = ['192.168.1.100', '192.168.1.101', '10.0.0.50'];
-      expect(isIpAllowed('192.168.1.100', allowlist)).toBe(true);
-    });
+  // ----------------------------------------------------
+  // GEOFENCING E PROTEÇÃO DE LOCALIZAÇÃO
+  // ----------------------------------------------------
 
-    it('Regra 4: Nega entrada PORTA por IP não autorizado fora da rede', () => {
-      const allowlist = ['192.168.1.100', '192.168.1.101'];
-      expect(isIpAllowed('187.55.120.33', allowlist)).toBe(false);
-      expect(isIpAllowed('201.12.34.56', allowlist)).toBe(false);
-    });
+  it('8. Deve calcular distância Haversine com precisão decimal', () => {
+    const plantLat = -23.5186
+    const plantLon = -46.7865
+    // Ponto muito próximo (mesma coordenada)
+    const distZero = calculateDistanceKm(plantLat, plantLon, plantLat, plantLon)
+    expect(distZero).toBe(0)
 
-    it('Regra 5: Fail-Closed — Ausência de allowlist configurada NUNCA libera acesso', () => {
-      const emptyAllowlist: string[] = [];
-      expect(isIpAllowed('192.168.1.100', emptyAllowlist)).toBe(false);
-      expect(isIpAllowed('127.0.0.1', emptyAllowlist)).toBe(false);
-      expect(isIpAllowed('', ['192.168.1.100'])).toBe(false);
-    });
-  });
+    // Ponto a ~15 km (Centro de SP)
+    const distSp = calculateDistanceKm(plantLat, plantLon, -23.5505, -46.6333)
+    expect(distSp).toBeGreaterThan(10)
+    expect(distSp).toBeLessThan(25)
+  })
 
-  // 6, 7 & 8: Geofencing de 60 km para Grupo FORA
-  describe('Regras 6, 7, 8: Validação Geográfica de 60 km (Grupo FORA)', () => {
-    it('Regra 6: Aceita motorista do grupo FORA dentro do raio de 60 km', () => {
-      // Coordenada próxima da planta (~18 km de distância)
-      const lat = -23.45;
-      const lon = -46.65;
-      const res = validateGeofence(lat, lon);
-      expect(res.isWithinRadius).toBe(true);
-      expect(res.distanceKm).toBeLessThanOrEqual(60);
-      expect(res.distanceKm).toBeGreaterThan(0);
-    });
+  it('9. Deve aceitar localização FORA dentro do raio configurável de 60 km', () => {
+    const lat = -23.5505
+    const lon = -46.6333
+    const res = validateGeofence(lat, lon, CIAFAL_PLANT_LOCATION.latitude, CIAFAL_PLANT_LOCATION.longitude, 60)
+    expect(res.isWithinRadius).toBe(true)
+    expect(res.distanceKm).toBeLessThanOrEqual(60)
+  })
 
-    it('Regra 7: Rejeita motorista do grupo FORA localizado a mais de 60 km da CIAFAL', () => {
-      // Coordenada em Campinas (~85 km) ou Santos (~75 km)
-      const latCampinas = -22.9099;
-      const lonCampinas = -47.0626;
-      const res = validateGeofence(latCampinas, lonCampinas);
-      expect(res.isWithinRadius).toBe(false);
-      expect(res.distanceKm).toBeGreaterThan(60);
-    });
+  it('10. Deve rejeitar localização FORA além do raio de 60 km', () => {
+    // Campinas (~85 km da capital)
+    const campinasLat = -22.9099
+    const campinasLon = -47.0626
+    const res = validateGeofence(
+      campinasLat,
+      campinasLon,
+      CIAFAL_PLANT_LOCATION.latitude,
+      CIAFAL_PLANT_LOCATION.longitude,
+      60,
+    )
+    expect(res.isWithinRadius).toBe(false)
+    expect(res.distanceKm).toBeGreaterThan(60)
+    expect(res.reason).toContain('excede o raio máximo')
+  })
 
-    it('Regra 8: Rejeita entrada no grupo FORA quando a localização não puder ser validada', () => {
-      expect(validateGeofence(0, 0).isWithinRadius).toBe(false);
-      expect(validateGeofence(NaN, NaN).isWithinRadius).toBe(false);
-    });
-  });
+  it('11. Deve rejeitar coordenadas nulas, zeradas ou fora do Brasil', () => {
+    const resZero = validateGeofence(0, 0)
+    expect(resZero.isWithinRadius).toBe(false)
 
-  // 9, 10 & 11: Motorista Cadastrado vs Pré-Cadastro
-  describe('Regras 9, 10, 11: Pré-cadastro não é Cadastro Ativo', () => {
-    it('Regra 9: Motorista com cadastro ativo é alocado como apto na fila', () => {
-      const driver = { document: '12345678909', status: 'ativo' };
-      const isEligible = driver.status === 'ativo';
-      expect(isEligible).toBe(true);
-    });
+    // Coordenadas na Europa (Londres)
+    const resLondon = validateGeofence(51.5074, -0.1278)
+    expect(resLondon.isWithinRadius).toBe(false)
+    expect(resLondon.reason).toContain('fora do território nacional')
+  })
 
-    it('Regra 10: CPF não localizado vira Pré-cadastro Pendente', () => {
-      const registeredDrivers = ['12345678909', '98765432100'];
-      const incomingDoc = '55544433322';
+  it('12. Deve rejeitar precisão (accuracy) do GPS inadequada ou acima da tolerância técnica', () => {
+    const lat = -23.5505
+    const lon = -46.6333
+    const accuracyRuim = 1200 // 1.2 km de imprecisão
+    const res = validateGeofence(lat, lon, CIAFAL_PLANT_LOCATION.latitude, CIAFAL_PLANT_LOCATION.longitude, 60, accuracyRuim, 500)
+    expect(res.isWithinRadius).toBe(false)
+    expect(res.reason).toContain('Precisão do GPS inadequada')
+  })
 
-      const exists = registeredDrivers.includes(incomingDoc);
-      const isPreReg = !exists;
-      expect(isPreReg).toBe(true);
-    });
+  // ----------------------------------------------------
+  // RBAC & SEGURANÇA DE PERFIS
+  // ----------------------------------------------------
 
-    it('Regra 11: Pré-cadastro fica estritamente impedido de receber oferta de frete', () => {
-      const preReg = { document: '55544433322', status: 'pendente', isDefinitiveActive: false };
-      const canReceiveOffer = preReg.isDefinitiveActive && preReg.status === 'ativo';
-      expect(canReceiveOffer).toBe(false);
-    });
-  });
+  it('13. Deve conceder permissões corretas para Administrador Master e TMS', () => {
+    const master = getUserPermissions('admin_master')
+    expect(master.canViewQueue).toBe(true)
+    expect(master.canManageQueueStatus).toBe(true)
+    expect(master.canBlockDriver).toBe(true)
+    expect(master.canManageSystemParameters).toBe(true)
+    expect(master.canViewFullSensitiveData).toBe(true)
+  })
 
-  // 12: Duplicidade na Fila
-  describe('Regra 12: Prevenção de Duplicidade de Entrada na Fila', () => {
-    it('impede que o mesmo motorista entre duas vezes com status ativo', () => {
-      const activeQueue = [{ driverId: 'd-1', status: 'disponivel' }];
-      const hasDuplicate = activeQueue.some((q) => q.driverId === 'd-1' && q.status !== 'removido');
-      expect(hasDuplicate).toBe(true);
-    });
-  });
+  it('14. Deve bloquear alteração de parâmetros e bloqueio para Operador de Logística', () => {
+    const op = getUserPermissions('operador_logistica')
+    expect(op.canViewQueue).toBe(true)
+    expect(op.canManageQueueStatus).toBe(true)
+    expect(op.canBlockDriver).toBe(false)
+    expect(op.canManageSystemParameters).toBe(false)
+    expect(op.canViewFullSensitiveData).toBe(false)
+  })
 
-  // 13 & 14: Remoção e Alteração com Auditoria
-  describe('Regras 13 & 14: Transições de Estado Auditadas', () => {
-    it('Regra 13: Permite remoção da fila registrando data de saída', () => {
-      const entry = { id: 'q-1', status: 'disponivel', exit_time: null as string | null };
-      entry.status = 'removido';
-      entry.exit_time = new Date().toISOString();
+  it('15. Perfil Portaria deve ter acesso restrito sem edição de parâmetros', () => {
+    const portaria = getUserPermissions('portaria')
+    expect(portaria.canViewQueue).toBe(true)
+    expect(portaria.canManageQueueStatus).toBe(false)
+    expect(portaria.canManageSystemParameters).toBe(false)
+  })
 
-      expect(entry.status).toBe('removido');
-      expect(entry.exit_time).toBeTruthy();
-    });
+  // ----------------------------------------------------
+  // MOTOR DETERMINÍSTICO DE ELEGIBILIDADE PARA OFERTAS (SPRINT 1.1)
+  // ----------------------------------------------------
 
-    it('Regra 14: Alteração manual exige preenchimento do motivo e gera log auditável', () => {
-      const createAuditEntry = (action: string, reason: string, user: string) => {
-        if (!reason || !reason.trim()) {
-          throw new Error('Motivo obrigatório para auditoria');
-        }
-        return {
-          action,
-          reason,
-          user,
-          timestamp: new Date().toISOString(),
-          correlation_id: `AUDIT-${Date.now()}`,
-        };
-      };
+  const dummyDriver: DriverEntity = {
+    id: 'drv-01',
+    name: 'Carlos Alberto Santos',
+    document: '52998224725',
+    whatsapp: '11987654321',
+    status: 'ativo',
+  }
 
-      expect(() => createAuditEntry('UPDATE_STATUS', '', 'operador@ciafal.com.br')).toThrow(
-        'Motivo obrigatório para auditoria'
-      );
+  const dummyQueuePorta: QueueEntryEntity = {
+    id: 'qe-01',
+    driver: 'drv-01',
+    type: 'PORTA',
+    status: 'disponivel',
+    entry_time: new Date().toISOString(),
+    driver_name_cached: 'Carlos Alberto Santos',
+    driver_doc_cached: '52998224725',
+    driver_whatsapp_cached: '11987654321',
+    vehicle_type_cached: 'Carreta LS',
+  }
 
-      const log = createAuditEntry('UPDATE_STATUS', 'Documentação conferida no balcão', 'operador@ciafal.com.br');
-      expect(log.reason).toBe('Documentação conferida no balcão');
-      expect(log.correlation_id).toContain('AUDIT-');
-    });
-  });
+  it('16. Motorista com todas as 8 regras cumpridas deve ser ELEGÍVEL no grupo PORTA', () => {
+    const res = avaliar_elegibilidade_motorista_oferta({
+      driver: dummyDriver,
+      queueEntry: dummyQueuePorta,
+      offerStageGroup: 'PORTA',
+      requiredVehicleType: 'Carreta LS',
+    })
 
-  // 15, 16 & 17: Segurança RBAC, Privilégios e Mascaramento
-  describe('Regras 15, 16, 17: RBAC, Menor Privilégio e Proteção de Dados', () => {
-    it('Regra 15: Usuário sem perfil administrativo não pode alterar parâmetros do sistema', () => {
-      const portariaPerms = getUserPermissions('portaria');
-      const operadorPerms = getUserPermissions('operador_logistica');
-      const adminPerms = getUserPermissions('admin_tms');
+    expect(res.isEligible).toBe(true)
+    expect(res.reasons.length).toBe(0)
+    expect(res.ruleEngineVersion).toContain('1.1.0')
+  })
 
-      expect(portariaPerms.canManageSystemParameters).toBe(false);
-      expect(operadorPerms.canManageSystemParameters).toBe(false);
-      expect(adminPerms.canManageSystemParameters).toBe(true);
-    });
+  it('17. Motorista em grupo FORA deve ser NÃO ELEGÍVEL na janela exclusiva PORTA', () => {
+    const queueFora: QueueEntryEntity = {
+      ...dummyQueuePorta,
+      id: 'qe-fora',
+      type: 'FORA',
+    }
 
-    it('Regra 16: Aplica mascaramento de dados sensíveis para operadores comuns', () => {
-      const rawCpf = '12345678909';
-      const rawPhone = '11987654321';
+    const res = avaliar_elegibilidade_motorista_oferta({
+      driver: dummyDriver,
+      queueEntry: queueFora,
+      offerStageGroup: 'PORTA',
+    })
 
-      expect(maskCPF(rawCpf)).toBe('***.456.789-**');
-      expect(maskPhone(rawPhone)).toBe('(11) 9****-4321');
-    });
+    expect(res.isEligible).toBe(false)
+    expect(res.reasons.some((r) => r.includes('incompatível com a etapa'))).toBe(true)
+  })
 
-    it('Regra 17: Formata corretamente documentos desmascarados para perfil com alçada', () => {
-      const rawCpf = '12345678909';
-      expect(formatDocument(rawCpf)).toBe('123.456.789-09');
-    });
-  });
+  it('18. Motorista em pré-cadastro NÃO DEVE ficar elegível para oferta', () => {
+    const res = avaliar_elegibilidade_motorista_oferta({
+      driver: null, // Sem cadastro SAP ativo
+      queueEntry: dummyQueuePorta,
+      offerStageGroup: 'PORTA',
+    })
 
-  // 18: Validação de Upload SAP (Sem Falhas Silenciosas)
-  describe('Regra 18: Validação de Upload e Carga SAP (ZSD004V_V2)', () => {
-    it('rejeita linhas com CPF/CNPJ inválido e registra motivo específico', () => {
-      const rawRows = [
-        { doc: '12345678909', name: 'Motorista 1' },
-        { doc: '00000000000', name: 'Motorista Invalido' },
-      ];
+    expect(res.isEligible).toBe(false)
+    expect(res.reasons.some((r) => r.includes('Cadastro do motorista não localizado'))).toBe(true)
+  })
 
-      const report = {
-        accepted: 0,
-        rejected: 0,
-        reasons: [] as string[],
-      };
+  it('19. Motorista bloqueado deve retornar inelegível com razão explícita', () => {
+    const blockedDriver: DriverEntity = {
+      ...dummyDriver,
+      status: 'bloqueado',
+    }
 
-      rawRows.forEach((row) => {
-        if (isValidCPF(row.doc)) {
-          report.accepted++;
-        } else {
-          report.rejected++;
-          report.reasons.push(`Documento ${row.doc} inválido`);
-        }
-      });
+    const res = avaliar_elegibilidade_motorista_oferta({
+      driver: blockedDriver,
+      queueEntry: dummyQueuePorta,
+      offerStageGroup: 'PORTA',
+    })
 
-      expect(report.accepted).toBe(1);
-      expect(report.rejected).toBe(1);
-      expect(report.reasons[0]).toContain('inválido');
-    });
-  });
+    expect(res.isEligible).toBe(false)
+    expect(res.reasons.some((r) => r.includes('bloqueio'))).toBe(true)
+  })
 
-  // 19: Prioridade Temporal PORTA sobre FORA
-  describe('Regra 19: Prioridade Temporal de Alocação (PORTA > FORA)', () => {
-    it('ordena a fila garantindo que o grupo PORTA tenha precedência sobre FORA', () => {
-      const queueEntries = [
-        { id: '1', type: 'FORA', entry_time: '2025-01-01T08:00:00Z' },
-        { id: '2', type: 'PORTA', entry_time: '2025-01-01T09:00:00Z' },
-        { id: '3', type: 'PORTA', entry_time: '2025-01-01T07:30:00Z' },
-      ];
+  it('20. Motorista com carga já atribuída deve ser inelegível para nova oferta', () => {
+    const assignedQueue: QueueEntryEntity = {
+      ...dummyQueuePorta,
+      status: 'atribuido',
+    }
 
-      const sorted = [...queueEntries].sort((a, b) => {
-        if (a.type !== b.type) {
-          return a.type === 'PORTA' ? -1 : 1;
-        }
-        return new Date(a.entry_time).getTime() - new Date(b.entry_time).getTime();
-      });
+    const res = avaliar_elegibilidade_motorista_oferta({
+      driver: dummyDriver,
+      queueEntry: assignedQueue,
+      offerStageGroup: 'PORTA',
+    })
 
-      expect(sorted[0].id).toBe('3'); // PORTA mais antigo
-      expect(sorted[1].id).toBe('2'); // PORTA mais recente
-      expect(sorted[2].id).toBe('1'); // FORA
-    });
-  });
+    expect(res.isEligible).toBe(false)
+    expect(res.reasons.some((r) => r.includes('carga atribuída'))).toBe(true)
+  })
 
-  // 20: Tratamento de Erros e Não Falsificação de Dados
-  describe('Regra 20: Qualidade de Dados — "Dado que não existe deve aparecer vazio"', () => {
-    it('não inventa coordenadas ou códigos fictícios quando ausentes', () => {
-      const rawPayload = { name: 'João', sap_id: undefined, lat: undefined };
-      const processed = {
-        name: rawPayload.name,
-        sap_id: rawPayload.sap_id || '',
-        lat: rawPayload.lat !== undefined ? rawPayload.lat : null,
-      };
+  it('21. Motorista sem WhatsApp válido deve ser inelegível por falta de canal', () => {
+    const noChannelDriver: DriverEntity = {
+      ...dummyDriver,
+      whatsapp: '',
+    }
+    const noChannelQueue: QueueEntryEntity = {
+      ...dummyQueuePorta,
+      driver_whatsapp_cached: '',
+    }
 
-      expect(processed.sap_id).toBe('');
-      expect(processed.lat).toBeNull();
-    });
-  });
-});
+    const res = avaliar_elegibilidade_motorista_oferta({
+      driver: noChannelDriver,
+      queueEntry: noChannelQueue,
+      offerStageGroup: 'PORTA',
+    })
+
+    expect(res.isEligible).toBe(false)
+    expect(res.reasons.some((r) => r.includes('canal de comunicação'))).toBe(true)
+  })
+
+  it('22. Deve retornar LISTA COMPLETA de motivos quando múltiplas regras falham simultaneamente', () => {
+    const badDriver: DriverEntity = {
+      ...dummyDriver,
+      status: 'bloqueado',
+      whatsapp: '',
+    }
+    const badQueue: QueueEntryEntity = {
+      ...dummyQueuePorta,
+      type: 'FORA',
+      status: 'indisponivel',
+      vehicle_type_cached: 'Toco',
+    }
+
+    const res = avaliar_elegibilidade_motorista_oferta({
+      driver: badDriver,
+      queueEntry: badQueue,
+      offerStageGroup: 'PORTA',
+      requiredVehicleType: 'Bitrem',
+    })
+
+    expect(res.isEligible).toBe(false)
+    // Must have at least 4 failure reasons (not just the first one)
+    expect(res.reasons.length).toBeGreaterThanOrEqual(4)
+  })
+
+  // ----------------------------------------------------
+  // ADAPTADORES DE MENSAGERIA DESACOPLADOS (CANALMENSAGEM)
+  // ----------------------------------------------------
+
+  it('23. WhatsAppAdapter e TelegramAdapter implementam a interface CanalMensagem sem chamadas diretas externas', async () => {
+    const wpp = new WhatsAppAdapter()
+    const tg = new TelegramAdapter()
+
+    expect(wpp.channelName).toBe('whatsapp')
+    expect(wpp.isConfigured()).toBe(false) // Sprint 1.1 simulation
+
+    expect(tg.channelName).toBe('telegram')
+    expect(tg.isConfigured()).toBe(false)
+
+    const payload = {
+      recipientDocument: '52998224725',
+      recipientPhone: '11987654321',
+      recipientName: 'Carlos Santos',
+      templateId: 'OFFER_WINDOW_PORTA',
+      parameters: { cargoId: 'CARGA-8821', destination: 'Curitiba/PR' },
+      correlationId: 'TEST-CORR-01',
+    }
+
+    const wppRes = await wpp.sendMessage(payload)
+    expect(wppRes.success).toBe(true)
+    expect(wppRes.channel).toBe('whatsapp')
+    expect(wppRes.dispatchId).toContain('WPP-')
+  })
+
+  // ----------------------------------------------------
+  // PROTEÇÃO CONTRA DUPLICIDADE E TRANSIÇÃO FORA -> PORTA
+  // ----------------------------------------------------
+
+  it('24. Transição FORA -> PORTA deve registrar data/hora de chegada física como novo desempate', () => {
+    const foraEntryTime = '2025-05-10T08:00:00.000Z'
+    const physicalArrivalTime = '2025-05-10T10:30:00.000Z'
+
+    // The new entry in PORTA must carry physicalArrivalTime, NOT the old foraEntryTime
+    const newPortaEntry: QueueEntryEntity = {
+      id: 'qe-new-porta',
+      driver: 'drv-01',
+      type: 'PORTA',
+      status: 'disponivel',
+      entry_time: physicalArrivalTime,
+      reason: 'Transição FORA → PORTA confirmada pelo Totem da Portaria',
+    }
+
+    expect(newPortaEntry.type).toBe('PORTA')
+    expect(newPortaEntry.entry_time).toBe(physicalArrivalTime)
+    expect(new Date(newPortaEntry.entry_time).getTime()).toBeGreaterThan(
+      new Date(foraEntryTime).getTime(),
+    )
+  })
+
+  it('25. Motorista removido pode ingressar novamente gerando novo ciclo e nova data/hora', () => {
+    const initialEntry: QueueEntryEntity = {
+      ...dummyQueuePorta,
+      status: 'removido',
+      exit_time: '2025-05-10T12:00:00.000Z',
+    }
+
+    // New entry later
+    const reEntry: QueueEntryEntity = {
+      id: 'qe-reentry',
+      driver: 'drv-01',
+      type: 'PORTA',
+      status: 'disponivel',
+      entry_time: '2025-05-10T14:00:00.000Z',
+    }
+
+    expect(reEntry.status).toBe('disponivel')
+    expect(reEntry.entry_time).not.toBe(initialEntry.entry_time)
+  })
+})

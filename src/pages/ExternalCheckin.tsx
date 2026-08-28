@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { TmsService } from '@/services/tmsService'
-import { isValidDocument, validateGeofence, CIAFAL_PLANT_LOCATION } from '@/domain/rules'
 import {
   Smartphone,
   MapPin,
   Truck,
-  Phone,
-  CreditCard,
   CheckCircle2,
   AlertTriangle,
-  ArrowLeft,
-  Navigation,
+  Clock,
   ShieldCheck,
-  RotateCcw,
-  AlertOctagon,
+  Send,
+  HelpCircle,
+  Phone,
+  Radio,
+  FileText,
+  UserCheck,
+  Info,
+  Lock,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -28,88 +28,88 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import { TmsService } from '@/services/tmsService'
+import { isValidDocument, calculateDistanceKm, CIAFAL_PLANT_LOCATION } from '@/domain/rules'
 
 export const ExternalCheckin: React.FC = () => {
   const { toast } = useToast()
 
-  const [documentNumber, setDocumentNumber] = useState('')
+  const [document, setDocument] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [plate, setPlate] = useState('')
-  const [vehicleType, setVehicleType] = useState('Carreta LS 3 Eixos')
+  const [vehicleType, setVehicleType] = useState('Carreta LS')
 
   // Geolocation State
-  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null)
-  const [geoError, setGeoError] = useState<string | null>(null)
-  const [isGettingLocation, setIsGettingLocation] = useState(false)
-  const [calculatedDistance, setCalculatedDistance] = useState<number | null>(null)
+  const [coords, setCoords] = useState<{ lat: number; lon: number; accuracy: number } | null>(null)
+  const [geoStatus, setGeoStatus] = useState<
+    'idle' | 'requesting' | 'acquired' | 'denied' | 'unsupported' | 'error'
+  >('idle')
+  const [distanceCalculated, setDistanceCalculated] = useState<number | null>(null)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [result, setResult] = useState<{
     success: boolean
     message: string
     isPreReg?: boolean
-    data?: any
   } | null>(null)
 
   // Request browser geolocation
   const requestLocation = () => {
-    setIsGettingLocation(true)
-    setGeoError(null)
-
     if (!navigator.geolocation) {
-      setGeoError('Seu navegador não suporta geolocalização. Utilize o Google Chrome ou Safari.')
-      setIsGettingLocation(false)
+      setGeoStatus('unsupported')
       return
     }
 
+    setGeoStatus('requesting')
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude
-        const lon = pos.coords.longitude
-        setCoords({ latitude: lat, longitude: lon })
+      (position) => {
+        const lat = position.coords.latitude
+        const lon = position.coords.longitude
+        const acc = position.coords.accuracy || 0
 
-        const check = validateGeofence(lat, lon)
-        setCalculatedDistance(check.distanceKm)
-        setIsGettingLocation(false)
+        setCoords({ lat, lon, accuracy: acc })
+        setGeoStatus('acquired')
 
-        if (!check.isWithinRadius) {
-          setGeoError(
-            `Você está a ${check.distanceKm} km da CIAFAL. O limite máximo de atendimento é de 60 km.`,
-          )
-        }
+        // Pre-calculate distance for UI feedback (backend always recalculates)
+        const dist = calculateDistanceKm(
+          lat,
+          lon,
+          CIAFAL_PLANT_LOCATION.latitude,
+          CIAFAL_PLANT_LOCATION.longitude,
+        )
+        setDistanceCalculated(dist)
       },
       (err) => {
-        setIsGettingLocation(false)
+        console.warn('Geolocation error:', err)
         if (err.code === err.PERMISSION_DENIED) {
-          setGeoError(
-            'Permissão de GPS negada. Por favor, autorize a localização nas configurações do seu navegador para continuar.',
-          )
+          setGeoStatus('denied')
         } else {
-          setGeoError('Não foi possível obter sua localização exata. Tente novamente.')
+          setGeoStatus('error')
         }
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0,
+      },
     )
   }
 
   useEffect(() => {
-    // Prompt location when opening page
+    // Auto-request location on mount
     requestLocation()
   }, [])
 
-  const handleDocChange = (val: string) => {
-    setDocumentNumber(val.replace(/\D/g, ''))
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setResult(null)
 
-    const docValidation = isValidDocument(documentNumber)
-    if (!docValidation.valid) {
+    const cleanDoc = document.replace(/\D/g, '')
+    const docCheck = isValidDocument(cleanDoc)
+
+    if (!docCheck.valid) {
       toast({
         title: 'Documento Inválido',
-        description: 'Verifique os dígitos do CPF ou CNPJ informado.',
+        description: 'Informe um CPF ou CNPJ válido com dígitos verificadores corretos.',
         variant: 'destructive',
       })
       return
@@ -119,301 +119,262 @@ export const ExternalCheckin: React.FC = () => {
       toast({
         title: 'Localização Obrigatória',
         description:
-          'Você precisa autorizar o GPS do seu aparelho para validar a distância de até 60 km.',
+          'Para registrar disponibilidade na Fila FORA, autorize o acesso ao GPS do seu dispositivo.',
         variant: 'destructive',
       })
       requestLocation()
       return
     }
 
-    if (calculatedDistance !== null && calculatedDistance > 60) {
-      toast({
-        title: 'Fora do Raio Permitido',
-        description: `Distância atual: ${calculatedDistance} km da CIAFAL (Máximo permitido: 60 km).`,
-        variant: 'destructive',
-      })
-      return
-    }
-
     setIsSubmitting(true)
+    setResult(null)
+
     try {
-      const res = await TmsService.submitExternalCheckin({
-        document: documentNumber,
-        whatsapp: whatsapp,
-        plate: plate.toUpperCase(),
+      const response = await TmsService.submitExternalCheckin({
+        document: cleanDoc,
+        whatsapp,
+        plate,
         vehicleType,
         type: 'FORA',
-        latitude: coords.latitude,
-        longitude: coords.longitude,
+        latitude: coords.lat,
+        longitude: coords.lon,
+        accuracy: coords.accuracy,
       })
 
-      setResult(res)
-      if (res.success) {
+      setResult(response)
+      if (response.success) {
         toast({
-          title: res.isPreReg ? 'Pré-cadastro Enviado' : 'Disponibilidade Confirmada!',
-          description: res.message,
+          title: response.isPreReg ? 'Pré-Cadastro Recebido' : 'Disponibilidade Registrada!',
+          description: response.message,
         })
       } else {
         toast({
           title: 'Não foi possível registrar',
-          description: res.message,
+          description: response.message,
           variant: 'destructive',
         })
       }
     } catch (err: any) {
-      setResult({
-        success: false,
-        message: err?.message || 'Falha ao processar solicitação de disponibilidade.',
+      toast({
+        title: 'Erro de comunicação',
+        description: err?.message || 'Falha ao conectar com os servidores CIAFAL.',
+        variant: 'destructive',
       })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleReset = () => {
-    setDocumentNumber('')
-    setWhatsapp('')
-    setPlate('')
-    setResult(null)
-    requestLocation()
-  }
-
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-4 sm:p-6 font-sans antialiased">
-      {/* HEADER MOBILE EXTERNO */}
-      <div className="max-w-md mx-auto w-full flex items-center justify-between border-b border-slate-800 pb-3">
-        <div className="flex items-center space-x-2.5">
-          <div className="w-10 h-10 rounded-lg bg-emerald-700 text-white flex items-center justify-center font-black text-lg shadow-md">
-            CF
+    <div className="min-h-screen bg-slate-900 text-white flex flex-col justify-between p-4 sm:p-6">
+      {/* Header */}
+      <div className="max-w-md w-full mx-auto space-y-4 pt-4">
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center space-x-2 bg-emerald-950/80 border border-emerald-500/40 px-3 py-1 rounded-full text-xs text-emerald-300">
+            <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Check-in Externo • Fila FORA</span>
           </div>
-          <div>
-            <h1 className="text-base font-bold text-white flex items-center gap-1.5">
-              CIAFAL Logística
-              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[9px] uppercase">
-                GRUPO FORA
-              </Badge>
-            </h1>
-            <p className="text-[11px] text-slate-400">Disponibilidade Externa • Raio de 60 km</p>
-          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+            CIAFAL Logística
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400">
+            Informe sua disponibilidade de frete na região (raio de até 60 km da CIAFAL).
+          </p>
         </div>
 
-        <Link to="/tms/fila">
-          <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white text-xs h-8">
-            <ArrowLeft className="w-3.5 h-3.5 mr-1" />
-            TMS
-          </Button>
-        </Link>
-      </div>
+        {/* Informação Clara de Privacidade e LGPD */}
+        <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3.5 text-[11px] text-slate-300 space-y-1.5 leading-relaxed">
+          <div className="flex items-center space-x-1.5 text-emerald-400 font-bold">
+            <Lock className="w-3.5 h-3.5" />
+            <span>AVISO DE PRIVACIDADE & LGPD (TRANSPARÊNCIA):</span>
+          </div>
+          <p>
+            Sua localização geográfica é coletada exclusivamente para{' '}
+            <strong>verificar a elegibilidade da Fila FORA (raio máximo de 60 km)</strong> e
+            calcular a distância da planta. Não é utilizada para rastreamento contínuo nem
+            compartilhada com terceiros nesta fase.
+          </p>
+        </div>
 
-      {/* CARD PRINCIPAL */}
-      <div className="max-w-md mx-auto w-full my-4">
-        {result ? (
-          <Card className="bg-slate-900 border-slate-800 text-white shadow-xl p-5 text-center space-y-4">
-            <div className="flex justify-center">
+        {/* Result Message */}
+        {result && (
+          <div
+            className={`p-4 rounded-xl border animate-fade-in text-xs ${
+              result.success
+                ? result.isPreReg
+                  ? 'bg-amber-950/70 border-amber-500/50 text-amber-200'
+                  : 'bg-emerald-950/70 border-emerald-500/50 text-emerald-200'
+                : 'bg-rose-950/70 border-rose-500/50 text-rose-200'
+            }`}
+          >
+            <div className="flex items-start space-x-2.5">
               {result.success ? (
                 result.isPreReg ? (
-                  <div className="w-16 h-16 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center">
-                    <AlertTriangle className="w-8 h-8" />
-                  </div>
+                  <Clock className="w-5 h-5 text-amber-400 flex-shrink-0" />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                    <CheckCircle2 className="w-8 h-8" />
-                  </div>
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                 )
               ) : (
-                <div className="w-16 h-16 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center">
-                  <AlertOctagon className="w-8 h-8" />
-                </div>
+                <AlertTriangle className="w-5 h-5 text-rose-400 flex-shrink-0" />
               )}
-            </div>
-
-            <div className="space-y-1">
-              <h2 className="text-xl font-bold">
-                {result.success
-                  ? result.isPreReg
-                    ? 'Pré-Cadastro Recebido'
-                    : 'Você Está na Fila do Grupo FORA!'
-                  : 'Não Foi Possível Entrar na Fila'}
-              </h2>
-              <p className="text-slate-300 text-xs leading-relaxed">{result.message}</p>
-            </div>
-
-            {result.success && !result.isPreReg && (
-              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-left text-xs space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Grupo:</span>
-                  <span className="font-bold text-emerald-400">FORA (Na Região)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Distância Validada:</span>
-                  <span className="font-bold text-slate-200">
-                    {calculatedDistance} km da Planta
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Canal de Oferta:</span>
-                  <span className="font-bold text-sky-400">WhatsApp Oficial CIAFAL</span>
-                </div>
+              <div className="space-y-1">
+                <strong className="font-bold block text-sm">
+                  {result.success
+                    ? result.isPreReg
+                      ? 'Pré-Cadastro Enviado para Análise'
+                      : 'Disponibilidade Confirmada!'
+                    : 'Atenção / Incompatibilidade'}
+                </strong>
+                <p>{result.message}</p>
               </div>
-            )}
+            </div>
+          </div>
+        )}
 
-            <Button
-              onClick={handleReset}
-              className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold h-11 text-sm"
-            >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Novo Check-in
-            </Button>
-          </Card>
-        ) : (
-          <Card className="bg-slate-900 border-slate-800 text-white shadow-xl">
-            <CardHeader className="p-4 border-b border-slate-800">
-              <CardTitle className="text-base font-bold flex items-center space-x-2">
-                <Smartphone className="w-4 h-4 text-emerald-400" />
-                <span>Informar Disponibilidade de Frete</span>
-              </CardTitle>
-              <CardDescription className="text-xs text-slate-400">
-                Seu veículo ficará visível para ofertas de frete da CIAFAL se você estiver a até 60
-                km da fábrica.
-              </CardDescription>
-            </CardHeader>
+        {/* Main Check-in Form */}
+        <Card className="bg-slate-800 border-slate-700 shadow-xl text-white">
+          <CardHeader className="pb-3 border-b border-slate-700">
+            <CardTitle className="text-base font-bold text-white flex items-center space-x-2">
+              <MapPin className="w-4 h-4 text-emerald-400" />
+              <span>Dados do Motorista & Veículo</span>
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-400">
+              Preencha os dados do condutor para validar o cadastro
+            </CardDescription>
+          </CardHeader>
 
-            <CardContent className="p-4 space-y-4">
-              {/* GPS Status Indicator */}
-              <div
-                className={`p-3 rounded-lg border text-xs flex items-center justify-between ${
-                  coords && (calculatedDistance === null || calculatedDistance <= 60)
-                    ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-200'
-                    : geoError || (calculatedDistance !== null && calculatedDistance > 60)
-                      ? 'bg-rose-950/40 border-rose-800/60 text-rose-200'
-                      : 'bg-slate-800/60 border-slate-700 text-slate-300'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <MapPin className="w-4 h-4 flex-shrink-0" />
-                  <div>
-                    {isGettingLocation ? (
-                      <span>Obtendo coordenadas do GPS...</span>
-                    ) : coords ? (
-                      <span>
-                        GPS OK • <strong>{calculatedDistance} km</strong> da CIAFAL (≤ 60 km)
-                      </span>
+          <CardContent className="pt-4">
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+              {/* Geolocation Status Widget */}
+              <div className="bg-slate-900/80 p-3 rounded-lg border border-slate-700 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
+                    <Radio className="w-3 h-3 text-emerald-400" />
+                    Validação Geográfica (GPS)
+                  </span>
+
+                  {geoStatus === 'acquired' && distanceCalculated !== null && (
+                    <Badge className="bg-emerald-600 text-white text-[10px] font-mono">
+                      {distanceCalculated} km da CIAFAL
+                    </Badge>
+                  )}
+                </div>
+
+                {geoStatus === 'requesting' && (
+                  <div className="text-slate-400 text-xs flex items-center space-x-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                    <span>Obtendo coordenadas do seu celular...</span>
+                  </div>
+                )}
+
+                {geoStatus === 'acquired' && coords && (
+                  <div className="text-[11px] text-emerald-400 space-y-0.5">
+                    <div>
+                      ✓ Coordenadas capturadas com precisão de ±{Math.round(coords.accuracy)}m.
+                    </div>
+                    {distanceCalculated !== null && distanceCalculated <= 60 ? (
+                      <div className="text-emerald-300 font-semibold">
+                        ✓ Você está dentro do raio permitido de 60 km.
+                      </div>
                     ) : (
-                      <span>Localização não autorizada</span>
+                      <div className="text-rose-400 font-semibold">
+                        ⚠ Distância calculada ({distanceCalculated} km) excede o raio máximo de 60
+                        km.
+                      </div>
                     )}
                   </div>
-                </div>
+                )}
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={requestLocation}
-                  disabled={isGettingLocation}
-                  className="text-xs h-7 px-2 text-white hover:bg-slate-800"
-                >
-                  <Navigation
-                    className={`w-3.5 h-3.5 ${isGettingLocation ? 'animate-spin' : ''}`}
-                  />
-                </Button>
+                {(geoStatus === 'denied' || geoStatus === 'error') && (
+                  <div className="space-y-1.5">
+                    <div className="text-rose-400 text-[11px]">
+                      ⚠ Acesso ao GPS negado ou indisponível.
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={requestLocation}
+                      className="text-xs bg-slate-700 hover:bg-slate-600 text-white h-7"
+                    >
+                      Tentar Novamente
+                    </Button>
+                  </div>
+                )}
               </div>
 
-              {geoError && (
-                <div className="p-2.5 bg-rose-900/30 border border-rose-700 rounded-md text-[11px] text-rose-200 leading-tight">
-                  {geoError}
-                </div>
-              )}
+              {/* Document Input */}
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300 block">CPF ou CNPJ do Motorista:</label>
+                <Input
+                  placeholder="000.000.000-00"
+                  value={document}
+                  onChange={(e) => setDocument(e.target.value)}
+                  required
+                  className="bg-slate-900 border-slate-700 text-white font-mono text-xs h-9"
+                />
+              </div>
 
-              <form onSubmit={handleSubmit} className="space-y-3.5">
-                {/* CPF / CNPJ */}
+              {/* WhatsApp Input */}
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300 block">
+                  WhatsApp com DDD (Canal de Notificação):
+                </label>
+                <Input
+                  placeholder="(11) 98765-4321"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                  required
+                  className="bg-slate-900 border-slate-700 text-white font-mono text-xs h-9"
+                />
+              </div>
+
+              {/* Vehicle Plate Input */}
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-300">
-                    CPF ou CNPJ (somente números)
-                  </label>
-                  <div className="relative">
-                    <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="Ex: 12345678909"
-                      value={documentNumber}
-                      onChange={(e) => handleDocChange(e.target.value)}
-                      required
-                      className="pl-9 h-10 bg-slate-950 border-slate-800 text-white text-sm font-mono"
-                    />
-                  </div>
+                  <label className="font-bold text-slate-300 block">Placa do Veículo:</label>
+                  <Input
+                    placeholder="ABC1D23"
+                    value={plate}
+                    onChange={(e) => setPlate(e.target.value.toUpperCase())}
+                    className="bg-slate-900 border-slate-700 text-white font-mono text-xs h-9 uppercase"
+                  />
                 </div>
 
-                {/* WhatsApp */}
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-300">
-                    WhatsApp com DDD (sem +55)
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                    <Input
-                      type="tel"
-                      inputMode="tel"
-                      placeholder="Ex: 11987654321"
-                      value={whatsapp}
-                      onChange={(e) => setWhatsapp(e.target.value)}
-                      required
-                      className="pl-9 h-10 bg-slate-950 border-slate-800 text-white text-sm font-mono"
-                    />
-                  </div>
+                  <label className="font-bold text-slate-300 block">Tipo do Conjunto:</label>
+                  <Select value={vehicleType} onValueChange={setVehicleType}>
+                    <SelectTrigger className="bg-slate-900 border-slate-700 text-white text-xs h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-800 text-white border-slate-700">
+                      <SelectItem value="Carreta LS">Carreta LS</SelectItem>
+                      <SelectItem value="Carreta Grade Baixa">Carreta Grade Baixa</SelectItem>
+                      <SelectItem value="Bitrem">Bitrem</SelectItem>
+                      <SelectItem value="Rodotrem">Rodotrem</SelectItem>
+                      <SelectItem value="Truck">Truck</SelectItem>
+                      <SelectItem value="Toco">Toco</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+              </div>
 
-                {/* Placa e Tipo */}
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-300">Placa Cavalo</label>
-                    <div className="relative">
-                      <Truck className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400" />
-                      <Input
-                        type="text"
-                        placeholder="ABC1D23"
-                        value={plate}
-                        onChange={(e) => setPlate(e.target.value.toUpperCase())}
-                        required
-                        className="pl-8 h-10 bg-slate-950 border-slate-800 text-white text-sm font-mono uppercase"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-300">Conjunto</label>
-                    <Select value={vehicleType} onValueChange={setVehicleType}>
-                      <SelectTrigger className="h-10 bg-slate-950 border-slate-800 text-white text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-900 text-white border-slate-800">
-                        <SelectItem value="Carreta LS 3 Eixos">Carreta LS</SelectItem>
-                        <SelectItem value="Bitrem 7 Eixos">Bitrem</SelectItem>
-                        <SelectItem value="Rodotrem 9 Eixos">Rodotrem</SelectItem>
-                        <SelectItem value="Truck">Truck</SelectItem>
-                        <SelectItem value="Toco">Toco</SelectItem>
-                        <SelectItem value="VUC">VUC</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || !coords}
-                  className="w-full h-11 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm tracking-wide shadow-md mt-2"
-                >
-                  {isSubmitting ? 'Verificando...' : 'CONFIRMAR DISPONIBILIDADE (FORA)'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                disabled={isSubmitting || geoStatus === 'requesting'}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm h-11 mt-2 shadow-lg"
+              >
+                {isSubmitting ? 'Verificando Cadastro...' : 'Confirmar Disponibilidade FORA'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* FOOTER MOBILE */}
-      <div className="max-w-md mx-auto w-full text-center text-[10px] text-slate-500">
-        CIAFAL Logística • Dados protegidos e retidos conforme LGPD.
+      {/* Footer */}
+      <div className="text-center text-[10px] text-slate-500 py-4">
+        TMS CIAFAL Logística • HUB Integrado • Versão 1.1 Homologação
       </div>
     </div>
   )
