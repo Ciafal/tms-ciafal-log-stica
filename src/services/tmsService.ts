@@ -8,6 +8,10 @@ import {
   PreRegistrationEntity,
   AuditLogEntity,
   FreightOfferEntity,
+  FreightOfferStatus,
+  FreightProposalEntity,
+  CandidateProposalWithQueue,
+  ProposalStatus,
   SystemParameterEntity,
   SapItineraryEntity,
   SapSalesOrderEntity,
@@ -22,6 +26,9 @@ import {
   classifyAvailabilityGroup,
   maskDocument,
   maskPhone,
+  evaluateEligibility,
+  evaluateProposalPriceRules,
+  selectWinningProposal,
   CIAFAL_PLANT_LOCATION,
 } from '@/domain/rules'
 
@@ -834,6 +841,652 @@ export const TmsService = {
     } catch (err) {
       console.error('Failed to send opportunity to CRM:', err)
       return false
+    }
+  },
+
+  // ----------------------------------------------------
+  // SPRINT 2: MESA DE FRETES & MOTOR DE LEILÃO PORTA/FORA
+  // ----------------------------------------------------
+
+  async getFreightOffers(): Promise<FreightOfferEntity[]> {
+    try {
+      const records = await pb.collection('freight_offers').getFullList<FreightOfferEntity>({
+        sort: '-created',
+        expand: 'winner_driver,winner_vehicle',
+      })
+      return records
+    } catch (err) {
+      console.error('Failed to fetch freight offers:', err)
+      return []
+    }
+  },
+
+  async getFreightOfferById(id: string): Promise<FreightOfferEntity | null> {
+    try {
+      const record = await pb.collection('freight_offers').getOne<FreightOfferEntity>(id, {
+        expand: 'winner_driver,winner_vehicle',
+      })
+      return record
+    } catch (err) {
+      console.warn('Failed to fetch offer by id:', err)
+      return null
+    }
+  },
+
+  async getProposalsByOffer(offerId: string): Promise<FreightProposalEntity[]> {
+    try {
+      const records = await pb.collection('freight_proposals').getFullList<FreightProposalEntity>({
+        filter: `offer_id = "${offerId}"`,
+        sort: 'value,created',
+        expand: 'driver_id',
+      })
+      return records
+    } catch (err) {
+      console.error('Failed to fetch proposals for offer:', err)
+      return []
+    }
+  },
+
+  /**
+   * Evaluates eligibility for driver against offer
+   */
+  async evaluateEligibility(driverId: string, offerId: string) {
+    try {
+      const [driver, offer, queueList] = await Promise.all([
+        pb.collection('drivers').getOne<DriverEntity>(driverId),
+        pb.collection('freight_offers').getOne<FreightOfferEntity>(offerId),
+        pb.collection('queue_entries').getList<QueueEntryEntity>(1, 1, {
+          filter: `driver = "${driverId}" && (status != "removido" && status != "bloqueado")`,
+          sort: '-created',
+        }),
+      ])
+
+      const queueEntry = queueList.items[0] || null
+      const offerGroup =
+        offer.current_group === 'PORTA' ||
+        offer.status === 'PORTA_OPEN' ||
+        offer.status === 'janela_porta_aberta'
+          ? 'PORTA'
+          : 'FORA'
+
+      return evaluateEligibility(driver, queueEntry, offerGroup, offer.required_vehicle_type)
+    } catch (err) {
+      return {
+        isEligible: false,
+        reasons: ['Não foi possível avaliar a elegibilidade (registro não encontrado).'],
+        evaluatedAt: new Date().toISOString(),
+        ruleEngineVersion: '2.0.0-LEILAO-DETERMINISTICO',
+        details: {
+          inQueue: false,
+          activeRegistration: false,
+          activeAvailability: false,
+          noAssignedCargo: false,
+          compatibleVehicle: false,
+          validCommunicationChannel: false,
+          notBlocked: false,
+          correctAuctionGroup: false,
+        },
+      }
+    }
+  },
+
+  /**
+   * Confirms load and opens freight auction (PORTA window)
+   */
+  async openFreightOffer(
+    offerId: string,
+    operatorEmail: string,
+    operatorName: string,
+  ): Promise<{ success: boolean; message: string; data?: FreightOfferEntity }> {
+    try {
+      const offer = await pb.collection('freight_offers').getOne<FreightOfferEntity>(offerId)
+
+      // Get window parameter (default 15 mins)
+      let portaDurationMin = 15
+      try {
+        const p = await pb.collection('system_parameters').getList<SystemParameterEntity>(1, 1, {
+          filter: 'key = "janela_porta_min"',
+        })
+        if (p.items[0]?.value) {
+          portaDurationMin = parseInt(p.items[0].value, 10) || 15
+        }
+      } catch {
+        /* intentionally ignored */
+      }
+
+      const now = new Date()
+      const end = new Date(now.getTime() + portaDurationMin * 60 * 1000)
+
+      const updated = await pb.collection('freight_offers').update<FreightOfferEntity>(offerId, {
+        status: 'PORTA_OPEN',
+        current_group: 'PORTA',
+        opened_at: now.toISOString(),
+        window_start: now.toISOString(),
+        window_end: end.toISOString(),
+        rules_version: '2.0.0-LEILAO-DETERMINISTICO',
+      })
+
+      // Audit offer open
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'gerente_carga',
+        action: 'OPEN_FREIGHT_OFFER_PORTA',
+        resource: 'freight_offers',
+        resource_id: offerId,
+        previous_state: offer.status,
+        new_state: 'PORTA_OPEN',
+        reason: `Abertura de Janela Exclusiva PORTA (${portaDurationMin} min) para a carga ${offer.cargo_id}`,
+        correlation_id: offer.correlation_id || `OFR-${Date.now()}`,
+        payload: {
+          cargo_id: offer.cargo_id,
+          window_start: now.toISOString(),
+          window_end: end.toISOString(),
+          floor_price: offer.floor_value,
+        },
+      })
+
+      return {
+        success: true,
+        message: `Janela PORTA (${portaDurationMin} min) iniciada com sucesso para a carga ${offer.cargo_id}!`,
+        data: updated,
+      }
+    } catch (err: any) {
+      console.error('Error opening freight offer:', err)
+      return { success: false, message: err?.message || 'Falha ao iniciar oferta de frete.' }
+    }
+  },
+
+  /**
+   * Submit Proposal with Deterministic Rules and Hardening:
+   * - Validates active window
+   * - Validates driver eligibility
+   * - If value == floor_price -> Immediate contract (floor acceptance)
+   * - If floor <= value <= ceiling -> VALID proposal
+   * - If value < floor or value > ceiling -> REJECTED with reason
+   */
+  async submitProposal(params: {
+    driverId: string
+    offerId: string
+    value: number
+    arrivalTime?: string
+    clientIp?: string
+  }): Promise<{
+    success: boolean
+    message: string
+    proposal?: FreightProposalEntity
+    immediateContract?: boolean
+    rejected?: boolean
+    reason?: string
+  }> {
+    const { driverId, offerId, value, arrivalTime, clientIp = 'driver_portal' } = params
+
+    // 1. Rate Limiting Check on proposals (e.g. max 10/min)
+    const nowMs = Date.now()
+    const rateKey = `prop_${driverId}_${clientIp}`
+    const rateRec = lookupAttempts.get(rateKey) || { count: 0, lastAttempt: nowMs }
+    if (nowMs - rateRec.lastAttempt > 60000) {
+      rateRec.count = 0
+      rateRec.lastAttempt = nowMs
+    }
+    rateRec.count++
+    lookupAttempts.set(rateKey, rateRec)
+    if (rateRec.count > 10) {
+      return {
+        success: false,
+        message: 'Limite de propostas excedido. Aguarde 1 minuto para nova submissão.',
+      }
+    }
+
+    try {
+      // 2. Fetch Offer and Driver
+      const [offer, driver, queueList] = await Promise.all([
+        pb.collection('freight_offers').getOne<FreightOfferEntity>(offerId),
+        pb.collection('drivers').getOne<DriverEntity>(driverId),
+        pb.collection('queue_entries').getList<QueueEntryEntity>(1, 1, {
+          filter: `driver = "${driverId}" && (status != "removido" && status != "bloqueado")`,
+          sort: '-created',
+        }),
+      ])
+
+      const queueEntry = queueList.items[0] || null
+
+      // Check if offer is open
+      const isOpen =
+        offer.status === 'PORTA_OPEN' ||
+        offer.status === 'FORA_OPEN' ||
+        offer.status === 'janela_porta_aberta' ||
+        offer.status === 'janela_fora_aberta'
+
+      if (!isOpen) {
+        return {
+          success: false,
+          message: `Oferta não está aberta para propostas no momento (Status atual: ${offer.status}).`,
+        }
+      }
+
+      // Check window expiration
+      if (offer.window_end) {
+        const windowEnd = new Date(offer.window_end).getTime()
+        if (Date.now() > windowEnd) {
+          return {
+            success: false,
+            message: 'A janela de tempo para envio de propostas desta oferta já expirou.',
+          }
+        }
+      }
+
+      // 3. Evaluate Driver Eligibility
+      const offerGroup =
+        offer.current_group === 'PORTA' ||
+        offer.status === 'PORTA_OPEN' ||
+        offer.status === 'janela_porta_aberta'
+          ? 'PORTA'
+          : 'FORA'
+
+      const eligibility = evaluateEligibility(
+        driver,
+        queueEntry,
+        offerGroup,
+        offer.required_vehicle_type,
+      )
+      if (!eligibility.isEligible) {
+        return {
+          success: false,
+          message: `Motorista inelegível para esta oferta: ${eligibility.reasons.join(' ')}`,
+        }
+      }
+
+      // 4. Evaluate Price Rules against Floor & Ceiling
+      const floor = Number(offer.floor_value || offer.floor_price) || 0
+      const ceiling = Number(offer.ceiling_value_protected || offer.ceiling_price) || Infinity
+
+      const ruleEval = evaluateProposalPriceRules(value, floor, ceiling)
+
+      const correlationId = `PROP-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+
+      // 5. Create Proposal Record
+      const createdProposal = await pb
+        .collection('freight_proposals')
+        .create<FreightProposalEntity>({
+          offer_id: offerId,
+          driver_id: driverId,
+          value: ruleEval.normalizedValue,
+          arrival_time: arrivalTime || '',
+          status: ruleEval.proposalStatus,
+          reason: ruleEval.reason || '',
+          driver_name_cached: driver.name,
+          driver_doc_cached: driver.document,
+          driver_phone_cached: driver.whatsapp,
+          vehicle_plate_cached: queueEntry?.vehicle_plate_cached || '',
+          correlation_id: correlationId,
+        })
+
+      // 6. Audit Proposal Submission
+      await pb.collection('audit_logs').create({
+        user_email: driver.whatsapp ? `wpp_${driver.whatsapp}@driver.ciafal` : 'driver@public',
+        user_name: driver.name,
+        user_role: 'portaria',
+        action: 'SUBMIT_FREIGHT_PROPOSAL',
+        resource: 'freight_proposals',
+        resource_id: createdProposal.id,
+        new_state: ruleEval.proposalStatus,
+        reason: ruleEval.reason || 'Submissão de proposta pelo motorista',
+        correlation_id: correlationId,
+        payload: {
+          offer_id: offerId,
+          driver_id: driverId,
+          value: ruleEval.normalizedValue,
+          arrival_time: arrivalTime,
+          status: ruleEval.proposalStatus,
+        },
+      })
+
+      // 7. If Immediate Contract (Floor Accepted) -> Auto-Contract Now
+      if (ruleEval.immediateContract) {
+        await this.contractLoad(
+          offerId,
+          createdProposal.id,
+          'Atribuição Imediata por Aceite de Piso',
+        )
+        return {
+          success: true,
+          immediateContract: true,
+          message:
+            'Parabéns! Sua proposta no valor de piso foi aceita e a carga foi atribuída a você imediatamente!',
+          proposal: createdProposal,
+        }
+      }
+
+      if (ruleEval.proposalStatus === 'REJECTED') {
+        return {
+          success: true,
+          rejected: true,
+          reason: ruleEval.reason,
+          message: `Proposta rejeitada pelas regras operacionais: ${ruleEval.reason}`,
+          proposal: createdProposal,
+        }
+      }
+
+      return {
+        success: true,
+        message:
+          'Proposta válida registrada com sucesso! Aguarde o encerramento da janela para o resultado.',
+        proposal: createdProposal,
+      }
+    } catch (err: any) {
+      console.error('Error submitting proposal:', err)
+      return { success: false, message: err?.message || 'Erro ao processar proposta.' }
+    }
+  },
+
+  /**
+   * Process End of Window (PORTA or FORA):
+   * - Selects lowest valid proposal with temporal tiebreaker
+   * - If PORTA ends without valid proposal, automatically opens FORA window
+   * - If FORA ends without valid proposal, marks as NO_CONTRACT
+   */
+  async processEndWindow(
+    offerId: string,
+    operatorEmail = 'system@ciafal.logistica',
+    operatorName = 'Motor de Regras Leilão',
+  ): Promise<{
+    success: boolean
+    message: string
+    transitionedToFora?: boolean
+    winnerProposalId?: string
+    noContract?: boolean
+  }> {
+    try {
+      const offer = await pb.collection('freight_offers').getOne<FreightOfferEntity>(offerId)
+
+      // Check proposals
+      const proposals = await pb
+        .collection('freight_proposals')
+        .getFullList<FreightProposalEntity>({
+          filter: `offer_id = "${offerId}" && (status = "VALID" || status = "WINNER")`,
+          sort: 'value,created',
+        })
+
+      // If already contracted, do nothing
+      if (offer.status === 'CONTRACTED' || offer.status === 'atribuido') {
+        return { success: true, message: 'Oferta já se encontra contratada.' }
+      }
+
+      const isPortaStage =
+        offer.status === 'PORTA_OPEN' ||
+        offer.status === 'janela_porta_aberta' ||
+        offer.current_group === 'PORTA'
+
+      // Build candidates with queue entry time for deterministic tiebreaking
+      const candidates: CandidateProposalWithQueue[] = []
+      for (const p of proposals) {
+        let qTime = p.created || ''
+        try {
+          const qEntry = await pb.collection('queue_entries').getList<QueueEntryEntity>(1, 1, {
+            filter: `driver = "${p.driver_id}"`,
+            sort: '-created',
+          })
+          if (qEntry.items[0]?.entry_time) {
+            qTime = qEntry.items[0].entry_time
+          }
+        } catch {
+          /* intentionally ignored */
+        }
+
+        candidates.push({ proposal: p, queueEntryTime: qTime })
+      }
+
+      const winningProposal = selectWinningProposal(candidates)
+
+      if (winningProposal) {
+        // Contract the winning proposal
+        await this.contractLoad(
+          offerId,
+          winningProposal.id,
+          'Vencedor selecionado por menor lance e desempate temporal',
+        )
+        return {
+          success: true,
+          winnerProposalId: winningProposal.id,
+          message: `Janela encerrada: Proposta vencedora contratada no valor de R$ ${winningProposal.value.toFixed(2)}.`,
+        }
+      }
+
+      // No winner in PORTA -> Open FORA window!
+      if (isPortaStage) {
+        let foraDurationMin = 15
+        try {
+          const p = await pb.collection('system_parameters').getList<SystemParameterEntity>(1, 1, {
+            filter: 'key = "janela_fora_min"',
+          })
+          if (p.items[0]?.value) {
+            foraDurationMin = parseInt(p.items[0].value, 10) || 15
+          }
+        } catch {
+          /* intentionally ignored */
+        }
+
+        const now = new Date()
+        const end = new Date(now.getTime() + foraDurationMin * 60 * 1000)
+
+        await pb.collection('freight_offers').update(offerId, {
+          status: 'FORA_OPEN',
+          current_group: 'FORA',
+          window_start: now.toISOString(),
+          window_end: end.toISOString(),
+        })
+
+        await pb.collection('audit_logs').create({
+          user_email: operatorEmail,
+          user_name: operatorName,
+          user_role: 'gerente_carga',
+          action: 'TRANSITION_OFFER_PORTA_TO_FORA',
+          resource: 'freight_offers',
+          resource_id: offerId,
+          previous_state: 'PORTA_OPEN',
+          new_state: 'FORA_OPEN',
+          reason: `Janela PORTA encerrada sem propostas válidas. Abertura automática da Janela FORA (${foraDurationMin} min).`,
+          correlation_id: offer.correlation_id || `OFR-${Date.now()}`,
+          payload: { offer_id: offerId, window_end: end.toISOString() },
+        })
+
+        return {
+          success: true,
+          transitionedToFora: true,
+          message: `Nenhuma proposta na Janela PORTA. Aberta automaticamente a Janela FORA (${foraDurationMin} min).`,
+        }
+      } else {
+        // FORA Stage ended without winner -> NO_CONTRACT
+        await pb.collection('freight_offers').update(offerId, {
+          status: 'NO_CONTRACT',
+          current_group: 'ENCERRADO',
+          closing_reason: 'Encerrado sem propostas válidas após janela FORA.',
+        })
+
+        await pb.collection('audit_logs').create({
+          user_email: operatorEmail,
+          user_name: operatorName,
+          user_role: 'gerente_carga',
+          action: 'CLOSE_OFFER_NO_CONTRACT',
+          resource: 'freight_offers',
+          resource_id: offerId,
+          previous_state: offer.status,
+          new_state: 'NO_CONTRACT',
+          reason: 'Encerramento sem contratação (janela FORA esgotada)',
+          correlation_id: offer.correlation_id || `OFR-${Date.now()}`,
+          payload: { offer_id: offerId },
+        })
+
+        return {
+          success: true,
+          noContract: true,
+          message: 'Janela FORA encerrada sem contratação.',
+        }
+      }
+    } catch (err: any) {
+      console.error('Error in processEndWindow:', err)
+      return { success: false, message: err?.message || 'Erro ao processar fim da janela.' }
+    }
+  },
+
+  /**
+   * Contract Load:
+   * - Assigns load to winner driver
+   * - Sets proposal status to WINNER and rejects others
+   * - Updates offer status to CONTRACTED, records contracted_value, sets sap_integration_status to 'aguardando_sap'
+   * - Removes driver from queue with status 'atribuido' (CARGA_ATRIBUIDA)
+   * - Immutable audit log
+   */
+  async contractLoad(
+    offerId: string,
+    proposalId: string,
+    contractReason = 'Contratação confirmada via motor de leilão',
+    operatorEmail = 'system@ciafal.logistica',
+    operatorName = 'Motor de Regras Leilão',
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const [offer, proposal] = await Promise.all([
+        pb.collection('freight_offers').getOne<FreightOfferEntity>(offerId),
+        pb.collection('freight_proposals').getOne<FreightProposalEntity>(proposalId),
+      ])
+
+      // Double-contract prevention check (Transactional protection)
+      if (offer.status === 'CONTRACTED' || offer.status === 'atribuido') {
+        return {
+          success: false,
+          message:
+            'Proteção contra dupla contratação ativada: Esta carga já foi atribuída anteriormente.',
+        }
+      }
+
+      // 1. Mark winning proposal as WINNER
+      await pb.collection('freight_proposals').update(proposalId, {
+        status: 'WINNER',
+      })
+
+      // 2. Reject all other proposals for this offer
+      try {
+        const otherProps = await pb
+          .collection('freight_proposals')
+          .getFullList<FreightProposalEntity>({
+            filter: `offer_id = "${offerId}" && id != "${proposalId}" && status = "VALID"`,
+          })
+        for (const op of otherProps) {
+          await pb.collection('freight_proposals').update(op.id, {
+            status: 'REJECTED',
+            reason: 'Superada por proposta mais vantajosa ou menor lance.',
+          })
+        }
+      } catch {
+        /* intentionally ignored */
+      }
+
+      // 3. Find driver and vehicle relation
+      let vehicleId: string | undefined
+      try {
+        const vList = await pb.collection('vehicles').getList<VehicleEntity>(1, 1, {
+          filter: `driver = "${proposal.driver_id}"`,
+        })
+        if (vList.items[0]) vehicleId = vList.items[0].id
+      } catch {
+        /* intentionally ignored */
+      }
+
+      // 4. Update Offer to CONTRACTED & set sap_integration_status to 'aguardando_sap'
+      await pb.collection('freight_offers').update(offerId, {
+        status: 'CONTRACTED',
+        current_group: 'ENCERRADO',
+        winner_driver: proposal.driver_id,
+        winner_vehicle: vehicleId || null,
+        contracted_value: proposal.value,
+        closing_reason: contractReason,
+        sap_integration_status: 'aguardando_sap',
+      })
+
+      // 5. Update Driver's Queue status to 'atribuido' (CARGA_ATRIBUIDA)
+      try {
+        const activeEntry = await this.findActiveQueueEntryByDriver(proposal.driver_id)
+        if (activeEntry) {
+          await pb.collection('queue_entries').update(activeEntry.id, {
+            status: 'atribuido',
+            exit_time: new Date().toISOString(),
+            reason: `Carga ${offer.cargo_id} atribuída no valor de R$ ${proposal.value.toFixed(2)}`,
+            last_event: `CARGA_ATRIBUÍDA: ${offer.cargo_id}`,
+            last_operator: operatorName,
+          })
+        }
+      } catch (err) {
+        console.warn('Could not update queue entry on contract:', err)
+      }
+
+      // 6. Audit Trail for Contract Event
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'gerente_carga',
+        action: 'CONTRACT_FREIGHT_LOAD',
+        resource: 'freight_offers',
+        resource_id: offerId,
+        previous_state: offer.status,
+        new_state: 'CONTRACTED',
+        reason: contractReason,
+        correlation_id: offer.correlation_id || `CONTRACT-${Date.now()}`,
+        payload: {
+          offer_id: offerId,
+          cargo_id: offer.cargo_id,
+          winner_driver_id: proposal.driver_id,
+          winner_name: proposal.driver_name_cached,
+          contracted_value: proposal.value,
+          floor_value: offer.floor_value,
+          sap_status: 'aguardando_sap',
+        },
+      })
+
+      return {
+        success: true,
+        message: `Carga ${offer.cargo_id} contratada com sucesso para ${proposal.driver_name_cached || 'o motorista'} no valor de R$ ${proposal.value.toFixed(2)}. Aguardando integração SAP.`,
+      }
+    } catch (err: any) {
+      console.error('Error contracting load:', err)
+      return { success: false, message: err?.message || 'Falha ao contratar carga.' }
+    }
+  },
+
+  /**
+   * Cancel Offer
+   */
+  async cancelOffer(
+    offerId: string,
+    reason: string,
+    operatorEmail: string,
+    operatorName: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const offer = await pb.collection('freight_offers').getOne<FreightOfferEntity>(offerId)
+      await pb.collection('freight_offers').update(offerId, {
+        status: 'CANCELLED',
+        current_group: 'ENCERRADO',
+        closing_reason: reason,
+      })
+
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'gerente_carga',
+        action: 'CANCEL_FREIGHT_OFFER',
+        resource: 'freight_offers',
+        resource_id: offerId,
+        previous_state: offer.status,
+        new_state: 'CANCELLED',
+        reason: reason,
+        correlation_id: offer.correlation_id || `CANCEL-${Date.now()}`,
+        payload: { offer_id: offerId, reason },
+      })
+
+      return { success: true, message: 'Oferta cancelada com sucesso.' }
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Falha ao cancelar oferta.' }
     }
   },
 }

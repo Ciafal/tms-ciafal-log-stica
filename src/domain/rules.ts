@@ -225,6 +225,23 @@ export interface SystemParameterEntity {
   updated?: string
 }
 
+export type FreightOfferStatus =
+  | 'PENDING'
+  | 'PORTA_OPEN'
+  | 'FORA_OPEN'
+  | 'NEGOTIATING'
+  | 'CONTRACTED'
+  | 'NO_CONTRACT'
+  | 'CANCELLED'
+  // legacy compatibility mappings
+  | 'rascunho'
+  | 'janela_porta_aberta'
+  | 'janela_fora_aberta'
+  | 'negociacao'
+  | 'atribuido'
+  | 'expirado'
+  | 'cancelado'
+
 export interface FreightOfferEntity {
   id: string
   cargo_id: string
@@ -235,24 +252,50 @@ export interface FreightOfferEntity {
   required_vehicle_type?: string
   opened_at?: string
   current_group: 'PORTA' | 'FORA' | 'PUBLICO' | 'ENCERRADO'
-  status:
-    | 'rascunho'
-    | 'janela_porta_aberta'
-    | 'janela_fora_aberta'
-    | 'negociacao'
-    | 'atribuido'
-    | 'expirado'
-    | 'cancelado'
+  status: FreightOfferStatus
   window_start?: string
   window_end?: string
   floor_value?: number
+  floor_price?: number // alias
   ceiling_value_protected?: number // Protegido - nunca exposto ao motorista ou LLM
+  ceiling_price?: number // alias protegido
   winner_driver?: string
+  winner_id?: string // driver relation id
   winner_vehicle?: string
+  contracted_value?: number
   closing_reason?: string
+  rules_version?: string
+  sap_integration_status?: 'nao_iniciado' | 'aguardando_sap' | 'sincronizado_sap' | 'falha'
   correlation_id?: string
   created?: string
   updated?: string
+  expand?: {
+    winner_driver?: DriverEntity
+    winner_vehicle?: VehicleEntity
+  }
+}
+
+export type ProposalStatus = 'VALID' | 'REJECTED' | 'WINNER'
+
+export interface FreightProposalEntity {
+  id: string
+  offer_id: string
+  driver_id: string
+  value: number
+  arrival_time?: string // para FORA (ex: "45 min" ou "14:30")
+  status: ProposalStatus
+  reason?: string // Motivo de recusa se REJECTED
+  driver_name_cached?: string
+  driver_doc_cached?: string
+  driver_phone_cached?: string
+  vehicle_plate_cached?: string
+  correlation_id?: string
+  created?: string
+  updated?: string
+  expand?: {
+    driver_id?: DriverEntity
+    offer_id?: FreightOfferEntity
+  }
 }
 
 // ----------------------------------------------------
@@ -1086,6 +1129,132 @@ export function avaliar_elegibilidade_motorista_oferta(
       correctAuctionGroup,
     },
   }
+}
+
+// Alias evaluation function for specification compliance
+export function evaluateEligibility(
+  driver: DriverEntity | null,
+  queueEntry: QueueEntryEntity | null,
+  offerStageGroup: 'PORTA' | 'FORA',
+  requiredVehicleType?: string,
+): DriverEligibilityEvaluation {
+  return avaliar_elegibilidade_motorista_oferta({
+    driver,
+    queueEntry,
+    offerStageGroup,
+    requiredVehicleType,
+  })
+}
+
+// ----------------------------------------------------
+// MOTOR DE PROPOSTAS E LEILÃO (DETERMINÍSTICO SPRINT 2)
+// ----------------------------------------------------
+
+export interface ProposalEvaluationResult {
+  proposalStatus: ProposalStatus
+  immediateContract: boolean
+  reason?: string
+  normalizedValue: number
+}
+
+/**
+ * Avalia proposta de motorista segundo as regras do leilão determinístico:
+ * - Se valor == floor_price (piso): aceita IMEDIATAMENTE (aceite de piso) -> WINNER
+ * - Se piso <= valor <= teto: proposta válida -> VALID
+ * - Se valor < piso: REJECTED (proposta abaixo do piso ANTT)
+ * - Se valor > teto: REJECTED (proposta acima do teto orçamentário protegido)
+ */
+export function evaluateProposalPriceRules(
+  proposedValue: number,
+  floorPrice: number,
+  ceilingPrice: number,
+): ProposalEvaluationResult {
+  const normVal = Number(proposedValue) || 0
+  const fPrice = Number(floorPrice) || 0
+  const cPrice = Number(ceilingPrice) || Infinity
+
+  // 1. Abaixo do piso regulatório
+  if (normVal < fPrice) {
+    return {
+      proposalStatus: 'REJECTED',
+      immediateContract: false,
+      reason: `Proposta (R$ ${normVal.toFixed(2)}) abaixo do valor de piso regulatório (R$ ${fPrice.toFixed(2)}).`,
+      normalizedValue: normVal,
+    }
+  }
+
+  // 2. Aceite do piso (Exato piso) -> Atribuição imediata
+  if (Math.abs(normVal - fPrice) < 0.01) {
+    return {
+      proposalStatus: 'WINNER',
+      immediateContract: true,
+      reason: 'Aceite do valor de piso (atribuição imediata da carga).',
+      normalizedValue: normVal,
+    }
+  }
+
+  // 3. Acima do teto orçamentário
+  if (normVal > cPrice) {
+    return {
+      proposalStatus: 'REJECTED',
+      immediateContract: false,
+      reason: 'Proposta acima do limite operacional máximo permitido.',
+      normalizedValue: normVal,
+    }
+  }
+
+  // 4. Proposta válida dentro da faixa (piso < valor <= teto)
+  return {
+    proposalStatus: 'VALID',
+    immediateContract: false,
+    normalizedValue: normVal,
+  }
+}
+
+/**
+ * Desempate temporal determinístico e seleção da melhor proposta:
+ * Ordena por:
+ * 1. Menor valor proposto (critério econômico primário)
+ * 2. Menor tempo de entrada na fila (prioridade temporal / antiguidade na fila)
+ * 3. Menor tempo de submissão da proposta (desempate da proposta)
+ */
+export interface CandidateProposalWithQueue {
+  proposal: FreightProposalEntity
+  queueEntryTime: string
+}
+
+export function selectWinningProposal(
+  candidates: CandidateProposalWithQueue[],
+): FreightProposalEntity | null {
+  const validProposals = candidates.filter(
+    (c) => c.proposal.status === 'VALID' || c.proposal.status === 'WINNER',
+  )
+
+  if (validProposals.length === 0) {
+    return null
+  }
+
+  // Sort: lowest value first, then earliest queue entry_time, then earliest proposal created
+  validProposals.sort((a, b) => {
+    // 1. Valor da proposta
+    if (a.proposal.value !== b.proposal.value) {
+      return a.proposal.value - b.proposal.value
+    }
+
+    // 2. Prioridade temporal na fila (antiguidade na fila de espera)
+    const queueTimeA = new Date(a.queueEntryTime || a.proposal.created || 0).getTime()
+    const queueTimeB = new Date(b.queueEntryTime || b.proposal.created || 0).getTime()
+    if (queueTimeA !== queueTimeB) {
+      return queueTimeA - queueTimeB
+    }
+
+    // 3. Hora do envio da proposta
+    const propTimeA = new Date(a.proposal.created || 0).getTime()
+    const propTimeB = new Date(b.proposal.created || 0).getTime()
+    return propTimeA - propTimeB
+  })
+
+  return validProposals[0].proposal
 }
 
 // ----------------------------------------------------

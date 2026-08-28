@@ -48,6 +48,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { getRoleLabel } from '@/domain/rules'
+import ciafalLogo from '@/assets/logo-ciafal-0e4b2.png'
 
 interface MenuGroup {
   id: string
@@ -161,24 +162,25 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         {
           title: 'Mesa de Fretes',
           path: '/tms/mesa-fretes',
-          inDev: true,
+          badge: 'PORTA/FORA',
+          badgeColor: 'bg-[#005596]',
           show: true,
         },
         {
-          title: 'Ofertas',
+          title: 'Ofertas Ativas',
           path: '/tms/ofertas',
           badge: 'Sprint 2',
-          badgeColor: 'bg-amber-500',
+          badgeColor: 'bg-emerald-600',
           show: true,
         },
         {
-          title: 'Tabela de Fretes',
+          title: 'Tabela de Fretes & ANTT',
           path: '/tms/tabela-fretes',
           inDev: true,
           show: true,
         },
         {
-          title: 'Histórico',
+          title: 'Histórico de Negociações',
           path: '/tms/historico-fretes',
           inDev: true,
           show: true,
@@ -362,23 +364,32 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Brand and Logo */}
           <div className="flex items-center space-x-4">
-            <Link to="/tms/dashboard" className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-[#005596] flex items-center justify-center font-black text-white text-xl tracking-wider shadow">
-                C
+            <Link to="/tms/dashboard" className="flex items-center space-x-3 group">
+              <div className="h-10 px-2.5 py-1 rounded-xl bg-white flex items-center justify-center shadow-md border border-slate-700">
+                <img
+                  src={ciafalLogo}
+                  alt="CIAFAL Wilson Santos"
+                  className="h-7 w-auto object-contain"
+                />
               </div>
               <div className="flex flex-col">
-                <span className="font-black text-lg tracking-tight text-white leading-tight">
-                  HUB CIAFAL
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-black text-base tracking-tight text-white leading-tight">
+                    HUB CIAFAL
+                  </span>
+                  <Badge className="bg-[#005596] text-white text-[9px] font-bold px-1.5 py-0">
+                    Pantone 2945
+                  </Badge>
+                </div>
                 <span className="text-[10px] text-sky-400 font-extrabold uppercase tracking-wider">
                   TMS Logística Integrada
                 </span>
               </div>
             </Link>
 
-            <div className="hidden md:flex items-center space-x-2 pl-4 border-l border-slate-800">
-              <Badge className="bg-[#005596] text-white text-[10px] font-bold px-2 py-0.5">
-                DISPONIBILIDADE → PLANEJAMENTO → FRETES → EXECUÇÃO
+            <div className="hidden lg:flex items-center space-x-2 pl-4 border-l border-slate-800">
+              <Badge className="bg-[#005596] text-white text-[10px] font-bold px-2.5 py-0.5">
+                DISPONIBILIDADE → PLANEJAMENTO → MESA DE FRETES → EXECUÇÃO
               </Badge>
             </div>
           </div>
@@ -497,6 +508,19 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           className={`w-full md:w-72 flex-shrink-0 ${mobileMenuOpen ? 'block' : 'hidden md:block'}`}
         >
           <nav className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-sm space-y-2 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto">
+            {/* Sidebar Branding Box */}
+            <div className="p-3 bg-gradient-to-r from-slate-900 to-slate-800 rounded-lg text-white flex items-center space-x-3 shadow-inner">
+              <div className="bg-white p-1 rounded-lg">
+                <img src={ciafalLogo} alt="CIAFAL" className="h-6 w-auto object-contain" />
+              </div>
+              <div>
+                <div className="text-xs font-black text-white leading-tight">MESA DE FRETES</div>
+                <div className="text-[9px] text-sky-400 font-bold uppercase">
+                  Motor Determinístico
+                </div>
+              </div>
+            </div>
+
             {/* HOME Link */}
             <Link
               to="/tms/dashboard"

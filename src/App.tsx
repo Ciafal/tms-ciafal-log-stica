@@ -11,6 +11,8 @@ import { ExternalCheckin } from '@/pages/ExternalCheckin'
 import { PreRegistrationsPage } from '@/pages/PreRegistrationsPage'
 import { DriversVehiclesPage } from '@/pages/DriversVehiclesPage'
 import { FreightOffersPreparationPage } from '@/pages/FreightOffersPreparationPage'
+import { MesaFretesPage } from '@/pages/MesaFretesPage'
+import { DriverOfferPublicPage } from '@/pages/DriverOfferPublicPage'
 import { SapImportPage } from '@/pages/SapImportPage'
 import { AuditLogsPage } from '@/pages/AuditLogsPage'
 import { SystemParametersPage } from '@/pages/SystemParametersPage'
@@ -34,6 +36,8 @@ export const App: React.FC = () => {
           <Route path="/tms/fila-publica" element={<ExternalCheckin />} />
           <Route path="/checkin-externo" element={<ExternalCheckin />} />
           <Route path="/totem" element={<TotemEntry />} />
+          <Route path="/tms/oferta/:id" element={<DriverOfferPublicPage />} />
+          <Route path="/oferta/:id" element={<DriverOfferPublicPage />} />
 
           {/* Authenticated Internal TMS Routes */}
           <Route
@@ -126,11 +130,15 @@ export const App: React.FC = () => {
             path="/tms/mesa-fretes"
             element={
               <Layout>
-                <StubModulePage
-                  title="Mesa de Fretes"
-                  subtitle="Responsável futura por oferta, piso ANTT, teto protegido, PORTA, FORA, Chicão e fechamento."
-                  moduleKey="mesa_fretes"
-                />
+                <MesaFretesPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/fretes/mesa"
+            element={
+              <Layout>
+                <MesaFretesPage />
               </Layout>
             }
           />
@@ -138,7 +146,7 @@ export const App: React.FC = () => {
             path="/tms/ofertas"
             element={
               <Layout>
-                <FreightOffersPreparationPage />
+                <MesaFretesPage />
               </Layout>
             }
           />

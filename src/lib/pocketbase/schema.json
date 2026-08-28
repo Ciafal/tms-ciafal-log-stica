@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T16:11:08.081Z",
+  "generatedAt": "2026-08-28T16:18:22.298Z",
   "collections": [
     {
       "name": "users",
@@ -876,8 +876,8 @@
       "name": "freight_offers",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "@request.auth.id != '' || @request.query.public = 'true'",
+        "view": "@request.auth.id != '' || @request.query.public = 'true'",
         "create": "@request.auth.id != ''",
         "update": "@request.auth.id != ''",
         "delete": "@request.auth.id != ''"
@@ -966,12 +966,6 @@
           "system": false
         },
         {
-          "name": "ceiling_value_protected",
-          "type": "number",
-          "required": false,
-          "system": false
-        },
-        {
           "name": "winner_driver",
           "type": "relation",
           "required": false,
@@ -1010,6 +1004,24 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "rules_version",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contracted_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_integration_status",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -1386,6 +1398,108 @@
         "CREATE UNIQUE INDEX idx_sales_order_number ON sap_sales_orders (order_number)",
         "CREATE INDEX idx_sales_order_itinerary ON sap_sales_orders (itinerary_code)",
         "CREATE INDEX idx_sales_order_status ON sap_sales_orders (status)"
+      ]
+    },
+    {
+      "name": "freight_proposals",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' || @request.query.public = 'true'",
+        "view": "@request.auth.id != '' || @request.query.public = 'true'",
+        "create": "",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "offer_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "freight_offers"
+        },
+        {
+          "name": "driver_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "drivers"
+        },
+        {
+          "name": "value",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "arrival_time",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["VALID", "REJECTED", "WINNER"]
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name_cached",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_doc_cached",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_phone_cached",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate_cached",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_proposals_offer ON freight_proposals (offer_id)",
+        "CREATE INDEX idx_proposals_driver ON freight_proposals (driver_id)",
+        "CREATE INDEX idx_proposals_status ON freight_proposals (status)",
+        "CREATE INDEX idx_proposals_created ON freight_proposals (created)"
       ]
     }
   ]
