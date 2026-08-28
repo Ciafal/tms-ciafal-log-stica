@@ -166,7 +166,7 @@ describe('TMS CIAFAL — Testes Unitários de Regras de Negócio e Governança',
 
   // 16. Duplicidade na fila
   it('16. Duplicidade: motorista com entrada ativa no mesmo grupo não pode duplicar', () => {
-    const activeStatus = 'disponivel'
+    const activeStatus: string = 'disponivel'
     const isDuplicate = activeStatus !== 'removido' && activeStatus !== 'atribuido'
     expect(isDuplicate).toBe(true)
   })

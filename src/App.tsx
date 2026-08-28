@@ -23,7 +23,7 @@ import { ComplementCargosPage } from '@/pages/ComplementCargosPage'
 import { SapItinerariesPage } from '@/pages/SapItinerariesPage'
 import { SecurityLgpdPage } from '@/pages/SecurityLgpdPage'
 import { StubModulePage } from '@/pages/StubModulePage'
-import { NotFound } from '@/pages/NotFound'
+import NotFound from '@/pages/NotFound'
 
 export const App: React.FC = () => {
   return (

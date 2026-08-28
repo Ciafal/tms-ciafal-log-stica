@@ -247,6 +247,22 @@ export const TmsService = {
   },
 
   // ----------------------------------------------------
+  // TOTEM / PORTAL ACCESS COMPATIBILITY
+  // ----------------------------------------------------
+  async submitTotemEntry(params: CreateQueueEntryParams): Promise<{
+    success: boolean
+    message: string
+    data?: any
+    isPreReg?: boolean
+    transitionedFromFora?: boolean
+  }> {
+    return this.submitDriverAvailability({
+      ...params,
+      type: 'PORTA',
+    })
+  },
+
+  // ----------------------------------------------------
   // PUBLIC CHECK-IN FLOW (PORTA, FORA, PROGRAMADO, PRÉ-CADASTRO)
   // ----------------------------------------------------
   async submitDriverAvailability(params: CreateQueueEntryParams): Promise<{

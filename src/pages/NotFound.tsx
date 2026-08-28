@@ -1,22 +1,25 @@
-/* 404 Page - Displays when a user attempts to access a non-existent route - translate to the language of the user */
-import { useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
+import React from 'react'
+import { Link } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { AlertTriangle, Home } from 'lucide-react'
 
-const NotFound = () => {
-  const location = useLocation()
-
-  useEffect(() => {
-    console.error('404 Error: User attempted to access non-existent route:', location.pathname)
-  }, [location.pathname])
-
+export const NotFound: React.FC = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">404</h1>
-        <p className="text-xl text-gray-600 mb-4">Oops! Page not found</p>
-        <a href="/" className="text-blue-500 hover:text-blue-700 underline">
-          Return to Home
-        </a>
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center space-y-4">
+        <div className="w-14 h-14 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+          <AlertTriangle className="w-7 h-7" />
+        </div>
+        <h1 className="text-2xl font-black text-slate-900">404 - Página Não Encontrada</h1>
+        <p className="text-xs text-slate-500">
+          A rota solicitada não existe no sistema TMS CIAFAL ou foi realocada.
+        </p>
+        <Link to="/tms/dashboard">
+          <Button className="bg-[#005596] hover:bg-sky-700 text-white text-xs font-bold w-full mt-2">
+            <Home className="w-4 h-4 mr-1.5" />
+            Voltar ao Dashboard TMS
+          </Button>
+        </Link>
       </div>
     </div>
   )
