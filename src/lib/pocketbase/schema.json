@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T14:06:22.762Z",
+  "generatedAt": "2026-08-28T15:01:39.812Z",
   "collections": [
     {
       "name": "users",
@@ -275,7 +275,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["PORTA", "FORA"]
+          "selectValues": ["PORTA", "FORA", "PROGRAMADO"]
         },
         {
           "name": "status",
@@ -403,6 +403,30 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "preferred_itinerary",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "scheduled_arrival_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "calculated_logistics_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_notes",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -458,7 +482,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["PORTA", "FORA"]
+          "selectValues": ["PORTA", "FORA", "PROGRAMADO"]
         },
         {
           "name": "latitude",
@@ -526,6 +550,42 @@
             "pendente",
             "aprovado"
           ]
+        },
+        {
+          "name": "preferred_itinerary",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "scheduled_arrival_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "carrier_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "declared_capacity_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_notes",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -956,6 +1016,376 @@
         "CREATE INDEX idx_freight_cargo ON freight_offers (cargo_id)",
         "CREATE INDEX idx_freight_status ON freight_offers (status)",
         "CREATE INDEX idx_freight_group ON freight_offers (current_group)"
+      ]
+    },
+    {
+      "name": "sap_itineraries",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "sap_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "origin",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "uf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "region",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avg_transit_days",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_sync_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "operational_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_itineraries_sap_code ON sap_itineraries (sap_code)",
+        "CREATE INDEX idx_itineraries_active ON sap_itineraries (is_active)"
+      ]
+    },
+    {
+      "name": "oportunidade_complemento_carga",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cargo_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "current_weight_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "capacity_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "balance_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "candidate_orders",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "candidate_clients",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Nova",
+            "Enviada CRM",
+            "Em análise",
+            "Aproveitada",
+            "Sem interesse",
+            "Expirada"
+          ]
+        },
+        {
+          "name": "responsible",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "enviado_crm",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_envio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_opp_status ON oportunidade_complemento_carga (status)",
+        "CREATE INDEX idx_opp_itinerary ON oportunidade_complemento_carga (itinerary_code)",
+        "CREATE INDEX idx_opp_date ON oportunidade_complemento_carga (date)"
+      ]
+    },
+    {
+      "name": "sap_sales_orders",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "order_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "destination_city",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "uf",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "weight_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "volume_m3",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_value",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "line",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "family",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "material",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "production_status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Pronto", "Em Produção", "Programado", "Aguardando PCP"]
+        },
+        {
+          "name": "credit_status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Liberado", "Bloqueado", "Em Análise"]
+        },
+        {
+          "name": "discharge_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "required_vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "scheduled_delivery_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assigned_load_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["disponivel", "em_montagem", "carregado", "cancelado"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_sales_order_number ON sap_sales_orders (order_number)",
+        "CREATE INDEX idx_sales_order_itinerary ON sap_sales_orders (itinerary_code)",
+        "CREATE INDEX idx_sales_order_status ON sap_sales_orders (status)"
       ]
     }
   ]

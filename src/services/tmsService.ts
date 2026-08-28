@@ -3,15 +3,25 @@
 import pb from '@/lib/pocketbase/client'
 import {
   DriverEntity,
+  VehicleEntity,
   QueueEntryEntity,
   PreRegistrationEntity,
   AuditLogEntity,
   FreightOfferEntity,
   SystemParameterEntity,
+  SapItineraryEntity,
+  SapSalesOrderEntity,
+  OportunidadeComplementoCargaEntity,
   PreRegistrationStatus,
   QueueStatus,
+  QueueGroup,
   isValidDocument,
+  isValidPlate,
   validateGeofence,
+  calculateLogisticsDate,
+  classifyAvailabilityGroup,
+  maskDocument,
+  maskPhone,
   CIAFAL_PLANT_LOCATION,
 } from '@/domain/rules'
 
@@ -20,15 +30,123 @@ export interface CreateQueueEntryParams {
   whatsapp: string
   plate: string
   vehicleType: string
-  type: 'PORTA' | 'FORA'
+  carrierName?: string
+  declaredCapacityKg?: number
+  type?: QueueGroup // PORTA | FORA | PROGRAMADO
+  preferredItinerary?: string
+  scheduledArrivalDate?: string
+  driverNotes?: string
   latitude?: number
   longitude?: number
   accuracy?: number
   clientIp?: string
 }
 
+export interface PlateLookupResult {
+  found: boolean
+  driver?: {
+    id: string
+    nameMasked: string
+    documentMasked: string
+    phoneMasked: string
+    status: string
+  }
+  vehicle?: {
+    id: string
+    plate: string
+    type: string
+    capacityKg?: number
+  }
+  rateLimited?: boolean
+}
+
+// In-memory rate limiting for plate lookups to prevent enumeration
+const lookupAttempts = new Map<string, { count: number; lastAttempt: number }>()
+
 export const TmsService = {
-  // Check if driver exists by document
+  // ----------------------------------------------------
+  // PUBLIC SAFE PLATE LOOKUP (RATE LIMITED & MASKED)
+  // ----------------------------------------------------
+  async lookupVehicleAndDriverByPlate(
+    rawPlate: string,
+    clientIp = 'client_public',
+  ): Promise<PlateLookupResult> {
+    const cleanPlate = rawPlate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+
+    // 1. Rate Limiting Check
+    const now = Date.now()
+    const record = lookupAttempts.get(clientIp) || { count: 0, lastAttempt: now }
+    if (now - record.lastAttempt > 60000) {
+      record.count = 0
+      record.lastAttempt = now
+    }
+    record.count++
+    lookupAttempts.set(clientIp, record)
+
+    if (record.count > 25) {
+      // Max 25 lookups per minute
+      return { found: false, rateLimited: true }
+    }
+
+    if (!cleanPlate || cleanPlate.length < 7) {
+      return { found: false }
+    }
+
+    try {
+      const vRecords = await pb.collection('vehicles').getList<VehicleEntity>(1, 1, {
+        filter: `plate = "${cleanPlate}"`,
+        expand: 'driver',
+      })
+
+      if (vRecords.items.length === 0) {
+        return { found: false }
+      }
+
+      const vehicle = vRecords.items[0]
+      let driver: DriverEntity | null = null
+
+      if (vehicle.driver) {
+        try {
+          driver = await pb.collection('drivers').getOne<DriverEntity>(vehicle.driver)
+        } catch {
+          // driver not found
+        }
+      }
+
+      // Return ONLY MASKED data (Zero full CPF or phone exposure)
+      return {
+        found: true,
+        vehicle: {
+          id: vehicle.id,
+          plate: vehicle.plate,
+          type: vehicle.type,
+          capacityKg: vehicle.capacity_kg,
+        },
+        driver: driver
+          ? {
+              id: driver.id,
+              nameMasked: driver.name
+                ? `${driver.name.split(' ')[0]} ${driver.name
+                    .split(' ')
+                    .slice(1)
+                    .map((n) => n[0] + '.')
+                    .join(' ')}`
+                : 'Motorista Cadastrado',
+              documentMasked: maskDocument(driver.document),
+              phoneMasked: maskPhone(driver.whatsapp),
+              status: driver.status,
+            }
+          : undefined,
+      }
+    } catch (err) {
+      console.warn('Plate lookup error:', err)
+      return { found: false }
+    }
+  },
+
+  // ----------------------------------------------------
+  // DRIVER & VEHICLE DATABASE LOOKUPS
+  // ----------------------------------------------------
   async findDriverByDocument(document: string): Promise<DriverEntity | null> {
     const cleanDoc = document.replace(/\D/g, '')
     try {
@@ -42,7 +160,6 @@ export const TmsService = {
     }
   },
 
-  // Check if driver is already in queue (active entry)
   async findActiveQueueEntryByDriver(driverId: string): Promise<QueueEntryEntity | null> {
     try {
       const records = await pb.collection('queue_entries').getList<QueueEntryEntity>(1, 1, {
@@ -50,16 +167,31 @@ export const TmsService = {
         sort: '-created',
       })
       return records.items[0] || null
-    } catch (_) {
+    } catch {
       return null
     }
   },
 
-  // Get full operational queue sorted with PORTA first, then arrival time
+  async findActiveQueueEntryByPlate(plate: string): Promise<QueueEntryEntity | null> {
+    const cleanPlate = plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+    try {
+      const records = await pb.collection('queue_entries').getList<QueueEntryEntity>(1, 1, {
+        filter: `vehicle_plate_cached = "${cleanPlate}" && (status != "removido" && status != "atribuido" && status != "bloqueado")`,
+        sort: '-created',
+      })
+      return records.items[0] || null
+    } catch {
+      return null
+    }
+  },
+
+  // ----------------------------------------------------
+  // OPERATIONAL QUEUE & ITINERARIES
+  // ----------------------------------------------------
   async getOperationalQueue(): Promise<QueueEntryEntity[]> {
     try {
       const records = await pb.collection('queue_entries').getFullList<QueueEntryEntity>({
-        sort: '-type,entry_time', // PORTA first, then earlier entry_time
+        sort: '-type,entry_time',
         expand: 'driver,vehicle',
       })
       return records
@@ -69,7 +201,371 @@ export const TmsService = {
     }
   },
 
-  // Fetch dynamic system parameters
+  async getSapItineraries(onlyActive = false): Promise<SapItineraryEntity[]> {
+    try {
+      const filter = onlyActive ? 'is_active = true' : ''
+      return await pb.collection('sap_itineraries').getFullList<SapItineraryEntity>({
+        filter,
+        sort: 'sap_code',
+      })
+    } catch (err) {
+      console.error('Failed to fetch SAP itineraries:', err)
+      return []
+    }
+  },
+
+  async updateItineraryOperationalNotes(
+    id: string,
+    notes: string,
+    operatorEmail: string,
+    operatorName: string,
+  ): Promise<boolean> {
+    try {
+      const old = await pb.collection('sap_itineraries').getOne<SapItineraryEntity>(id)
+      await pb.collection('sap_itineraries').update(id, {
+        operational_notes: notes,
+      })
+
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'gerente_carga',
+        action: 'UPDATE_ITINERARY_NOTES',
+        resource: 'sap_itineraries',
+        resource_id: id,
+        previous_state: old.operational_notes || '',
+        new_state: notes,
+        reason: 'Atualização de observações operacionais do itinerário',
+        correlation_id: `ITIN-${Date.now()}`,
+        payload: { sap_code: old.sap_code, notes },
+      })
+      return true
+    } catch (err) {
+      console.error('Error updating itinerary:', err)
+      return false
+    }
+  },
+
+  // ----------------------------------------------------
+  // PUBLIC CHECK-IN FLOW (PORTA, FORA, PROGRAMADO, PRÉ-CADASTRO)
+  // ----------------------------------------------------
+  async submitDriverAvailability(params: CreateQueueEntryParams): Promise<{
+    success: boolean
+    message: string
+    data?: any
+    group?: QueueGroup
+    isPreReg?: boolean
+    transitionedFromFora?: boolean
+    calculatedLogisticsDate?: string
+  }> {
+    const cleanPlate = (params.plate || '')
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .toUpperCase()
+      .trim()
+    const cleanDoc = (params.document || '').replace(/\D/g, '')
+    const cleanPhone = (params.whatsapp || '').replace(/\D/g, '').replace(/^55/, '')
+
+    // 1. Validate Plate
+    if (!isValidPlate(cleanPlate)) {
+      return {
+        success: false,
+        message:
+          'Placa do veículo inválida. Informe uma placa padrão (ABC-1234) ou Mercosul (ABC1D23).',
+      }
+    }
+
+    // 2. Lookup Vehicle and Driver
+    let driver: DriverEntity | null = null
+    let vehicle: VehicleEntity | null = null
+
+    try {
+      const vRecords = await pb.collection('vehicles').getList<VehicleEntity>(1, 1, {
+        filter: `plate = "${cleanPlate}"`,
+        expand: 'driver',
+      })
+      if (vRecords.items.length > 0) {
+        vehicle = vRecords.items[0]
+        if (vehicle.driver) {
+          driver = await pb.collection('drivers').getOne<DriverEntity>(vehicle.driver)
+        }
+      }
+    } catch {
+      // not found
+    }
+
+    // Fallback: If not found by vehicle, search driver by document
+    if (!driver && cleanDoc) {
+      driver = await this.findDriverByDocument(cleanDoc)
+    }
+
+    // 3. System Parameters for Geofences and Cutoff
+    let plantLat = CIAFAL_PLANT_LOCATION.latitude
+    let plantLon = CIAFAL_PLANT_LOCATION.longitude
+    let foraRadiusKm = CIAFAL_PLANT_LOCATION.maxRadiusKm
+    let cutoffTimeStr = '12:00'
+    let accuracyTolerance = 500
+
+    try {
+      const paramsList = await pb
+        .collection('system_parameters')
+        .getFullList<SystemParameterEntity>()
+      paramsList.forEach((p) => {
+        if (p.key === 'PLANT_LATITUDE') plantLat = parseFloat(p.value) || plantLat
+        if (p.key === 'PLANT_LONGITUDE') plantLon = parseFloat(p.value) || plantLon
+        if (p.key === 'MAX_RADIUS_KM' || p.key === 'GEOFENCE_RADIUS_FORA_KM') {
+          foraRadiusKm = parseFloat(p.value) || foraRadiusKm
+        }
+        if (p.key === 'CUTOFF_TIME_FORA') cutoffTimeStr = p.value || cutoffTimeStr
+        if (p.key === 'GEO_ACCURACY_TOLERANCE_METERS') {
+          accuracyTolerance = parseFloat(p.value) || accuracyTolerance
+        }
+      })
+    } catch {
+      // default parameters
+    }
+
+    // 4. Geolocation Classification (Server-side calculation)
+    let distanceKm = -1
+    let assignedGroup: QueueGroup = 'PROGRAMADO'
+    let isWithinRadius = false
+
+    if (params.latitude !== undefined && params.longitude !== undefined) {
+      const geoCheck = validateGeofence(
+        params.latitude,
+        params.longitude,
+        plantLat,
+        plantLon,
+        foraRadiusKm,
+        params.accuracy || 0,
+        accuracyTolerance,
+      )
+      distanceKm = geoCheck.distanceKm
+      isWithinRadius = geoCheck.isWithinRadius
+      assignedGroup = geoCheck.group
+    }
+
+    // If driver explicitly declared future scheduled date or is outside radius -> PROGRAMADO
+    if (params.scheduledArrivalDate || !isWithinRadius) {
+      assignedGroup = 'PROGRAMADO'
+    }
+
+    // Calculate effective logistics date
+    const realEntryTime = new Date()
+    const calculatedLogisticsDate = calculateLogisticsDate(
+      assignedGroup,
+      realEntryTime,
+      cutoffTimeStr,
+      params.scheduledArrivalDate,
+    )
+
+    // 5. IF DRIVER OR VEHICLE NOT FOUND -> AUTOMATIC PRE-REGISTRATION
+    if (!driver) {
+      try {
+        const pre = await pb.collection('pre_registrations').create({
+          document: cleanDoc,
+          name: params.carrierName ? `Motorista (${params.carrierName})` : 'Motorista Pré-Cadastro',
+          whatsapp: cleanPhone,
+          email: params.driverNotes ? '' : undefined,
+          vehicle_type: params.vehicleType || 'Carreta LS',
+          plate: cleanPlate,
+          carrier_name: params.carrierName || '',
+          declared_capacity_kg: params.declaredCapacityKg || 0,
+          origin: assignedGroup,
+          status: 'novo',
+          preferred_itinerary: params.preferredItinerary || '',
+          scheduled_arrival_date: params.scheduledArrivalDate || null,
+          driver_notes: params.driverNotes || '',
+          latitude: params.latitude,
+          longitude: params.longitude,
+          reviewer_notes: `Pré-cadastro via link público. Placa ${cleanPlate} sem cadastro ativo no SAP. Classificação: ${assignedGroup}.`,
+        })
+
+        // Audit Pre-Registration
+        await pb.collection('audit_logs').create({
+          user_email: 'public@ciafal.logistica',
+          user_name: 'Motorista Autoatendimento',
+          user_role: 'portaria',
+          action: 'CREATE_PRE_REGISTRATION',
+          resource: 'pre_registrations',
+          resource_id: pre.id,
+          new_state: 'novo',
+          reason: `Placa ${cleanPlate} não localizada na base SAP ZSD004V_V2. Encaminhado para pré-cadastro pendente.`,
+          correlation_id: `PREREG-${Date.now()}`,
+          payload: {
+            plate: cleanPlate,
+            document: cleanDoc,
+            origin: assignedGroup,
+            distance_km: distanceKm,
+            itinerary: params.preferredItinerary,
+          },
+        })
+
+        return {
+          success: true,
+          isPreReg: true,
+          group: assignedGroup,
+          calculatedLogisticsDate,
+          message:
+            'Placa ou motorista não localizado no cadastro ativo da CIAFAL. Seus dados foram encaminhados como Pré-cadastro para validação pela equipe de logística.',
+          data: pre,
+        }
+      } catch (err: any) {
+        return { success: false, message: err?.message || 'Erro ao registrar pré-cadastro.' }
+      }
+    }
+
+    // 6. Check Driver Blocked
+    if (driver.status === 'bloqueado') {
+      return {
+        success: false,
+        message: 'Cadastro bloqueado administrativamente. Entre em contato com a logística CIAFAL.',
+      }
+    }
+
+    // 7. Duplicate Check & Controlled Transitions
+    const activeEntry = await this.findActiveQueueEntryByDriver(driver.id)
+    let transitionedFromFora = false
+
+    if (activeEntry) {
+      if (activeEntry.type === 'PORTA' && assignedGroup === 'PORTA') {
+        return {
+          success: false,
+          message: 'Motorista já possui entrada ativa na Fila PORTA.',
+        }
+      }
+
+      if (activeEntry.type === 'FORA' && assignedGroup === 'PORTA') {
+        // Transition FORA -> PORTA
+        const arrivalTime = realEntryTime.toISOString()
+        await pb.collection('queue_entries').update(activeEntry.id, {
+          status: 'removido',
+          exit_time: arrivalTime,
+          reason: 'Promovido para PORTA por chegada física confirmada',
+          last_event: 'Transição FORA → PORTA (Chegada Física ao Pátio)',
+          last_operator: 'Check-in de Presença',
+        })
+
+        await pb.collection('audit_logs').create({
+          user_email: 'system@ciafal.logistica',
+          user_name: 'Motorista Check-in',
+          user_role: 'portaria',
+          action: 'TRANSITION_FORA_TO_PORTA',
+          resource: 'queue_entries',
+          resource_id: activeEntry.id,
+          previous_state: 'FORA',
+          new_state: 'PORTA',
+          reason: 'Chegada física promovendo disponibilidade FORA para PORTA',
+          correlation_id: `TRANS-${Date.now()}`,
+          payload: {
+            driver_id: driver.id,
+            previous_entry_time: activeEntry.entry_time,
+            physical_arrival_time: arrivalTime,
+          },
+        })
+
+        transitionedFromFora = true
+      } else if (activeEntry.type === assignedGroup) {
+        return {
+          success: false,
+          message: `Você já está registrado na fila (Grupo: ${activeEntry.type}, Status: ${activeEntry.status.toUpperCase()}).`,
+        }
+      }
+    }
+
+    // 8. Find or Create Vehicle Relation
+    let vehicleId = vehicle ? vehicle.id : ''
+    if (!vehicleId && cleanPlate) {
+      try {
+        const v = await pb.collection('vehicles').create({
+          plate: cleanPlate,
+          type: params.vehicleType || 'Carreta LS',
+          driver: driver.id,
+          capacity_kg: params.declaredCapacityKg || 0,
+        })
+        vehicleId = v.id
+      } catch {
+        // ignore
+      }
+    }
+
+    // 9. Create Entry in queue_entries
+    try {
+      const entryTimeStr = realEntryTime.toISOString()
+      const entry = await pb.collection('queue_entries').create({
+        driver: driver.id,
+        vehicle: vehicleId || null,
+        type: assignedGroup,
+        status: 'disponivel',
+        entry_time: entryTimeStr,
+        calculated_logistics_date: calculatedLogisticsDate,
+        scheduled_arrival_date: params.scheduledArrivalDate || null,
+        preferred_itinerary: params.preferredItinerary || '',
+        driver_notes: params.driverNotes || '',
+        latitude: params.latitude,
+        longitude: params.longitude,
+        distance_km: distanceKm >= 0 ? distanceKm : 0,
+        location_status: isWithinRadius ? 'validada' : 'fora_raio',
+        driver_name_cached: driver.name,
+        driver_doc_cached: driver.document,
+        driver_whatsapp_cached: cleanPhone || driver.whatsapp,
+        vehicle_plate_cached: cleanPlate,
+        vehicle_type_cached: params.vehicleType || vehicle?.type || 'Carreta',
+        carrier_name_cached: params.carrierName || driver.carrier_name || '',
+        vehicle_capacity_kg_cached: vehicle?.capacity_kg || params.declaredCapacityKg || 0,
+        reason: `Disponibilidade registrada no grupo ${assignedGroup}`,
+        last_event: `Entrada na Fila (${assignedGroup})`,
+        last_operator: 'Motorista via Web App',
+      })
+
+      // Audit Queue Entry
+      await pb.collection('audit_logs').create({
+        user_email: 'public@ciafal.logistica',
+        user_name: driver.name,
+        user_role: 'portaria',
+        action: 'CREATE_QUEUE_ENTRY',
+        resource: 'queue_entries',
+        resource_id: entry.id,
+        new_state: assignedGroup,
+        reason: `Check-in de disponibilidade grupo ${assignedGroup} (Data Logística: ${calculatedLogisticsDate})`,
+        correlation_id: `QUEUE-${Date.now()}`,
+        payload: {
+          driver_id: driver.id,
+          plate: cleanPlate,
+          group: assignedGroup,
+          distance_km: distanceKm,
+          calculated_logistics_date: calculatedLogisticsDate,
+          preferred_itinerary: params.preferredItinerary,
+        },
+      })
+
+      let successMessage = `Disponibilidade confirmada no grupo ${assignedGroup}!`
+      if (assignedGroup === 'PORTA') {
+        successMessage = 'Entrada confirmada no grupo PORTA (Presença Física no Pátio CIAFAL).'
+      } else if (assignedGroup === 'FORA') {
+        successMessage = `Disponibilidade confirmada no grupo FORA (${distanceKm} km da CIAFAL). Data logística calculada: ${calculatedLogisticsDate}.`
+      } else if (assignedGroup === 'PROGRAMADO') {
+        successMessage = `Disponibilidade futura PROGRAMADA para ${calculatedLogisticsDate}. Alimenta o Planejador de Cargas.`
+      }
+
+      return {
+        success: true,
+        group: assignedGroup,
+        transitionedFromFora,
+        calculatedLogisticsDate,
+        message: successMessage,
+        data: entry,
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message || 'Falha ao registrar disponibilidade na fila.',
+      }
+    }
+  },
+
+  // ----------------------------------------------------
+  // SYSTEM PARAMETERS & AUDIT LOGS
+  // ----------------------------------------------------
   async getSystemParameters(): Promise<SystemParameterEntity[]> {
     try {
       return await pb.collection('system_parameters').getFullList<SystemParameterEntity>({
@@ -91,12 +587,8 @@ export const TmsService = {
   ): Promise<boolean> {
     try {
       const old = await pb.collection('system_parameters').getOne<SystemParameterEntity>(id)
-      await pb.collection('system_parameters').update(id, {
-        value,
-        description,
-      })
+      await pb.collection('system_parameters').update(id, { value, description })
 
-      // Audit parameter change
       await pb.collection('audit_logs').create({
         user_email: operatorEmail,
         user_name: operatorName,
@@ -117,359 +609,6 @@ export const TmsService = {
     }
   },
 
-  // Submit Totem Entry (PORTA) with Controlled Transition (FORA -> PORTA) & Duplicate Prevention
-  async submitTotemEntry(params: CreateQueueEntryParams): Promise<{
-    success: boolean
-    message: string
-    data?: any
-    isPreReg?: boolean
-    transitionedFromFora?: boolean
-  }> {
-    const cleanDoc = params.document.replace(/\D/g, '')
-    const cleanPhone = params.whatsapp.replace(/\D/g, '').replace(/^55/, '')
-    const cleanPlate = (params.plate || '').toUpperCase().trim()
-
-    const docValidation = isValidDocument(cleanDoc)
-    if (!docValidation.valid) {
-      return {
-        success: false,
-        message: 'Documento (CPF/CNPJ) inválido com base no algoritmo verificador.',
-      }
-    }
-
-    // Check if driver exists
-    const driver = await this.findDriverByDocument(cleanDoc)
-    if (!driver) {
-      // Create Pre-registration
-      try {
-        const pre = await pb.collection('pre_registrations').create({
-          document: cleanDoc,
-          name: 'Motorista Não Cadastrado (Totem)',
-          whatsapp: cleanPhone,
-          vehicle_type: params.vehicleType,
-          plate: cleanPlate,
-          origin: 'PORTA',
-          status: 'novo',
-          reviewer_notes: 'Entrada pelo Totem da Portaria. CPF/CNPJ sem cadastro ativo no SAP.',
-        })
-
-        // Audit pre-registration creation
-        await pb.collection('audit_logs').create({
-          user_email: 'totem@ciafal.internal',
-          user_name: 'Totem Portaria Autoatendimento',
-          user_role: 'portaria',
-          action: 'CREATE_PRE_REGISTRATION',
-          resource: 'pre_registrations',
-          resource_id: pre.id,
-          new_state: 'novo',
-          reason: 'Tentativa de entrada no Totem por motorista não cadastrado no SAP',
-          correlation_id: `PREREG-${Date.now()}`,
-          payload: { document: cleanDoc, plate: cleanPlate, origin: 'PORTA' },
-        })
-
-        return {
-          success: true,
-          isPreReg: true,
-          message:
-            'Documento não encontrado no cadastro ativo. Foi gerado um Pré-cadastro Pendente para conferência na portaria.',
-          data: pre,
-        }
-      } catch (err: any) {
-        return { success: false, message: err?.message || 'Erro ao criar pré-cadastro.' }
-      }
-    }
-
-    if (driver.status === 'bloqueado') {
-      return {
-        success: false,
-        message: 'Motorista bloqueado administrativamente. Dirija-se à guarita da portaria.',
-      }
-    }
-
-    // Duplicate Check & Transition FORA -> PORTA
-    const activeEntry = await this.findActiveQueueEntryByDriver(driver.id)
-    let transitionedFromFora = false
-
-    if (activeEntry) {
-      if (activeEntry.type === 'PORTA') {
-        return {
-          success: false,
-          message: 'Motorista já possui entrada ativa na Fila PORTA.',
-        }
-      } else if (activeEntry.type === 'FORA') {
-        // Transição Controlada FORA -> PORTA
-        // 1. Encerrar o estado FORA com auditoria e histórico
-        const arrivalTime = new Date().toISOString()
-        await pb.collection('queue_entries').update(activeEntry.id, {
-          status: 'removido',
-          exit_time: arrivalTime,
-          reason: 'Promovido para PORTA por chegada física confirmada no Totem Portaria',
-          last_event: 'Transição FORA → PORTA (Chegada Física ao Pátio)',
-          last_operator: 'Totem Portaria Autoatendimento',
-        })
-
-        // 2. Criar log de auditoria específico da transição
-        await pb.collection('audit_logs').create({
-          user_email: 'totem@ciafal.internal',
-          user_name: 'Totem Portaria Autoatendimento',
-          user_role: 'portaria',
-          action: 'TRANSITION_FORA_TO_PORTA',
-          resource: 'queue_entries',
-          resource_id: activeEntry.id,
-          previous_state: 'FORA',
-          new_state: 'PORTA',
-          reason:
-            'Chegada física no Totem da Portaria promovendo disponibilidade externa para física',
-          correlation_id: `TRANS-${Date.now()}`,
-          payload: {
-            driver_id: driver.id,
-            driver_name: driver.name,
-            previous_entry_time: activeEntry.entry_time,
-            physical_arrival_time: arrivalTime,
-          },
-        })
-
-        transitionedFromFora = true
-      }
-    }
-
-    // Find or create vehicle
-    let vehicleId = ''
-    if (cleanPlate) {
-      try {
-        const vehicles = await pb
-          .collection('vehicles')
-          .getList(1, 1, { filter: `plate = "${cleanPlate}"` })
-        if (vehicles.items.length > 0) {
-          vehicleId = vehicles.items[0].id
-        } else {
-          const v = await pb.collection('vehicles').create({
-            plate: cleanPlate,
-            type: params.vehicleType || 'Carreta LS',
-            driver: driver.id,
-          })
-          vehicleId = v.id
-        }
-      } catch {
-        /* intentionally ignored */
-      }
-    }
-
-    // Create entry in PORTA with real effective arrival time
-    try {
-      const entryTime = new Date().toISOString()
-      const entry = await pb.collection('queue_entries').create({
-        driver: driver.id,
-        vehicle: vehicleId || null,
-        type: 'PORTA',
-        status: 'disponivel',
-        entry_time: entryTime,
-        location_status: 'validada',
-        distance_km: 0,
-        driver_name_cached: driver.name,
-        driver_doc_cached: driver.document,
-        driver_whatsapp_cached: cleanPhone || driver.whatsapp,
-        vehicle_plate_cached: cleanPlate,
-        vehicle_type_cached: params.vehicleType || 'Carreta',
-        reason: transitionedFromFora
-          ? 'Transição FORA → PORTA confirmada pelo Totem da Portaria'
-          : 'Entrada física registrada via Totem da Portaria',
-        last_event: transitionedFromFora
-          ? 'Transição FORA → PORTA (Presença Confirmada)'
-          : 'Entrada na Fila (PORTA)',
-        last_operator: 'Totem Portaria',
-      })
-
-      return {
-        success: true,
-        transitionedFromFora,
-        message: transitionedFromFora
-          ? 'Transição FORA → PORTA realizada com sucesso! Presença física confirmada no pátio com nova prioridade temporal.'
-          : 'Entrada na Fila PORTA registrada com sucesso!',
-        data: entry,
-      }
-    } catch (err: any) {
-      return { success: false, message: err?.message || 'Falha ao registrar entrada na fila.' }
-    }
-  },
-
-  // Submit External Link Entry (FORA)
-  async submitExternalCheckin(
-    params: CreateQueueEntryParams,
-  ): Promise<{ success: boolean; message: string; data?: any; isPreReg?: boolean }> {
-    const cleanDoc = params.document.replace(/\D/g, '')
-    const cleanPhone = params.whatsapp.replace(/\D/g, '').replace(/^55/, '')
-    const cleanPlate = (params.plate || '').toUpperCase().trim()
-
-    const docValidation = isValidDocument(cleanDoc)
-    if (!docValidation.valid) {
-      return { success: false, message: 'Documento (CPF/CNPJ) inválido.' }
-    }
-
-    // Geolocation check
-    if (params.latitude === undefined || params.longitude === undefined) {
-      return {
-        success: false,
-        message:
-          'Acesso à localização obrigatório: autorize o GPS do seu celular para entrar no grupo FORA.',
-      }
-    }
-
-    // Retrieve plant dynamic parameters or defaults
-    let plantLat = CIAFAL_PLANT_LOCATION.latitude
-    let plantLon = CIAFAL_PLANT_LOCATION.longitude
-    let maxRadiusKm = CIAFAL_PLANT_LOCATION.maxRadiusKm
-    let accuracyTolerance = 500
-
-    try {
-      const pLat = await pb
-        .collection('system_parameters')
-        .getFirstListItem('key = "PLANT_LATITUDE"')
-      plantLat = parseFloat(pLat.value) || plantLat
-    } catch {
-      /* intentionally ignored */
-    }
-    try {
-      const pLon = await pb
-        .collection('system_parameters')
-        .getFirstListItem('key = "PLANT_LONGITUDE"')
-      plantLon = parseFloat(pLon.value) || plantLon
-    } catch {
-      /* intentionally ignored */
-    }
-    try {
-      const pRad = await pb
-        .collection('system_parameters')
-        .getFirstListItem('key = "MAX_RADIUS_KM"')
-      maxRadiusKm = parseFloat(pRad.value) || maxRadiusKm
-    } catch {
-      /* intentionally ignored */
-    }
-    try {
-      const pAcc = await pb
-        .collection('system_parameters')
-        .getFirstListItem('key = "GEO_ACCURACY_TOLERANCE_METERS"')
-      accuracyTolerance = parseFloat(pAcc.value) || accuracyTolerance
-    } catch {
-      /* intentionally ignored */
-    }
-
-    const geoCheck = validateGeofence(
-      params.latitude,
-      params.longitude,
-      plantLat,
-      plantLon,
-      maxRadiusKm,
-      params.accuracy || 0,
-      accuracyTolerance,
-    )
-
-    if (!geoCheck.isWithinRadius) {
-      return {
-        success: false,
-        message:
-          geoCheck.reason ||
-          `Localização fora do raio permitido: Você está a ${geoCheck.distanceKm} km da CIAFAL. O limite máximo é de ${maxRadiusKm} km.`,
-      }
-    }
-
-    // Check if driver exists
-    const driver = await this.findDriverByDocument(cleanDoc)
-    if (!driver) {
-      // Create pre-registration
-      try {
-        const pre = await pb.collection('pre_registrations').create({
-          document: cleanDoc,
-          name: 'Motorista Externo (Link)',
-          whatsapp: cleanPhone,
-          vehicle_type: params.vehicleType,
-          plate: cleanPlate,
-          origin: 'FORA',
-          status: 'novo',
-          latitude: params.latitude,
-          longitude: params.longitude,
-          reviewer_notes: `Check-in Externo GPS a ${geoCheck.distanceKm} km da CIAFAL. CPF/CNPJ sem cadastro ativo no SAP.`,
-        })
-
-        // Audit pre-registration
-        await pb.collection('audit_logs').create({
-          user_email: 'checkin@ciafal.public',
-          user_name: 'Link Externo Motorista',
-          user_role: 'portaria',
-          action: 'CREATE_PRE_REGISTRATION',
-          resource: 'pre_registrations',
-          resource_id: pre.id,
-          new_state: 'novo',
-          reason: `Check-in externo sem cadastro ativo no SAP (${geoCheck.distanceKm} km)`,
-          correlation_id: `PREREG-EXT-${Date.now()}`,
-          payload: {
-            document: cleanDoc,
-            plate: cleanPlate,
-            distance_km: geoCheck.distanceKm,
-            origin: 'FORA',
-          },
-        })
-
-        return {
-          success: true,
-          isPreReg: true,
-          message:
-            'Você ainda não possui cadastro ativo na CIAFAL. Seu pré-cadastro foi recebido e será analisado pela equipe de logística.',
-          data: pre,
-        }
-      } catch (err: any) {
-        return { success: false, message: err?.message || 'Erro ao registrar pré-cadastro.' }
-      }
-    }
-
-    if (driver.status === 'bloqueado') {
-      return {
-        success: false,
-        message: 'Cadastro bloqueado. Entre em contato com a logística CIAFAL.',
-      }
-    }
-
-    // Check duplicate
-    const activeEntry = await this.findActiveQueueEntryByDriver(driver.id)
-    if (activeEntry) {
-      return {
-        success: false,
-        message: `Você já está registrado na fila (Grupo: ${activeEntry.type}, Status: ${activeEntry.status.toUpperCase()}).`,
-      }
-    }
-
-    // Create entry in FORA
-    try {
-      const entry = await pb.collection('queue_entries').create({
-        driver: driver.id,
-        type: 'FORA',
-        status: 'disponivel',
-        entry_time: new Date().toISOString(),
-        latitude: params.latitude,
-        longitude: params.longitude,
-        distance_km: geoCheck.distanceKm,
-        location_status: 'validada',
-        driver_name_cached: driver.name,
-        driver_doc_cached: driver.document,
-        driver_whatsapp_cached: cleanPhone || driver.whatsapp,
-        vehicle_plate_cached: cleanPlate,
-        vehicle_type_cached: params.vehicleType || 'Carreta',
-        reason: `Disponibilidade informada via link externo (Distância recalculada: ${geoCheck.distanceKm} km)`,
-        last_event: 'Check-in Externo (FORA)',
-        last_operator: 'Motorista via Web App',
-      })
-
-      return {
-        success: true,
-        message: `Disponibilidade confirmada no grupo FORA! Distância calculada: ${geoCheck.distanceKm} km da CIAFAL.`,
-        data: entry,
-      }
-    } catch (err: any) {
-      return { success: false, message: err?.message || 'Falha ao processar check-in externo.' }
-    }
-  },
-
-  // Update Queue Status with Operator Audit & State Tracking
   async updateQueueStatus(
     entryId: string,
     newStatus: QueueStatus,
@@ -493,7 +632,6 @@ export const TmsService = {
           : null,
       })
 
-      // Explicit audit log
       await pb.collection('audit_logs').create({
         user_email: operatorEmail,
         user_name: operatorName,
@@ -520,7 +658,6 @@ export const TmsService = {
     }
   },
 
-  // Pre-registrations CRUD
   async getPreRegistrations(): Promise<PreRegistrationEntity[]> {
     try {
       return await pb.collection('pre_registrations').getFullList<PreRegistrationEntity>({
@@ -548,7 +685,6 @@ export const TmsService = {
         rejection_reason: rejectionReason || '',
       })
 
-      // Audit
       await pb.collection('audit_logs').create({
         user_email: reviewerUser,
         user_name: reviewerUser,
@@ -558,7 +694,7 @@ export const TmsService = {
         resource_id: id,
         previous_state: prev.status,
         new_state: status,
-        reason: reviewerNotes || rejectionReason || 'Análise e triagem de pré-cadastro',
+        reason: reviewerNotes || rejectionReason || 'Análise de pré-cadastro',
         correlation_id: `PREREG-REV-${Date.now()}`,
         payload: {
           candidate_name: prev.name,
@@ -574,8 +710,7 @@ export const TmsService = {
     }
   },
 
-  // Audit Logs
-  async getAuditLogs(limit = 100): Promise<AuditLogEntity[]> {
+  async getAuditLogs(limit = 150): Promise<AuditLogEntity[]> {
     try {
       return await pb.collection('audit_logs').getFullList<AuditLogEntity>({
         sort: '-created',
@@ -587,15 +722,102 @@ export const TmsService = {
     }
   },
 
-  // Freight Offers (Sprint 1.1 Model Inspection / Preparation)
-  async getFreightOffers(): Promise<FreightOfferEntity[]> {
+  // ----------------------------------------------------
+  // SAP SALES ORDERS (CARTEIRA ZSD35) & LOAD PLANNING
+  // ----------------------------------------------------
+  async getSapSalesOrders(): Promise<SapSalesOrderEntity[]> {
     try {
-      return await pb.collection('freight_offers').getFullList<FreightOfferEntity>({
-        sort: '-created',
+      return await pb.collection('sap_sales_orders').getFullList<SapSalesOrderEntity>({
+        sort: 'order_number',
       })
     } catch (err) {
-      console.error('Failed to fetch freight offers:', err)
+      console.error('Failed to fetch sales orders:', err)
       return []
+    }
+  },
+
+  // ----------------------------------------------------
+  // CARGO COMPLEMENT OPPORTUNITIES
+  // ----------------------------------------------------
+  async getComplementOpportunities(): Promise<OportunidadeComplementoCargaEntity[]> {
+    try {
+      return await pb
+        .collection('oportunidade_complemento_carga')
+        .getFullList<OportunidadeComplementoCargaEntity>({
+          sort: '-created',
+        })
+    } catch (err) {
+      console.error('Failed to fetch complement opportunities:', err)
+      return []
+    }
+  },
+
+  async createComplementOpportunity(
+    opp: Partial<OportunidadeComplementoCargaEntity>,
+  ): Promise<OportunidadeComplementoCargaEntity | null> {
+    try {
+      const created = await pb.collection('oportunidade_complemento_carga').create({
+        date: opp.date || new Date().toISOString().split('T')[0],
+        cargo_code: opp.cargo_code,
+        itinerary_code: opp.itinerary_code,
+        current_weight_kg: opp.current_weight_kg,
+        capacity_kg: opp.capacity_kg,
+        balance_kg: opp.balance_kg,
+        candidate_orders: JSON.stringify(opp.candidate_orders || []),
+        candidate_clients: JSON.stringify(opp.candidate_clients || []),
+        status: opp.status || 'Nova',
+        responsible: opp.responsible || 'Gerente de Carga',
+        origin: opp.origin || 'Planejador TMS CIAFAL',
+        enviado_crm: opp.enviado_crm || false,
+        correlation_id: opp.correlation_id || `COMPL-${Date.now()}`,
+        notes: opp.notes || '',
+      })
+      return created as unknown as OportunidadeComplementoCargaEntity
+    } catch (err) {
+      console.error('Error creating complement opportunity:', err)
+      return null
+    }
+  },
+
+  async sendComplementOpportunityToCrm(
+    id: string,
+    operatorEmail: string,
+    operatorName: string,
+  ): Promise<boolean> {
+    try {
+      const opp = await pb
+        .collection('oportunidade_complemento_carga')
+        .getOne<OportunidadeComplementoCargaEntity>(id)
+      const sendDate = new Date().toISOString()
+      await pb.collection('oportunidade_complemento_carga').update(id, {
+        status: 'Enviada CRM',
+        enviado_crm: true,
+        data_envio: sendDate,
+      })
+
+      // Audit CRM Event
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'gerente_carga',
+        action: 'SEND_COMPLEMENT_TO_CRM',
+        resource: 'oportunidade_complemento_carga',
+        resource_id: id,
+        previous_state: opp.status,
+        new_state: 'Enviada CRM',
+        reason: 'Alerta comercial de oportunidade de complemento gerado para CRM 360°',
+        correlation_id: opp.correlation_id || `CRM-${Date.now()}`,
+        payload: {
+          cargo: opp.cargo_code,
+          itinerary: opp.itinerary_code,
+          balance_kg: opp.balance_kg,
+          sent_at: sendDate,
+        },
+      })
+      return true
+    } catch (err) {
+      console.error('Failed to send opportunity to CRM:', err)
+      return false
     }
   },
 }

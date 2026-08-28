@@ -4,28 +4,41 @@ import { useAuth } from '@/contexts/AuthContext'
 import {
   LayoutDashboard,
   Layers,
-  Building,
-  Smartphone,
-  UserCheck,
-  FileSpreadsheet,
-  Users,
-  Sliders,
-  History,
-  Activity,
-  Sparkles,
-  LogOut,
+  CalendarCheck,
+  BadgeDollarSign,
   Truck,
-  Shield,
-  Menu,
-  X,
+  Bot,
+  Activity,
+  BarChart3,
+  Sliders,
+  ChevronDown,
   ChevronRight,
   ExternalLink,
+  Shield,
+  LogOut,
+  Menu,
+  X,
+  Building,
+  Smartphone,
+  Calendar,
+  UserCheck,
+  Route,
+  Package,
+  Layers as LayersIcon,
+  Sparkles,
+  FileSpreadsheet,
+  Users,
   ShieldAlert,
-  HelpCircle,
+  Send,
+  MessageSquare,
+  Radio,
+  History,
+  Target,
+  LineChart,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,123 +49,360 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { getRoleLabel } from '@/domain/rules'
 
+interface MenuGroup {
+  id: string
+  title: string
+  icon: React.ComponentType<{ className?: string }>
+  items: {
+    title: string
+    path: string
+    badge?: string
+    badgeColor?: string
+    inDev?: boolean
+    show?: boolean
+  }[]
+}
+
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, role, permissions, logout, setSimulatedRole } = useAuth()
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const navItems = [
+  // Collapsible menu groups state
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    disponibilidade: true,
+    planejamento: true,
+    fretes: false,
+    transportes: false,
+    agentes: false,
+    integracoes: false,
+    gestao: false,
+    admin: false,
+  })
+
+  const toggleGroup = (groupId: string) => {
+    setOpenGroups((prev) => ({
+      ...prev,
+      [groupId]: !prev[groupId],
+    }))
+  }
+
+  // Exact CIAFAL Menu Structure as Specified
+  const menuGroups: MenuGroup[] = [
     {
-      title: 'Fila Operacional',
-      path: '/tms/fila',
+      id: 'disponibilidade',
+      title: 'DISPONIBILIDADE LOGÍSTICA',
       icon: Layers,
-      show: permissions.canViewQueue,
-      badge: 'Sprint 1.1',
-      badgeColor: 'bg-emerald-600',
+      items: [
+        {
+          title: 'Fila & Disponibilidade',
+          path: '/tms/fila',
+          badge: 'PORTA/FORA',
+          badgeColor: 'bg-emerald-600',
+          show: true,
+        },
+        {
+          title: 'Disponibilidade Programada',
+          path: '/tms/disponibilidade-programada',
+          badge: 'Futuro',
+          badgeColor: 'bg-sky-600',
+          show: true,
+        },
+        {
+          title: 'Pré-cadastros',
+          path: '/tms/pre-cadastros',
+          show: permissions.canManagePreRegistrations,
+        },
+        {
+          title: 'Motoristas & Veículos',
+          path: '/tms/motoristas',
+          show: true,
+        },
+      ],
     },
     {
-      title: 'Ofertas de Frete',
-      path: '/tms/ofertas',
-      icon: Sparkles,
-      show: true,
-      badge: 'Sprint 2',
-      badgeColor: 'bg-amber-500',
+      id: 'planejamento',
+      title: 'PLANEJAMENTO LOGÍSTICO',
+      icon: CalendarCheck,
+      items: [
+        {
+          title: 'Planejador de Cargas',
+          path: '/tms/planejador-cargas',
+          badge: 'Núcleo',
+          badgeColor: 'bg-[#005596]',
+          show: true,
+        },
+        {
+          title: 'Programação Futura',
+          path: '/tms/programacao-futura',
+          show: true,
+        },
+        {
+          title: 'Complemento de Cargas',
+          path: '/tms/complemento-cargas',
+          badge: 'CRM',
+          badgeColor: 'bg-purple-600',
+          show: true,
+        },
+        {
+          title: 'Itinerários SAP',
+          path: '/tms/itinerarios-sap',
+          badge: 'TVROT',
+          badgeColor: 'bg-slate-500',
+          show: true,
+        },
+      ],
     },
     {
-      title: 'Pré-Cadastros',
-      path: '/tms/pre-cadastros',
-      icon: UserCheck,
-      show: permissions.canManagePreRegistrations,
+      id: 'fretes',
+      title: 'FRETES',
+      icon: BadgeDollarSign,
+      items: [
+        {
+          title: 'Mesa de Fretes',
+          path: '/tms/mesa-fretes',
+          inDev: true,
+          show: true,
+        },
+        {
+          title: 'Ofertas',
+          path: '/tms/ofertas',
+          badge: 'Sprint 2',
+          badgeColor: 'bg-amber-500',
+          show: true,
+        },
+        {
+          title: 'Tabela de Fretes',
+          path: '/tms/tabela-fretes',
+          inDev: true,
+          show: true,
+        },
+        {
+          title: 'Histórico',
+          path: '/tms/historico-fretes',
+          inDev: true,
+          show: true,
+        },
+      ],
     },
     {
-      title: 'Motoristas & Frota',
-      path: '/tms/motoristas',
+      id: 'transportes',
+      title: 'TRANSPORTES',
       icon: Truck,
-      show: permissions.canViewQueue,
+      items: [
+        {
+          title: 'Cargas',
+          path: '/tms/cargas',
+          inDev: true,
+          show: true,
+        },
+        {
+          title: 'Transportes',
+          path: '/tms/transportes',
+          inDev: true,
+          show: true,
+        },
+        {
+          title: 'Acompanhamento',
+          path: '/tms/acompanhamento',
+          inDev: true,
+          show: true,
+        },
+        {
+          title: 'Ocorrências',
+          path: '/tms/ocorrencias',
+          inDev: true,
+          show: true,
+        },
+      ],
     },
     {
-      title: 'Importação SAP',
-      path: '/tms/sap-import',
-      icon: FileSpreadsheet,
-      show: permissions.canImportSap,
-      badge: 'Provisório',
-      badgeColor: 'bg-slate-500',
+      id: 'agentes',
+      title: 'AGENTES',
+      icon: Bot,
+      items: [
+        {
+          title: 'Chicão',
+          path: '/tms/agente-chicao',
+          badge: 'IA Negociação',
+          badgeColor: 'bg-amber-600',
+          inDev: true,
+          show: true,
+        },
+        {
+          title: 'Fred',
+          path: '/tms/agente-fred',
+          badge: 'IA Suporte',
+          badgeColor: 'bg-purple-600',
+          inDev: true,
+          show: true,
+        },
+      ],
     },
     {
-      title: 'Monitor de Integrações',
-      path: '/tms/monitor-integracoes',
+      id: 'integracoes',
+      title: 'INTEGRAÇÕES',
       icon: Activity,
-      show: true,
+      items: [
+        {
+          title: 'SAP ECC 6.0',
+          path: '/tms/integracao-sap',
+          badge: 'qRFC/RFC',
+          badgeColor: 'bg-[#005596]',
+          show: true,
+        },
+        {
+          title: 'PCP Robotizado',
+          path: '/tms/integracao-pcp',
+          badge: 'Preparado',
+          badgeColor: 'bg-blue-500',
+          show: true,
+        },
+        {
+          title: 'CRM 360°',
+          path: '/tms/integracao-crm',
+          badge: 'Preparado',
+          badgeColor: 'bg-emerald-600',
+          show: true,
+        },
+        {
+          title: 'Telegram',
+          path: '/tms/integracao-telegram',
+          badge: 'Mensageria',
+          badgeColor: 'bg-sky-500',
+          show: true,
+        },
+        {
+          title: 'WhatsApp',
+          path: '/tms/integracao-whatsapp',
+          badge: 'Mensageria',
+          badgeColor: 'bg-emerald-500',
+          show: true,
+        },
+        {
+          title: 'TARGET',
+          path: '/tms/integracao-target',
+          inDev: true,
+          show: true,
+        },
+        {
+          title: 'QLIK',
+          path: '/tms/integracao-qlik',
+          inDev: true,
+          show: true,
+        },
+      ],
     },
     {
-      title: 'Trilha de Auditoria',
-      path: '/tms/auditoria',
-      icon: History,
-      show: permissions.canViewAuditLogs,
+      id: 'gestao',
+      title: 'GESTÃO',
+      icon: BarChart3,
+      items: [
+        {
+          title: 'Dashboard Gerencial',
+          path: '/tms/dashboard-gerencial',
+          show: true,
+        },
+        {
+          title: 'Relatórios',
+          path: '/tms/relatorios',
+          inDev: true,
+          show: true,
+        },
+        {
+          title: 'Auditoria & Compliance',
+          path: '/tms/auditoria',
+          show: permissions.canViewAuditLogs,
+        },
+        {
+          title: 'Monitor de Integrações',
+          path: '/tms/monitor-integracoes',
+          show: true,
+        },
+      ],
     },
     {
-      title: 'Parâmetros da Planta',
-      path: '/tms/parametros',
+      id: 'admin',
+      title: 'ADMINISTRAÇÃO',
       icon: Sliders,
-      show:
-        permissions.canManageSystemParameters || role === 'admin_master' || role === 'admin_tms',
-    },
-    {
-      title: 'Usuários & Permissões',
-      path: '/tms/usuarios',
-      icon: Users,
-      show: role === 'admin_master' || role === 'admin_tms',
+      items: [
+        {
+          title: 'Parâmetros Operacionais',
+          path: '/tms/parametros',
+          show:
+            permissions.canManageSystemParameters ||
+            role === 'admin_master' ||
+            role === 'admin_tms',
+        },
+        {
+          title: 'Usuários e Perfis (RBAC)',
+          path: '/tms/usuarios',
+          show: role === 'admin_master' || role === 'admin_tms',
+        },
+        {
+          title: 'Segurança & LGPD',
+          path: '/tms/seguranca-lgpd',
+          show: true,
+        },
+        {
+          title: 'Importações SAP',
+          path: '/tms/sap-import',
+          badge: 'Provisório',
+          badgeColor: 'bg-slate-500',
+          show: permissions.canImportSap,
+        },
+      ],
     },
   ]
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
-      {/* Top Navigation Bar */}
+      {/* Top Navigation Bar - CIAFAL Pantone 2945 */}
       <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Brand and Logo */}
-          <div className="flex items-center space-x-3">
-            <Link to="/tms/fila" className="flex items-center space-x-2.5">
-              <div className="w-9 h-9 rounded-lg bg-[#005596] flex items-center justify-center font-black text-white text-lg tracking-wider shadow">
+          <div className="flex items-center space-x-4">
+            <Link to="/tms/dashboard" className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl bg-[#005596] flex items-center justify-center font-black text-white text-xl tracking-wider shadow">
                 C
               </div>
               <div className="flex flex-col">
-                <span className="font-extrabold text-base tracking-tight text-white leading-tight">
+                <span className="font-black text-lg tracking-tight text-white leading-tight">
                   HUB CIAFAL
                 </span>
-                <span className="text-[10px] text-sky-400 font-bold uppercase tracking-wider">
+                <span className="text-[10px] text-sky-400 font-extrabold uppercase tracking-wider">
                   TMS Logística Integrada
                 </span>
               </div>
             </Link>
 
-            <div className="hidden md:flex items-center space-x-1 pl-4 border-l border-slate-700">
-              <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-                SPRINT 1.1 HOMOLOGAÇÃO
+            <div className="hidden md:flex items-center space-x-2 pl-4 border-l border-slate-800">
+              <Badge className="bg-[#005596] text-white text-[10px] font-bold px-2 py-0.5">
+                DISPONIBILIDADE → PLANEJAMENTO → FRETES → EXECUÇÃO
               </Badge>
             </div>
           </div>
 
-          {/* Direct Portaria / Externo Links & User Switcher */}
+          {/* Quick Access to Driver Link and User Switcher */}
           <div className="flex items-center space-x-3">
             <div className="hidden lg:flex items-center space-x-2 text-xs">
               <Link
-                to="/totem"
+                to="/tms/fila-publica"
                 target="_blank"
-                className="text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-md flex items-center gap-1.5 border border-slate-700 transition"
+                className="text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-1.5 border border-slate-700 transition"
               >
-                <Building className="w-3.5 h-3.5 text-sky-400" />
-                <span>Totem Portaria</span>
+                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="font-semibold">Link Público Motorista</span>
                 <ExternalLink className="w-3 h-3 text-slate-400" />
               </Link>
 
               <Link
-                to="/checkin-externo"
+                to="/totem"
                 target="_blank"
-                className="text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-md flex items-center gap-1.5 border border-slate-700 transition"
+                className="text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-1.5 border border-slate-700 transition"
               >
-                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Check-in FORA</span>
+                <Building className="w-3.5 h-3.5 text-sky-400" />
+                <span className="font-semibold">Totem PORTA</span>
                 <ExternalLink className="w-3 h-3 text-slate-400" />
               </Link>
             </div>
@@ -164,13 +414,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   variant="ghost"
                   className="flex items-center space-x-2 text-left hover:bg-slate-800 p-1.5 rounded-lg text-xs"
                 >
-                  <Avatar className="h-8 w-8 border border-sky-500">
+                  <Avatar className="h-8 w-8 border border-[#005596]">
                     <AvatarFallback className="bg-[#005596] text-white font-bold text-xs">
                       {user?.name?.substring(0, 2).toUpperCase() || 'OP'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="hidden md:block">
-                    <div className="font-bold text-slate-100 truncate max-w-[120px]">
+                    <div className="font-bold text-slate-100 truncate max-w-[130px]">
                       {user?.name || 'Operador'}
                     </div>
                     <div className="text-[10px] text-sky-400 font-mono">
@@ -192,7 +442,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 <DropdownMenuSeparator />
 
                 <DropdownMenuLabel className="text-[10px] uppercase font-bold text-slate-400">
-                  Simular Perfil RBAC (Homologação):
+                  Simular Perfil RBAC:
                 </DropdownMenuLabel>
 
                 <DropdownMenuItem onClick={() => setSimulatedRole('admin_master')}>
@@ -241,80 +491,143 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </header>
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full flex flex-col md:flex-row gap-6">
-        {/* Left Sidebar Navigation */}
-        <aside className="w-full md:w-64 flex-shrink-0">
-          <nav className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm space-y-1">
-            <div className="text-[10px] font-bold text-slate-400 uppercase px-3 py-1.5 tracking-wider">
-              Navegação Operacional
-            </div>
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 py-5 flex-1 w-full flex flex-col md:flex-row gap-5">
+        {/* Left Sidebar Navigation - Collapsible CIAFAL Menu */}
+        <aside
+          className={`w-full md:w-72 flex-shrink-0 ${mobileMenuOpen ? 'block' : 'hidden md:block'}`}
+        >
+          <nav className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-sm space-y-2 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto">
+            {/* HOME Link */}
+            <Link
+              to="/tms/dashboard"
+              className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                location.pathname === '/tms/dashboard' || location.pathname === '/'
+                  ? 'bg-[#005596] text-white shadow-sm'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center space-x-2.5">
+                <LayoutDashboard
+                  className={`w-4 h-4 ${
+                    location.pathname === '/tms/dashboard' || location.pathname === '/'
+                      ? 'text-white'
+                      : 'text-[#005596]'
+                  }`}
+                />
+                <span>HOME: Dashboard TMS</span>
+              </div>
+            </Link>
 
-            {navItems
-              .filter((item) => item.show)
-              .map((item) => {
-                const Icon = item.icon
-                const isActive = location.pathname === item.path
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition-all ${
-                      isActive
-                        ? 'bg-[#005596] text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            {/* Grouped Accordion Menu */}
+            {menuGroups.map((group) => {
+              const Icon = group.icon
+              const isOpen = openGroups[group.id] ?? false
+              const hasActiveChild = group.items.some((i) => location.pathname === i.path)
+
+              return (
+                <div key={group.id} className="border-t border-slate-100 pt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.id)}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-[11px] font-extrabold tracking-wide uppercase transition-colors ${
+                      hasActiveChild
+                        ? 'text-[#005596] bg-sky-50/70'
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
                     }`}
                   >
-                    <div className="flex items-center space-x-2.5">
-                      <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                      <span>{item.title}</span>
+                    <div className="flex items-center space-x-2">
+                      <Icon className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{group.title}</span>
                     </div>
-
-                    {item.badge && (
-                      <Badge
-                        className={`text-[9px] px-1.5 py-0 font-bold ${
-                          isActive
-                            ? 'bg-white/20 text-white'
-                            : item.badgeColor
-                              ? `${item.badgeColor} text-white`
-                              : 'bg-slate-200 text-slate-700'
-                        }`}
-                      >
-                        {item.badge}
-                      </Badge>
+                    {isOpen ? (
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                     )}
-                  </Link>
-                )
-              })}
+                  </button>
 
-            <div className="pt-4 mt-2 border-t border-slate-100">
-              <div className="text-[10px] font-bold text-slate-400 uppercase px-3 py-1 tracking-wider">
-                Interfaces Públicas
-              </div>
-              <div className="space-y-1 pt-1">
-                <Link
-                  to="/totem"
-                  target="_blank"
-                  className="flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-600 hover:bg-slate-50 font-medium"
-                >
-                  <span className="flex items-center gap-2">
-                    <Building className="w-3.5 h-3.5 text-sky-600" />
-                    Totem Portaria (PORTA)
-                  </span>
-                  <ExternalLink className="w-3 h-3 text-slate-400" />
-                </Link>
+                  {isOpen && (
+                    <div className="mt-1 space-y-0.5 pl-2">
+                      {group.items
+                        .filter((item) => item.show !== false)
+                        .map((item) => {
+                          const isActive = location.pathname === item.path
+                          return (
+                            <Link
+                              key={item.path}
+                              to={item.path}
+                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
+                                isActive
+                                  ? 'bg-[#005596] text-white shadow-sm font-semibold'
+                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                              }`}
+                            >
+                              <span className="truncate">{item.title}</span>
 
-                <Link
-                  to="/checkin-externo"
-                  target="_blank"
-                  className="flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-600 hover:bg-slate-50 font-medium"
-                >
-                  <span className="flex items-center gap-2">
-                    <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
-                    Check-in Externo (FORA)
-                  </span>
-                  <ExternalLink className="w-3 h-3 text-slate-400" />
-                </Link>
+                              <div className="flex items-center space-x-1">
+                                {item.inDev && (
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[8px] px-1 py-0 ${
+                                      isActive
+                                        ? 'border-white/40 text-white bg-white/10'
+                                        : 'border-amber-400 text-amber-700 bg-amber-50'
+                                    }`}
+                                  >
+                                    Em desenvolv.
+                                  </Badge>
+                                )}
+
+                                {item.badge && (
+                                  <Badge
+                                    className={`text-[8px] px-1.5 py-0 font-bold ${
+                                      isActive
+                                        ? 'bg-white/20 text-white'
+                                        : item.badgeColor
+                                          ? `${item.badgeColor} text-white`
+                                          : 'bg-slate-200 text-slate-700'
+                                    }`}
+                                  >
+                                    {item.badge}
+                                  </Badge>
+                                )}
+                              </div>
+                            </Link>
+                          )
+                        })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* Public Links footer in sidebar */}
+            <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-400 space-y-1">
+              <div className="px-2 font-bold uppercase text-[9px] text-slate-400">
+                Rotas Públicas Seguras:
               </div>
+              <Link
+                to="/tms/fila-publica"
+                target="_blank"
+                className="flex items-center justify-between px-2 py-1 rounded text-slate-600 hover:bg-slate-50 hover:text-emerald-700"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+                  Link Fila (/tms/fila-publica)
+                </span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
+              </Link>
+              <Link
+                to="/totem"
+                target="_blank"
+                className="flex items-center justify-between px-2 py-1 rounded text-slate-600 hover:bg-slate-50 hover:text-[#005596]"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Building className="w-3.5 h-3.5 text-[#005596]" />
+                  Totem Portaria (/totem)
+                </span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
+              </Link>
             </div>
           </nav>
         </aside>
@@ -324,14 +637,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </div>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <footer className="bg-white border-t border-slate-200 py-3 text-center text-xs text-slate-500">
+        <div className="max-w-[1600px] mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div>
-            <strong>TMS CIAFAL Logística</strong> • HUB Integrado • Versão 1.1.0 (Homologação da
-            Fila)
+            <strong>TMS CIAFAL Logística</strong> • Plataforma Integrada de Transporte (Pantone
+            2945)
           </div>
           <div className="text-[11px] text-slate-400">
-            Regras de Negócio Determinísticas • Proteção LGPD • Trilha de Auditoria Imutável
+            SAP System of Record • O motor de regras decide • Trilha de Auditoria Imutável
           </div>
         </div>
       </footer>

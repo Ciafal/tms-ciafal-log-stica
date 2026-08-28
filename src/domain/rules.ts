@@ -1,4 +1,5 @@
 // TMS CIAFAL Domain Rules & Security Engine
+// Arquitetura: "O agente conversa. O motor de regras decide. O SAP registra o documento corporativo. O TMS orquestra a logística."
 
 export type UserRole =
   | 'admin_master'
@@ -20,7 +21,8 @@ export interface UserProfile {
   avatar?: string
 }
 
-export type QueueGroup = 'PORTA' | 'FORA'
+// 3 grupos de disponibilidade logística
+export type QueueGroup = 'PORTA' | 'FORA' | 'PROGRAMADO'
 
 export type QueueStatus =
   | 'disponivel'
@@ -47,7 +49,7 @@ export type PreRegistrationStatus =
 export interface DriverEntity {
   id: string
   name: string
-  document: string // Clean numbers
+  document: string // Números limpos (CPF/CNPJ)
   whatsapp: string
   status: 'ativo' | 'bloqueado' | 'pendente_sap'
   sap_id?: string
@@ -57,6 +59,7 @@ export interface DriverEntity {
   cnh_validity?: string
   channel_telegram?: string
   notes?: string
+  carrier_name?: string
   created?: string
   updated?: string
 }
@@ -68,18 +71,38 @@ export interface VehicleEntity {
   body_type?: string
   brand_model?: string
   year?: string
-  capacity_kg?: number
+  capacity_kg?: number // Usar capacidade real do cadastro; se ausente mostrar "Não informada"
   driver?: string
+  carrier_name?: string
+}
+
+export interface SapItineraryEntity {
+  id: string
+  sap_code: string
+  description: string
+  origin?: string
+  uf?: string
+  region?: string
+  avg_transit_days?: number
+  is_active: boolean
+  last_sync_date?: string
+  operational_notes?: string
+  created?: string
+  updated?: string
 }
 
 export interface QueueEntryEntity {
   id: string
   driver: string
   vehicle?: string
-  type: QueueGroup
+  type: QueueGroup // PORTA | FORA | PROGRAMADO
   status: QueueStatus
-  entry_time: string
+  entry_time: string // Data/hora real registrada
   exit_time?: string
+  calculated_logistics_date?: string // Data logística calculada (regra corte 12:00 ou data futura)
+  scheduled_arrival_date?: string // Para PROGRAMADOS
+  preferred_itinerary?: string // Código SAP do itinerário
+  driver_notes?: string
   latitude?: number
   longitude?: number
   distance_km?: number
@@ -90,6 +113,8 @@ export interface QueueEntryEntity {
   driver_whatsapp_cached?: string
   vehicle_plate_cached?: string
   vehicle_type_cached?: string
+  carrier_name_cached?: string
+  vehicle_capacity_kg_cached?: number
   reason?: string
   operator_notes?: string
   last_event?: string
@@ -107,16 +132,69 @@ export interface PreRegistrationEntity {
   document: string
   name: string
   whatsapp: string
+  email?: string
+  carrier_name?: string
   vehicle_type?: string
   plate?: string
+  declared_capacity_kg?: number
   origin: QueueGroup
   status: PreRegistrationStatus
+  preferred_itinerary?: string
+  scheduled_arrival_date?: string
+  driver_notes?: string
   latitude?: number
   longitude?: number
   ip_address?: string
   reviewer_notes?: string
   reviewer_user?: string
   rejection_reason?: string
+  created?: string
+  updated?: string
+}
+
+export interface SapSalesOrderEntity {
+  id: string
+  order_number: string
+  customer_code: string
+  customer_name: string
+  destination_city: string
+  uf: string
+  itinerary_code: string
+  weight_kg: number
+  volume_m3?: number
+  total_value: number
+  line?: string
+  family?: string
+  material?: string
+  production_status: 'Pronto' | 'Em Produção' | 'Programado' | 'Aguardando PCP'
+  credit_status: 'Liberado' | 'Bloqueado' | 'Em Análise'
+  discharge_type?: string
+  required_vehicle_type?: string
+  sap_notes?: string
+  scheduled_delivery_date?: string
+  assigned_load_id?: string
+  status?: 'disponivel' | 'em_montagem' | 'carregado' | 'cancelado'
+  created?: string
+  updated?: string
+}
+
+export interface OportunidadeComplementoCargaEntity {
+  id: string
+  date: string
+  cargo_code: string
+  itinerary_code: string
+  current_weight_kg: number
+  capacity_kg: number
+  balance_kg: number
+  candidate_orders: string[] | string
+  candidate_clients: string[] | string
+  status: 'Nova' | 'Enviada CRM' | 'Em análise' | 'Aproveitada' | 'Sem interesse' | 'Expirada'
+  responsible?: string
+  origin?: string
+  enviado_crm?: boolean
+  data_envio?: string
+  correlation_id?: string
+  notes?: string
   created?: string
   updated?: string
 }
@@ -168,7 +246,7 @@ export interface FreightOfferEntity {
   window_start?: string
   window_end?: string
   floor_value?: number
-  ceiling_value_protected?: number // Never exposed to drivers or LLMs
+  ceiling_value_protected?: number // Protegido - nunca exposto ao motorista ou LLM
   winner_driver?: string
   winner_vehicle?: string
   closing_reason?: string
@@ -240,6 +318,30 @@ export function isValidCNPJ(cnpjRaw: string): boolean {
 }
 
 /**
+ * Validates Brazilian License Plate (Standard ABC-1234 or Mercosul ABC1D23)
+ */
+export function isValidPlate(plateRaw: string): boolean {
+  if (!plateRaw) return false
+  const clean = plateRaw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+  if (clean.length !== 7) return false
+  const standardRegex = /^[A-Z]{3}[0-9]{4}$/
+  const mercosulRegex = /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/
+  return standardRegex.test(clean) || mercosulRegex.test(clean)
+}
+
+export function formatPlate(plateRaw: string): string {
+  const clean = (plateRaw || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+  if (clean.length === 7) {
+    // If standard (AAA9999), format with dash; if Mercosul (AAA9A99), keep compact or with dash
+    if (/^[A-Z]{3}[0-9]{4}$/.test(clean)) {
+      return `${clean.substring(0, 3)}-${clean.substring(3)}`
+    }
+    return clean
+  }
+  return plateRaw || ''
+}
+
+/**
  * Validates Document (CPF or CNPJ)
  */
 export function isValidDocument(doc: string): { valid: boolean; type: 'CPF' | 'CNPJ' | 'INVALID' } {
@@ -279,12 +381,79 @@ export const CIAFAL_PLANT_LOCATION = {
   latitude: -23.5186,
   longitude: -46.7865,
   name: 'Planta Central CIAFAL (Matriz)',
-  maxRadiusKm: 60,
+  portaRadiusMeters: 500, // Raio PORTA (presença física)
+  maxRadiusKm: 60, // Raio FORA (disponibilidade próxima)
+  cutoffHour: 12, // 12:00 corte
+  cutoffMinute: 0,
 }
 
 /**
- * Validates if coordinates are within the configured Geofence of CIAFAL
- * Includes checks for invalid coordinates, non-Brazil coordinates and zero values
+ * Classifies Driver Availability into 3 GROUPS based on backend geofence calculation:
+ * - PORTA: distance <= portaRadiusKm (e.g. 0.5 km / 500 m)
+ * - FORA: distance > portaRadiusKm AND distance <= maxRadiusKm (e.g. 60 km)
+ * - PROGRAMADO: distance > maxRadiusKm or driver declaring future date
+ */
+export function classifyAvailabilityGroup(
+  distanceKm: number,
+  portaRadiusKm = 0.5,
+  foraRadiusKm = 60,
+  hasFutureScheduledDate = false,
+): QueueGroup {
+  if (hasFutureScheduledDate) {
+    return 'PROGRAMADO'
+  }
+  if (distanceKm <= portaRadiusKm) {
+    return 'PORTA'
+  }
+  if (distanceKm <= foraRadiusKm) {
+    return 'FORA'
+  }
+  return 'PROGRAMADO'
+}
+
+/**
+ * Calculates calculated_logistics_date based on CIAFAL 12:00 Cutoff Rule for FORA:
+ * - Check-in FORA <= 12:00 (inclusive) -> availability date = same day (YYYY-MM-DD)
+ * - Check-in FORA > 12:00 -> availability date = next calendar day (YYYY-MM-DD)
+ * For PORTA: same day
+ * For PROGRAMADO: declared future arrival date
+ */
+export function calculateLogisticsDate(
+  group: QueueGroup,
+  entryTime: Date | string,
+  cutoffTimeStr = '12:00',
+  scheduledArrivalDate?: string,
+): string {
+  if (group === 'PROGRAMADO' && scheduledArrivalDate) {
+    return scheduledArrivalDate.split('T')[0]
+  }
+
+  const dateObj = typeof entryTime === 'string' ? new Date(entryTime) : entryTime
+  const [cutoffH, cutoffM] = cutoffTimeStr.split(':').map((v) => parseInt(v, 10) || 0)
+
+  const hours = dateObj.getHours()
+  const minutes = dateObj.getMinutes()
+
+  // PORTA is always immediately available today
+  if (group === 'PORTA') {
+    return dateObj.toISOString().split('T')[0]
+  }
+
+  // FORA follows cutoff rule
+  const isBeforeOrAtCutoff = hours < cutoffH || (hours === cutoffH && minutes <= cutoffM)
+
+  if (isBeforeOrAtCutoff) {
+    return dateObj.toISOString().split('T')[0]
+  } else {
+    // Next day
+    const nextDay = new Date(dateObj)
+    nextDay.setDate(nextDay.getDate() + 1)
+    return nextDay.toISOString().split('T')[0]
+  }
+}
+
+/**
+ * Validates if coordinates are valid and calculates distance from CIAFAL plant
  */
 export function validateGeofence(
   lat: number,
@@ -294,7 +463,7 @@ export function validateGeofence(
   maxKm = CIAFAL_PLANT_LOCATION.maxRadiusKm,
   accuracyMeters = 0,
   maxAccuracyTolerance = 500,
-): { isWithinRadius: boolean; distanceKm: number; reason?: string } {
+): { isWithinRadius: boolean; distanceKm: number; group: QueueGroup; reason?: string } {
   if (
     lat === undefined ||
     lon === undefined ||
@@ -307,16 +476,17 @@ export function validateGeofence(
     return {
       isWithinRadius: false,
       distanceKm: -1,
+      group: 'PROGRAMADO',
       reason: 'Coordenadas geográficas não fornecidas ou inválidas.',
     }
   }
 
   // Basic sanity check for Brazil coordinate bounds
-  // Lat: roughly +5 to -34, Lon: roughly -34 to -74
   if (lat > 6 || lat < -35 || lon > -30 || lon < -75) {
     return {
       isWithinRadius: false,
       distanceKm: -1,
+      group: 'PROGRAMADO',
       reason: 'Coordenadas geográficas fora do território nacional (Brasil).',
     }
   }
@@ -325,16 +495,22 @@ export function validateGeofence(
     return {
       isWithinRadius: false,
       distanceKm: -1,
+      group: 'PROGRAMADO',
       reason: `Precisão do GPS inadequada (${Math.round(accuracyMeters)}m). Máximo permitido: ${maxAccuracyTolerance}m.`,
     }
   }
 
   const dist = calculateDistanceKm(lat, lon, plantLat, plantLon)
+  const isWithin = dist <= maxKm
+  const group = classifyAvailabilityGroup(dist, 0.5, maxKm)
+
   return {
-    isWithinRadius: dist <= maxKm,
+    isWithinRadius: isWithin,
     distanceKm: dist,
-    reason:
-      dist > maxKm ? `Distância de ${dist} km excede o raio máximo de ${maxKm} km.` : undefined,
+    group,
+    reason: !isWithin
+      ? `Distância de ${dist} km excede o raio máximo FORA de ${maxKm} km. Classificado como DISPONIBILIDADE PROGRAMADA.`
+      : undefined,
   }
 }
 
@@ -342,27 +518,18 @@ export function validateGeofence(
 // SECURITY & DATA MASKING (LGPD)
 // ----------------------------------------------------
 
-/**
- * Masks CPF for display: ***.456.***-01
- */
 export function maskCPF(cpfRaw: string): string {
   const clean = (cpfRaw || '').replace(/\D/g, '')
   if (clean.length !== 11) return cpfRaw || '---'
   return `***.${clean.substring(3, 6)}.${clean.substring(6, 9)}-**`
 }
 
-/**
- * Masks CNPJ for display: **.***.678/0001-**
- */
 export function maskCNPJ(cnpjRaw: string): string {
   const clean = (cnpjRaw || '').replace(/\D/g, '')
   if (clean.length !== 14) return cnpjRaw || '---'
   return `**.***.${clean.substring(5, 8)}/${clean.substring(8, 12)}-**`
 }
 
-/**
- * Generic Document Masker
- */
 export function maskDocument(docRaw: string): string {
   const clean = (docRaw || '').replace(/\D/g, '')
   if (clean.length === 11) return maskCPF(clean)
@@ -370,9 +537,6 @@ export function maskDocument(docRaw: string): string {
   return docRaw || '---'
 }
 
-/**
- * Masks Phone / WhatsApp: (11) 9****-1234
- */
 export function maskPhone(phoneRaw: string): string {
   const clean = (phoneRaw || '').replace(/\D/g, '')
   if (clean.length === 11) {
@@ -384,9 +548,6 @@ export function maskPhone(phoneRaw: string): string {
   return phoneRaw || '---'
 }
 
-/**
- * Formats Clean Phone to Standard UI: (11) 98765-4321
- */
 export function formatPhone(phoneRaw: string): string {
   const clean = (phoneRaw || '').replace(/\D/g, '')
   if (clean.length === 11) {
@@ -398,9 +559,6 @@ export function formatPhone(phoneRaw: string): string {
   return phoneRaw || ''
 }
 
-/**
- * Formats Document (full formatted CPF or CNPJ)
- */
 export function formatDocument(docRaw: string): string {
   const clean = (docRaw || '').replace(/\D/g, '')
   if (clean.length === 11) {
@@ -425,7 +583,9 @@ export interface Permissions {
   canImportSap: boolean
   canViewAuditLogs: boolean
   canManageSystemParameters: boolean
-  canViewFullSensitiveData: boolean // Without masking
+  canViewFullSensitiveData: boolean
+  canPlanLoads: boolean
+  canManageItineraries: boolean
 }
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
@@ -439,6 +599,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewAuditLogs: true,
     canManageSystemParameters: true,
     canViewFullSensitiveData: true,
+    canPlanLoads: true,
+    canManageItineraries: true,
   },
   admin_tms: {
     canViewQueue: true,
@@ -450,6 +612,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewAuditLogs: true,
     canManageSystemParameters: true,
     canViewFullSensitiveData: true,
+    canPlanLoads: true,
+    canManageItineraries: true,
   },
   gestor_logistica: {
     canViewQueue: true,
@@ -461,6 +625,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewAuditLogs: true,
     canManageSystemParameters: false,
     canViewFullSensitiveData: true,
+    canPlanLoads: true,
+    canManageItineraries: true,
   },
   gerente_carga: {
     canViewQueue: true,
@@ -472,6 +638,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewAuditLogs: true,
     canManageSystemParameters: false,
     canViewFullSensitiveData: false,
+    canPlanLoads: true,
+    canManageItineraries: false,
   },
   operador_logistica: {
     canViewQueue: true,
@@ -483,6 +651,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewAuditLogs: false,
     canManageSystemParameters: false,
     canViewFullSensitiveData: false,
+    canPlanLoads: false,
+    canManageItineraries: false,
   },
   portaria: {
     canViewQueue: true,
@@ -494,6 +664,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewAuditLogs: false,
     canManageSystemParameters: false,
     canViewFullSensitiveData: false,
+    canPlanLoads: false,
+    canManageItineraries: false,
   },
   financeiro: {
     canViewQueue: true,
@@ -505,6 +677,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewAuditLogs: true,
     canManageSystemParameters: false,
     canViewFullSensitiveData: false,
+    canPlanLoads: false,
+    canManageItineraries: false,
   },
   comercial: {
     canViewQueue: true,
@@ -516,6 +690,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewAuditLogs: false,
     canManageSystemParameters: false,
     canViewFullSensitiveData: false,
+    canPlanLoads: false,
+    canManageItineraries: false,
   },
   auditor: {
     canViewQueue: true,
@@ -527,6 +703,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewAuditLogs: true,
     canManageSystemParameters: false,
     canViewFullSensitiveData: true,
+    canPlanLoads: false,
+    canManageItineraries: false,
   },
 }
 
@@ -557,18 +735,232 @@ export function getUserPermissions(role?: UserRole): Permissions {
       canViewAuditLogs: false,
       canManageSystemParameters: false,
       canViewFullSensitiveData: false,
+      canPlanLoads: false,
+      canManageItineraries: false,
     }
   }
   return ROLE_PERMISSIONS[role]
 }
 
 // ----------------------------------------------------
-// SPRINT 1.1: DETERMINISTIC ELIGIBILITY EVALUATION
+// MOTOR DETERMINÍSTICO DE MONTAGEM DE CARGA (PLANEJADOR)
+// ----------------------------------------------------
+
+export type LoadAssemblyDecision = 'permitida' | 'exige_aprovacao' | 'recusada'
+
+export interface LoadAssemblyRuleResult {
+  decision: LoadAssemblyDecision
+  reasons: string[] // Retorna TODOS os motivos (não apenas o primeiro)
+  details: {
+    weightValid: boolean
+    volumeValid: boolean
+    itineraryValid: boolean
+    vehicleTypeValid: boolean
+    creditValid: boolean
+    productionReady: boolean
+    hasObservations: boolean
+  }
+  calculatedWeightKg: number
+  capacityKg?: number
+  balanceKg?: number
+}
+
+export interface AssembleLoadInput {
+  orders: SapSalesOrderEntity[]
+  vehicle: VehicleEntity | null
+  targetItineraryCode: string
+  maxVolumeM3?: number
+}
+
+/**
+ * Deterministic Load Assembly Engine
+ * Analisa: Peso, Volume, Itinerário, Tipo de Veículo, Tipo de Descarga, Saldo, Crédito (por valor), Produção.
+ * Observações SAP são texto informativo para leitura do operador — não decidem automaticamente.
+ */
+export function avaliar_montagem_carga(input: AssembleLoadInput): LoadAssemblyRuleResult {
+  const reasons: string[] = []
+  const { orders, vehicle, targetItineraryCode, maxVolumeM3 } = input
+
+  const totalWeight = orders.reduce((acc, o) => acc + (o.weight_kg || 0), 0)
+  const totalVolume = orders.reduce((acc, o) => acc + (o.volume_m3 || 0), 0)
+  const vehicleCapacity = vehicle?.capacity_kg
+
+  // 1. Validação de Itinerário
+  const wrongItineraryOrders = orders.filter((o) => o.itinerary_code !== targetItineraryCode)
+  const itineraryValid = wrongItineraryOrders.length === 0
+  if (!itineraryValid) {
+    const wrongCodes = Array.from(new Set(wrongItineraryOrders.map((o) => o.itinerary_code))).join(
+      ', ',
+    )
+    reasons.push(
+      `Pedidos com itinerário incompatível (${wrongCodes}). Itinerário da carga: ${targetItineraryCode}.`,
+    )
+  }
+
+  // 2. Validação de Capacidade de Peso (usar capacidade do cadastro, sem hardcode)
+  let weightValid = true
+  let balanceKg: number | undefined
+  if (vehicleCapacity !== undefined && vehicleCapacity !== null && vehicleCapacity > 0) {
+    balanceKg = vehicleCapacity - totalWeight
+    if (totalWeight > vehicleCapacity) {
+      weightValid = false
+      reasons.push(
+        `Peso total (${totalWeight.toLocaleString('pt-BR')} kg) excede a capacidade do veículo (${vehicleCapacity.toLocaleString('pt-BR')} kg) em ${Math.abs(balanceKg).toLocaleString('pt-BR')} kg.`,
+      )
+    }
+  } else if (vehicle) {
+    // Veículo sem capacidade informada
+    reasons.push('Veículo sem capacidade de peso cadastrada no sistema.')
+  }
+
+  // 3. Validação de Volume
+  let volumeValid = true
+  if (maxVolumeM3 && maxVolumeM3 > 0 && totalVolume > maxVolumeM3) {
+    volumeValid = false
+    reasons.push(
+      `Volume total (${totalVolume.toFixed(1)} m³) excede o volume máximo da carroceria (${maxVolumeM3} m³).`,
+    )
+  }
+
+  // 4. Validação de Tipo de Veículo Exigido
+  let vehicleTypeValid = true
+  if (vehicle) {
+    const incompatibleVehicleOrders = orders.filter((o) => {
+      if (!o.required_vehicle_type) return false
+      const req = o.required_vehicle_type.toLowerCase()
+      const vType = (vehicle.type || '').toLowerCase()
+      return !vType.includes(req) && !req.includes(vType)
+    })
+    if (incompatibleVehicleOrders.length > 0) {
+      vehicleTypeValid = false
+      const reqs = Array.from(
+        new Set(incompatibleVehicleOrders.map((o) => o.required_vehicle_type)),
+      ).join(', ')
+      reasons.push(
+        `Tipo de veículo do cadastro (${vehicle.type}) incompatível com exigência do(s) pedido(s): ${reqs}.`,
+      )
+    }
+  }
+
+  // 5. Validação de Crédito do Cliente (analisado por VALOR do pedido no financeiro)
+  const blockedCreditOrders = orders.filter((o) => o.credit_status === 'Bloqueado')
+  const inAnalysisCreditOrders = orders.filter((o) => o.credit_status === 'Em Análise')
+  const creditValid = blockedCreditOrders.length === 0
+
+  if (blockedCreditOrders.length > 0) {
+    const ordNums = blockedCreditOrders.map((o) => o.order_number).join(', ')
+    reasons.push(`Pedido(s) ${ordNums} com CRÉDITO BLOQUEADO no SAP pelo financeiro.`)
+  }
+
+  // 6. Validação de Status de Produção (PCP)
+  const notReadyOrders = orders.filter((o) => o.production_status !== 'Pronto')
+  const productionReady = notReadyOrders.length === 0
+  if (!productionReady) {
+    const pDetails = notReadyOrders
+      .map((o) => `${o.order_number} (${o.production_status})`)
+      .join(', ')
+    reasons.push(`Material não está totalmente pronto no PCP: ${pDetails}.`)
+  }
+
+  // 7. Observações Informativas SAP (STXH/STXL)
+  const ordersWithObs = orders.filter((o) => !!o.sap_notes && o.sap_notes.trim().length > 0)
+  const hasObservations = ordersWithObs.length > 0
+
+  // DECISION MATRIX
+  let decision: LoadAssemblyDecision = 'permitida'
+
+  if (!itineraryValid || !weightValid || !creditValid) {
+    decision = 'recusada'
+  } else if (
+    !productionReady ||
+    !vehicleTypeValid ||
+    !volumeValid ||
+    inAnalysisCreditOrders.length > 0 ||
+    hasObservations
+  ) {
+    decision = 'exige_aprovacao'
+    if (inAnalysisCreditOrders.length > 0) {
+      reasons.push('Pedido(s) com crédito em análise no financeiro requerem aprovação gerencial.')
+    }
+  }
+
+  return {
+    decision,
+    reasons,
+    details: {
+      weightValid,
+      volumeValid,
+      itineraryValid,
+      vehicleTypeValid,
+      creditValid,
+      productionReady,
+      hasObservations,
+    },
+    calculatedWeightKg: totalWeight,
+    capacityKg: vehicleCapacity,
+    balanceKg,
+  }
+}
+
+// ----------------------------------------------------
+// MOTOR DE COMPLEMENTO DE CARGAS
+// ----------------------------------------------------
+
+export interface IdentifyComplementOpportunityInput {
+  cargoCode: string
+  itineraryCode: string
+  currentWeightKg: number
+  vehicleCapacityKg: number
+  candidateOrders: SapSalesOrderEntity[]
+}
+
+export function identificar_oportunidade_complemento(
+  input: IdentifyComplementOpportunityInput,
+): OportunidadeComplementoCargaEntity | null {
+  const { cargoCode, itineraryCode, currentWeightKg, vehicleCapacityKg, candidateOrders } = input
+
+  if (!vehicleCapacityKg || vehicleCapacityKg <= 0 || currentWeightKg >= vehicleCapacityKg) {
+    return null
+  }
+
+  const balanceKg = vehicleCapacityKg - currentWeightKg
+
+  // Buscar pedidos do mesmo itinerário compatíveis com o saldo
+  const matchingOrders = candidateOrders.filter(
+    (o) =>
+      o.itinerary_code === itineraryCode && o.weight_kg <= balanceKg && o.status === 'disponivel',
+  )
+
+  if (matchingOrders.length === 0) {
+    return null
+  }
+
+  return {
+    id: `opp-${Date.now()}`,
+    date: new Date().toISOString().split('T')[0],
+    cargo_code: cargoCode,
+    itinerary_code: itineraryCode,
+    current_weight_kg: currentWeightKg,
+    capacity_kg: vehicleCapacityKg,
+    balance_kg: balanceKg,
+    candidate_orders: matchingOrders.map((o) => o.order_number),
+    candidate_clients: Array.from(new Set(matchingOrders.map((o) => o.customer_name))),
+    status: 'Nova',
+    responsible: 'Gerente de Carga',
+    origin: 'Planejador TMS CIAFAL',
+    enviado_crm: false,
+    correlation_id: `COMPL-${Date.now()}`,
+    notes: `Oportunidade identificada: saldo residual de ${(balanceKg / 1000).toFixed(1)}t para o itinerário ${itineraryCode}.`,
+  }
+}
+
+// ----------------------------------------------------
+// DETERMINISTIC ELIGIBILITY EVALUATION FOR FREIGHT OFFERS
 // ----------------------------------------------------
 
 export interface DriverEligibilityEvaluation {
   isEligible: boolean
-  reasons: string[] // COMPLETE list of reasons (never just the first one)
+  reasons: string[] // Retorna TODOS os motivos
   evaluatedAt: string
   ruleEngineVersion: string
   details: {
@@ -590,26 +982,22 @@ export interface EvaluateEligibilityInput {
   requiredVehicleType?: string
 }
 
-/**
- * Deterministic freight offer eligibility service
- * Evaluates all 8 corporate rules and returns full diagnostic breakdown
- */
 export function avaliar_elegibilidade_motorista_oferta(
   input: EvaluateEligibilityInput,
 ): DriverEligibilityEvaluation {
   const reasons: string[] = []
   const evaluatedAt = new Date().toISOString()
-  const ruleEngineVersion = '1.1.0-SPRINT1.1'
+  const ruleEngineVersion = '1.2.0-SPRINT-TMS-EXPANSION'
 
   const { driver, queueEntry, offerStageGroup, requiredVehicleType } = input
 
-  // 1. Motorista na fila
+  // 1. Motorista na fila (não pode estar removido nem PROGRAMADO para oferta imediata)
   const inQueue = !!queueEntry && queueEntry.status !== 'removido'
   if (!inQueue) {
     reasons.push('Motorista não se encontra registrado na fila operacional.')
   }
 
-  // 2. Cadastro ativo
+  // 2. Cadastro ativo no SAP
   const activeRegistration = !!driver && driver.status === 'ativo'
   if (!driver) {
     reasons.push('Cadastro do motorista não localizado no sistema.')
@@ -632,7 +1020,7 @@ export function avaliar_elegibilidade_motorista_oferta(
     reasons.push('Motorista já possui carga atribuída em andamento.')
   }
 
-  // 5. Veículo compatível quando a regra for conhecida
+  // 5. Veículo compatível
   let compatibleVehicle = true
   if (requiredVehicleType && queueEntry?.vehicle_type_cached) {
     const vType = queueEntry.vehicle_type_cached.toLowerCase()
@@ -658,9 +1046,14 @@ export function avaliar_elegibilidade_motorista_oferta(
     reasons.push('Motorista com restrição ou bloqueio administrativo ativo.')
   }
 
-  // 8. Pertence ao grupo correto da etapa do leilão (PORTA na 1ª janela, FORA na 2ª janela)
+  // 8. Grupo correto da oferta (PROGRAMADO não participa de oferta atual)
+  const isProgramado = queueEntry?.type === 'PROGRAMADO'
+  if (isProgramado) {
+    reasons.push('Disponibilidade PROGRAMADA não participa de oferta imediata (capacidade futura).')
+  }
+
   const correctAuctionGroup = !!queueEntry && queueEntry.type === offerStageGroup
-  if (queueEntry && queueEntry.type !== offerStageGroup) {
+  if (queueEntry && queueEntry.type !== offerStageGroup && !isProgramado) {
     reasons.push(
       `Motorista pertence ao grupo ${queueEntry.type}, incompatível com a etapa da oferta atual (${offerStageGroup}).`,
     )
@@ -674,6 +1067,7 @@ export function avaliar_elegibilidade_motorista_oferta(
     compatibleVehicle &&
     validCommunicationChannel &&
     notBlocked &&
+    !isProgramado &&
     correctAuctionGroup
 
   return {
@@ -695,7 +1089,7 @@ export function avaliar_elegibilidade_motorista_oferta(
 }
 
 // ----------------------------------------------------
-// SPRINT 1.1: ABSTRACT MESSAGING INTERFACES (ADAPTER PATTERN)
+// ABSTRACT MESSAGING INTERFACES (ADAPTER PATTERN)
 // ----------------------------------------------------
 
 export interface OutboundMessagePayload {
@@ -721,9 +1115,6 @@ export interface CanalMensagem {
   sendMessage(payload: OutboundMessagePayload): Promise<MessageDispatchResult>
 }
 
-/**
- * WhatsApp Adapter - Sprint 1.1 Simulation & Readiness for Sprint 2
- */
 export class WhatsAppAdapter implements CanalMensagem {
   readonly channelName = 'whatsapp'
   private isConnected = false
@@ -733,7 +1124,6 @@ export class WhatsAppAdapter implements CanalMensagem {
   }
 
   async sendMessage(payload: OutboundMessagePayload): Promise<MessageDispatchResult> {
-    // Sprint 1.1: Simulation only, no fake credentials or real network calls
     return {
       success: true,
       channel: 'whatsapp',
@@ -743,9 +1133,6 @@ export class WhatsAppAdapter implements CanalMensagem {
   }
 }
 
-/**
- * Telegram Adapter - Sprint 1.1 Simulation & Readiness for Sprint 2
- */
 export class TelegramAdapter implements CanalMensagem {
   readonly channelName = 'telegram'
   private isConnected = false

@@ -1,294 +1,413 @@
-import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import pb from '@/lib/pocketbase/client'
+import React, { useState, useEffect } from 'react'
+import {
+  Layers,
+  Truck,
+  Building,
+  Radio,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowRight,
+  TrendingUp,
+  Activity,
+  FileSpreadsheet,
+  Package,
+  Calendar,
+  Sparkles,
+  Bot,
+  Zap,
+  Phone,
+  MessageSquare,
+  ShieldCheck,
+  Send,
+} from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/AuthContext'
 import { TmsService } from '@/services/tmsService'
 import {
-  Users,
-  Building,
-  Smartphone,
-  Truck,
-  Database,
-  ShieldCheck,
-  Activity,
-  ArrowRight,
-  UserPlus,
-  FileSpreadsheet,
-  Layers,
-  Sparkles,
-  Bot,
-  Calendar,
-} from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+  QueueEntryEntity,
+  SapSalesOrderEntity,
+  OportunidadeComplementoCargaEntity,
+} from '@/domain/rules'
+import { Link } from 'react-router-dom'
 
 export const TmsDashboard: React.FC = () => {
-  const { user, role } = useAuth()
-  const [stats, setStats] = useState({
-    portaCount: 0,
-    foraCount: 0,
-    totalDisponiveis: 0,
-    pendentesPre: 0,
-    totalDrivers: 0,
-  })
+  const { user } = useAuth()
+  const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
+  const [orders, setOrders] = useState<SapSalesOrderEntity[]>([])
+  const [opportunities, setOpportunities] = useState<OportunidadeComplementoCargaEntity[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
+      setIsLoading(true)
       try {
-        const queue = await TmsService.getOperationalQueue()
-        const pre = await TmsService.getPreRegistrations()
-        const drivers = await pb.collection('drivers').getList(1, 1)
-
-        setStats({
-          portaCount: queue.filter((q) => q.type === 'PORTA' && q.status !== 'removido').length,
-          foraCount: queue.filter((q) => q.type === 'FORA' && q.status !== 'removido').length,
-          totalDisponiveis: queue.filter((q) => q.status === 'disponivel').length,
-          pendentesPre: pre.filter((p) => p.status === 'pendente').length,
-          totalDrivers: drivers.totalItems,
-        })
+        const [q, ords, opps] = await Promise.all([
+          TmsService.getOperationalQueue(),
+          TmsService.getSapSalesOrders(),
+          TmsService.getComplementOpportunities(),
+        ])
+        setQueueEntries(q)
+        setOrders(ords)
+        setOpportunities(opps)
       } catch (err) {
-        console.error(err)
+        console.error('Error loading dashboard data:', err)
+      } finally {
+        setIsLoading(false)
       }
     }
-    fetchStats()
+    fetchData()
   }, [])
 
+  const portaDrivers = queueEntries.filter(
+    (q) => q.type === 'PORTA' && !['removido', 'bloqueado'].includes(q.status),
+  )
+  const foraDrivers = queueEntries.filter(
+    (q) => q.type === 'FORA' && !['removido', 'bloqueado'].includes(q.status),
+  )
+  const progDrivers = queueEntries.filter(
+    (q) => q.type === 'PROGRAMADO' && !['removido', 'bloqueado'].includes(q.status),
+  )
+
+  const totalCapTodayKg = [...portaDrivers, ...foraDrivers].reduce(
+    (acc, q) => acc + (q.vehicle_capacity_kg_cached || 0),
+    0,
+  )
+  const totalCapTomorrowKg = progDrivers.reduce(
+    (acc, q) => acc + (q.vehicle_capacity_kg_cached || 0),
+    0,
+  )
+
+  const readyOrders = orders.filter((o) => o.production_status === 'Pronto')
+  const inProdOrders = orders.filter((o) => o.production_status === 'Em Produção')
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* BANNER INSTITUCIONAL CIAFAL */}
-      <div className="bg-gradient-to-r from-[#005596] to-[#003866] text-white p-6 rounded-2xl shadow-md border border-[#004071] flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2 max-w-2xl">
-          <Badge className="bg-sky-400/20 text-sky-200 border-sky-400/40 text-xs uppercase tracking-wider font-semibold">
-            Módulo Corporativo Ativo
-          </Badge>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-            TMS CIAFAL — Logística & Transporte
-          </h1>
-          <p className="text-sm text-sky-100/90 leading-relaxed">
-            Plataforma corporativa de gestão de pátio, orquestração logística e fila operacional de
-            motoristas, integrada ao ecossistema do <strong>HUB CIAFAL</strong>.
-          </p>
-          <div className="pt-2 flex flex-wrap gap-2 text-xs text-sky-200">
-            <span className="bg-black/20 px-2.5 py-1 rounded-md border border-sky-400/20 font-mono">
-              Planta Central: -23.5186, -46.7865
-            </span>
-            <span className="bg-black/20 px-2.5 py-1 rounded-md border border-sky-400/20 font-mono">
-              Raio Externo: 60 km
-            </span>
+    <div className="space-y-6">
+      {/* Top Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="space-y-0.5">
+          <div className="flex items-center space-x-2">
+            <h1 className="text-xl font-black tracking-tight text-slate-900">
+              Painel Geral de Transporte & Logística
+            </h1>
+            <Badge className="bg-[#005596] text-white text-[10px] font-bold">TMS CIAFAL</Badge>
           </div>
+          <p className="text-xs text-slate-500">
+            Visão unificada: Disponibilidade de Transporte → Planejamento de Cargas → Gestão de
+            Fretes → Execução.
+          </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Link to="/tms/fila">
+        <div className="flex items-center space-x-2">
+          <Link to="/tms/planejador-cargas">
             <Button
-              size="lg"
-              className="w-full sm:w-auto bg-white text-[#005596] hover:bg-sky-50 font-bold shadow-md"
+              size="sm"
+              className="bg-[#005596] hover:bg-sky-700 text-white text-xs font-bold"
             >
-              <Users className="w-4 h-4 mr-2 text-[#005596]" />
-              Abrir Fila de Motoristas
-            </Button>
-          </Link>
-          <Link to="/tms/importacao">
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full sm:w-auto bg-sky-900/40 hover:bg-sky-900/60 text-white border-sky-400/40 text-xs"
-            >
-              <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-400" />
-              Carga SAP ZSD004V_V2
+              <Package className="w-3.5 h-3.5 mr-1" />
+              Abrir Planejador de Cargas
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* CARDS DE RESUMO OPERACIONAL */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-sky-200 bg-white shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold uppercase text-sky-800">PORTA (Na CIAFAL)</span>
-              <div className="text-3xl font-black text-[#005596] mt-1">{stats.portaCount}</div>
-              <p className="text-[11px] text-slate-500 mt-0.5">Veículos no pátio físico</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-sky-100 text-[#005596] flex items-center justify-center">
-              <Building className="w-6 h-6" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* SEÇÃO 1: VISÃO HOJE */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+            <Calendar className="w-4 h-4 text-[#005596]" />
+            <span>Operação Hoje (Disponibilidade & Montagem)</span>
+          </h2>
+          <Badge variant="outline" className="text-xs text-slate-500">
+            {new Date().toLocaleDateString('pt-BR')}
+          </Badge>
+        </div>
 
-        <Card className="border-emerald-200 bg-white shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold uppercase text-emerald-800">FORA (Na Região)</span>
-              <div className="text-3xl font-black text-emerald-700 mt-1">{stats.foraCount}</div>
-              <p className="text-[11px] text-slate-500 mt-0.5">Disponíveis em até 60 km</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-              <Smartphone className="w-6 h-6" />
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          {/* Card 1: Motoristas PORTA */}
+          <Card className="bg-white border-sky-200 shadow-xs">
+            <CardContent className="p-3 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Motoristas PORTA
+              </span>
+              <strong className="text-2xl font-mono text-[#005596] font-black">
+                {portaDrivers.length}
+              </strong>
+              <div className="text-[10px] text-slate-500">Pátio CIAFAL</div>
+            </CardContent>
+          </Card>
 
-        <Card className="border-amber-200 bg-white shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold uppercase text-amber-800">Pré-Cadastros</span>
-              <div className="text-3xl font-black text-amber-600 mt-1">{stats.pendentesPre}</div>
-              <p className="text-[11px] text-slate-500 mt-0.5">Aguardando conferência</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
-              <UserPlus className="w-6 h-6" />
-            </div>
-          </CardContent>
-        </Card>
+          {/* Card 2: Motoristas FORA */}
+          <Card className="bg-white border-emerald-200 shadow-xs">
+            <CardContent className="p-3 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Motoristas FORA
+              </span>
+              <strong className="text-2xl font-mono text-emerald-600 font-black">
+                {foraDrivers.length}
+              </strong>
+              <div className="text-[10px] text-slate-500">Raio ≤ 60km</div>
+            </CardContent>
+          </Card>
 
-        <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold uppercase text-slate-600">Base SAP Ativa</span>
-              <div className="text-3xl font-black text-slate-800 mt-1">{stats.totalDrivers}</div>
-              <p className="text-[11px] text-slate-500 mt-0.5">Motoristas sincronizados</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
-              <Database className="w-6 h-6" />
-            </div>
-          </CardContent>
-        </Card>
+          {/* Card 3: Capacidade Disponível */}
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Capacidade Hoje
+              </span>
+              <strong className="text-2xl font-mono text-slate-900 font-black">
+                {totalCapTodayKg > 0 ? `${Math.round(totalCapTodayKg / 1000)}t` : '0t'}
+              </strong>
+              <div className="text-[10px] text-slate-500">PORTA + FORA</div>
+            </CardContent>
+          </Card>
+
+          {/* Card 4: Pedidos Prontos SAP */}
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Pronto no PCP
+              </span>
+              <strong className="text-2xl font-mono text-sky-700 font-black">
+                {readyOrders.length}
+              </strong>
+              <div className="text-[10px] text-slate-500">Pedidos Liberados</div>
+            </CardContent>
+          </Card>
+
+          {/* Card 5: Cargas em Montagem */}
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Cargas em Montagem
+              </span>
+              <strong className="text-2xl font-mono text-slate-800 font-black">1</strong>
+              <div className="text-[10px] text-slate-500">Planejador Ativo</div>
+            </CardContent>
+          </Card>
+
+          {/* Card 6: Cargas Sem Veículo */}
+          <Card className="bg-white border-amber-200 shadow-xs">
+            <CardContent className="p-3 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-amber-700 block">
+                Sem Veículo
+              </span>
+              <strong className="text-2xl font-mono text-amber-600 font-black">0</strong>
+              <div className="text-[10px] text-slate-500">Gaps Atendidos</div>
+            </CardContent>
+          </Card>
+
+          {/* Card 7: Complementos Possíveis */}
+          <Card className="bg-white border-purple-200 shadow-xs">
+            <CardContent className="p-3 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-purple-700 block">
+                Complementos CRM
+              </span>
+              <strong className="text-2xl font-mono text-purple-600 font-black">
+                {opportunities.length}
+              </strong>
+              <div className="text-[10px] text-slate-500">Oportunidades</div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* QUICK LINKS & MODULE STATUS GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* OPERAÇÃO ATIVA */}
-        <Card className="border-slate-200 shadow-sm lg:col-span-2">
-          <CardHeader className="p-5 border-b border-slate-100">
-            <CardTitle className="text-base font-bold text-slate-900 flex items-center space-x-2">
-              <Activity className="w-5 h-5 text-[#005596]" />
-              <span>Módulos e Fluxos Operacionais em Execução</span>
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
-              Acesso rápido aos fluxos do pátio e administração de cadastros.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-5 space-y-3">
-            <Link
-              to="/tms/fila"
-              className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-sky-500 hover:bg-sky-50/50 transition-all group"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-lg bg-[#005596] text-white flex items-center justify-center">
-                  <Users className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm group-hover:text-[#005596]">
-                    Fila de Motoristas (Painéis Segregados)
-                  </h4>
-                  <p className="text-xs text-slate-500">
-                    Controle operacional em tempo real dos grupos PORTA e FORA.
-                  </p>
-                </div>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-[#005596] group-hover:translate-x-1 transition-all" />
-            </Link>
+      {/* SEÇÃO 2: VISÃO AMANHÃ & FUTURO */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+            <TrendingUp className="w-4 h-4 text-purple-600" />
+            <span>Visão Futura (Programação D+1 e Capacidade Declarada)</span>
+          </h2>
+          <Link
+            to="/tms/programacao-futura"
+            className="text-xs text-[#005596] hover:underline font-semibold flex items-center gap-1"
+          >
+            Ver Matriz Completa <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
 
-            <Link
-              to="/tms/totem"
-              className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-sky-500 hover:bg-sky-50/50 transition-all group"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-lg bg-slate-800 text-white flex items-center justify-center">
-                  <Building className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm group-hover:text-[#005596]">
-                    Totem da Portaria (Check-in PORTA)
-                  </h4>
-                  <p className="text-xs text-slate-500">
-                    Interface touch para registro de presença física com IP restrito.
-                  </p>
-                </div>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-[#005596] group-hover:translate-x-1 transition-all" />
-            </Link>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Disponib. Programada
+              </span>
+              <strong className="text-2xl font-mono text-purple-700 font-black">
+                {progDrivers.length}
+              </strong>
+              <div className="text-[10px] text-slate-500">Veículos Futuros</div>
+            </CardContent>
+          </Card>
 
-            <Link
-              to="/tms/checkin"
-              className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all group"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-700 text-white flex items-center justify-center">
-                  <Smartphone className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm group-hover:text-emerald-700">
-                    Check-in Externo (Link FORA com Geofencing 60km)
-                  </h4>
-                  <p className="text-xs text-slate-500">
-                    Página mobile para motoristas informarem disponibilidade na região.
-                  </p>
-                </div>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-700 group-hover:translate-x-1 transition-all" />
-            </Link>
-          </CardContent>
-        </Card>
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Capacidade Futura
+              </span>
+              <strong className="text-2xl font-mono text-purple-900 font-black">
+                {totalCapTomorrowKg > 0 ? `${Math.round(totalCapTomorrowKg / 1000)}t` : '0t'}
+              </strong>
+              <div className="text-[10px] text-slate-500">Programados</div>
+            </CardContent>
+          </Card>
 
-        {/* STATUS DAS INTEGRAÇÕES E AGENTES */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="p-5 border-b border-slate-100">
-            <CardTitle className="text-base font-bold text-slate-900 flex items-center space-x-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-600" />
-              <span>Saúde do TMS & Integrações</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-5 space-y-3.5 text-xs">
-            <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="font-semibold text-slate-800">Motor de Regras Fila</span>
-              </div>
-              <Badge className="bg-emerald-600 text-white text-[10px]">OPERACIONAL</Badge>
-            </div>
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Em Produção PCP
+              </span>
+              <strong className="text-2xl font-mono text-sky-700 font-black">
+                {inProdOrders.length}
+              </strong>
+              <div className="text-[10px] text-slate-500">Liberação Prevista</div>
+            </CardContent>
+          </Card>
 
-            <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="font-semibold text-slate-800">Fail-Closed Allowlist</span>
-              </div>
-              <Badge className="bg-emerald-600 text-white text-[10px]">ATIVO</Badge>
-            </div>
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Gaps Diagnosticados
+              </span>
+              <strong className="text-2xl font-mono text-emerald-600 font-black">
+                Equilibrado
+              </strong>
+              <div className="text-[10px] text-slate-500">Matriz Estável</div>
+            </CardContent>
+          </Card>
 
-            <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                <span className="font-semibold text-slate-800">SAP ZSD004V_V2</span>
-              </div>
-              <Badge variant="outline" className="text-amber-700 border-amber-400 text-[10px]">
-                CARGA MANUAL
-              </Badge>
-            </div>
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Itinerários com Demanda
+              </span>
+              <strong className="text-2xl font-mono text-slate-900 font-black">4</strong>
+              <div className="text-[10px] text-slate-500">Rotas SAP</div>
+            </CardContent>
+          </Card>
 
-            <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-purple-500" />
-                <span className="font-semibold text-slate-800">Agente IA Chicão</span>
-              </div>
-              <Badge variant="secondary" className="text-purple-700 text-[10px]">
-                EM DESENV.
-              </Badge>
-            </div>
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Alertas Comerciais
+              </span>
+              <strong className="text-2xl font-mono text-purple-600 font-black">1</strong>
+              <div className="text-[10px] text-slate-500">CRM 360° Notificado</div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
-            <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-purple-500" />
-                <span className="font-semibold text-slate-800">Agente IA Fred</span>
+      {/* SEÇÃO 3: STATUS DAS INTEGRAÇÕES CORPORATIVAS */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+          <Activity className="w-4 h-4 text-emerald-600" />
+          <span>Monitor de Integrações & Sistemas Conectados</span>
+        </h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          {/* SAP ECC 6.0 */}
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-slate-900">SAP ECC 6.0</span>
+                <Badge className="bg-[#005596] text-white text-[9px]">qRFC/RFC</Badge>
               </div>
-              <Badge variant="secondary" className="text-purple-700 text-[10px]">
-                EM DESENV.
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+              <p className="text-[10px] text-slate-500">
+                System of Record. Sincronização de TVROT e ZSD35.
+              </p>
+              <div className="text-[9px] text-emerald-600 font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Base Sincronizada
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* PCP Robotizado */}
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-slate-900">PCP Robotizado</span>
+                <Badge className="bg-blue-600 text-white text-[9px]">Preparado</Badge>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                Data programada de produção e saldo pronto de materiais.
+              </p>
+              <div className="text-[9px] text-blue-600 font-bold flex items-center gap-1">
+                <Activity className="w-3 h-3" /> Integração Preparada
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* CRM 360° */}
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-slate-900">CRM 360°</span>
+                <Badge className="bg-purple-600 text-white text-[9px]">Preparado</Badge>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                Disparo de alertas de complementos de carga aos vendedores.
+              </p>
+              <div className="text-[9px] text-purple-600 font-bold flex items-center gap-1">
+                <Send className="w-3 h-3" /> Alertas Operacionais
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Telegram */}
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-slate-900">Telegram Bot</span>
+                <Badge className="bg-sky-500 text-white text-[9px]">Mensageria</Badge>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                Canal direto de avisos para motoristas cadastrados.
+              </p>
+              <div className="text-[9px] text-sky-600 font-bold flex items-center gap-1">
+                <MessageSquare className="w-3 h-3" /> Adapter Ativo
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* WhatsApp */}
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-slate-900">WhatsApp API</span>
+                <Badge className="bg-emerald-500 text-white text-[9px]">Mensageria</Badge>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                Comunicação com motoristas e pré-cadastros via link público.
+              </p>
+              <div className="text-[9px] text-emerald-600 font-bold flex items-center gap-1">
+                <Phone className="w-3 h-3" /> Adapter Ativo
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* TARGET */}
+          <Card className="bg-white border-slate-200 shadow-xs opacity-75">
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-slate-900">TARGET</span>
+                <Badge
+                  variant="outline"
+                  className="text-[9px] text-amber-700 border-amber-400 bg-amber-50"
+                >
+                  Em desenvolv.
+                </Badge>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                Controle de pátio e agendamento de docas operacionais.
+              </p>
+              <div className="text-[9px] text-slate-400 font-semibold">Fase Posterior</div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
