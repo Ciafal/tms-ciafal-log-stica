@@ -901,6 +901,12 @@ export interface Permissions {
   canManageExpeditionWorkflow: boolean // expedicao.workflow
   canConfigureExpeditionSla: boolean // expedicao.sla_config
   canViewFreightIntelligence: boolean // fretes.inteligencia
+  // Sprint 8: Fred Acompanhamento de Viagens, Entregas e Torre de Controle
+  canTrackFred: boolean // fred.acompanhar
+  canTakeoverFredConversation: boolean // fred.assumir_conversa
+  canViewFredControlTower: boolean // fred.ver_torre
+  canSendFredProactiveAlert: boolean // fred.enviar_alerta
+  canViewFredEvidences: boolean // fred.ver_evidencias
 }
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
@@ -950,6 +956,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManageExpeditionWorkflow: true,
     canConfigureExpeditionSla: true,
     canViewFreightIntelligence: true,
+    canTrackFred: true,
+    canTakeoverFredConversation: true,
+    canViewFredControlTower: true,
+    canSendFredProactiveAlert: true,
+    canViewFredEvidences: true,
   },
   admin_tms: {
     canViewQueue: true,
@@ -997,6 +1008,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManageExpeditionWorkflow: true,
     canConfigureExpeditionSla: true,
     canViewFreightIntelligence: true,
+    canTrackFred: true,
+    canTakeoverFredConversation: true,
+    canViewFredControlTower: true,
+    canSendFredProactiveAlert: true,
+    canViewFredEvidences: true,
   },
   gestor_logistica: {
     canViewQueue: true,
@@ -1044,6 +1060,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManageExpeditionWorkflow: true,
     canConfigureExpeditionSla: true,
     canViewFreightIntelligence: true,
+    canTrackFred: true,
+    canTakeoverFredConversation: true,
+    canViewFredControlTower: true,
+    canSendFredProactiveAlert: true,
+    canViewFredEvidences: true,
   },
   gerente_carga: {
     canViewQueue: true,
@@ -1091,6 +1112,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManageExpeditionWorkflow: true,
     canConfigureExpeditionSla: false,
     canViewFreightIntelligence: true,
+    canTrackFred: true,
+    canTakeoverFredConversation: true,
+    canViewFredControlTower: true,
+    canSendFredProactiveAlert: true,
+    canViewFredEvidences: true,
   },
   operador_logistica: {
     canViewQueue: true,
@@ -1138,6 +1164,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManageExpeditionWorkflow: true,
     canConfigureExpeditionSla: false,
     canViewFreightIntelligence: false,
+    canTrackFred: true,
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: true,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: true,
   },
   portaria: {
     canViewQueue: true,
@@ -1185,6 +1216,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManageExpeditionWorkflow: false,
     canConfigureExpeditionSla: false,
     canViewFreightIntelligence: false,
+    canTrackFred: false,
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
   },
   financeiro: {
     canViewQueue: true,
@@ -1232,6 +1268,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManageExpeditionWorkflow: false,
     canConfigureExpeditionSla: false,
     canViewFreightIntelligence: true,
+    canTrackFred: true,
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
   },
   comercial: {
     canViewQueue: true,
@@ -1279,6 +1320,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManageExpeditionWorkflow: false,
     canConfigureExpeditionSla: false,
     canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
   },
   auditor: {
     canViewQueue: true,
@@ -1326,6 +1372,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManageExpeditionWorkflow: false,
     canConfigureExpeditionSla: false,
     canViewFreightIntelligence: true,
+    canTrackFred: true,
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: true,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: true,
   },
 }
 
@@ -1392,6 +1443,11 @@ export function getUserPermissions(role?: UserRole): Permissions {
       canManageExpeditionWorkflow: false,
       canConfigureExpeditionSla: false,
       canViewFreightIntelligence: false,
+      canTrackFred: false,
+      canTakeoverFredConversation: false,
+      canViewFredControlTower: false,
+      canSendFredProactiveAlert: false,
+      canViewFredEvidences: false,
     }
   }
   return { ...ROLE_PERMISSIONS[role] }

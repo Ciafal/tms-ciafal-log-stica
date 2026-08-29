@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T19:05:58.826Z",
+  "generatedAt": "2026-08-29T19:23:01.642Z",
   "collections": [
     {
       "name": "users",
@@ -5022,6 +5022,1243 @@
       "indexes": [
         "CREATE INDEX idx_driver_perf_driver ON driver_performance_indicators (driver_id)",
         "CREATE INDEX idx_driver_perf_sci ON driver_performance_indicators (sustainable_cost_index)"
+      ]
+    },
+    {
+      "name": "fred_transports",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "negotiation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "driver_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "carrier_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin_plant",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination_summary",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_deliveries_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "completed_deliveries_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "trip_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "AGUARDANDO_SAIDA",
+            "EM_ROTA",
+            "CHEGADA_CLIENTE",
+            "EM_DESCARGA",
+            "DESCARGA_CONCLUIDA",
+            "INTERCORRENCIA",
+            "RETORNANDO",
+            "ENCERRADO",
+            "CANCELADO"
+          ]
+        },
+        {
+          "name": "started_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "finished_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_location_lat",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_location_lng",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_location_city",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_location_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_location_updated_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_location_is_stale",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_next_stop_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_next_stop_eta",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "overall_eta_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["DENTRO_PREVISTO", "RISCO_ATRASO", "ATRASADO", "CONCLUIDO", "AGUARDANDO"]
+        },
+        {
+          "name": "delay_minutes_current",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "active_occurrences_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "active_actor",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["FRED_IA", "HUMANO", "PAUSADO"]
+        },
+        {
+          "name": "human_takeover_user",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_takeover_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_takeover_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_ai_messages_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_human_messages_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_duration_seconds",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_duration_seconds",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "geo_tracking_authorized",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "geo_authorized_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sales_representatives_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadata_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_fredtrans_sap ON fred_transports (sap_transport_number)",
+        "CREATE INDEX idx_fredtrans_plate ON fred_transports (vehicle_plate)",
+        "CREATE INDEX idx_fredtrans_status ON fred_transports (trip_status)",
+        "CREATE INDEX idx_fredtrans_actor ON fred_transports (active_actor)"
+      ]
+    },
+    {
+      "name": "fred_deliveries",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sequence_order",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "destination_city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination_uf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "street_address",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contact_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contact_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sales_rep_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sales_rep_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "orders_list_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "invoice_numbers_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "window_start_time",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "window_end_time",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unloading_restriction_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "initial_planned_arrival",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_eta",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "actual_arrival_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unloading_started_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unloading_finished_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "departure_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avg_historical_unloading_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "measured_unloading_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "PENDENTE",
+            "EM_DESLOCAMENTO",
+            "PROXIMO",
+            "NA_PORTARIA",
+            "EM_DESCARGA",
+            "ENTREGUE",
+            "RECUSADO",
+            "REAGENDADO"
+          ]
+        },
+        {
+          "name": "eta_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["DENTRO_PREVISTO", "RISCO_ATRASO", "ATRASADO", "ENTREGUE", "AGUARDANDO"]
+        },
+        {
+          "name": "discharge_confirmed_by_client",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "discharge_confirmed_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "confirmation_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delay_deviation_minutes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_freddeliv_sap ON fred_deliveries (sap_transport_number)",
+        "CREATE INDEX idx_freddeliv_cust ON fred_deliveries (customer_code)",
+        "CREATE INDEX idx_freddeliv_status ON fred_deliveries (status)"
+      ]
+    },
+    {
+      "name": "fred_occurrences",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "category",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "CONGESTIONAMENTO",
+            "ACIDENTE",
+            "PANE_MECANICA",
+            "PNEU",
+            "RESTRICAO_RODOVIARIA",
+            "DESVIO_ROTA",
+            "CHUVA_CLIMA",
+            "BLOQUEIO_ESTRADA",
+            "CLIENTE_FECHADO",
+            "CLIENTE_RECUSOU",
+            "DEMORA_DESCARGA",
+            "FILA_ESPERA",
+            "DIVERGENCIA_PRODUTO",
+            "DIVERGENCIA_QUANTIDADE",
+            "PROBLEMA_DOCUMENTACAO",
+            "ENDERECO_INCORRETO",
+            "IMPOSSIBILIDADE_DESCARGA",
+            "AVARIA_CARGA",
+            "MOTORISTA_SEM_CONTATO",
+            "ATRASO_OPERACIONAL_CIAFAL",
+            "OUTROS"
+          ]
+        },
+        {
+          "name": "severity",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["INFORMATIVO", "BAIXA", "MEDIA", "ALTA", "CRITICA"]
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "location_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "latitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "longitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "eta_before",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "eta_after",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estimated_impact_minutes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["ABERTA", "EM_TRATAMENTO", "RESOLVIDA", "CANCELADA"]
+        },
+        {
+          "name": "responsible_handler",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solution_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "normalized_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_suggested_classification",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_classification_confidence",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_confirmed",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_confirmed_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_fredocc_sap ON fred_occurrences (sap_transport_number)",
+        "CREATE INDEX idx_fredocc_cat ON fred_occurrences (category)",
+        "CREATE INDEX idx_fredocc_status ON fred_occurrences (status)"
+      ]
+    },
+    {
+      "name": "fred_evidences",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "occurrence_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evidence_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "CANHOTO_ASSINADO",
+            "FOTO_MERCADORIA",
+            "FOTO_FILA_DESCARGA",
+            "FOTO_PORTARIA_FECHADA",
+            "FOTO_AVARIA",
+            "FOTO_ACIDENTE_OU_TRANSITO",
+            "FOTO_PNEU_OU_MECANICA",
+            "DOCUMENTO_FISCAL",
+            "AUDIO_MOTORISTA",
+            "AUDIO_CLIENTE",
+            "OUTRO"
+          ]
+        },
+        {
+          "name": "sender_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sender_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sender_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "file_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "file_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "audio_duration_seconds",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "audio_transcription",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_vision_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_suggested_tag",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_confidence_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_human_validated",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "validated_by_user",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "validation_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "latitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "longitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_fredevid_sap ON fred_evidences (sap_transport_number)",
+        "CREATE INDEX idx_fredevid_type ON fred_evidences (evidence_type)"
+      ]
+    },
+    {
+      "name": "fred_messages",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sender_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "FRED_IA",
+            "MOTORISTA",
+            "VENDEDOR",
+            "REPRESENTANTE",
+            "CLIENTE",
+            "OPERADOR_HUMANO"
+          ]
+        },
+        {
+          "name": "sender_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sender_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sender_contact",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "target_audience",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["MOTORISTA", "VENDEDOR", "REPRESENTANTE", "CLIENTE", "OPERACAO_INTERNA"]
+        },
+        {
+          "name": "message_channel",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["WHATSAPP", "CRM_360", "TMS_PANEL", "TELEGRAM", "SMS"]
+        },
+        {
+          "name": "message_text",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "message_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["TEXTO", "AUDIO", "IMAGEM", "LOCALIZACAO", "ALERTA_PROATIVO", "SISTEMA"]
+        },
+        {
+          "name": "media_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "audio_transcription",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_intent",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_proactive_alert",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "alert_category",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["INFORMATIVO", "ATENCAO", "CRITICO"]
+        },
+        {
+          "name": "is_delivered",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_read",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_fredmsg_sap ON fred_messages (sap_transport_number)",
+        "CREATE INDEX idx_fredmsg_sender ON fred_messages (sender_type)",
+        "CREATE INDEX idx_fredmsg_created ON fred_messages (created)"
+      ]
+    },
+    {
+      "name": "fred_timeline_events",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "event_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "event_title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "event_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "event_source",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "SAP",
+            "FRED_IA",
+            "MOTORISTA",
+            "GPS_TORRE",
+            "HUMANO",
+            "CLIENTE",
+            "VENDEDOR"
+          ]
+        },
+        {
+          "name": "event_severity",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["INFO", "SUCCESS", "WARNING", "DANGER"]
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "location_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "latitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "longitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payload_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "event_timestamp",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_fredtime_sap ON fred_timeline_events (sap_transport_number)",
+        "CREATE INDEX idx_fredtime_source ON fred_timeline_events (event_source)",
+        "CREATE INDEX idx_fredtime_ts ON fred_timeline_events (event_timestamp)"
+      ]
+    },
+    {
+      "name": "fred_ai_analytics",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "analysis_type",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "entity_target",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "entity_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "entity_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observed_fact",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ai_hypothesis",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "confidence_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evidence_data_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historical_benchmark_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "recommended_action",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "master_parameter_suggested_change",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reviewed_by_human",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_fredanal_type ON fred_ai_analytics (analysis_type)",
+        "CREATE INDEX idx_fredanal_target ON fred_ai_analytics (entity_target)"
       ]
     }
   ]

@@ -13,7 +13,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
+import { Link } from 'react-router-dom'
 import { crmService } from '@/domain/crmIntegration'
+import { Bot, Truck, MapPin, Search } from 'lucide-react'
 
 export const CrmContractPage: React.FC = () => {
   const { toast } = useToast()
@@ -75,6 +77,97 @@ export const CrmContractPage: React.FC = () => {
             <RefreshCw className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />
             Testar Conexão CRM
           </Button>
+        </div>
+      </div>
+
+      {/* Módulo Especial Fred: Consulta Integrada do Vendedor / Representante */}
+      <div className="bg-white p-5 rounded-xl border border-sky-200 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#005596] text-white flex items-center justify-center font-bold shadow-sm">
+              <Bot className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-black text-slate-900">
+                  Visão 360º de Cargas em Trânsito & Assistente Fred
+                </h2>
+                <Badge className="bg-sky-600 text-white text-[10px] font-bold">
+                  CRM 360º CIAFAL
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500">
+                O vendedor/representante consulta a logística dos seus clientes e envia orientações
+                operacionais sem sair do CRM.
+              </p>
+            </div>
+          </div>
+
+          <Link to="/tms/agente-fred">
+            <Button
+              size="sm"
+              className="bg-[#005596] hover:bg-[#004275] text-white text-xs font-bold shadow-sm"
+            >
+              <Bot className="w-3.5 h-3.5 mr-1.5" />
+              Perguntar ao Fred
+            </Button>
+          </Link>
+        </div>
+
+        {/* Exemplo de Carga em Trânsito vinculada aos clientes do vendedor */}
+        <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3 text-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="font-black text-sm text-[#005596]">Transporte SAP 123456</span>
+              <Badge variant="outline" className="font-mono text-[10px] font-bold bg-white">
+                BRA2E19 (João Carlos Silva)
+              </Badge>
+              <Badge className="bg-amber-500 text-white text-[9px] font-bold">
+                🟡 Risco (+18m)
+              </Badge>
+            </div>
+
+            <span className="text-[11px] text-slate-500 font-mono">
+              Destino: Comercial ABC Metais (Betim/MG)
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-white p-3 rounded-lg border border-slate-200">
+            <div>
+              <span className="text-[10px] text-slate-400 font-bold block">Status Viagem</span>
+              <span className="font-bold text-slate-800">🚚 Em rota (BR-381)</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 font-bold block">Previsão (ETA)</span>
+              <span className="font-bold text-amber-600">15:18 (Janela até 16:00)</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 font-bold block">
+                Entregas Realizadas
+              </span>
+              <span className="font-bold text-emerald-700">2 de 4 concluídas</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 font-bold block">Ocorrências Ativas</span>
+              <span className="font-bold text-slate-800">Obras na BR-381 km 530</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-[11px] text-slate-500">
+              💬{' '}
+              <em>
+                "Marcos, o motorista está próximo ao seu cliente Comercial ABC. A previsão é 15:18
+                pela Portaria 2."
+              </em>
+            </span>
+
+            <Link to="/tms/transporte/123456">
+              <Button size="sm" variant="outline" className="text-xs font-bold border-slate-300">
+                Ver Transporte 360º
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 

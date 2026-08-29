@@ -53,6 +53,11 @@ import Zsd35ImportPage from '@/pages/Zsd35ImportPage'
 import SalesWalletPage from '@/pages/SalesWalletPage'
 import Zsd35MappingAdminPage from '@/pages/Zsd35MappingAdminPage'
 import AiPlannerParamsPage from '@/pages/AiPlannerParamsPage'
+import { FredControlTowerPage } from '@/pages/FredControlTowerPage'
+import { FredTransport360Page } from '@/pages/FredTransport360Page'
+import { FredAnalyticsPage } from '@/pages/FredAnalyticsPage'
+import { FredChatPage } from '@/pages/FredChatPage'
+import { DriverMobileCompanionPage } from '@/pages/DriverMobileCompanionPage'
 import NotFound from '@/pages/NotFound'
 
 export const App: React.FC = () => {
@@ -66,6 +71,8 @@ export const App: React.FC = () => {
           <Route path="/totem" element={<TotemEntry />} />
           <Route path="/tms/oferta/:id" element={<DriverOfferPublicPage />} />
           <Route path="/oferta/:id" element={<DriverOfferPublicPage />} />
+          <Route path="/motorista/:sapNumber" element={<DriverMobileCompanionPage />} />
+          <Route path="/tms/motorista-mobile/:sapNumber" element={<DriverMobileCompanionPage />} />
 
           {/* Authenticated Internal TMS Routes */}
           <Route
@@ -378,13 +385,47 @@ export const App: React.FC = () => {
             path="/tms/agente-fred"
             element={
               <Layout>
-                <StubModulePage
-                  title="Agente Fred (IA Suporte ao Motorista)"
-                  subtitle="Assistente de dúvidas operacionais, agendamento de pátio e orientações de segurança."
-                  moduleKey="fred"
-                  statusText="Planejado - Sprint 3"
-                  statusColor="bg-purple-600"
-                />
+                <FredChatPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/torre-controle-fred"
+            element={
+              <Layout>
+                <FredControlTowerPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/transporte/:id"
+            element={
+              <Layout>
+                <FredTransport360Page />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/fred-analises"
+            element={
+              <Layout>
+                <FredAnalyticsPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/acompanhamento"
+            element={
+              <Layout>
+                <FredControlTowerPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/rastreamento"
+            element={
+              <Layout>
+                <FredControlTowerPage />
               </Layout>
             }
           />
