@@ -43,6 +43,11 @@ import { StubModulePage } from '@/pages/StubModulePage'
 import PrintersAdminPage from '@/pages/PrintersAdminPage'
 import PrintMonitorPage from '@/pages/PrintMonitorPage'
 import CargoDetailPage from '@/pages/CargoDetailPage'
+import ProfitabilityDashboardPage from '@/pages/ProfitabilityDashboardPage'
+import ExpeditionPerformancePage from '@/pages/ExpeditionPerformancePage'
+import WmsLoadingMapPage from '@/pages/WmsLoadingMapPage'
+import Zsd35ImportPage from '@/pages/Zsd35ImportPage'
+import AiPlannerParamsPage from '@/pages/AiPlannerParamsPage'
 import NotFound from '@/pages/NotFound'
 
 export const App: React.FC = () => {
@@ -115,6 +120,14 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <LoadPlannerPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/zsd35-importar"
+            element={
+              <Layout>
+                <Zsd35ImportPage />
               </Layout>
             }
           />
@@ -227,6 +240,14 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <LoadRouterAndSimulatorPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/wms-mapa-carregamento"
+            element={
+              <Layout>
+                <WmsLoadingMapPage />
               </Layout>
             }
           />
@@ -437,6 +458,22 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/tms/rentabilidade-logistica"
+            element={
+              <Layout>
+                <ProfitabilityDashboardPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/performance-expedicao"
+            element={
+              <Layout>
+                <ExpeditionPerformancePage />
+              </Layout>
+            }
+          />
+          <Route
             path="/tms/monitor-impressao"
             element={
               <Layout>
@@ -498,6 +535,14 @@ export const App: React.FC = () => {
           />
 
           {/* 8. ADMINISTRAÇÃO */}
+          <Route
+            path="/tms/parametros-planejador-ia"
+            element={
+              <Layout>
+                <AiPlannerParamsPage />
+              </Layout>
+            }
+          />
           <Route
             path="/tms/impressoras"
             element={

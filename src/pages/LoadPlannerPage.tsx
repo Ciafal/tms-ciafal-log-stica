@@ -69,6 +69,32 @@ export const LoadPlannerPage: React.FC = () => {
   const [selectedOrders, setSelectedOrders] = useState<SapSalesOrderEntity[]>([])
   const [selectedQueueVehicle, setSelectedQueueVehicle] = useState<QueueEntryEntity | null>(null)
 
+  // Sprint 6: Agente IA Planejador Nativo Skip Cloud
+  const [aiExplanation, setAiExplanation] = useState<string>('')
+  const [isAiLoading, setIsAiLoading] = useState<boolean>(false)
+  const [aiScenarios, setAiScenarios] = useState<any[]>([])
+  const [aiRecommendations, setAiRecommendations] = useState<any[]>([])
+
+  const handleRunAiPlanner = async () => {
+    setIsAiLoading(true)
+    try {
+      const res = await TmsService.callPlannerAi({
+        itinerary_code: filterItinerary,
+        message: `Analise os pedidos do itinerário ${filterItinerary} considerando estoque físico DP34, crédito financeiro e veículos PORTA disponíveis.`,
+      })
+      setAiExplanation(res.explanation)
+      toast({
+        title: 'Análise do Agente IA Concluída',
+        description: res.fallback_used
+          ? 'Planejamento determinístico ativo (Fallback).'
+          : 'Recomendações do AGENTE IA — PLANEJADOR DE CARGAS geradas.',
+      })
+    } catch (err: any) {
+      setAiExplanation('IA indisponível — planejamento determinístico ativo.')
+    } finally {
+      setIsAiLoading(false)
+    }
+  }
   const fetchData = async () => {
     setIsLoading(true)
     try {
@@ -220,17 +246,54 @@ export const LoadPlannerPage: React.FC = () => {
           </p>
         </div>
 
-        <Button
-          onClick={fetchData}
-          variant="outline"
-          size="sm"
-          className="text-xs h-8"
-          disabled={isLoading}
-        >
-          <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-          Sincronizar SAP/PCP
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleRunAiPlanner}
+            disabled={isAiLoading}
+            size="sm"
+            className="bg-purple-700 hover:bg-purple-800 text-white text-xs h-8 font-bold"
+          >
+            <Sparkles className={`w-3.5 h-3.5 mr-1.5 ${isAiLoading ? 'animate-spin' : ''}`} />
+            {isAiLoading ? 'IA Analisando...' : 'AGENTE IA — PLANEJADOR'}
+          </Button>
+
+          <Button
+            onClick={fetchData}
+            variant="outline"
+            size="sm"
+            className="text-xs h-8"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
+            Sincronizar SAP/PCP
+          </Button>
+        </div>
       </div>
+
+      {/* Box do Agente IA Planejador de Cargas */}
+      {aiExplanation && (
+        <Card className="bg-purple-50/60 border border-purple-200 shadow-sm">
+          <CardContent className="p-3.5 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="space-y-1 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-purple-900 uppercase">
+                  Parecer do Agente IA — Planejador de Cargas
+                </span>
+                <Badge
+                  variant="outline"
+                  className="text-[9px] border-purple-300 text-purple-700 bg-white"
+                >
+                  Decisão Humana Obrigatória
+                </Badge>
+              </div>
+              <p className="text-purple-800 text-[11px] leading-relaxed">{aiExplanation}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filter Bar (11 Critérios de Filtro) */}
       <Card className="bg-white border-slate-200 shadow-sm">

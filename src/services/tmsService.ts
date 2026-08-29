@@ -3036,6 +3036,282 @@ export const TmsService = {
       /* ignore */
     }
   },
+
+  // ----------------------------------------------------
+  // SPRINT 6: NOVOS MÉTODOS DE SERVIÇO
+  // ----------------------------------------------------
+
+  // 1. Resultados de Frete (Previsto x Realizado & Rentabilidade)
+  async getFreightResults(filter?: string): Promise<any[]> {
+    try {
+      return await pb.collection('freight_results').getFullList({
+        filter: filter || '',
+        sort: '-created',
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async createFreightResult(data: any): Promise<any> {
+    try {
+      const rec = await pb.collection('freight_results').create(data)
+      await this.logAudit({
+        user_name: 'Sistema TMS',
+        action_type: 'FREIGHT_RESULT_CREATED',
+        target_entity: 'freight_results',
+        target_id: rec.id,
+        details: { cargo_id: data.cargo_id, resultado_previsto: data.resultado_previsto },
+      })
+      return rec
+    } catch (err: any) {
+      console.warn('createFreightResult error:', err)
+      return null
+    }
+  },
+
+  async updateFreightResult(id: string, data: any): Promise<any> {
+    try {
+      const rec = await pb.collection('freight_results').update(id, data)
+      await this.logAudit({
+        user_name: 'Mesa de Fretes',
+        action_type: 'FREIGHT_RESULT_REALIZED_UPDATED',
+        target_entity: 'freight_results',
+        target_id: id,
+        details: {
+          desvio_resultado: data.desvio_resultado,
+          resultado_realizado: data.resultado_realizado,
+        },
+      })
+      return rec
+    } catch (err: any) {
+      console.warn('updateFreightResult error:', err)
+      return null
+    }
+  },
+
+  // 2. Marcos de Expedição (Performance T0 a T10)
+  async getExpeditionMilestones(): Promise<any[]> {
+    try {
+      return await pb.collection('expedition_milestones').getFullList({
+        sort: '-created',
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async createExpeditionMilestone(data: any): Promise<any> {
+    try {
+      return await pb.collection('expedition_milestones').create(data)
+    } catch (err: any) {
+      console.warn('createExpeditionMilestone error:', err)
+      return null
+    }
+  },
+
+  async updateExpeditionMilestone(id: string, data: any): Promise<any> {
+    try {
+      return await pb.collection('expedition_milestones').update(id, data)
+    } catch (err: any) {
+      console.warn('updateExpeditionMilestone error:', err)
+      return null
+    }
+  },
+
+  // 3. Mapas de Carregamento WMS
+  async getWmsLoadingMaps(): Promise<any[]> {
+    try {
+      return await pb.collection('wms_loading_maps').getFullList({
+        sort: '-created',
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async saveWmsLoadingMap(data: any): Promise<any> {
+    try {
+      const rec = await pb.collection('wms_loading_maps').create(data)
+      await this.logAudit({
+        user_name: data.approved_by_user || 'Operador Logístico',
+        action_type: 'WMS_LOADING_MAP_SAVED',
+        target_entity: 'wms_loading_maps',
+        target_id: rec.id,
+        details: { cargo_id: data.cargo_id, has_conflicts: data.has_conflict },
+      })
+      return rec
+    } catch (err: any) {
+      console.warn('saveWmsLoadingMap error:', err)
+      return null
+    }
+  },
+
+  // 4. Recomendações e Governança do Planejador IA
+  async getAiRecommendations(): Promise<any[]> {
+    try {
+      return await pb.collection('ai_planner_recommendations').getFullList({
+        sort: '-created',
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async saveAiRecommendation(data: any): Promise<any> {
+    try {
+      return await pb.collection('ai_planner_recommendations').create(data)
+    } catch (err: any) {
+      console.warn('saveAiRecommendation error:', err)
+      return null
+    }
+  },
+
+  async updateAiRecommendationStatus(
+    id: string,
+    status: string,
+    notes?: string,
+    userEmail?: string,
+  ): Promise<any> {
+    try {
+      const rec = await pb.collection('ai_planner_recommendations').update(id, {
+        status,
+        approval_notes: notes || '',
+        approved_by_email: userEmail || '',
+        approved_at: new Date().toISOString(),
+      })
+      await this.logAudit({
+        user_name: userEmail || 'Gestor',
+        action_type: `AI_RECOMMENDATION_${status.toUpperCase()}`,
+        target_entity: 'ai_planner_recommendations',
+        target_id: id,
+        details: { status, notes },
+      })
+      return rec
+    } catch (err: any) {
+      console.warn('updateAiRecommendationStatus error:', err)
+      return null
+    }
+  },
+
+  // 1.1 Inserção de Pedidos da Carteira SAP (ZSD35)
+  async createSalesOrder(data: any): Promise<any> {
+    try {
+      return await pb.collection('sap_sales_orders').create(data)
+    } catch (err) {
+      console.warn('createSalesOrder error:', err)
+      return null
+    }
+  },
+
+  // 5. Tabelas Comerciais & Mapeamento ZSD35
+  async getCommercialFreightTables(): Promise<any[]> {
+    try {
+      return await pb.collection('commercial_freight_tables').getFullList({
+        filter: 'is_active = true',
+        sort: '-created',
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async getZsd35ColumnMappings(): Promise<any[]> {
+    try {
+      return await pb.collection('zsd35_column_mappings').getFullList()
+    } catch {
+      return []
+    }
+  },
+
+  async saveZsd35ColumnMapping(
+    profileName: string,
+    mappings: Record<string, string>,
+  ): Promise<any> {
+    try {
+      const existing = await pb.collection('zsd35_column_mappings').getFullList({
+        filter: `profile_name = "${profileName}"`,
+      })
+      if (existing.length > 0) {
+        return await pb.collection('zsd35_column_mappings').update(existing[0].id, {
+          mappings_json: mappings,
+        })
+      }
+      return await pb.collection('zsd35_column_mappings').create({
+        profile_name: profileName,
+        is_default: true,
+        mappings_json: mappings,
+      })
+    } catch (err: any) {
+      console.warn('saveZsd35ColumnMapping error:', err)
+      return null
+    }
+  },
+
+  // 6. Chamada ao Agente IA Planejador Nativo Skip Cloud
+  async callPlannerAi(params: {
+    itinerary_code: string
+    message?: string
+    conversation_id?: string | null
+  }): Promise<{ status: string; explanation: string; fallback_used: boolean; governance: any }> {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/planner-ai/analyze`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: pb.authStore.token || '',
+          },
+          body: JSON.stringify(params),
+        },
+      )
+      if (res.ok) {
+        return await res.json()
+      }
+      throw new Error(`HTTP ${res.status}`)
+    } catch (err) {
+      return {
+        status: 'fallback',
+        fallback_used: true,
+        explanation:
+          'IA indisponível — planejamento determinístico ativo. Motores de otimização física e econômica em operação normal.',
+        governance: {
+          model: 'DETERMINISTIC_ENGINE_V6',
+          rules_version: 'SPRINT_6_RULES_2025.1',
+          timestamp: new Date().toISOString(),
+        },
+      }
+    }
+  },
+
+  // 7. Disparo de Evento de Reanálise Operacional
+  async triggerPlannerEvent(params: {
+    event_type: string
+    cargo_id?: string
+    itinerary_code?: string
+    details?: string
+  }): Promise<any> {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/planner-ai/trigger-event`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: pb.authStore.token || '',
+          },
+          body: JSON.stringify(params),
+        },
+      )
+      if (res.ok) {
+        return await res.json()
+      }
+      return null
+    } catch {
+      return null
+    }
+  },
 }
 
 export const tmsService = TmsService

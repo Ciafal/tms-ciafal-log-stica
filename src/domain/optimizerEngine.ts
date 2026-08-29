@@ -15,6 +15,7 @@ export type OperationalReadinessStatus =
   | 'PRONTA_PARA_OFERTA'
   | 'PLANEJAMENTO_FUTURO'
   | 'BLOQUEADA'
+  | 'PROGRAMACAO_IMPACTADA_REANALISE_NECESSARIA'
 
 export type CreditClassification =
   | 'LIBERADO'
@@ -29,6 +30,7 @@ export interface OptimizationScoreBreakdown {
   portaDriverScore: number // bônus de presença física na PORTA (+10 a +15)
   routeEfficiencyScore: number // penalidade por desvio / km adicional
   tollImpactScore: number // impacto de pedágios
+  economicResultScore: number // pontuação por resultado econômico previsto (+5 a +15)
   stockConfidenceScore: number // 100% DP34 disponível
   creditConfidenceScore: number // penalidade se requerer aprovação
   explanation: string
@@ -268,6 +270,12 @@ export interface OptimizedScenario {
   id: string
   title: string
   scenarioType:
+    | 'scenario_a_immediate'
+    | 'scenario_b_max_occupancy'
+    | 'scenario_c_overdue'
+    | 'scenario_d_best_profit'
+    | 'scenario_e_lowest_cost'
+    | 'scenario_f_balanced'
     | 'max_occupancy'
     | 'immediate_exit'
     | 'prioritize_overdue'
@@ -495,12 +503,18 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
     })
     const hasPortaDriver = eligiblePortaDrivers.length > 0
 
+    // Resultado econômico previsto da carga (Sprint 6)
+    const totalOrderValue = selected.reduce((sum, o) => sum + (o.total_value || 0), 0)
+    const revenueEst = (totalWeightKg / 1000) * 210.0 // Base comercial média
+    const predictedResult = Math.round((revenueEst - estimatedCost) * 100) / 100
+
     // Score Explícito (0 a 100)
     const occupancyScore = Math.min(40, (occupancyPct / 100) * weights.weightOccupancy)
     const overdueScore = Math.min(25, Math.min(20, maxOverdueDays * 3) + (overdueCount > 0 ? 5 : 0))
     const portaDriverScore = hasPortaDriver ? weights.weightPortaDriver : 0
     const routeEfficiencyScore = Math.max(0, 10 - Math.max(0, customersCount - 2) * 3)
     const tollImpactScore = Math.max(0, 15 - Math.round(tollsValue / 50))
+    const economicResultScore = predictedResult > 1000 ? 10 : predictedResult > 0 ? 5 : 0
     const stockConfidenceScore = isDp34FullyStocked ? 10 : 0
     const creditConfidenceScore =
       creditClassification === 'LIBERADO'
@@ -514,6 +528,7 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
       overdueScore +
       portaDriverScore +
       routeEfficiencyScore +
+      economicResultScore +
       stockConfidenceScore +
       creditConfidenceScore
 
@@ -565,7 +580,7 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
       )
     }
 
-    const explanation = `Score ${totalScore}/100: Ocupação ${occupancyPct}% (+${occupancyScore.toFixed(0)}), Atrasos +${overdueScore}, Motorista PORTA +${portaDriverScore}, Eficiência Rota +${routeEfficiencyScore}, Estoque DP34 +${stockConfidenceScore}, Crédito +${creditConfidenceScore}.`
+    const explanation = `Score ${totalScore}/100: Ocupação ${occupancyPct}% (+${occupancyScore.toFixed(0)}), Atrasos +${overdueScore}, Motorista PORTA +${portaDriverScore}, Eficiência Rota +${routeEfficiencyScore}, Resultado Previsto +${economicResultScore}, Estoque DP34 +${stockConfidenceScore}, Crédito +${creditConfidenceScore}.`
 
     const ordersTotalValue = selected.reduce((sum, o) => sum + (o.total_value || 0), 0)
 
@@ -625,6 +640,7 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
         portaDriverScore,
         routeEfficiencyScore,
         tollImpactScore,
+        economicResultScore,
         stockConfidenceScore,
         creditConfidenceScore,
         explanation,
@@ -634,10 +650,39 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
     }
   }
 
-  // GERAR OS 5 CENÁRIOS PRINCIPAIS
+  // GERAR OS 6 CENÁRIOS OBRIGATÓRIOS DA SPRINT 6:
+  // Cenário A — Saída Imediata
+  // Cenário B — Ocupação Máxima
+  // Cenário C — Pedidos Atrasados
+  // Cenário D — Melhor Resultado Econômico
+  // Cenário E — Menor Custo Logístico
+  // Cenário F — Melhor Equilíbrio Geral
   const scenarios: OptimizedScenario[] = []
 
-  // 1. Cenário Ocupação Máxima
+  // CENÁRIO A: Saída Imediata (DP34 100% + Crédito Liberado + Motorista PORTA)
+  const immediateCandidates = validForExpedition.filter(
+    (e) => e.dp34Check.isDp34Available && e.creditCheck.classification === 'LIBERADO',
+  )
+  const immediateOrders: SapSalesOrderEntity[] = []
+  let wImmediate = 0
+  for (const item of immediateCandidates) {
+    if (wImmediate + item.order.weight_kg <= vehicleCapacityKg) {
+      immediateOrders.push(item.order)
+      wImmediate += item.order.weight_kg
+    }
+  }
+  scenarios.push(
+    buildScenarioMetrics(
+      immediateOrders.length > 0
+        ? immediateOrders
+        : validForExpedition.slice(0, 2).map((e) => e.order),
+      'scenario_a_immediate',
+      'Cenário A — Saída Imediata',
+      'Foca exclusivamente em pedidos com estoque DP34 confirmado, crédito aprovado e motoristas na PORTA prontos para carregamento.',
+    ),
+  )
+
+  // CENÁRIO B: Ocupação Máxima (Maximiza capacidade volumétrica/peso)
   const maxOccOrders: SapSalesOrderEntity[] = []
   let wMaxOcc = 0
   const sortedByWeightDesc = [...validForExpedition].sort(
@@ -652,34 +697,13 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
   scenarios.push(
     buildScenarioMetrics(
       maxOccOrders,
-      'max_occupancy',
-      'Cenário 1 — Ocupação Máxima',
-      'Maximiza o aproveitamento da capacidade volumétrica e de peso do veículo.',
+      'scenario_b_max_occupancy',
+      'Cenário B — Ocupação Máxima',
+      'Maximiza o aproveitamento da capacidade volumétrica e de peso do veículo até o teto regulatório.',
     ),
   )
 
-  // 2. Cenário Saída Imediata (DP34 Disponível + Crédito Liberado + Motorista PORTA)
-  const immediateCandidates = validForExpedition.filter(
-    (e) => e.dp34Check.isDp34Available && e.creditCheck.classification === 'LIBERADO',
-  )
-  const immediateOrders: SapSalesOrderEntity[] = []
-  let wImmediate = 0
-  for (const item of immediateCandidates) {
-    if (wImmediate + item.order.weight_kg <= vehicleCapacityKg) {
-      immediateOrders.push(item.order)
-      wImmediate += item.order.weight_kg
-    }
-  }
-  scenarios.push(
-    buildScenarioMetrics(
-      immediateOrders.length > 0 ? immediateOrders : maxOccOrders.slice(0, 2),
-      'immediate_exit',
-      'Cenário 2 — Saída Imediata',
-      'Foca exclusivamente em pedidos com estoque DP34 confirmado, crédito aprovado e motoristas na PORTA.',
-    ),
-  )
-
-  // 3. Cenário Pedidos Mais Atrasados
+  // CENÁRIO C: Pedidos Atrasados (Prioriza clientes com maior tempo de carteira/atraso)
   const sortedByOverdue = [...validForExpedition].sort((a, b) => {
     const diffA = b.dateCheck.overdueDays - a.dateCheck.overdueDays
     if (diffA !== 0) return diffA
@@ -696,28 +720,47 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
   scenarios.push(
     buildScenarioMetrics(
       overdueOrders,
-      'prioritize_overdue',
-      'Cenário 3 — Pedidos Mais Atrasados',
-      'Prioriza o atendimento de clientes com pedidos que ultrapassaram a data desejada.',
+      'scenario_c_overdue',
+      'Cenário C — Pedidos Atrasados',
+      'Prioriza o atendimento a clientes com pedidos que ultrapassaram a data desejada.',
     ),
   )
 
-  // 4. Cenário Menor Custo (Agrupamento com menor número de paradas/desvios)
+  // CENÁRIO D: Melhor Resultado Econômico (Maximiza margem líquida prevista)
+  const sortedByRevenue = [...validForExpedition].sort(
+    (a, b) => (b.order.total_value || 0) - (a.order.total_value || 0),
+  )
+  const profitOrders: SapSalesOrderEntity[] = []
+  let wProfit = 0
+  for (const item of sortedByRevenue) {
+    if (wProfit + item.order.weight_kg <= vehicleCapacityKg) {
+      profitOrders.push(item.order)
+      wProfit += item.order.weight_kg
+    }
+  }
+  scenarios.push(
+    buildScenarioMetrics(
+      profitOrders,
+      'scenario_d_best_profit',
+      'Cenário D — Melhor Resultado Econômico',
+      'Maximiza a margem líquida prevista e o valor faturado da carga combinando clientes de alta rentabilidade.',
+    ),
+  )
+
+  // CENÁRIO E: Menor Custo Logístico (Agrupamento com menor km e menor pedágio)
   const compactGroup = [...validForExpedition].slice(0, 3).map((e) => e.order)
   scenarios.push(
     buildScenarioMetrics(
       compactGroup,
-      'lowest_cost',
-      'Cenário 4 — Menor Custo por Tonelada',
-      'Minimiza paradas intermediárias e custos adicionais de pedágio e desvio de rota.',
+      'scenario_e_lowest_cost',
+      'Cenário E — Menor Custo Logístico',
+      'Minimiza paradas intermediárias, custos adicionais de pedágio e desvio de rota.',
     ),
   )
 
-  // 5. Cenário Equilibrado (Melhor Equilíbrio Ocupação + Atraso + PORTA + DP34)
-  // Combina pedidos atrasados que tenham estoque e completam carga
+  // CENÁRIO F: Melhor Equilíbrio Geral (Otimização balanceada multicritério)
   const balancedOrders: SapSalesOrderEntity[] = []
   let wBalanced = 0
-  // Adiciona primeiro os atrasados com DP34
   const atrasadosComEstoque = validForExpedition.filter(
     (e) => e.dateCheck.isOverdue && e.dp34Check.isDp34Available,
   )
@@ -727,7 +770,6 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
       wBalanced += item.order.weight_kg
     }
   }
-  // Completa com demais pedidos compatíveis
   for (const item of validForExpedition) {
     if (!balancedOrders.some((b) => b.id === item.order.id)) {
       if (wBalanced + item.order.weight_kg <= vehicleCapacityKg) {
@@ -739,8 +781,8 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
   scenarios.push(
     buildScenarioMetrics(
       balancedOrders,
-      'balanced',
-      'Cenário 5 — Melhor Equilíbrio',
+      'scenario_f_balanced',
+      'Cenário F — Melhor Equilíbrio Geral',
       'Ponto de equilíbrio ótimo entre ocupação elevada, atendimento a atrasados e baixo custo operacional.',
     ),
   )

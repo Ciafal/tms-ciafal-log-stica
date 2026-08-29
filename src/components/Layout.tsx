@@ -160,6 +160,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: true,
         },
         {
+          title: 'Importar ZSD35 (.xlsx)',
+          path: '/tms/zsd35-importar',
+          badge: 'Excel',
+          badgeColor: 'bg-emerald-600',
+          show: permissions.canImportZsd35,
+        },
+        {
           title: 'Estoque & Produção',
           path: '/tms/estoque-producao',
           badge: 'MB52 + PCP',
@@ -220,6 +227,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           badge: 'Sprint 5',
           badgeColor: 'bg-emerald-600',
           show: true,
+        },
+        {
+          title: 'Mapa Carregamento (WMS)',
+          path: '/tms/wms-mapa-carregamento',
+          badge: 'Sprint 6',
+          badgeColor: 'bg-purple-600',
+          show: permissions.canViewWmsLoadingMap,
         },
         {
           title: 'Monitor de Impressão',
@@ -352,6 +366,20 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: true,
         },
         {
+          title: 'Rentabilidade Logística',
+          path: '/tms/rentabilidade-logistica',
+          badge: 'Prev x Real',
+          badgeColor: 'bg-emerald-700',
+          show: permissions.canViewProfitability,
+        },
+        {
+          title: 'Performance Expedição',
+          path: '/tms/performance-expedicao',
+          badge: 'T0–T10',
+          badgeColor: 'bg-[#005596]',
+          show: permissions.canViewExpeditionPerformance,
+        },
+        {
           title: 'Relatórios',
           path: '/tms/relatorios',
           inDev: true,
@@ -415,6 +443,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           title: 'Blueprint SAP (12 Colunas)',
           path: '/tms/sap-blueprint',
           show: true,
+        },
+        {
+          title: 'Parâmetros Planejador IA',
+          path: '/tms/parametros-planejador-ia',
+          badge: 'Sprint 6',
+          badgeColor: 'bg-purple-700',
+          show: permissions.canManageAiPlannerParams,
         },
         {
           title: 'Parâmetros Operacionais',

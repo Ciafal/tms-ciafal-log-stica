@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T17:48:04.270Z",
+  "generatedAt": "2026-08-29T18:19:54.810Z",
   "collections": [
     {
       "name": "users",
@@ -3180,6 +3180,828 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "freight_results",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_tier",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination_city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "uf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_group",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "occupancy_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "distance_km",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "receita_frete_prevista",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "frete_previsto_motorista",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pedagio_previsto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "outros_custos_previstos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resultado_previsto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "margem_prevista_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "receita_frete_real",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "frete_pago_motorista",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pedagio_real",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "outros_custos_reais",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resultado_realizado",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "margem_realizada_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "desvio_resultado",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "desvio_resultado_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "desvio_frete_motorista",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_fechamento",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["PREVISTO", "REALIZADO", "CONCILIADO", "EM_DISPUTA"]
+        },
+        {
+          "name": "tabela_comercial_versao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "base_calculo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_fr_cargo ON freight_results (cargo_id)",
+        "CREATE INDEX idx_fr_itin ON freight_results (itinerary_code)",
+        "CREATE INDEX idx_fr_cust ON freight_results (customer_code)",
+        "CREATE INDEX idx_fr_status ON freight_results (status_fechamento)"
+      ]
+    },
+    {
+      "name": "expedition_milestones",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "t0_entrada",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "t1_disponibilizacao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "t2_carga_atribuida",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "t3_ordem_sap",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "t4_chamado_doca",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "t5_inicio_carregamento",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "t6_fim_carregamento",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "t7_conferencia",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "t8_faturamento",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "t9_documento_entregue",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "t10_saida",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lead_time_total_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gargalo_principal",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gargalo_duracao_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["EM_PATIO", "EM_CARREGAMENTO", "FATURADO", "CONCLUIDO", "CANCELADO"]
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_em_cargo ON expedition_milestones (cargo_id)",
+        "CREATE INDEX idx_em_plate ON expedition_milestones (vehicle_plate)",
+        "CREATE INDEX idx_em_status ON expedition_milestones (status)"
+      ]
+    },
+    {
+      "name": "wms_loading_maps",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "PLANEJADO",
+            "EM_SEPARACAO",
+            "CONFERIDO",
+            "CARREGADO",
+            "CONFLITO_IDENTIFICADO"
+          ]
+        },
+        {
+          "name": "has_sidercentro",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "has_perfil_pesado_l2",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "has_conflict",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conflict_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "loading_sequence_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "internal_picking_sequence_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wms_integration_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approved_by_user",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_wms_cargo ON wms_loading_maps (cargo_id)",
+        "CREATE INDEX idx_wms_plate ON wms_loading_maps (vehicle_plate)",
+        "CREATE INDEX idx_wms_status ON wms_loading_maps (status)"
+      ]
+    },
+    {
+      "name": "ai_planner_recommendations",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "scenario_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "scenario_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "scenario_title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "planned_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score_breakdown_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "occupancy_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resultado_previsto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "readiness_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_group",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "suggested_driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "suggested_driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_explanation",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "model_version",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rules_version",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["SUGERIDO", "APROVADO", "AJUSTADO", "REJEITADO", "IMPACTADO_REANALISE"]
+        },
+        {
+          "name": "approval_decision",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approval_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approved_by_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approved_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "converted_cargo_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_airec_scen ON ai_planner_recommendations (scenario_id)",
+        "CREATE INDEX idx_airec_itin ON ai_planner_recommendations (itinerary_code)",
+        "CREATE INDEX idx_airec_status ON ai_planner_recommendations (status)"
+      ]
+    },
+    {
+      "name": "commercial_freight_tables",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "version",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "base_origin",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "effective_date_start",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "effective_date_end",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rates_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_cft_version ON commercial_freight_tables (version)",
+        "CREATE INDEX idx_cft_active ON commercial_freight_tables (is_active)"
+      ]
+    },
+    {
+      "name": "zsd35_column_mappings",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "profile_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "is_default",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "mappings_json",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_zsd_prof ON zsd35_column_mappings (profile_name)"]
     }
   ]
 }

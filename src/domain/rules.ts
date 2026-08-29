@@ -865,6 +865,18 @@ export interface Permissions {
   canManagePrinters: boolean // printer.manage
   canPrintTransport: boolean // transport.print
   canReprintTransport: boolean // transport.reprint
+  // Sprint 6 RBAC Permissions
+  canExecuteAiPlanner: boolean // planejamento.ia.executar
+  canApproveAiPlanner: boolean // planejamento.ia.aprovar
+  canManageAiPlannerParams: boolean // planejamento.ia.parametros
+  canViewProfitability: boolean // rentabilidade.visualizar
+  canViewProfitabilityDetail: boolean // rentabilidade.detalhe
+  canExportProfitability: boolean // rentabilidade.exportar
+  canViewExpeditionPerformance: boolean // expedicao.performance
+  canAnalyzeExpeditionAi: boolean // expedicao.analisar_ia
+  canViewWmsLoadingMap: boolean // wms.mapa_carregamento
+  canConfirmWmsLoading: boolean // wms.confirmar_carregamento
+  canImportZsd35: boolean // zsd35.importar
 }
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
@@ -895,6 +907,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManagePrinters: true,
     canPrintTransport: true,
     canReprintTransport: true,
+    canExecuteAiPlanner: true,
+    canApproveAiPlanner: true,
+    canManageAiPlannerParams: true,
+    canViewProfitability: true,
+    canViewProfitabilityDetail: true,
+    canExportProfitability: true,
+    canViewExpeditionPerformance: true,
+    canAnalyzeExpeditionAi: true,
+    canViewWmsLoadingMap: true,
+    canConfirmWmsLoading: true,
+    canImportZsd35: true,
   },
   admin_tms: {
     canViewQueue: true,
@@ -923,6 +946,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManagePrinters: true,
     canPrintTransport: true,
     canReprintTransport: true,
+    canExecuteAiPlanner: true,
+    canApproveAiPlanner: true,
+    canManageAiPlannerParams: true,
+    canViewProfitability: true,
+    canViewProfitabilityDetail: true,
+    canExportProfitability: true,
+    canViewExpeditionPerformance: true,
+    canAnalyzeExpeditionAi: true,
+    canViewWmsLoadingMap: true,
+    canConfirmWmsLoading: true,
+    canImportZsd35: true,
   },
   gestor_logistica: {
     canViewQueue: true,
@@ -951,6 +985,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManagePrinters: true,
     canPrintTransport: true,
     canReprintTransport: true,
+    canExecuteAiPlanner: true,
+    canApproveAiPlanner: true,
+    canManageAiPlannerParams: true,
+    canViewProfitability: true,
+    canViewProfitabilityDetail: true,
+    canExportProfitability: true,
+    canViewExpeditionPerformance: true,
+    canAnalyzeExpeditionAi: true,
+    canViewWmsLoadingMap: true,
+    canConfirmWmsLoading: true,
+    canImportZsd35: true,
   },
   gerente_carga: {
     canViewQueue: true,
@@ -979,6 +1024,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManagePrinters: false,
     canPrintTransport: true,
     canReprintTransport: true,
+    canExecuteAiPlanner: true,
+    canApproveAiPlanner: true,
+    canManageAiPlannerParams: false,
+    canViewProfitability: true,
+    canViewProfitabilityDetail: true,
+    canExportProfitability: false,
+    canViewExpeditionPerformance: true,
+    canAnalyzeExpeditionAi: true,
+    canViewWmsLoadingMap: true,
+    canConfirmWmsLoading: true,
+    canImportZsd35: true,
   },
   operador_logistica: {
     canViewQueue: true,
@@ -1007,6 +1063,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManagePrinters: false,
     canPrintTransport: true,
     canReprintTransport: false,
+    canExecuteAiPlanner: true,
+    canApproveAiPlanner: false,
+    canManageAiPlannerParams: false,
+    canViewProfitability: false,
+    canViewProfitabilityDetail: false,
+    canExportProfitability: false,
+    canViewExpeditionPerformance: true,
+    canAnalyzeExpeditionAi: false,
+    canViewWmsLoadingMap: true,
+    canConfirmWmsLoading: true,
+    canImportZsd35: false,
   },
   portaria: {
     canViewQueue: true,
@@ -1035,6 +1102,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManagePrinters: false,
     canPrintTransport: true,
     canReprintTransport: false,
+    canExecuteAiPlanner: false,
+    canApproveAiPlanner: false,
+    canManageAiPlannerParams: false,
+    canViewProfitability: false,
+    canViewProfitabilityDetail: false,
+    canExportProfitability: false,
+    canViewExpeditionPerformance: true,
+    canAnalyzeExpeditionAi: false,
+    canViewWmsLoadingMap: false,
+    canConfirmWmsLoading: false,
+    canImportZsd35: false,
   },
   financeiro: {
     canViewQueue: true,
@@ -1063,6 +1141,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManagePrinters: false,
     canPrintTransport: false,
     canReprintTransport: false,
+    canExecuteAiPlanner: false,
+    canApproveAiPlanner: false,
+    canManageAiPlannerParams: false,
+    canViewProfitability: true,
+    canViewProfitabilityDetail: true,
+    canExportProfitability: true,
+    canViewExpeditionPerformance: true,
+    canAnalyzeExpeditionAi: false,
+    canViewWmsLoadingMap: false,
+    canConfirmWmsLoading: false,
+    canImportZsd35: false,
   },
   comercial: {
     canViewQueue: true,
@@ -1091,6 +1180,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManagePrinters: false,
     canPrintTransport: false,
     canReprintTransport: false,
+    canExecuteAiPlanner: false,
+    canApproveAiPlanner: false,
+    canManageAiPlannerParams: false,
+    canViewProfitability: true,
+    canViewProfitabilityDetail: false,
+    canExportProfitability: false,
+    canViewExpeditionPerformance: true,
+    canAnalyzeExpeditionAi: false,
+    canViewWmsLoadingMap: false,
+    canConfirmWmsLoading: false,
+    canImportZsd35: false,
   },
   auditor: {
     canViewQueue: true,
@@ -1119,6 +1219,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canManagePrinters: false,
     canPrintTransport: false,
     canReprintTransport: false,
+    canExecuteAiPlanner: false,
+    canApproveAiPlanner: false,
+    canManageAiPlannerParams: false,
+    canViewProfitability: true,
+    canViewProfitabilityDetail: true,
+    canExportProfitability: true,
+    canViewExpeditionPerformance: true,
+    canAnalyzeExpeditionAi: true,
+    canViewWmsLoadingMap: true,
+    canConfirmWmsLoading: false,
+    canImportZsd35: false,
   },
 }
 
@@ -1166,6 +1277,17 @@ export function getUserPermissions(role?: UserRole): Permissions {
       canManagePrinters: false,
       canPrintTransport: false,
       canReprintTransport: false,
+      canExecuteAiPlanner: false,
+      canApproveAiPlanner: false,
+      canManageAiPlannerParams: false,
+      canViewProfitability: false,
+      canViewProfitabilityDetail: false,
+      canExportProfitability: false,
+      canViewExpeditionPerformance: false,
+      canAnalyzeExpeditionAi: false,
+      canViewWmsLoadingMap: false,
+      canConfirmWmsLoading: false,
+      canImportZsd35: false,
     }
   }
   return ROLE_PERMISSIONS[role]
