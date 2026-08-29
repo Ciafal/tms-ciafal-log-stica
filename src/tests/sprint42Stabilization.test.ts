@@ -228,7 +228,7 @@ describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () 
           offer_id: offer.id,
           driver_id: driver.id,
           driver_phone_cached: driver.whatsapp,
-          driver_plate_cached: queueEntry.vehicle_plate_cached,
+          driver_doc_cached: driver.document,
           value: driverProposalValue,
           status: 'VALID',
           created: new Date().toISOString(),
@@ -352,7 +352,13 @@ describe('Sprint 4.2 — Testes End-to-End e Casos de Regressão Críticos', () 
       cargoId: incompleteLoad.cargoId,
       itineraryCode: incompleteLoad.itineraryCode,
       targetDate: new Date().toISOString().split('T')[0],
-      candidateClients: [candidateOrders[0].customer_name],
+      candidateClients: [
+        {
+          customerCode: candidateOrders[0].customer_code,
+          customerName: candidateOrders[0].customer_name,
+          salesRep: 'Carlos Vendas',
+        },
+      ],
       candidateOrders: [candidateOrders[0].order_number],
       salesRep: 'Carlos Vendas',
       currentWeightKg: incompleteLoad.currentWeightKg,

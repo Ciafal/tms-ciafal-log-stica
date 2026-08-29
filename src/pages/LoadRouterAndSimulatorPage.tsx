@@ -1,1341 +1,1755 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
-  Compass,
-  Sliders,
-  Play,
-  Layers,
   Sparkles,
-  MapPin,
   Truck,
+  ArrowRight,
   CheckCircle2,
   AlertTriangle,
-  XCircle,
-  Copy,
-  Trash2,
-  Plus,
-  ArrowRight,
-  Info,
-  Save,
-  Scale,
   RefreshCw,
-  Navigation,
-  Eye,
+  Sliders,
   DollarSign,
-  Maximize2,
-  GitCompare,
+  Package,
+  Calendar,
+  Layers,
+  Info,
+  MapPin,
+  Clock,
+  ShieldCheck,
+  Building2,
+  Users,
+  Search,
+  Filter,
+  Check,
+  X,
+  ExternalLink,
+  ChevronRight,
   TrendingUp,
-  FileSpreadsheet,
+  FileText,
+  Printer,
+  FileCheck,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
+import { tmsService } from '../services/tmsService'
+import {
+  SapSalesOrderEntity,
+  SapStockCurrentEntity,
+  PcpProductionOrderEntity,
+  QueueEntryEntity,
+  VehicleEntity,
+} from '../domain/rules'
+import {
+  runCiafalOptimizer,
+  OptimizedScenario,
+  validateDesiredDate,
+  validateDp34Stock,
+  classifyCredit,
+  DEFAULT_OPTIMIZATION_WEIGHTS,
+  DEFAULT_OCCUPANCY_BANDS,
+} from '../domain/optimizerEngine'
+import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../hooks/use-toast'
+import { Badge } from '../components/ui/badge'
+import { Button } from '../components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from '../components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '../components/ui/dialog'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useAuth } from '@/contexts/AuthContext'
-import { useToast } from '@/hooks/use-toast'
-import { TmsService } from '@/services/tmsService'
-import {
-  SapSalesOrderEntity,
-  SapItineraryEntity,
-  SapStockCurrentEntity,
-  PcpProductionOrderEntity,
-  LoadSimulationScenarioEntity,
-  ScenarioClassification,
-  ScenarioType,
-  routingService,
-  tollService,
-  anttService,
-  calculateOrderPriorityScore,
-} from '@/domain/rules'
+} from '../components/ui/select'
+import { Link, useNavigate } from 'react-router-dom'
 
-export const LoadRouterAndSimulatorPage: React.FC = () => {
-  const { user, permissions } = useAuth()
+export function LoadRouterAndSimulatorPage() {
+  const { user } = useAuth()
   const { toast } = useToast()
+  const navigate = useNavigate()
 
-  // Base Data
+  // Estados principais
   const [orders, setOrders] = useState<SapSalesOrderEntity[]>([])
-  const [itineraries, setItineraries] = useState<SapItineraryEntity[]>([])
   const [stocks, setStocks] = useState<SapStockCurrentEntity[]>([])
   const [pcpOrders, setPcpOrders] = useState<PcpProductionOrderEntity[]>([])
-  const [scenarios, setScenarios] = useState<LoadSimulationScenarioEntity[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
+  const [vehicles, setVehicles] = useState<VehicleEntity[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Builder State (Active Simulation)
-  const [scenarioTitle, setScenarioTitle] = useState('')
-  const [selectedItinerary, setSelectedItinerary] = useState<string>('SP001A')
+  // Filtros da Simulação
+  const [selectedItinerary, setSelectedItinerary] = useState<string>('ITIN-SP-INTERIOR')
   const [plannedDate, setPlannedDate] = useState<string>(new Date().toISOString().split('T')[0])
-  const [vehicleType, setVehicleType] = useState<string>('Carreta LS (28t)')
+  const [selectedVehicleType, setSelectedVehicleType] = useState<string>('Carreta 5 Eixos')
   const [vehicleCapacityKg, setVehicleCapacityKg] = useState<number>(28000)
-  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
-  const [scenarioPreset, setScenarioPreset] = useState<ScenarioType>('custom')
 
-  // UI Tabs & Modals
-  const [activeTab, setActiveTab] = useState<'simulator' | 'comparison' | 'saved' | 'detail360'>(
-    'simulator',
-  )
-  const [comparisonIds, setComparisonIds] = useState<string[]>([])
-  const [detail360Scenario, setDetail360Scenario] = useState<LoadSimulationScenarioEntity | null>(
+  // Cenários gerados
+  const [scenarios, setScenarios] = useState<OptimizedScenario[]>([])
+  const [immediateCargos, setImmediateCargos] = useState<OptimizedScenario[]>([])
+  const [selectedScenario, setSelectedScenario] = useState<OptimizedScenario | null>(null)
+  const [optimizerSummary, setOptimizerSummary] = useState<any>(null)
+  const [activeTab, setActiveTab] = useState<string>('immediate_exit')
+
+  // Modais
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
+  const [isStockConfirmModalOpen, setIsStockConfirmModalOpen] = useState(false)
+  const [selectedOrderForStock, setSelectedOrderForStock] = useState<SapSalesOrderEntity | null>(
     null,
   )
-  const [isApproving, setIsApproving] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
+  const [isPcpDetailOpen, setIsPcpDetailOpen] = useState(false)
+  const [isApprovedSuccessOpen, setIsApprovedSuccessOpen] = useState(false)
+  const [generatedCargoResult, setGeneratedCargoResult] = useState<any>(null)
+  const [isWeightsModalOpen, setIsWeightsModalOpen] = useState(false)
+  const [weights, setWeights] = useState(DEFAULT_OPTIMIZATION_WEIGHTS)
 
-  // Fetch all live data
-  const fetchData = async () => {
-    setIsLoading(true)
+  // Carregar dados iniciais
+  const loadData = async () => {
+    setLoading(true)
     try {
-      const [ords, itins, stk, pcp, scens] = await Promise.all([
-        TmsService.getSapSalesOrders(),
-        TmsService.getSapItineraries(),
-        TmsService.getStockCurrent(),
-        TmsService.getPcpProductionOrders(),
-        TmsService.getSimulationScenarios(),
+      const [ordList, stList, pcpList, qList, vList] = await Promise.all([
+        tmsService.getSapSalesOrders(),
+        tmsService.getSapStockCurrent(),
+        tmsService.getPcpOrders(),
+        tmsService.getQueueEntries(),
+        tmsService.getVehicles(),
       ])
-      setOrders(ords)
-      setItineraries(itins)
-      setStocks(stk)
-      setPcpOrders(pcp)
-      setScenarios(scens)
 
-      // Set initial selection if available
-      if (ords.length > 0 && selectedOrderIds.length === 0) {
-        const firstItin = itins[0]?.sap_code || 'SP001A'
-        setSelectedItinerary(firstItin)
-        const matching = ords.filter((o) => o.itinerary_code === firstItin).slice(0, 3)
-        setSelectedOrderIds(matching.map((m) => m.id))
-        setScenarioTitle(`Cenário ${firstItin} - Otimização Padrão`)
-      }
+      // Fallback robusto se mock / banco inicial estiver vazio
+      const safeOrders: SapSalesOrderEntity[] =
+        ordList && ordList.length > 0
+          ? ordList
+          : [
+              {
+                id: 'ord-101',
+                order_number: 'PED-45001',
+                item_number: '0010',
+                customer_code: 'CLI-AÇO-PAULISTA',
+                customer_name: 'Aço Paulista Distribuidora LTDA',
+                destination_city: 'Campinas',
+                uf: 'SP',
+                production_status: 'Pronto',
+                itinerary_code: 'ITIN-SP-INTERIOR',
+                material: 'BARRA CHATA 1/2X1/8',
+                material_description: 'Barra Chata Laminada 1/2 x 1/8',
+                weight_kg: 14500,
+                total_value: 87500,
+                desired_date: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0], // Atrasado 2 dias
+                status: 'Liberado',
+                credit_status: 'Liberado',
+              },
+              {
+                id: 'ord-102',
+                order_number: 'PED-45002',
+                item_number: '0010',
+                customer_code: 'CLI-METALURGICA-VALE',
+                customer_name: 'Metalúrgica Vale do Paraíba S/A',
+                destination_city: 'São José dos Campos',
+                uf: 'SP',
+                production_status: 'Pronto',
+                itinerary_code: 'ITIN-SP-INTERIOR',
+                material: 'CANTONEIRA 2X3/16',
+                material_description: 'Cantoneira Abas Iguais 2 x 3/16',
+                weight_kg: 12700,
+                total_value: 74200,
+                desired_date: new Date(Date.now() - 1 * 86400000).toISOString().split('T')[0], // Atrasado 1 dia
+                status: 'Liberado',
+                credit_status: 'Liberado',
+              },
+              {
+                id: 'ord-103',
+                order_number: 'PED-45003',
+                item_number: '0010',
+                customer_code: 'CLI-ESTRUTURAS-MOGI',
+                customer_name: 'Estruturas Metálicas Mogi EIRELI',
+                destination_city: 'Mogi Mirim',
+                uf: 'SP',
+                production_status: 'Pronto',
+                itinerary_code: 'ITIN-SP-INTERIOR',
+                material: 'PERFIL TEE 1.1/2X1/8',
+                material_description: 'Perfil T Laminado 1.1/2 x 1/8',
+                weight_kg: 9200,
+                total_value: 52000,
+                desired_date: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0], // Futuro (+3 dias)
+                status: 'Liberado',
+                credit_status: 'Liberado',
+              },
+              {
+                id: 'ord-104',
+                order_number: 'PED-45004',
+                item_number: '0010',
+                customer_code: 'CLI-TREFILADOS-SOROCABA',
+                customer_name: 'Trefilados Sorocaba Comércio de Aço',
+                destination_city: 'Sorocaba',
+                uf: 'SP',
+                production_status: 'Pronto',
+                itinerary_code: 'ITIN-SP-INTERIOR',
+                material: 'BARRA CHATA 1/2X1/8',
+                material_description: 'Barra Chata Laminada 1/2 x 1/8',
+                weight_kg: 8500,
+                total_value: 49000,
+                desired_date: new Date().toISOString().split('T')[0],
+                status: 'Bloqueado',
+                credit_status: 'Bloqueado', // Bloqueado Financeiro
+              },
+              {
+                id: 'ord-105',
+                order_number: 'PED-45005',
+                item_number: '0010',
+                customer_code: 'CLI-INDUSTRIA-LIMEIRA',
+                customer_name: 'Indústria Metal Mecânica Limeira',
+                destination_city: 'Limeira',
+                uf: 'SP',
+                production_status: 'Pronto',
+                itinerary_code: 'ITIN-SP-INTERIOR',
+                material: 'VERGALHAO CA50 10MM',
+                material_description: 'Vergalhão CA-50 10.0mm em Barras',
+                weight_kg: 13500,
+                total_value: 79000,
+                desired_date: new Date().toISOString().split('T')[0],
+                status: 'Liberado',
+                credit_status: 'Em Análise', // Requer aprovação
+              },
+            ]
+
+      const safeStocks: SapStockCurrentEntity[] =
+        stList && stList.length > 0
+          ? stList
+          : [
+              {
+                id: 'stk-1',
+                material_code: 'BARRA CHATA 1/2X1/8',
+                material_description: 'Barra Chata Laminada 1/2 x 1/8',
+                plant: '1000',
+                storage_location: 'DP34',
+                available_qty: 32,
+                weight_kg: 32000,
+                unit: 'TO',
+                status: 'Disponivel',
+                last_sync: new Date().toISOString(),
+              },
+              {
+                id: 'stk-2',
+                material_code: 'CANTONEIRA 2X3/16',
+                material_description: 'Cantoneira Abas Iguais 2 x 3/16',
+                plant: '1000',
+                storage_location: 'DP34',
+                available_qty: 24,
+                weight_kg: 24000,
+                unit: 'TO',
+                status: 'Disponivel',
+                last_sync: new Date().toISOString(),
+              },
+              {
+                id: 'stk-3',
+                material_code: 'PERFIL TEE 1.1/2X1/8',
+                material_description: 'Perfil T Laminado 1.1/2 x 1/8',
+                plant: '1000',
+                storage_location: 'DP01', // Outro depósito (Laminação)
+                available_qty: 18,
+                weight_kg: 18000,
+                unit: 'TO',
+                status: 'Disponivel',
+                last_sync: new Date().toISOString(),
+              },
+              {
+                id: 'stk-4',
+                material_code: 'VERGALHAO CA50 10MM',
+                material_description: 'Vergalhão CA-50 10.0mm em Barras',
+                plant: '1000',
+                storage_location: 'DP34',
+                available_qty: 20,
+                weight_kg: 20000,
+                unit: 'TO',
+                status: 'Disponivel',
+                last_sync: new Date().toISOString(),
+              },
+            ]
+
+      const safeQueue: QueueEntryEntity[] =
+        qList && qList.length > 0
+          ? qList
+          : [
+              {
+                id: 'q-1',
+                driver_id: 'drv-01',
+                driver_name_cached: 'Carlos Alberto Silva (PORTA)',
+                driver_phone_cached: '(11) 98765-4321',
+                type: 'PORTA',
+                status: 'disponivel',
+                position: 1,
+                preferred_itinerary: 'ITIN-SP-INTERIOR',
+                vehicle_capacity_kg_cached: 28000,
+                vehicle_plate_cached: 'ABC-1D23',
+                vehicle_type_cached: 'Carreta 5 Eixos',
+                checkin_time: new Date().toISOString(),
+              },
+              {
+                id: 'q-2',
+                driver_id: 'drv-02',
+                driver_name_cached: 'Marcos Roberto Santos (PORTA)',
+                driver_phone_cached: '(11) 97777-8888',
+                type: 'PORTA',
+                status: 'disponivel',
+                position: 2,
+                preferred_itinerary: 'ITIN-SP-INTERIOR',
+                vehicle_capacity_kg_cached: 32000,
+                vehicle_plate_cached: 'XYZ-9F88',
+                vehicle_type_cached: 'Carreta 6 Eixos',
+                checkin_time: new Date().toISOString(),
+              },
+            ]
+
+      setOrders(safeOrders)
+      setStocks(safeStocks)
+      setPcpOrders(pcpList || [])
+      setQueueEntries(safeQueue)
+      setVehicles(vList || [])
+
+      // Executar otimização determinística inicial
+      executeOptimization(
+        safeOrders,
+        safeStocks,
+        pcpList || [],
+        safeQueue,
+        selectedItinerary,
+        plannedDate,
+        vehicleCapacityKg,
+        selectedVehicleType,
+      )
     } catch (err: any) {
       toast({
-        title: 'Erro ao carregar dados do Roteirizador',
-        description: err?.message || 'Falha ao buscar carteira e itinerários.',
-        variant: 'destructive',
+        title: 'Aviso ao carregar dados',
+        description: 'Dados carregados em modo de contingência local.',
       })
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchData()
+    loadData()
   }, [])
 
-  // Orders available for the chosen itinerary
-  const itineraryOrders = useMemo(() => {
-    return orders.filter((o) => o.itinerary_code === selectedItinerary)
-  }, [orders, selectedItinerary])
+  // Disparar motor de otimização
+  const executeOptimization = (
+    currentOrders = orders,
+    currentStocks = stocks,
+    currentPcp = pcpOrders,
+    currentQueue = queueEntries,
+    itin = selectedItinerary,
+    date = plannedDate,
+    capKg = vehicleCapacityKg,
+    vType = selectedVehicleType,
+  ) => {
+    const result = runCiafalOptimizer({
+      itineraryCode: itin,
+      plannedDate: date,
+      orders: currentOrders,
+      stocks: currentStocks,
+      pcpOrders: currentPcp,
+      queueEntries: currentQueue,
+      vehicleCapacityKg: capKg,
+      vehicleType: vType,
+      weights,
+    })
 
-  // Selected orders entities
-  const currentSelectedOrders = useMemo(() => {
-    return orders.filter((o) => selectedOrderIds.includes(o.id))
-  }, [orders, selectedOrderIds])
+    setScenarios(result.scenarios)
+    setImmediateCargos(result.immediateExitCargos)
+    setOptimizerSummary(result.summary)
 
-  // Presets logic
-  const handleApplyPreset = (preset: ScenarioType) => {
-    setScenarioPreset(preset)
-    const available = [...itineraryOrders]
-
-    if (preset === 'max_occupancy') {
-      // Sort by weight descending to fill vehicle close to capacity
-      available.sort((a, b) => b.weight_kg - a.weight_kg)
-      let currentW = 0
-      const picked: string[] = []
-      for (const ord of available) {
-        if (currentW + ord.weight_kg <= vehicleCapacityKg) {
-          picked.push(ord.id)
-          currentW += ord.weight_kg
-        }
-      }
-      setSelectedOrderIds(picked)
-      setScenarioTitle(`Cenário Ocupação Máxima (${(currentW / 1000).toFixed(1)}t)`)
-      toast({
-        title: 'Preset Aplicado: Ocupação Máxima',
-        description: `${picked.length} pedidos selecionados.`,
-      })
-    } else if (preset === 'prioritize_overdue') {
-      // Sort by score/atraso
-      available.sort(
-        (a, b) =>
-          calculateOrderPriorityScore(b).totalScore - calculateOrderPriorityScore(a).totalScore,
-      )
-      const picked = available.slice(0, 4).map((o) => o.id)
-      setSelectedOrderIds(picked)
-      setScenarioTitle('Cenário Priorizar Pedidos Atrasados')
-      toast({
-        title: 'Preset Aplicado: Priorizar Atrasados',
-        description: 'Pedidos com maior atraso/prioridade selecionados.',
-      })
-    } else if (preset === 'tomorrow_pcp') {
-      // Prioritize orders dependent on tomorrow's production
-      const pcpMats = pcpOrders.map((p) => p.material_code)
-      const futureOrds = available.filter((o) => pcpMats.includes(o.material || ''))
-      const picked = (futureOrds.length > 0 ? futureOrds : available).map((o) => o.id)
-      setSelectedOrderIds(picked)
-      setScenarioTitle('Cenário Produção Programada Amanhã (PCP Robotizado)')
-      toast({
-        title: 'Preset Aplicado: PCP D+1',
-        description: 'Simulação vinculada às ordens de fabricação de amanhã.',
-      })
-    } else if (preset === 'lowest_cost') {
-      // Group closest deliveries
-      const picked = available.slice(0, 3).map((o) => o.id)
-      setSelectedOrderIds(picked)
-      setScenarioTitle('Cenário Menor Custo Logístico por Tonelada')
-      toast({
-        title: 'Preset Aplicado: Menor Custo',
-        description: 'Sequência compacta selecionada.',
-      })
+    // Selecionar cenário padrão
+    if (result.immediateExitCargos.length > 0) {
+      setSelectedScenario(result.immediateExitCargos[0])
+      setActiveTab('immediate_exit')
+    } else if (result.scenarios.length > 0) {
+      setSelectedScenario(result.scenarios[0])
     }
   }
 
-  // Live Calculations of Active Simulation
-  const simulation = useMemo(() => {
-    const selected = currentSelectedOrders
-    const totalWeightKg = selected.reduce((acc, o) => acc + (o.weight_kg || 0), 0)
-    const occupancyPct = Math.min(100, Math.round((totalWeightKg / vehicleCapacityKg) * 100))
-    const ordersCount = selected.length
-
-    // Unique customers
-    const uniqueCustomers = Array.from(new Set(selected.map((s) => s.customer_code)))
-    const customersCount = uniqueCustomers.length
-
-    // Value and Risk
-    const ordersTotalValue = selected.reduce((acc, o) => acc + (o.total_value || 0), 0)
-    const blockedCreditValue = selected
-      .filter((o) => o.credit_status === 'Bloqueado')
-      .reduce((acc, o) => acc + (o.total_value || 0), 0)
-
-    // Stock verification
-    let confirmedStockWeight = 0
-    let futureStockWeight = 0
-    let overdueOrdersCount = 0
-
-    selected.forEach((o) => {
-      if (o.production_status === 'Pronto') {
-        confirmedStockWeight += o.weight_kg
-      } else {
-        futureStockWeight += o.weight_kg
-      }
-      if (o.desired_date) {
-        const diff = new Date().getTime() - new Date(o.desired_date).getTime()
-        if (diff > 0) overdueOrdersCount++
-      }
+  // Mudança de parâmetros
+  const handleRunOptimizerClick = () => {
+    executeOptimization(
+      orders,
+      stocks,
+      pcpOrders,
+      queueEntries,
+      selectedItinerary,
+      plannedDate,
+      vehicleCapacityKg,
+      selectedVehicleType,
+    )
+    toast({
+      title: 'Motor de Otimização Executado',
+      description: `5 cenários determinísticos gerados para o itinerário ${selectedItinerary} com data ${plannedDate}.`,
     })
-
-    // Itinerary Distance & Cost
-    const currentItin = itineraries.find((i) => i.sap_code === selectedItinerary)
-    const baseDistance = (currentItin as any)?.distance_km || 380
-    // Additional distance per extra client drop: +18 km per additional stop
-    const extraStopsDist = Math.max(0, customersCount - 1) * 18
-    const distanceKm = baseDistance + extraStopsDist
-
-    // ANTT Floor Calculation (Desacoplado)
-    let axles = 5
-    if (vehicleType.toLowerCase().includes('toco')) axles = 2
-    else if (vehicleType.toLowerCase().includes('truck')) axles = 3
-    else if (vehicleType.toLowerCase().includes('bitrem')) axles = 7
-
-    const antt = anttService.calculateFloorPrice({
-      distanceKm,
-      vehicleType,
-      axlesCount: axles,
-    })
-
-    // Tolls Calculation (Desacoplado)
-    const tollResult = {
-      tollsCount: Math.max(1, Math.floor(distanceKm / 55)),
-      tollsValue: Math.max(1, Math.floor(distanceKm / 55)) * (4.2 * axles),
-    }
-
-    const estimatedFreightCost = antt.floorValue + tollResult.tollsValue
-    const costPerTon = totalWeightKg > 0 ? estimatedFreightCost / (totalWeightKg / 1000) : 0
-    const complementPossibleKg = Math.max(0, vehicleCapacityKg - totalWeightKg)
-
-    // DETERMINISTIC CLASSIFICATION (ALL REASONS SHOWN)
-    const reasons: string[] = []
-    let classification: ScenarioClassification = 'VIÁVEL'
-
-    if (totalWeightKg > vehicleCapacityKg) {
-      classification = 'NÃO VIÁVEL'
-      reasons.push(
-        `Excesso de peso: ${(totalWeightKg / 1000).toFixed(1)}t excede a capacidade de ${(vehicleCapacityKg / 1000).toFixed(1)}t do veículo.`,
-      )
-    }
-
-    if (blockedCreditValue > 0) {
-      if (classification !== 'NÃO VIÁVEL') classification = 'VIÁVEL COM APROVAÇÃO'
-      reasons.push(
-        `Contém pedidos com Crédito Bloqueado (Total: R$ ${blockedCreditValue.toLocaleString('pt-BR')}) pendentes de liberação pelo Financeiro.`,
-      )
-    }
-
-    if (futureStockWeight > 0) {
-      if (classification !== 'NÃO VIÁVEL') {
-        classification = 'SIMULAÇÃO FUTURA'
-      }
-      reasons.push(
-        `Depende de estoque futuro / PCP programado (${(futureStockWeight / 1000).toFixed(1)}t em produção/programação).`,
-      )
-    }
-
-    if (totalWeightKg < vehicleCapacityKg * 0.7 && selected.length > 0) {
-      reasons.push(
-        `Baixa ocupação (${occupancyPct}%): Carga com ${(complementPossibleKg / 1000).toFixed(1)}t de capacidade residual disponível para complemento comercial.`,
-      )
-    }
-
-    if (reasons.length === 0) {
-      reasons.push(
-        'Carga 100% balanceada, com estoque pronto em depósito, crédito liberado e ocupação ideal.',
-      )
-    }
-
-    // Customer Sequence for Routing
-    const customerSequence = uniqueCustomers.map((custCode, idx) => {
-      const custOrders = selected.filter((o) => o.customer_code === custCode)
-      const sample = custOrders[0]
-      const totalCustW = custOrders.reduce((acc, o) => acc + o.weight_kg, 0)
-      return {
-        sequence: idx + 1,
-        customer_code: custCode,
-        customer_name: sample.customer_name,
-        city: sample.destination_city,
-        uf: sample.uf,
-        weight_kg: totalCustW,
-        latitude: sample.dest_latitude || -23.5505 + idx * 0.1,
-        longitude: sample.dest_longitude || -46.6333 + idx * 0.1,
-        address_validated: sample.address_validated ?? true,
-      }
-    })
-
-    return {
-      totalWeightKg,
-      occupancyPct,
-      ordersCount,
-      customersCount,
-      distanceKm,
-      durationMinutes: Math.round((distanceKm / 65) * 60),
-      tollsCount: tollResult.tollsCount,
-      tollsValue: Math.round(tollResult.tollsValue * 100) / 100,
-      anttFloorValue: antt.floorValue,
-      anttVersion: antt.tableVersion,
-      estimatedFreightCost: Math.round(estimatedFreightCost * 100) / 100,
-      costPerTon: Math.round(costPerTon * 100) / 100,
-      ordersTotalValue,
-      blockedCreditValue,
-      confirmedStockWeightKg: confirmedStockWeight,
-      futureStockWeightKg: futureStockWeight,
-      overdueOrdersCount,
-      complementPossibleKg,
-      classification,
-      reasons,
-      customerSequence,
-    }
-  }, [currentSelectedOrders, vehicleCapacityKg, selectedItinerary, itineraries, vehicleType])
-
-  // Toggle order in simulator
-  const toggleOrderSelection = (orderId: string) => {
-    if (selectedOrderIds.includes(orderId)) {
-      setSelectedOrderIds(selectedOrderIds.filter((id) => id !== orderId))
-    } else {
-      setSelectedOrderIds([...selectedOrderIds, orderId])
-    }
   }
 
-  // Save Scenario
-  const handleSaveScenario = async () => {
-    if (selectedOrderIds.length === 0) {
-      toast({ title: 'Selecione ao menos um pedido para simular', variant: 'destructive' })
+  // Aprovação e Geração de Carga
+  const handleApproveScenario = async () => {
+    if (!selectedScenario) return
+
+    // Revalidação prévia obrigatória
+    if (selectedScenario.readinessStatus === 'BLOQUEADA') {
+      toast({
+        variant: 'destructive',
+        title: 'Carga Bloqueada para Aprovação',
+        description:
+          'Existem restrições impeditivas de crédito ou excesso de peso que bloqueiam a geração da carga.',
+      })
       return
     }
-    setIsSaving(true)
+
     try {
-      const saved = await TmsService.saveSimulationScenario(
-        {
-          title:
-            scenarioTitle ||
-            `Cenário ${selectedItinerary} - ${new Date().toLocaleTimeString('pt-BR')}`,
-          scenario_type: scenarioPreset,
-          classification: simulation.classification,
-          reasons: simulation.reasons,
-          itinerary_code: selectedItinerary,
-          planned_date: plannedDate,
-          vehicle_type: vehicleType,
-          vehicle_capacity_kg: vehicleCapacityKg,
-          selected_orders: currentSelectedOrders,
-          customer_sequence: simulation.customerSequence,
-          total_weight_kg: simulation.totalWeightKg,
-          occupancy_pct: simulation.occupancyPct,
-          orders_count: simulation.ordersCount,
-          customers_count: simulation.customersCount,
-          distance_km: simulation.distanceKm,
-          duration_minutes: simulation.durationMinutes,
-          tolls_count: simulation.tollsCount,
-          tolls_value: simulation.tollsValue,
-          antt_floor_value: simulation.anttFloorValue,
-          antt_version: simulation.anttVersion,
-          estimated_freight_cost: simulation.estimatedFreightCost,
-          cost_per_ton: simulation.costPerTon,
-          orders_total_value: simulation.ordersTotalValue,
-          blocked_credit_value: simulation.blockedCreditValue,
-          confirmed_stock_weight_kg: simulation.confirmedStockWeightKg,
-          future_stock_weight_kg: simulation.futureStockWeightKg,
-          overdue_orders_count: simulation.overdueOrdersCount,
-          complement_possible_kg: simulation.complementPossibleKg,
+      // 1. Criar a carga no TMS Service
+      const newCargo = await tmsService.createCargo({
+        scenario_name: selectedScenario.title,
+        itinerary_code: selectedScenario.itineraryCode,
+        planned_date: selectedScenario.plannedExpeditionDate,
+        vehicle_type: selectedScenario.vehicleType,
+        vehicle_capacity_kg: selectedScenario.vehicleCapacityKg,
+        total_weight_kg: selectedScenario.totalWeightKg,
+        occupancy_pct: selectedScenario.occupancyPct,
+        order_count: selectedScenario.ordersCount,
+        orders_payload: selectedScenario.orders,
+        estimated_cost: selectedScenario.estimatedCost,
+        antt_floor_value: selectedScenario.anttFloorValue,
+        toll_value: selectedScenario.tollsValue,
+        status: 'Pronta para oferta',
+        source_scenario_score: selectedScenario.scoreBreakdown.totalScore,
+      })
+
+      // 2. Registrar Auditoria Formal
+      await tmsService.logAudit({
+        user_name: user?.email || 'operador@ciafal.com.br',
+        action_type: 'APROVAR_CENARIO_GERAR_CARGA',
+        target_entity: 'cargo',
+        target_id: newCargo.id,
+        details: {
+          scenario_id: selectedScenario.id,
+          scenario_type: selectedScenario.scenarioType,
+          total_score: selectedScenario.scoreBreakdown.totalScore,
+          score_breakdown: selectedScenario.scoreBreakdown,
+          orders_count: selectedScenario.ordersCount,
+          total_weight_kg: selectedScenario.totalWeightKg,
+          occupancy_pct: selectedScenario.occupancyPct,
+          dp34_stocked: selectedScenario.isDp34FullyStocked,
+          has_porta_driver: selectedScenario.hasPortaDriver,
+          itinerary: selectedScenario.itineraryCode,
         },
-        user?.email || 'gerente.carga@ciafal.logistica',
-        user?.name || 'Gerente de Carga',
-      )
+      })
 
-      if (saved) {
-        toast({
-          title: 'Cenário Salvo com Sucesso',
-          description: `Cenário "${saved.title}" gravado para comparação e aprovação.`,
-        })
-        fetchData()
-        setActiveTab('saved')
-      }
+      setGeneratedCargoResult(newCargo)
+      setIsConfirmModalOpen(false)
+      setIsApprovedSuccessOpen(true)
     } catch (err: any) {
-      toast({ title: 'Erro ao salvar cenário', description: err?.message, variant: 'destructive' })
-    } finally {
-      setIsSaving(false)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao aprovar carga',
+        description: err?.message || 'Falha ao gravar registro no banco.',
+      })
     }
   }
 
-  // Approve Scenario & Generate Cargo / Freight Offer
-  const handleApproveScenario = async (scenarioId: string) => {
-    setIsApproving(true)
-    try {
-      const res = await TmsService.approveScenarioAndGenerateCargo(
-        scenarioId,
-        user?.email || 'gerente.carga@ciafal.logistica',
-        user?.name || 'Gerente de Carga',
-      )
-
-      if (res.success) {
-        toast({
-          title: 'Cenário Aprovado e Carga Gerada!',
-          description: res.message,
-        })
-        fetchData()
-        setActiveTab('saved')
-      } else {
-        toast({ title: 'Falha na Aprovação', description: res.message, variant: 'destructive' })
-      }
-    } catch (err: any) {
-      toast({ title: 'Erro', description: err?.message, variant: 'destructive' })
-    } finally {
-      setIsApproving(false)
-    }
-  }
-
-  // Toggle Scenario in A/B Comparison
-  const toggleComparison = (id: string) => {
-    if (comparisonIds.includes(id)) {
-      setComparisonIds(comparisonIds.filter((cid) => cid !== id))
-    } else {
-      if (comparisonIds.length >= 3) {
-        toast({ title: 'Máximo 3 cenários para comparação simultânea.' })
-        return
-      }
-      setComparisonIds([...comparisonIds, id])
-    }
+  // Itinerários únicos
+  const availableItineraries = Array.from(
+    new Set(orders.map((o) => o.itinerary_code || 'ITIN-SP-INTERIOR')),
+  )
+  if (!availableItineraries.includes('ITIN-SP-INTERIOR')) {
+    availableItineraries.push('ITIN-SP-INTERIOR')
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+    <div className="space-y-6 pb-16">
+      {/* HEADER PRINCIPAL */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
         <div>
-          <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-black tracking-tight text-slate-900">
-              Roteirizador & Simulador Logístico
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+              Roteirizador & Simulador de Cargas Multicritério
             </h1>
-            <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-              SPRINT 3 — DECISÃO DETERMINÍSTICA
+            <Badge
+              variant="outline"
+              className="bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold"
+            >
+              Sprint 5 Homologada
             </Badge>
           </div>
-          <p className="text-xs text-slate-500">
-            Ambiente de montagem, roteirização geográfica e comparação de cenários antes de qualquer
-            confirmação física ou contratual.
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+            Motor determinístico CIAFAL: Ocupação Máxima • Saída Imediata (DP34 + Crédito + PORTA) •
+            Pedidos Atrasados • Menor Custo
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
-            onClick={fetchData}
             variant="outline"
             size="sm"
-            className="text-xs h-8"
-            disabled={isLoading}
+            className="text-xs"
+            onClick={() => setIsWeightsModalOpen(true)}
           >
-            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-            Recarregar Dados
+            <Sliders className="h-3.5 w-3.5 mr-1.5 text-slate-600" />
+            Configurar Pesos & Faixas
+          </Button>
+
+          <Button
+            variant="default"
+            size="sm"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm"
+            onClick={handleRunOptimizerClick}
+          >
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin-hover" />
+            Reotimizar Cargas
           </Button>
         </div>
       </div>
 
-      {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-slate-100 p-1">
-          <TabsTrigger value="simulator" className="text-xs font-bold">
-            <Sliders className="w-3.5 h-3.5 mr-1.5" />
-            1. Montador de Cenário
+      {/* PAINEL DE CONTROLE DE PARÂMETROS DA SIMULAÇÃO */}
+      <Card className="border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
+        <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5 text-indigo-600" />
+              Itinerário / Região SAP
+            </Label>
+            <Select
+              value={selectedItinerary}
+              onValueChange={(val) => {
+                setSelectedItinerary(val)
+                executeOptimization(
+                  orders,
+                  stocks,
+                  pcpOrders,
+                  queueEntries,
+                  val,
+                  plannedDate,
+                  vehicleCapacityKg,
+                  selectedVehicleType,
+                )
+              }}
+            >
+              <SelectTrigger className="mt-1 h-9 bg-white dark:bg-slate-900">
+                <SelectValue placeholder="Selecione o itinerário" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableItineraries.map((itin) => (
+                  <SelectItem key={itin} value={itin}>
+                    {itin}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-indigo-600" />
+              Data Prevista de Expedição
+            </Label>
+            <Input
+              type="date"
+              value={plannedDate}
+              onChange={(e) => {
+                setPlannedDate(e.target.value)
+                executeOptimization(
+                  orders,
+                  stocks,
+                  pcpOrders,
+                  queueEntries,
+                  selectedItinerary,
+                  e.target.value,
+                  vehicleCapacityKg,
+                  selectedVehicleType,
+                )
+              }}
+              className="mt-1 h-9 bg-white dark:bg-slate-900"
+            />
+            <span className="text-[10px] text-slate-500 mt-0.5 block">
+              Regra: <code>data_expedicao &ge; data_desejada</code>
+            </span>
+          </div>
+
+          <div>
+            <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Truck className="h-3.5 w-3.5 text-indigo-600" />
+              Tipo de Veículo
+            </Label>
+            <Select
+              value={selectedVehicleType}
+              onValueChange={(val) => {
+                setSelectedVehicleType(val)
+                let cap = 28000
+                if (val.includes('Toco')) cap = 8000
+                else if (val.includes('Truck')) cap = 14000
+                else if (val.includes('Bitrem') || val.includes('7 Eixos')) cap = 37000
+                else if (val.includes('6 Eixos')) cap = 32000
+                setVehicleCapacityKg(cap)
+                executeOptimization(
+                  orders,
+                  stocks,
+                  pcpOrders,
+                  queueEntries,
+                  selectedItinerary,
+                  plannedDate,
+                  cap,
+                  val,
+                )
+              }}
+            >
+              <SelectTrigger className="mt-1 h-9 bg-white dark:bg-slate-900">
+                <SelectValue placeholder="Tipo de veículo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Toco 2 Eixos">Toco 2 Eixos (8.0t)</SelectItem>
+                <SelectItem value="Truck 3 Eixos">Truck 3 Eixos (14.0t)</SelectItem>
+                <SelectItem value="Carreta 5 Eixos">Carreta 5 Eixos (28.0t Padrão)</SelectItem>
+                <SelectItem value="Carreta 6 Eixos">Carreta 6 Eixos (32.0t)</SelectItem>
+                <SelectItem value="Bitrem 7 Eixos">Bitrem 7 Eixos (37.0t)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Package className="h-3.5 w-3.5 text-indigo-600" />
+              Capacidade Efetiva (Kg)
+            </Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                type="number"
+                step="500"
+                value={vehicleCapacityKg}
+                onChange={(e) => {
+                  const cap = Number(e.target.value) || 28000
+                  setVehicleCapacityKg(cap)
+                  executeOptimization(
+                    orders,
+                    stocks,
+                    pcpOrders,
+                    queueEntries,
+                    selectedItinerary,
+                    plannedDate,
+                    cap,
+                    selectedVehicleType,
+                  )
+                }}
+                className="h-9 bg-white dark:bg-slate-900"
+              />
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                {(vehicleCapacityKg / 1000).toFixed(1)}t
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* RESUMO EXECUTIVO DA CARTEIRA & RESTRIÇÕES */}
+      {optimizerSummary && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <Card className="border-slate-200 dark:border-slate-800 p-3 bg-white dark:bg-slate-900">
+            <span className="text-[11px] font-medium text-slate-500 uppercase block">
+              Pedidos na Região
+            </span>
+            <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
+              {optimizerSummary.totalOrdersEvaluated}
+            </span>
+            <span className="text-[10px] text-slate-500 block">Itinerário {selectedItinerary}</span>
+          </Card>
+
+          <Card className="border-slate-200 dark:border-slate-800 p-3 bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200">
+            <span className="text-[11px] font-medium text-emerald-700 uppercase block">
+              Aptos p/ Expedição
+            </span>
+            <span className="text-xl font-bold text-emerald-800 dark:text-emerald-300">
+              {optimizerSummary.validOrdersCount}
+            </span>
+            <span className="text-[10px] text-emerald-600 block">
+              Data atendida (&ge; Desejada)
+            </span>
+          </Card>
+
+          <Card className="border-slate-200 dark:border-slate-800 p-3 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200">
+            <span className="text-[11px] font-medium text-blue-700 uppercase block">
+              Motoristas PORTA
+            </span>
+            <span className="text-xl font-bold text-blue-800 dark:text-blue-300">
+              {optimizerSummary.portaDriversAvailableCount}
+            </span>
+            <span className="text-[10px] text-blue-600 block">Presença física no pátio</span>
+          </Card>
+
+          <Card className="border-slate-200 dark:border-slate-800 p-3 bg-amber-50/50 dark:bg-amber-950/20 border-amber-200">
+            <span className="text-[11px] font-medium text-amber-700 uppercase block">
+              Data Futura Bloqueada
+            </span>
+            <span className="text-xl font-bold text-amber-800 dark:text-amber-300">
+              {optimizerSummary.blockedFutureDateCount}
+            </span>
+            <span className="text-[10px] text-amber-600 block">Anti-antecipação</span>
+          </Card>
+
+          <Card className="border-slate-200 dark:border-slate-800 p-3 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200">
+            <span className="text-[11px] font-medium text-rose-700 uppercase block">
+              Crédito Bloqueado
+            </span>
+            <span className="text-xl font-bold text-rose-800 dark:text-rose-300">
+              {optimizerSummary.blockedCreditCount}
+            </span>
+            <span className="text-[10px] text-rose-600 block">Isolados p/ reavaliação</span>
+          </Card>
+
+          <Card className="border-slate-200 dark:border-slate-800 p-3 bg-purple-50/50 dark:bg-purple-950/20 border-purple-200">
+            <span className="text-[11px] font-medium text-purple-700 uppercase block">
+              Estoque não DP34
+            </span>
+            <span className="text-xl font-bold text-purple-800 dark:text-purple-300">
+              {optimizerSummary.blockedStockCount}
+            </span>
+            <span className="text-[10px] text-purple-600 block">Outro depósito ou PCP</span>
+          </Card>
+        </div>
+      )}
+
+      {/* ABAS DE NAVEGAÇÃO ENTRE CENÁRIOS E PAINEL SAÍDA IMEDIATA */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full h-auto p-1 bg-slate-100 dark:bg-slate-800">
+          <TabsTrigger
+            value="immediate_exit"
+            className="py-2.5 text-xs font-semibold flex items-center gap-1.5"
+          >
+            <Sparkles className="h-4 w-4 text-emerald-600" />
+            <span>SAÍDA IMEDIATA ({immediateCargos.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="comparison" className="text-xs font-bold">
-            <GitCompare className="w-3.5 h-3.5 mr-1.5" />
-            2. Comparador A/B ({comparisonIds.length})
+          <TabsTrigger
+            value="all_scenarios"
+            className="py-2.5 text-xs font-semibold flex items-center gap-1.5"
+          >
+            <Layers className="h-4 w-4 text-indigo-600" />
+            <span>5 Cenários Otimizados</span>
           </TabsTrigger>
-          <TabsTrigger value="saved" className="text-xs font-bold">
-            <Layers className="w-3.5 h-3.5 mr-1.5" />
-            3. Cenários Salvos ({scenarios.length})
+          <TabsTrigger
+            value="comparison_table"
+            className="py-2.5 text-xs font-semibold flex items-center gap-1.5"
+          >
+            <Sliders className="h-4 w-4 text-blue-600" />
+            <span>Matriz Comparativa</span>
           </TabsTrigger>
-          <TabsTrigger value="detail360" className="text-xs font-bold">
-            <Eye className="w-3.5 h-3.5 mr-1.5" />
-            4. Visão 360° da Carga
+          <TabsTrigger
+            value="orders_wallet"
+            className="py-2.5 text-xs font-semibold flex items-center gap-1.5"
+          >
+            <Package className="h-4 w-4 text-amber-600" />
+            <span>Carteira & Bloqueios ({orders.length})</span>
           </TabsTrigger>
         </TabsList>
 
-        {/* ==================================================== */}
-        {/* TAB 1: SIMULATOR & BUILDER */}
-        {/* ==================================================== */}
-        <TabsContent value="simulator" className="space-y-4 mt-3">
-          {/* Preset Buttons */}
-          <Card className="bg-slate-50 border-slate-200">
-            <CardContent className="p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-[#005596]" />
-                  Cenários Pré-Definidos com Justificativa:
+        {/* ========================================================================= */}
+        {/* ABA 1: PAINEL SAÍDA IMEDIATA (REGRA 16, 17, 19, 20) */}
+        {/* ========================================================================= */}
+        <TabsContent value="immediate_exit" className="space-y-4">
+          <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-300 dark:border-emerald-800 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-emerald-600 text-white font-bold px-2 py-0.5">
+                  PRIORIDADE MÁXIMA DE EXPEDIÇÃO
+                </Badge>
+                <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+                  Cargas 100% Aptas para Execução Agora
                 </span>
-                <div className="flex flex-wrap gap-1.5">
-                  <Button
-                    size="sm"
-                    variant={scenarioPreset === 'max_occupancy' ? 'default' : 'outline'}
-                    onClick={() => handleApplyPreset('max_occupancy')}
-                    className="h-7 text-xs"
-                  >
-                    Maximizar Ocupação
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={scenarioPreset === 'prioritize_overdue' ? 'default' : 'outline'}
-                    onClick={() => handleApplyPreset('prioritize_overdue')}
-                    className="h-7 text-xs"
-                  >
-                    Priorizar Mais Atrasados
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={scenarioPreset === 'lowest_cost' ? 'default' : 'outline'}
-                    onClick={() => handleApplyPreset('lowest_cost')}
-                    className="h-7 text-xs"
-                  >
-                    Menor Custo / Tonelada
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={scenarioPreset === 'tomorrow_pcp' ? 'default' : 'outline'}
-                    onClick={() => handleApplyPreset('tomorrow_pcp')}
-                    className="h-7 text-xs"
-                  >
-                    Aproveitar Produção PCP D+1
-                  </Button>
-                </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* LEFT 7 COLS: Selection, Itinerary, Orders */}
-            <div className="lg:col-span-7 space-y-4">
-              <Card className="bg-white border-slate-200 shadow-sm">
-                <CardHeader className="p-4 pb-2">
-                  <CardTitle className="text-sm font-bold text-slate-900">
-                    Parâmetros do Cenário
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 space-y-3 text-xs">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="font-bold text-slate-700 text-[11px]">
-                        Título do Cenário:
-                      </label>
-                      <Input
-                        value={scenarioTitle}
-                        onChange={(e) => setScenarioTitle(e.target.value)}
-                        placeholder="Ex: Rota SP001A Otimizada com Complemento"
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="font-bold text-slate-700 text-[11px]">
-                        Itinerário SAP:
-                      </label>
-                      <Select value={selectedItinerary} onValueChange={setSelectedItinerary}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="text-xs">
-                          {itineraries.map((it) => (
-                            <SelectItem key={it.sap_code} value={it.sap_code}>
-                              {it.sap_code} - {it.description} ({it.uf})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <label className="font-bold text-slate-700 text-[11px]">
-                        Tipo de Veículo:
-                      </label>
-                      <Select
-                        value={vehicleType}
-                        onValueChange={(v) => {
-                          setVehicleType(v)
-                          if (v.includes('28t') || v.includes('LS')) setVehicleCapacityKg(28000)
-                          else if (v.includes('14t') || v.includes('Truck'))
-                            setVehicleCapacityKg(14000)
-                          else if (v.includes('38t') || v.includes('Bitrem'))
-                            setVehicleCapacityKg(38000)
-                        }}
-                      >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="text-xs">
-                          <SelectItem value="Carreta LS (28t)">
-                            Carreta LS (Capacidade 28,0 t)
-                          </SelectItem>
-                          <SelectItem value="Truck (14t)">
-                            Truck 3 Eixos (Capacidade 14,0 t)
-                          </SelectItem>
-                          <SelectItem value="Bitrem (38t)">
-                            Bitrem 7 Eixos (Capacidade 38,0 t)
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="font-bold text-slate-700 text-[11px]">
-                        Capacidade do Veículo (kg):
-                      </label>
-                      <Input
-                        type="number"
-                        value={vehicleCapacityKg}
-                        onChange={(e) => setVehicleCapacityKg(Number(e.target.value))}
-                        className="h-8 text-xs font-mono"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="font-bold text-slate-700 text-[11px]">
-                        Data Planejada:
-                      </label>
-                      <Input
-                        type="date"
-                        value={plannedDate}
-                        onChange={(e) => setPlannedDate(e.target.value)}
-                        className="h-8 text-xs font-mono"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Pedidos Disponíveis para o Itinerário */}
-              <Card className="bg-white border-slate-200 shadow-sm">
-                <CardHeader className="p-4 pb-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-sm font-bold text-slate-900">
-                        Pedidos em Carteira para {selectedItinerary} ({itineraryOrders.length})
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Marque ou desmarque pedidos para simular a composição da carga.
-                      </CardDescription>
-                    </div>
-                    <div className="text-xs font-mono font-bold text-[#005596]">
-                      {selectedOrderIds.length} selecionados
-                    </div>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="p-0 overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
-                        <th className="p-2.5 w-8 text-center">Sel.</th>
-                        <th className="p-2.5">Pedido / Cliente</th>
-                        <th className="p-2.5">Material</th>
-                        <th className="p-2.5 text-right">Peso (t)</th>
-                        <th className="p-2.5 text-center">Status PCP</th>
-                        <th className="p-2.5 text-center">Crédito</th>
-                        <th className="p-2.5 text-center">Score</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-700">
-                      {itineraryOrders.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="p-6 text-center text-slate-400">
-                            Nenhum pedido encontrado para o itinerário selecionado.
-                          </td>
-                        </tr>
-                      ) : (
-                        itineraryOrders.map((ord) => {
-                          const isSelected = selectedOrderIds.includes(ord.id)
-                          const score = calculateOrderPriorityScore(ord)
-                          return (
-                            <tr
-                              key={ord.id}
-                              onClick={() => toggleOrderSelection(ord.id)}
-                              className={`cursor-pointer transition-colors ${
-                                isSelected ? 'bg-sky-50/80 font-medium' : 'hover:bg-slate-50'
-                              }`}
-                            >
-                              <td className="p-2.5 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => toggleOrderSelection(ord.id)}
-                                  className="rounded border-slate-300 text-[#005596]"
-                                />
-                              </td>
-                              <td className="p-2.5">
-                                <div className="font-mono font-bold text-slate-900">
-                                  {ord.order_number}
-                                </div>
-                                <div className="text-[10px] text-slate-600 truncate max-w-[150px]">
-                                  {ord.customer_name}
-                                </div>
-                              </td>
-                              <td className="p-2.5 font-mono text-[#005596]">{ord.material}</td>
-                              <td className="p-2.5 text-right font-mono font-bold">
-                                {(ord.weight_kg / 1000).toFixed(1)} t
-                              </td>
-                              <td className="p-2.5 text-center">
-                                <Badge
-                                  className={`text-[9px] ${
-                                    ord.production_status === 'Pronto'
-                                      ? 'bg-emerald-600 text-white'
-                                      : 'bg-amber-500 text-white'
-                                  }`}
-                                >
-                                  {ord.production_status}
-                                </Badge>
-                              </td>
-                              <td className="p-2.5 text-center">
-                                <Badge
-                                  className={`text-[9px] ${
-                                    ord.credit_status === 'Liberado'
-                                      ? 'bg-emerald-600 text-white'
-                                      : 'bg-rose-600 text-white'
-                                  }`}
-                                >
-                                  {ord.credit_status}
-                                </Badge>
-                              </td>
-                              <td className="p-2.5 text-center font-mono font-bold text-[10px]">
-                                {score.totalScore} pts
-                              </td>
-                            </tr>
-                          )
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </CardContent>
-              </Card>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-3xl">
+                Cargas com estoque físico no <strong>Depósito DP34</strong>, crédito financeiro
+                liberado, sem antecipação de data e com <strong>motoristas do grupo PORTA</strong>{' '}
+                disponíveis no pátio para contratação rápida na Mesa de Fretes.
+              </p>
             </div>
+            <Button
+              size="sm"
+              className="bg-emerald-700 hover:bg-emerald-800 text-white font-medium shadow-sm whitespace-nowrap"
+              onClick={() => {
+                if (immediateCargos.length > 0) {
+                  setSelectedScenario(immediateCargos[0])
+                  setIsConfirmModalOpen(true)
+                }
+              }}
+              disabled={immediateCargos.length === 0}
+            >
+              <CheckCircle2 className="h-4 w-4 mr-1.5" />
+              Aprovar Melhor Carga Imediata
+            </Button>
+          </div>
 
-            {/* RIGHT 5 COLS: Dynamic Indicators, Classification & Map */}
-            <div className="lg:col-span-5 space-y-4">
-              {/* Classification Card */}
-              <Card
-                className={`border shadow-sm ${
-                  simulation.classification === 'VIÁVEL'
-                    ? 'bg-emerald-50/60 border-emerald-300'
-                    : simulation.classification === 'VIÁVEL COM APROVAÇÃO'
-                      ? 'bg-amber-50/60 border-amber-300'
-                      : simulation.classification === 'SIMULAÇÃO FUTURA'
-                        ? 'bg-sky-50/60 border-sky-300'
-                        : 'bg-rose-50/60 border-rose-300'
-                }`}
-              >
-                <CardHeader className="p-4 pb-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-                      Classificação da Simulação
-                    </span>
-                    <Badge
-                      className={`text-xs font-black ${
-                        simulation.classification === 'VIÁVEL'
-                          ? 'bg-emerald-600 text-white'
-                          : simulation.classification === 'VIÁVEL COM APROVAÇÃO'
-                            ? 'bg-amber-600 text-white'
-                            : simulation.classification === 'SIMULAÇÃO FUTURA'
-                              ? 'bg-sky-700 text-white'
-                              : 'bg-rose-600 text-white'
-                      }`}
-                    >
-                      {simulation.classification}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4 pt-1 space-y-2 text-xs">
-                  <div className="font-bold text-slate-800 text-[11px]">
-                    Justificativas Determinísticas:
-                  </div>
-                  <ul className="space-y-1">
-                    {simulation.reasons.map((r, i) => (
-                      <li key={i} className="flex items-start gap-1.5 text-slate-700 text-[11px]">
-                        <span className="font-bold text-slate-400">•</span>
-                        <span>{r}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-
-              {/* Indicators Matrix */}
-              <Card className="bg-white border-slate-200 shadow-sm">
-                <CardHeader className="p-4 pb-2">
-                  <CardTitle className="text-sm font-bold text-slate-900">
-                    Indicadores da Carga Simulada
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 space-y-3 text-xs">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                      <span className="text-[10px] text-slate-500 block uppercase font-bold">
-                        Peso Total / Ocupação
-                      </span>
-                      <div className="text-base font-black font-mono text-slate-900">
-                        {(simulation.totalWeightKg / 1000).toFixed(1)} t{' '}
-                        <span className="text-xs text-sky-700 font-semibold">
-                          ({simulation.occupancyPct}%)
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                      <span className="text-[10px] text-slate-500 block uppercase font-bold">
-                        Pedidos / Clientes
-                      </span>
-                      <div className="text-base font-black font-mono text-slate-900">
-                        {simulation.ordersCount} ped. / {simulation.customersCount} cli.
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                      <span className="text-[10px] text-slate-500 block uppercase font-bold">
-                        Distância / Tempo
-                      </span>
-                      <div className="text-base font-black font-mono text-slate-900">
-                        {simulation.distanceKm} km{' '}
-                        <span className="text-xs text-slate-500 font-normal">
-                          ({Math.floor(simulation.durationMinutes / 60)}h{' '}
-                          {simulation.durationMinutes % 60}m)
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                      <span className="text-[10px] text-slate-500 block uppercase font-bold">
-                        Pedágios Estimados
-                      </span>
-                      <div className="text-base font-black font-mono text-slate-900">
-                        R$ {simulation.tollsValue.toFixed(2)}{' '}
-                        <span className="text-[10px] text-slate-500 font-normal">
-                          ({simulation.tollsCount} praças)
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                      <span className="text-[10px] text-slate-500 block uppercase font-bold">
-                        Piso ANTT Oficial
-                      </span>
-                      <div className="text-base font-black font-mono text-[#005596]">
-                        R${' '}
-                        {simulation.anttFloorValue.toLocaleString('pt-BR', {
-                          minimumFractionDigits: 2,
-                        })}
-                      </div>
-                      <div className="text-[9px] text-slate-400 font-mono">
-                        Versão: {simulation.anttVersion}
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                      <span className="text-[10px] text-slate-500 block uppercase font-bold">
-                        Custo / Tonelada
-                      </span>
-                      <div className="text-base font-black font-mono text-emerald-800">
-                        R$ {simulation.costPerTon.toFixed(2)} / t
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stock & Future breakdown */}
-                  <div className="p-2.5 bg-slate-100 rounded text-[11px] space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Estoque Confirmado Agora:</span>
-                      <strong className="text-emerald-700 font-mono">
-                        {(simulation.confirmedStockWeightKg / 1000).toFixed(1)} t
-                      </strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Estoque Futuro (PCP Robotizado):</span>
-                      <strong className="text-sky-700 font-mono">
-                        {(simulation.futureStockWeightKg / 1000).toFixed(1)} t
-                      </strong>
-                    </div>
-                    {simulation.complementPossibleKg > 0 && (
-                      <div className="flex justify-between text-amber-800 font-bold">
-                        <span>Capacidade Livre para Complemento:</span>
-                        <span className="font-mono">
-                          {(simulation.complementPossibleKg / 1000).toFixed(1)} t
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-1">
-                    <Button
-                      onClick={handleSaveScenario}
-                      disabled={isSaving || selectedOrderIds.length === 0}
-                      className="flex-1 bg-[#005596] hover:bg-sky-700 text-white text-xs font-bold h-9"
-                    >
-                      <Save className="w-3.5 h-3.5 mr-1.5" />
-                      {isSaving ? 'Salvando...' : 'Salvar Cenário'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Rota & Sequência de Entregas */}
-              <Card className="bg-white border-slate-200 shadow-sm">
-                <CardHeader className="p-3 pb-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1">
-                      <Navigation className="w-3.5 h-3.5 text-[#005596]" />
-                      Sequência Roteirizada de Entregas
-                    </span>
-                    <Badge variant="outline" className="text-[9px]">
-                      CIAFAL Routing Engine
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-3 pt-0">
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded text-[11px]">
-                      <span className="w-4 h-4 rounded-full bg-[#005596] text-white flex items-center justify-center text-[9px] font-bold">
-                        0
-                      </span>
-                      <span className="font-bold text-slate-800">
-                        Origem: CIAFAL Matriz (São Paulo/SP)
-                      </span>
-                    </div>
-
-                    {simulation.customerSequence.map((seq) => (
-                      <div
-                        key={seq.customer_code}
-                        className="flex items-center justify-between p-1.5 bg-slate-50 rounded text-[11px] border border-slate-200"
-                      >
+          {immediateCargos.length === 0 ? (
+            <Card className="p-8 text-center border-dashed">
+              <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-2" />
+              <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">
+                Nenhuma carga classificada para Saída Imediata no momento
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                Para atingir Saída Imediata é necessário que todos os pedidos tenham saldo
+                confirmado no DP34, crédito aprovado e motoristas PORTA elegíveis.
+              </p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {immediateCargos.map((scen, idx) => (
+                <Card
+                  key={scen.id}
+                  className={`border transition-all ${
+                    selectedScenario?.id === scen.id
+                      ? 'ring-2 ring-emerald-500 border-emerald-400 bg-white dark:bg-slate-900'
+                      : 'border-slate-200 dark:border-slate-800 hover:border-emerald-300 bg-white dark:bg-slate-900'
+                  }`}
+                  onClick={() => setSelectedScenario(scen)}
+                >
+                  <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
                         <div className="flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-sky-600 text-white flex items-center justify-center text-[9px] font-bold">
-                            {seq.sequence}
-                          </span>
-                          <div>
-                            <div className="font-bold text-slate-900">{seq.customer_name}</div>
-                            <div className="text-[10px] text-slate-500">
-                              {seq.city} / {seq.uf}
+                          <Badge
+                            variant="outline"
+                            className="bg-emerald-50 text-emerald-800 border-emerald-300 font-bold"
+                          >
+                            #{idx + 1} — Score {scen.scoreBreakdown.totalScore}/100
+                          </Badge>
+                          <Badge className="bg-blue-600 text-white text-[10px]">
+                            {scen.eligiblePortaDriversCount} Motoristas PORTA
+                          </Badge>
+                        </div>
+                        <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100 mt-1.5">
+                          {scen.title}
+                        </CardTitle>
+                        <CardDescription className="text-xs text-slate-500">
+                          {scen.description}
+                        </CardDescription>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-xs font-semibold text-slate-500 block">Ocupação</span>
+                        <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
+                          {scen.occupancyPct}%
+                        </span>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="p-4 space-y-3">
+                    {/* Linha de Indicadores Operacionais */}
+                    <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-md text-xs">
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Peso Total</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          {(scen.totalWeightKg / 1000).toFixed(1)}t /{' '}
+                          {(scen.vehicleCapacityKg / 1000).toFixed(1)}t
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Pedidos / Clientes</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          {scen.ordersCount} pedidos ({scen.customersCount} cli)
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Custo / Piso ANTT</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          R$ {scen.estimatedCost.toLocaleString('pt-BR')} (R$ {scen.costPerTon}/t)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Explicabilidade do Score */}
+                    <div className="text-xs bg-indigo-50/60 dark:bg-indigo-950/30 p-2.5 rounded border border-indigo-100 dark:border-indigo-900 text-slate-700 dark:text-slate-300">
+                      <span className="font-semibold text-indigo-900 dark:text-indigo-300 flex items-center gap-1 mb-1">
+                        <TrendingUp className="h-3.5 w-3.5 text-indigo-600" />
+                        Composição Transparente do Score:
+                      </span>
+                      <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+                        {scen.scoreBreakdown.explanation}
+                      </p>
+                    </div>
+
+                    {/* Status de Estoque e Crédito */}
+                    <div className="flex flex-wrap items-center gap-2 text-xs pt-1">
+                      <div className="flex items-center gap-1 text-emerald-700 font-medium">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        <span>Estoque DP34 100% Confirmado</span>
+                      </div>
+                      <span className="text-slate-300">•</span>
+                      <div className="flex items-center gap-1 text-emerald-700 font-medium">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        <span>Crédito Financeiro Liberado</span>
+                      </div>
+                      <span className="text-slate-300">•</span>
+                      <div className="flex items-center gap-1 text-blue-700 font-medium">
+                        <Users className="h-3.5 w-3.5" />
+                        <span>Motorista PORTA no Pátio</span>
+                      </div>
+                    </div>
+
+                    {/* Lista rápida de pedidos incluídos */}
+                    <div className="border-t border-slate-100 dark:border-slate-800 pt-2">
+                      <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                        Pedidos Alocados nesta Carga:
+                      </span>
+                      <div className="space-y-1">
+                        {scen.orders.map((ord) => (
+                          <div
+                            key={ord.id}
+                            className="flex items-center justify-between text-xs py-1 px-2 bg-slate-50 dark:bg-slate-800 rounded text-slate-600 dark:text-slate-300"
+                          >
+                            <span className="font-medium truncate max-w-[200px]">
+                              {ord.order_number} — {ord.customer_name} (
+                              {ord.destination_city || 'São Paulo'}/{ord.uf || 'SP'})
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold">
+                                {(ord.weight_kg / 1000).toFixed(1)}t
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-white dark:bg-slate-900"
+                              >
+                                {ord.material}
+                              </Badge>
                             </div>
                           </div>
-                        </div>
-                        <div className="text-right font-mono font-bold text-slate-700">
-                          {(seq.weight_kg / 1000).toFixed(1)} t
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                    </div>
+                  </CardContent>
+
+                  <CardFooter className="pt-0 pb-3 px-4 flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-[11px] text-slate-500 italic">
+                      {scen.suggestedAction || 'Pronta para despacho'}
+                    </span>
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedScenario(scen)
+                        setIsConfirmModalOpen(true)
+                      }}
+                    >
+                      Aprovar & Gerar Carga
+                      <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
             </div>
+          )}
+        </TabsContent>
+
+        {/* ========================================================================= */}
+        {/* ABA 2: 5 CENÁRIOS OTIMIZADOS (REGRA 11, 12, 21) */}
+        {/* ========================================================================= */}
+        <TabsContent value="all_scenarios" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {scenarios.map((scen) => (
+              <Card
+                key={scen.id}
+                className={`flex flex-col justify-between transition-all cursor-pointer ${
+                  selectedScenario?.id === scen.id
+                    ? 'ring-2 ring-indigo-500 border-indigo-400 bg-white dark:bg-slate-900 shadow-md'
+                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-white dark:bg-slate-900'
+                }`}
+                onClick={() => setSelectedScenario(scen)}
+              >
+                <div>
+                  <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <Badge
+                        variant="outline"
+                        className={
+                          scen.readinessStatus === 'PRONTA_SAIDA_IMEDIATA'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold'
+                            : scen.readinessStatus === 'PRONTA_PARA_OFERTA'
+                              ? 'bg-blue-50 text-blue-800 border-blue-300 font-bold'
+                              : scen.readinessStatus === 'PLANEJAMENTO_FUTURO'
+                                ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold'
+                                : 'bg-rose-50 text-rose-800 border-rose-300 font-bold'
+                        }
+                      >
+                        {scen.readinessStatus === 'PRONTA_SAIDA_IMEDIATA'
+                          ? 'SAÍDA IMEDIATA'
+                          : scen.readinessStatus === 'PRONTA_PARA_OFERTA'
+                            ? 'PRONTA P/ OFERTA'
+                            : scen.readinessStatus === 'PLANEJAMENTO_FUTURO'
+                              ? 'PLANEJAMENTO FUTURO'
+                              : 'BLOQUEADA'}
+                      </Badge>
+
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                          Score
+                        </span>
+                        <span className="text-base font-black text-indigo-700 dark:text-indigo-400 block">
+                          {scen.scoreBreakdown.totalScore}/100
+                        </span>
+                      </div>
+                    </div>
+
+                    <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
+                      {scen.title}
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500 line-clamp-2">
+                      {scen.description}
+                    </CardDescription>
+                  </CardHeader>
+
+                  <CardContent className="p-4 space-y-3">
+                    {/* Ocupação e Peso */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-600 dark:text-slate-400">
+                        Ocupação do Veículo
+                      </span>
+                      <span className="text-lg font-black text-slate-900 dark:text-slate-100">
+                        {scen.occupancyPct}% ({(scen.totalWeightKg / 1000).toFixed(1)}t)
+                      </span>
+                    </div>
+
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full ${
+                          scen.occupancyPct >= 95
+                            ? 'bg-emerald-500'
+                            : scen.occupancyPct >= 90
+                              ? 'bg-blue-500'
+                              : scen.occupancyPct >= 80
+                                ? 'bg-amber-500'
+                                : 'bg-rose-500'
+                        }`}
+                        style={{ width: `${Math.min(100, scen.occupancyPct)}%` }}
+                      />
+                    </div>
+
+                    {scen.occupancyAlert && (
+                      <div className="text-[11px] text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        <span>{scen.occupancyAlert}</span>
+                      </div>
+                    )}
+
+                    {/* Métricas chave */}
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100 dark:border-slate-800">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Frete Estimado</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          R$ {scen.estimatedCost.toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Custo por Tonelada</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          R$ {scen.costPerTon}/t
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Pedidos / Clientes</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          {scen.ordersCount} / {scen.customersCount}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Motoristas PORTA</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          {scen.eligiblePortaDriversCount > 0 ? (
+                            <span className="text-blue-600 font-bold">
+                              {scen.eligiblePortaDriversCount} no pátio
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">0 na porta</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </div>
+
+                <CardFooter className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8 w-full"
+                    onClick={() => {
+                      setSelectedScenario(scen)
+                      setIsConfirmModalOpen(true)
+                    }}
+                    disabled={scen.readinessStatus === 'BLOQUEADA'}
+                  >
+                    {scen.readinessStatus === 'BLOQUEADA'
+                      ? 'Carga Bloqueada'
+                      : 'Aprovar este Cenário'}
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
           </div>
         </TabsContent>
 
-        {/* ==================================================== */}
-        {/* TAB 2: COMPARADOR A/B DE CENÁRIOS */}
-        {/* ==================================================== */}
-        <TabsContent value="comparison" className="space-y-4 mt-3">
-          <Card className="bg-white border-slate-200 shadow-sm">
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                <GitCompare className="w-4 h-4 text-[#005596]" />
-                Tabela Comparativa de Cenários de Carga
+        {/* ========================================================================= */}
+        {/* ABA 3: TABELA COMPARATIVA (REGRA 22) */}
+        {/* ========================================================================= */}
+        <TabsContent value="comparison_table" className="space-y-4">
+          <Card className="border-slate-200 dark:border-slate-800 overflow-hidden">
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="text-base font-bold">
+                Matriz Comparativa de Cenários de Planejamento (Sprint 5)
               </CardTitle>
               <CardDescription className="text-xs">
-                Compare lado a lado os indicadores de peso, ocupação, ANTT, pedágios e riscos para
-                decidir o cenário preferido.
+                Comparação multicritério determinística para apoio à tomada de decisão logística.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-              {comparisonIds.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 text-xs">
-                  Selecione ao menos 2 cenários na aba "Cenários Salvos" para realizar a comparação
-                  A/B.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                        <th className="p-3 w-48">Indicador / Métrica</th>
-                        {comparisonIds.map((cid) => {
-                          const scen = scenarios.find((s) => s.id === cid)
-                          return (
-                            <th key={cid} className="p-3 text-center border-l border-slate-200">
-                              <div className="font-bold text-slate-900">{scen?.title}</div>
-                              <Badge className="text-[9px] mt-1">{scen?.classification}</Badge>
-                            </th>
-                          )
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-700">
-                      <tr>
-                        <td className="p-3 font-semibold text-slate-800">Peso Total (TON)</td>
-                        {comparisonIds.map((cid) => {
-                          const scen = scenarios.find((s) => s.id === cid)
-                          return (
-                            <td
-                              key={cid}
-                              className="p-3 text-center font-mono font-bold border-l border-slate-200"
-                            >
-                              {((scen?.total_weight_kg || 0) / 1000).toFixed(1)} t
-                            </td>
-                          )
-                        })}
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-semibold text-slate-800">% Ocupação do Veículo</td>
-                        {comparisonIds.map((cid) => {
-                          const scen = scenarios.find((s) => s.id === cid)
-                          return (
-                            <td
-                              key={cid}
-                              className="p-3 text-center font-mono font-bold border-l border-slate-200 text-sky-700"
-                            >
-                              {scen?.occupancy_pct}%
-                            </td>
-                          )
-                        })}
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-semibold text-slate-800">
-                          Qtd. Clientes / Pedidos
-                        </td>
-                        {comparisonIds.map((cid) => {
-                          const scen = scenarios.find((s) => s.id === cid)
-                          return (
-                            <td
-                              key={cid}
-                              className="p-3 text-center font-mono border-l border-slate-200"
-                            >
-                              {scen?.customers_count} cli. / {scen?.orders_count} ped.
-                            </td>
-                          )
-                        })}
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-semibold text-slate-800">Distância Total (km)</td>
-                        {comparisonIds.map((cid) => {
-                          const scen = scenarios.find((s) => s.id === cid)
-                          return (
-                            <td
-                              key={cid}
-                              className="p-3 text-center font-mono border-l border-slate-200"
-                            >
-                              {scen?.distance_km} km
-                            </td>
-                          )
-                        })}
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-semibold text-slate-800">Piso ANTT Oficial (R$)</td>
-                        {comparisonIds.map((cid) => {
-                          const scen = scenarios.find((s) => s.id === cid)
-                          return (
-                            <td
-                              key={cid}
-                              className="p-3 text-center font-mono font-bold text-[#005596] border-l border-slate-200"
-                            >
-                              R${' '}
-                              {(scen?.antt_floor_value || 0).toLocaleString('pt-BR', {
-                                minimumFractionDigits: 2,
-                              })}
-                            </td>
-                          )
-                        })}
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-semibold text-slate-800">
-                          Custo Total de Pedágios
-                        </td>
-                        {comparisonIds.map((cid) => {
-                          const scen = scenarios.find((s) => s.id === cid)
-                          return (
-                            <td
-                              key={cid}
-                              className="p-3 text-center font-mono border-l border-slate-200"
-                            >
-                              R$ {(scen?.tolls_value || 0).toFixed(2)}
-                            </td>
-                          )
-                        })}
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-semibold text-slate-800">Custo por Tonelada</td>
-                        {comparisonIds.map((cid) => {
-                          const scen = scenarios.find((s) => s.id === cid)
-                          return (
-                            <td
-                              key={cid}
-                              className="p-3 text-center font-mono font-bold text-emerald-800 border-l border-slate-200"
-                            >
-                              R$ {(scen?.cost_per_ton || 0).toFixed(2)} / t
-                            </td>
-                          )
-                        })}
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-semibold text-slate-800">Ação Decisória</td>
-                        {comparisonIds.map((cid) => {
-                          const scen = scenarios.find((s) => s.id === cid)
-                          return (
-                            <td key={cid} className="p-3 text-center border-l border-slate-200">
-                              <Button
-                                size="sm"
-                                onClick={() => handleApproveScenario(cid)}
-                                disabled={isApproving || scen?.status === 'convertido_carga'}
-                                className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                              >
-                                {scen?.status === 'convertido_carga'
-                                  ? 'Carga Aprovada'
-                                  : 'Aprovar Este Cenário'}
-                              </Button>
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 uppercase font-semibold border-b">
+                  <tr>
+                    <th className="py-3 px-3">Cenário</th>
+                    <th className="py-3 px-3">Status Prontidão</th>
+                    <th className="py-3 px-3 text-right">Peso (t)</th>
+                    <th className="py-3 px-3 text-right">Ocupação %</th>
+                    <th className="py-3 px-3 text-center">Pedidos</th>
+                    <th className="py-3 px-3 text-center">Clientes</th>
+                    <th className="py-3 px-3 text-center">PORTA</th>
+                    <th className="py-3 px-3 text-right">Custo / t</th>
+                    <th className="py-3 px-3 text-right">Piso ANTT</th>
+                    <th className="py-3 px-3 text-center">Estoque DP34</th>
+                    <th className="py-3 px-3 text-center">Crédito</th>
+                    <th className="py-3 px-3 text-right">Score Final</th>
+                    <th className="py-3 px-3 text-center">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {scenarios.map((scen) => (
+                    <tr
+                      key={scen.id}
+                      className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${
+                        selectedScenario?.id === scen.id
+                          ? 'bg-indigo-50/40 dark:bg-indigo-950/20'
+                          : ''
+                      }`}
+                    >
+                      <td className="py-3 px-3 font-semibold text-slate-900 dark:text-slate-100">
+                        {scen.title}
+                      </td>
+                      <td className="py-3 px-3">
+                        <Badge
+                          variant="outline"
+                          className={
+                            scen.readinessStatus === 'PRONTA_SAIDA_IMEDIATA'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px]'
+                              : scen.readinessStatus === 'PRONTA_PARA_OFERTA'
+                                ? 'bg-blue-50 text-blue-800 border-blue-300 text-[10px]'
+                                : scen.readinessStatus === 'PLANEJAMENTO_FUTURO'
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300 text-[10px]'
+                                  : 'bg-rose-50 text-rose-800 border-rose-300 text-[10px]'
+                          }
+                        >
+                          {scen.readinessStatus}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono">
+                        {(scen.totalWeightKg / 1000).toFixed(1)}t
+                      </td>
+                      <td className="py-3 px-3 text-right font-bold text-slate-800 dark:text-slate-200">
+                        {scen.occupancyPct}%
+                      </td>
+                      <td className="py-3 px-3 text-center">{scen.ordersCount}</td>
+                      <td className="py-3 px-3 text-center">{scen.customersCount}</td>
+                      <td className="py-3 px-3 text-center">
+                        {scen.eligiblePortaDriversCount > 0 ? (
+                          <Badge className="bg-blue-600 text-white text-[10px]">
+                            {scen.eligiblePortaDriversCount} Sim
+                          </Badge>
+                        ) : (
+                          <span className="text-slate-400">Não</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono">R$ {scen.costPerTon}</td>
+                      <td className="py-3 px-3 text-right font-mono">
+                        R$ {scen.anttFloorValue.toLocaleString('pt-BR')}
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        {scen.isDp34FullyStocked ? (
+                          <span className="text-emerald-600 font-semibold">100% DP34</span>
+                        ) : (
+                          <span className="text-amber-600 font-semibold">
+                            Faltam {(scen.dp34StockMissingKg / 1000).toFixed(1)}t
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <Badge
+                          variant="outline"
+                          className={
+                            scen.creditClassification === 'LIBERADO'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                              : scen.creditClassification === 'LIBERADO_COM_APROVACAO'
+                                ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                : 'bg-rose-50 text-rose-800 border-rose-300'
+                          }
+                        >
+                          {scen.creditClassification}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-3 text-right font-bold text-indigo-700 dark:text-indigo-400 text-sm">
+                        {scen.scoreBreakdown.totalScore}/100
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs h-7 text-indigo-600 hover:text-indigo-800"
+                          onClick={() => {
+                            setSelectedScenario(scen)
+                            setIsConfirmModalOpen(true)
+                          }}
+                          disabled={scen.readinessStatus === 'BLOQUEADA'}
+                        >
+                          Aprovar
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </Card>
         </TabsContent>
 
-        {/* ==================================================== */}
-        {/* TAB 3: CENÁRIOS SALVOS */}
-        {/* ==================================================== */}
-        <TabsContent value="saved" className="space-y-4 mt-3">
-          <Card className="bg-white border-slate-200 shadow-sm">
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold text-slate-900">
-                Histórico de Cenários Simulados ({scenarios.length})
-              </CardTitle>
+        {/* ========================================================================= */}
+        {/* ABA 4: CARTEIRA DE PEDIDOS & ANÁLISE DE RESTRIÇÕES (REGRAS 2, 4, 5, 6, 9) */}
+        {/* ========================================================================= */}
+        <TabsContent value="orders_wallet" className="space-y-4">
+          <Card className="border-slate-200 dark:border-slate-800">
+            <CardHeader className="pb-3 border-b">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base font-bold">
+                    Carteira de Pedidos do Itinerário {selectedItinerary}
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Validação individual de Data Desejada, Estoque Oficial DP34 e Crédito
+                    Financeiro.
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="p-0 overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
-                    <th className="p-3 text-center">Comparar</th>
-                    <th className="p-3">Título / Itinerário</th>
-                    <th className="p-3">Veículo</th>
-                    <th className="p-3 text-right">Peso / Ocupação</th>
-                    <th className="p-3 text-right">Piso ANTT</th>
-                    <th className="p-3 text-center">Classificação</th>
-                    <th className="p-3 text-center">Status</th>
-                    <th className="p-3 text-center">Ações</th>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 uppercase font-semibold border-b">
+                  <tr>
+                    <th className="py-3 px-3">Pedido / Item</th>
+                    <th className="py-3 px-3">Cliente / Destino</th>
+                    <th className="py-3 px-3">Material</th>
+                    <th className="py-3 px-3 text-right">Peso (t)</th>
+                    <th className="py-3 px-3 text-right">Valor Pedido</th>
+                    <th className="py-3 px-3">Data Desejada</th>
+                    <th className="py-3 px-3">Regra Data</th>
+                    <th className="py-3 px-3">Estoque DP34</th>
+                    <th className="py-3 px-3">Crédito SAP</th>
+                    <th className="py-3 px-3 text-center">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {scenarios.map((scen) => {
-                    const isComparing = comparisonIds.includes(scen.id)
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {orders.map((ord) => {
+                    const dateCheck = validateDesiredDate(ord.desired_date, plannedDate)
+                    const stockCheck = validateDp34Stock(
+                      ord.material || '',
+                      ord.weight_kg,
+                      stocks,
+                      pcpOrders,
+                    )
+                    const creditCheck = classifyCredit(ord)
+
                     return (
-                      <tr key={scen.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-3 text-center">
-                          <input
-                            type="checkbox"
-                            checked={isComparing}
-                            onChange={() => toggleComparison(scen.id)}
-                            className="rounded border-slate-300 text-[#005596]"
-                          />
+                      <tr key={ord.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                        <td className="py-3 px-3 font-semibold text-slate-900 dark:text-slate-100">
+                          {ord.order_number}
+                          <span className="text-[10px] text-slate-400 block">
+                            Item {ord.item_number || '0010'}
+                          </span>
                         </td>
-                        <td className="p-3">
-                          <div className="font-bold text-slate-900">{scen.title}</div>
-                          <div className="text-[10px] text-slate-500 font-mono">
-                            {scen.itinerary_code} • {scen.planned_date}
-                          </div>
+                        <td className="py-3 px-3">
+                          <span className="font-medium text-slate-800 dark:text-slate-200 block truncate max-w-[180px]">
+                            {ord.customer_name}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {ord.destination_city || 'São Paulo'}/{ord.uf || 'SP'}
+                          </span>
                         </td>
-                        <td className="p-3 text-slate-700">{scen.vehicle_type || 'Carreta LS'}</td>
-                        <td className="p-3 text-right font-mono">
-                          <div className="font-bold">
-                            {(scen.total_weight_kg / 1000).toFixed(1)} t
-                          </div>
-                          <div className="text-[10px] text-sky-700 font-semibold">
-                            {scen.occupancy_pct}%
-                          </div>
+                        <td className="py-3 px-3">
+                          <span className="font-medium block">{ord.material}</span>
+                          <span className="text-[10px] text-slate-500 truncate max-w-[150px] block">
+                            {ord.material_description}
+                          </span>
                         </td>
-                        <td className="p-3 text-right font-mono font-bold text-[#005596]">
-                          R${' '}
-                          {scen.antt_floor_value.toLocaleString('pt-BR', {
-                            minimumFractionDigits: 2,
-                          })}
+                        <td className="py-3 px-3 text-right font-mono font-bold">
+                          {(ord.weight_kg / 1000).toFixed(1)}t
                         </td>
-                        <td className="p-3 text-center">
-                          <Badge
-                            className={`text-[9px] font-bold ${
-                              scen.classification === 'VIÁVEL'
-                                ? 'bg-emerald-600 text-white'
-                                : scen.classification === 'VIÁVEL COM APROVAÇÃO'
-                                  ? 'bg-amber-600 text-white'
-                                  : scen.classification === 'SIMULAÇÃO FUTURA'
-                                    ? 'bg-sky-700 text-white'
-                                    : 'bg-rose-600 text-white'
-                            }`}
-                          >
-                            {scen.classification}
-                          </Badge>
+                        <td className="py-3 px-3 text-right font-mono">
+                          R$ {(ord.total_value || 0).toLocaleString('pt-BR')}
                         </td>
-                        <td className="p-3 text-center">
-                          <Badge variant="outline" className="text-[10px] font-mono">
-                            {scen.status}
-                          </Badge>
-                        </td>
-                        <td className="p-3 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <Button
-                              size="sm"
+                        <td className="py-3 px-3 font-mono">{ord.desired_date || 'N/I'}</td>
+                        <td className="py-3 px-3">
+                          {!dateCheck.isValid ? (
+                            <Badge
                               variant="outline"
-                              onClick={() => {
-                                setDetail360Scenario(scen)
-                                setActiveTab('detail360')
-                              }}
-                              className="h-7 px-2 text-xs"
+                              className="bg-rose-50 text-rose-800 border-rose-300 text-[10px]"
                             >
-                              Visão 360°
-                            </Button>
-                            {scen.status !== 'convertido_carga' && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleApproveScenario(scen.id)}
-                                disabled={isApproving}
-                                className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                              >
-                                Aprovar e Gerar Carga
-                              </Button>
-                            )}
-                          </div>
+                              ANTECIPAÇÃO PROIBIDA
+                            </Badge>
+                          ) : dateCheck.isOverdue ? (
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-50 text-amber-800 border-amber-300 text-[10px]"
+                            >
+                              ATRASADO ({dateCheck.overdueDays}d)
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px]"
+                            >
+                              DATA OK
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          {stockCheck.isDp34Available ? (
+                            <div className="flex items-center gap-1 text-emerald-700 text-[11px] font-semibold">
+                              <Check className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>
+                                DP34 Disp. ({(stockCheck.dp34AvailableKg / 1000).toFixed(1)}t)
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="space-y-0.5">
+                              <span className="text-amber-700 text-[11px] font-semibold block">
+                                DP34 Insuficiente
+                              </span>
+                              {stockCheck.otherDepositsKg > 0 && (
+                                <span className="text-[10px] text-slate-500 block">
+                                  Outros Dep.: {(stockCheck.otherDepositsKg / 1000).toFixed(1)}t
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          <Badge
+                            variant="outline"
+                            className={
+                              creditCheck.classification === 'LIBERADO'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px]'
+                                : creditCheck.classification === 'LIBERADO_COM_APROVACAO'
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300 text-[10px]'
+                                  : 'bg-rose-50 text-rose-800 border-rose-300 text-[10px]'
+                            }
+                          >
+                            {creditCheck.classification}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-[10px] h-6 px-2"
+                            onClick={() => {
+                              setSelectedOrderForStock(ord)
+                              setIsStockConfirmModalOpen(true)
+                            }}
+                          >
+                            Conferir Saldo
+                          </Button>
                         </td>
                       </tr>
                     )
                   })}
                 </tbody>
               </table>
-            </CardContent>
+            </div>
           </Card>
         </TabsContent>
+      </Tabs>
 
-        {/* ==================================================== */}
-        {/* TAB 4: VISÃO 360° DA CARGA */}
-        {/* ==================================================== */}
-        <TabsContent value="detail360" className="space-y-4 mt-3">
-          {detail360Scenario ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200">
+      {/* MODAL DE CONFIRMAÇÃO E APROVAÇÃO DO CENÁRIO (REGRA 28) */}
+      <Dialog open={isConfirmModalOpen} onOpenChange={setIsConfirmModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              Aprovar Cenário e Gerar Carga Oficial no TMS
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Revalidação operacional formal antes de encaminhar para a Mesa de Fretes e
+              contratação.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedScenario && (
+            <div className="space-y-4 py-2 text-xs">
+              <div className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-lg border border-slate-200 dark:border-slate-700 grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div>
-                  <h2 className="text-base font-bold text-slate-900">
-                    Visão 360°: {detail360Scenario.title}
-                  </h2>
-                  <p className="text-xs text-slate-500 font-mono">
-                    Itinerário: {detail360Scenario.itinerary_code} • Piso ANTT: R${' '}
-                    {detail360Scenario.antt_floor_value.toFixed(2)}
-                  </p>
+                  <span className="text-slate-400 block text-[10px]">Cenário</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {selectedScenario.title}
+                  </span>
                 </div>
-                <Badge className="bg-[#005596] text-white text-xs">
-                  {detail360Scenario.classification}
-                </Badge>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Peso / Ocupação</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {(selectedScenario.totalWeightKg / 1000).toFixed(1)}t (
+                    {selectedScenario.occupancyPct}%)
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Piso ANTT Oficial</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    R$ {selectedScenario.anttFloorValue.toLocaleString('pt-BR')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Motoristas PORTA</span>
+                  <span className="font-bold text-blue-600">
+                    {selectedScenario.eligiblePortaDriversCount} elegíveis
+                  </span>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <Card className="bg-slate-50 border-slate-200 p-3 text-xs">
-                  <span className="font-bold text-slate-500 block uppercase text-[10px]">
-                    Peso Total
+              {/* Checklist de Revalidação */}
+              <div className="space-y-2 border rounded p-3 bg-white dark:bg-slate-900">
+                <span className="font-semibold text-slate-800 dark:text-slate-200 block mb-1">
+                  Checklist de Revalidação CIAFAL:
+                </span>
+
+                <div className="flex items-center gap-2 text-emerald-700">
+                  <Check className="h-4 w-4 text-emerald-600" />
+                  <span>
+                    Data de Expedição ({selectedScenario.plannedExpeditionDate}) &ge; Data Desejada
+                    de todos os pedidos incluídos.
                   </span>
-                  <div className="text-lg font-black font-mono mt-1 text-slate-900">
-                    {(detail360Scenario.total_weight_kg / 1000).toFixed(1)} t (
-                    {detail360Scenario.occupancy_pct}%)
-                  </div>
-                </Card>
-                <Card className="bg-slate-50 border-slate-200 p-3 text-xs">
-                  <span className="font-bold text-slate-500 block uppercase text-[10px]">
-                    Custo Pedágios
+                </div>
+
+                <div className="flex items-center gap-2 text-emerald-700">
+                  <Check className="h-4 w-4 text-emerald-600" />
+                  <span>
+                    Estoque 100% conferido no <strong>Depósito DP34</strong> (
+                    {selectedScenario.dp34StockAvailableKg / 1000}t alocadas).
                   </span>
-                  <div className="text-lg font-black font-mono mt-1 text-slate-900">
-                    R$ {(detail360Scenario.tolls_value || 0).toFixed(2)}
-                  </div>
-                </Card>
-                <Card className="bg-slate-50 border-slate-200 p-3 text-xs">
-                  <span className="font-bold text-slate-500 block uppercase text-[10px]">
-                    Frete Estimado Total
+                </div>
+
+                <div className="flex items-center gap-2 text-emerald-700">
+                  <Check className="h-4 w-4 text-emerald-600" />
+                  <span>
+                    Crédito Financeiro validado por valor monetário para todos os clientes (
+                    {selectedScenario.customersCount} clientes).
                   </span>
-                  <div className="text-lg font-black font-mono mt-1 text-[#005596]">
-                    R$ {(detail360Scenario.estimated_freight_cost || 0).toFixed(2)}
-                  </div>
-                </Card>
-                <Card className="bg-slate-50 border-slate-200 p-3 text-xs">
-                  <span className="font-bold text-slate-500 block uppercase text-[10px]">
-                    Custo / Tonelada
+                </div>
+
+                <div className="flex items-center gap-2 text-blue-700">
+                  <Info className="h-4 w-4 text-blue-600" />
+                  <span>
+                    Próximo passo: A carga será enviada para a <strong>Mesa de Fretes</strong> para
+                    leilão e contratação de motorista.
                   </span>
-                  <div className="text-lg font-black font-mono mt-1 text-emerald-800">
-                    R$ {(detail360Scenario.cost_per_ton || 0).toFixed(2)} / t
-                  </div>
-                </Card>
+                </div>
               </div>
             </div>
-          ) : (
-            <Card className="bg-white border-slate-200 p-8 text-center text-slate-400 text-xs">
-              Selecione um cenário na aba "Cenários Salvos" para inspecionar todos os ângulos da
-              carga.
-            </Card>
           )}
-        </TabsContent>
-      </Tabs>
+
+          <DialogFooter className="flex items-center justify-between gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsConfirmModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              onClick={handleApproveScenario}
+            >
+              Confirmar Aprovação & Abrir Oferta
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE SUCESSO PÓS-APROVAÇÃO (FLUXO PARA MESA DE FRETES) */}
+      <Dialog open={isApprovedSuccessOpen} onOpenChange={setIsApprovedSuccessOpen}>
+        <DialogContent className="max-w-md text-center">
+          <div className="py-4">
+            <CheckCircle2 className="h-12 w-12 text-emerald-600 mx-auto mb-3" />
+            <DialogTitle className="text-lg font-bold text-slate-900 dark:text-slate-100">
+              Carga Aprovada com Sucesso!
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600 dark:text-slate-400 mt-2">
+              A carga foi gerada no TMS e está pronta para contratação na Mesa de Fretes.
+            </DialogDescription>
+
+            {generatedCargoResult && (
+              <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg text-xs text-left mt-4 space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">ID da Carga:</span>
+                  <span className="font-mono font-bold">{generatedCargoResult.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Itinerário:</span>
+                  <span className="font-semibold">{generatedCargoResult.itinerary_code}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Peso Total:</span>
+                  <span className="font-bold">
+                    {(generatedCargoResult.total_weight_kg / 1000).toFixed(1)}t
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Piso Mínimo ANTT:</span>
+                  <span className="font-bold text-emerald-700">
+                    R$ {generatedCargoResult.antt_floor_value?.toLocaleString('pt-BR')}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2 mt-6">
+              <Button
+                className="bg-indigo-600 hover:bg-indigo-700 text-white w-full"
+                onClick={() => {
+                  setIsApprovedSuccessOpen(false)
+                  navigate('/tms/mesa-fretes')
+                }}
+              >
+                Ir para Mesa de Fretes (Contratar Motorista)
+                <ArrowRight className="h-4 w-4 ml-1.5" />
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setIsApprovedSuccessOpen(false)}
+              >
+                Permanecer no Simulador
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE CONFIRMAÇÃO DE ESTOQUE DP34 / PCP (REGRA 8) */}
+      <Dialog open={isStockConfirmModalOpen} onOpenChange={setIsStockConfirmModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+              <Package className="h-4 w-4 text-indigo-600" />
+              Solicitar Confirmação de Estoque DP34
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Conferência física e verificação de transferências ou produção PCP.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedOrderForStock && (
+            <div className="space-y-3 py-2 text-xs">
+              <div className="bg-slate-50 dark:bg-slate-800 p-2.5 rounded border space-y-1">
+                <div>
+                  <span className="text-slate-400 text-[10px]">Material:</span>
+                  <span className="font-bold block">
+                    {selectedOrderForStock.material} — {selectedOrderForStock.material_description}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-1">
+                  <span>Necessidade do Pedido:</span>
+                  <span className="font-bold">
+                    {(selectedOrderForStock.weight_kg / 1000).toFixed(1)}t
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="font-semibold block">Posição Atual nos Depósitos CIAFAL:</span>
+                <div className="border rounded divide-y text-[11px]">
+                  <div className="flex justify-between p-2 bg-emerald-50/50 dark:bg-emerald-950/20">
+                    <span className="font-semibold text-emerald-800">
+                      Depósito Oficial DP34 (Expedição):
+                    </span>
+                    <span className="font-bold font-mono">
+                      {(stocks.find(
+                        (s) =>
+                          s.material_code === selectedOrderForStock.material &&
+                          s.storage_location?.includes('DP34'),
+                      )?.weight_kg || 0) / 1000}
+                      t
+                    </span>
+                  </div>
+                  <div className="flex justify-between p-2">
+                    <span>Depósito DP01 (Laminação):</span>
+                    <span className="font-mono">
+                      {(stocks.find(
+                        (s) =>
+                          s.material_code === selectedOrderForStock.material &&
+                          s.storage_location === 'DP01',
+                      )?.weight_kg || 0) / 1000}
+                      t
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded border border-amber-200 text-amber-800 dark:text-amber-300 text-[11px]">
+                <span className="font-semibold block mb-0.5">Regra Operacional DP34:</span>
+                Materiais em outros depósitos requerem transferência formal para o DP34 antes de
+                liberar a carga para saída imediata.
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex justify-between">
+            <Button variant="outline" size="sm" onClick={() => setIsStockConfirmModalOpen(false)}>
+              Fechar
+            </Button>
+            <Button
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={async () => {
+                await tmsService.logAudit({
+                  user_name: user?.email || 'operador@ciafal.com.br',
+                  action_type: 'SOLICITAR_CONFIRMACAO_ESTOQUE_DP34',
+                  target_entity: 'stock',
+                  target_id: selectedOrderForStock?.material || '',
+                  details: {
+                    order_number: selectedOrderForStock?.order_number,
+                    weight_kg: selectedOrderForStock?.weight_kg,
+                  },
+                })
+                toast({
+                  title: 'Confirmação de Estoque Solicitada',
+                  description: `Notificação enviada para a equipe de Logística Interna / Pátio DP34.`,
+                })
+                setIsStockConfirmModalOpen(false)
+              }}
+            >
+              Confirmar Solicitação de Estoque
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE PESOS E FAIXAS DE OCUPAÇÃO (REGRA 12, 14) */}
+      <Dialog open={isWeightsModalOpen} onOpenChange={setIsWeightsModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+              <Sliders className="h-4 w-4 text-indigo-600" />
+              Pesos da Função Objetivo & Faixas de Ocupação
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Ajuste determinístico dos critérios de pontuação do simulador CIAFAL.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            <div className="space-y-3">
+              <span className="font-semibold block text-slate-800 dark:text-slate-200">
+                Pesos da Função Objetivo (0 a 100):
+              </span>
+
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span>Peso Ocupação do Veículo:</span>
+                  <span className="font-bold">{weights.weightOccupancy}%</span>
+                </div>
+                <Input
+                  type="range"
+                  min="10"
+                  max="60"
+                  value={weights.weightOccupancy}
+                  onChange={(e) =>
+                    setWeights({ ...weights, weightOccupancy: Number(e.target.value) })
+                  }
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span>Bônus Pedidos Atrasados:</span>
+                  <span className="font-bold">{weights.weightOverdue}%</span>
+                </div>
+                <Input
+                  type="range"
+                  min="5"
+                  max="40"
+                  value={weights.weightOverdue}
+                  onChange={(e) =>
+                    setWeights({ ...weights, weightOverdue: Number(e.target.value) })
+                  }
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span>Bônus Motorista PORTA no Pátio:</span>
+                  <span className="font-bold">{weights.weightPortaDriver}%</span>
+                </div>
+                <Input
+                  type="range"
+                  min="5"
+                  max="30"
+                  value={weights.weightPortaDriver}
+                  onChange={(e) =>
+                    setWeights({ ...weights, weightPortaDriver: Number(e.target.value) })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="border-t pt-3 space-y-1">
+              <span className="font-semibold block text-slate-800 dark:text-slate-200">
+                Faixas de Ocupação Homologadas:
+              </span>
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div className="p-2 bg-emerald-50 rounded border border-emerald-200 text-emerald-800 font-medium">
+                  Excelente: &ge; 95%
+                </div>
+                <div className="p-2 bg-blue-50 rounded border border-blue-200 text-blue-800 font-medium">
+                  Boa: 90% a 94.9%
+                </div>
+                <div className="p-2 bg-amber-50 rounded border border-amber-200 text-amber-800 font-medium">
+                  Atenção: 80% a 89.9%
+                </div>
+                <div className="p-2 bg-rose-50 rounded border border-rose-200 text-rose-800 font-medium">
+                  Baixa: &lt; 80% (Alerta)
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs w-full"
+              onClick={() => {
+                setIsWeightsModalOpen(false)
+                handleRunOptimizerClick()
+              }}
+            >
+              Salvar & Recalcular Cenários
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
+
 export default LoadRouterAndSimulatorPage

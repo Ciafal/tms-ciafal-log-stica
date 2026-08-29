@@ -860,6 +860,11 @@ export interface Permissions {
   canRespondComplement: boolean // complemento.responder
   canAdminAntt: boolean // antt.administrar
   canAdminRoutingProviders: boolean // rotas.administrar_provider
+  // Sprint 5 Permissions
+  canViewPrinters: boolean // printer.view
+  canManagePrinters: boolean // printer.manage
+  canPrintTransport: boolean // transport.print
+  canReprintTransport: boolean // transport.reprint
 }
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
@@ -886,6 +891,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canRespondComplement: true,
     canAdminAntt: true,
     canAdminRoutingProviders: true,
+    canViewPrinters: true,
+    canManagePrinters: true,
+    canPrintTransport: true,
+    canReprintTransport: true,
   },
   admin_tms: {
     canViewQueue: true,
@@ -910,6 +919,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canRespondComplement: true,
     canAdminAntt: true,
     canAdminRoutingProviders: true,
+    canViewPrinters: true,
+    canManagePrinters: true,
+    canPrintTransport: true,
+    canReprintTransport: true,
   },
   gestor_logistica: {
     canViewQueue: true,
@@ -934,6 +947,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canRespondComplement: false,
     canAdminAntt: true,
     canAdminRoutingProviders: true,
+    canViewPrinters: true,
+    canManagePrinters: true,
+    canPrintTransport: true,
+    canReprintTransport: true,
   },
   gerente_carga: {
     canViewQueue: true,
@@ -958,6 +975,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canRespondComplement: false,
     canAdminAntt: false,
     canAdminRoutingProviders: false,
+    canViewPrinters: true,
+    canManagePrinters: false,
+    canPrintTransport: true,
+    canReprintTransport: true,
   },
   operador_logistica: {
     canViewQueue: true,
@@ -982,6 +1003,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canRespondComplement: false,
     canAdminAntt: false,
     canAdminRoutingProviders: false,
+    canViewPrinters: true,
+    canManagePrinters: false,
+    canPrintTransport: true,
+    canReprintTransport: false,
   },
   portaria: {
     canViewQueue: true,
@@ -1006,6 +1031,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canRespondComplement: false,
     canAdminAntt: false,
     canAdminRoutingProviders: false,
+    canViewPrinters: true,
+    canManagePrinters: false,
+    canPrintTransport: true,
+    canReprintTransport: false,
   },
   financeiro: {
     canViewQueue: true,
@@ -1030,6 +1059,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canRespondComplement: false,
     canAdminAntt: false,
     canAdminRoutingProviders: false,
+    canViewPrinters: false,
+    canManagePrinters: false,
+    canPrintTransport: false,
+    canReprintTransport: false,
   },
   comercial: {
     canViewQueue: true,
@@ -1054,6 +1087,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canRespondComplement: true, // Comercial responde oportunidade de complemento
     canAdminAntt: false,
     canAdminRoutingProviders: false,
+    canViewPrinters: false,
+    canManagePrinters: false,
+    canPrintTransport: false,
+    canReprintTransport: false,
   },
   auditor: {
     canViewQueue: true,
@@ -1078,6 +1115,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canRespondComplement: false,
     canAdminAntt: true,
     canAdminRoutingProviders: false,
+    canViewPrinters: true,
+    canManagePrinters: false,
+    canPrintTransport: false,
+    canReprintTransport: false,
   },
 }
 
@@ -1121,6 +1162,10 @@ export function getUserPermissions(role?: UserRole): Permissions {
       canRespondComplement: false,
       canAdminAntt: false,
       canAdminRoutingProviders: false,
+      canViewPrinters: false,
+      canManagePrinters: false,
+      canPrintTransport: false,
+      canReprintTransport: false,
     }
   }
   return ROLE_PERMISSIONS[role]

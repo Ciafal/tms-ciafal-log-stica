@@ -40,6 +40,9 @@ import { ProductionReadinessPage } from '@/pages/ProductionReadinessPage'
 import { ArchitecturePage } from '@/pages/ArchitecturePage'
 import { SecurityLgpdPage } from '@/pages/SecurityLgpdPage'
 import { StubModulePage } from '@/pages/StubModulePage'
+import PrintersAdminPage from '@/pages/PrintersAdminPage'
+import PrintMonitorPage from '@/pages/PrintMonitorPage'
+import CargoDetailPage from '@/pages/CargoDetailPage'
 import NotFound from '@/pages/NotFound'
 
 export const App: React.FC = () => {
@@ -223,11 +226,23 @@ export const App: React.FC = () => {
             path="/tms/cargas"
             element={
               <Layout>
-                <StubModulePage
-                  title="Gestão de Cargas"
-                  subtitle="Controle de romaneios, ordens de carregamento e cubagem."
-                  moduleKey="cargas"
-                />
+                <LoadRouterAndSimulatorPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/cargas/:id"
+            element={
+              <Layout>
+                <CargoDetailPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/detalhe-carga/:id"
+            element={
+              <Layout>
+                <CargoDetailPage />
               </Layout>
             }
           />
@@ -422,6 +437,14 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/tms/monitor-impressao"
+            element={
+              <Layout>
+                <PrintMonitorPage />
+              </Layout>
+            }
+          />
+          <Route
             path="/tms/relatorios"
             element={
               <Layout>
@@ -475,6 +498,14 @@ export const App: React.FC = () => {
           />
 
           {/* 8. ADMINISTRAÇÃO */}
+          <Route
+            path="/tms/impressoras"
+            element={
+              <Layout>
+                <PrintersAdminPage />
+              </Layout>
+            }
+          />
           <Route
             path="/tms/providers-rota"
             element={

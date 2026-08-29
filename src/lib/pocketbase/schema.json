@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T19:53:42.521Z",
+  "generatedAt": "2026-08-29T17:48:04.270Z",
   "collections": [
     {
       "name": "users",
@@ -2792,6 +2792,394 @@
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_geocache_hash ON geocoding_cache (address_hash)"]
+    },
+    {
+      "name": "printer_devices",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "location",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "plant",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sector",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ip_hostname",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "port",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "print_queue_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "protocol",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["IPP", "CUPS", "WINDOWS_SPOOLER", "LPR_LPD", "RAW_SOCKET"]
+        },
+        {
+          "name": "driver_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_default_transport",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "environment",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["DEV", "HOMOLOGACAO", "PRODUCAO"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["ONLINE", "OFFLINE", "EM_ERRO", "MANUTENCAO"]
+        },
+        {
+          "name": "last_communication",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_test_timestamp",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_error_message",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "print_jobs",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "print_job_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "document_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "ORDEM_TRANSPORTE",
+            "ROMANEIO_EXPEDICAO",
+            "TESTE_IMPRESSAO",
+            "REIMPRESSAO_ORDEM"
+          ]
+        },
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "printer_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "printer_name_cached",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "printer_location_cached",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "user_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "user_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "copies",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_reprint",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reprint_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Pendente", "Enviado", "Impresso", "Erro", "Cancelado"]
+        },
+        {
+          "name": "attempts_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "max_attempts",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "raw_payload_size_bytes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "error_message",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sent_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "printed_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "document_handovers",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "print_job_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "driver_document",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "delivered_by_operator_email",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "delivered_by_operator_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "delivery_timestamp",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

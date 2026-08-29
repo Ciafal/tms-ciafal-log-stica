@@ -215,10 +215,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       icon: Truck,
       items: [
         {
-          title: 'Cargas',
+          title: 'Cargas & Expedição',
           path: '/tms/cargas',
-          inDev: true,
+          badge: 'Sprint 5',
+          badgeColor: 'bg-emerald-600',
           show: true,
+        },
+        {
+          title: 'Monitor de Impressão',
+          path: '/tms/monitor-impressao',
+          badge: 'Spooler',
+          badgeColor: 'bg-[#005596]',
+          show: permissions.canViewPrinters,
         },
         {
           title: 'Transportes',
@@ -395,6 +403,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           badge: 'Eixos/Tarifas',
           badgeColor: 'bg-emerald-600',
           show: true,
+        },
+        {
+          title: 'Impressoras de Rede',
+          path: '/tms/impressoras',
+          badge: 'Sprint 5',
+          badgeColor: 'bg-emerald-600',
+          show: permissions.canViewPrinters,
         },
         {
           title: 'Blueprint SAP (12 Colunas)',

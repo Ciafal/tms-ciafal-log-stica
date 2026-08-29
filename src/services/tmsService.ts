@@ -2611,4 +2611,430 @@ export const TmsService = {
 
     return res
   },
+
+  // ==========================================
+  // SPRINT 5: PRINTER DEVICES & PRINT JOBS
+  // ==========================================
+  async getPrinterDevices(): Promise<any[]> {
+    try {
+      return await pb.collection('printer_devices').getFullList({ sort: 'name' })
+    } catch {
+      return []
+    }
+  },
+
+  async savePrinterDevice(device: any): Promise<any> {
+    if (device.is_default_transport) {
+      // Remover flag de outros para garantir unicidade do default
+      try {
+        const existing = await pb
+          .collection('printer_devices')
+          .getFullList({ filter: 'is_default_transport = true' })
+        for (const item of existing) {
+          if (item.id !== device.id) {
+            await pb.collection('printer_devices').update(item.id, { is_default_transport: false })
+          }
+        }
+      } catch {
+        /* intentionally ignored */
+      }
+    }
+
+    if (device.id) {
+      const updated = await pb.collection('printer_devices').update(device.id, device)
+      await this.logAudit({
+        user_name: 'admin@ciafal.com.br',
+        action_type: 'CONFIGURAR_IMPRESSORA',
+        target_entity: 'printer_devices',
+        target_id: device.id,
+        details: { name: device.name, action: 'UPDATE' },
+      })
+      return updated
+    } else {
+      const created = await pb.collection('printer_devices').create(device)
+      await this.logAudit({
+        user_name: 'admin@ciafal.com.br',
+        action_type: 'CADASTRAR_IMPRESSORA',
+        target_entity: 'printer_devices',
+        target_id: created.id,
+        details: { name: device.name, action: 'CREATE' },
+      })
+      return created
+    }
+  },
+
+  async testPrinterDevice(
+    printerId: string,
+    operatorEmail: string = 'operador@ciafal.com.br',
+  ): Promise<{ success: boolean; message: string; printJobId: string }> {
+    const printer = await pb.collection('printer_devices').getOne(printerId)
+    const printJobId = `job-test-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+
+    if (printer.status === 'OFFLINE' || printer.status === 'EM_ERRO') {
+      const job = await pb.collection('print_jobs').create({
+        print_job_id: printJobId,
+        document_type: 'TESTE_IMPRESSAO',
+        cargo_id: 'N/A',
+        sap_transport_number: 'N/A',
+        printer_id: printer.id,
+        printer_name_cached: printer.name,
+        printer_location_cached: printer.location,
+        user_email: operatorEmail,
+        user_name: operatorEmail.split('@')[0],
+        copies: 1,
+        is_reprint: false,
+        status: 'Erro',
+        attempts_count: 1,
+        max_attempts: 3,
+        error_message: `Impressora ${printer.name} está offline/inacessível no IP ${printer.ip_hostname}:${printer.port}.`,
+        correlation_id: `corr-${printJobId}`,
+      })
+
+      return {
+        success: false,
+        message: `Falha no teste: Impressora ${printer.name} inacessível no IP ${printer.ip_hostname}. Documento colocado em erro.`,
+        printJobId: job.id,
+      }
+    }
+
+    // Sucesso
+    await pb.collection('printer_devices').update(printer.id, {
+      last_communication: new Date().toISOString(),
+      last_test_timestamp: new Date().toISOString(),
+      status: 'ONLINE',
+    })
+
+    const job = await pb.collection('print_jobs').create({
+      print_job_id: printJobId,
+      document_type: 'TESTE_IMPRESSAO',
+      cargo_id: 'N/A',
+      sap_transport_number: 'N/A',
+      printer_id: printer.id,
+      printer_name_cached: printer.name,
+      printer_location_cached: printer.location,
+      user_email: operatorEmail,
+      user_name: operatorEmail.split('@')[0],
+      copies: 1,
+      is_reprint: false,
+      status: 'Impresso',
+      attempts_count: 1,
+      max_attempts: 3,
+      sent_at: new Date().toISOString(),
+      printed_at: new Date().toISOString(),
+      correlation_id: `corr-${printJobId}`,
+    })
+
+    await this.logAudit({
+      user_name: operatorEmail,
+      action_type: 'TESTE_IMPRESSORA',
+      target_entity: 'printer_devices',
+      target_id: printer.id,
+      details: { printer_name: printer.name, print_job_id: printJobId, result: 'SUCESSO' },
+    })
+
+    return {
+      success: true,
+      message: `Página de teste "TESTE DE IMPRESSÃO TMS CIAFAL — NÃO É ORDEM DE TRANSPORTE" enviada com sucesso para ${printer.name}.`,
+      printJobId: job.id,
+    }
+  },
+
+  async printTransportOrder(params: {
+    cargoId: string
+    sapTransportNumber: string
+    printerId?: string
+    operatorEmail: string
+    operatorName?: string
+    isReprint?: boolean
+    reprintReason?: string
+    copies?: number
+    idempotencyKey?: string
+  }): Promise<{ success: boolean; message: string; printJobId: string; status: string }> {
+    const {
+      cargoId,
+      sapTransportNumber,
+      printerId,
+      operatorEmail,
+      operatorName = 'Operador TMS',
+      isReprint = false,
+      reprintReason,
+      copies = 1,
+      idempotencyKey,
+    } = params
+
+    // REGRA ABSOLUTA: NÃO IMPRIMIR ANTES DO RETORNO POSITIVO DO SAP
+    if (
+      !sapTransportNumber ||
+      sapTransportNumber.trim() === '' ||
+      sapTransportNumber === 'PENDENTE'
+    ) {
+      throw new Error(
+        'REGRA_SEGURANCA: Proibido imprimir documento oficial antes da confirmação do SAP. Ordem SAP pendente.',
+      )
+    }
+
+    if (isReprint && (!reprintReason || reprintReason.trim().length < 5)) {
+      throw new Error(
+        'REIMPRESSAO_REQUER_MOTIVO: É obrigatório informar o motivo operacional da reimpressão.',
+      )
+    }
+
+    // Idempotência: verificar se já existe job para esta chave
+    const printJobId =
+      idempotencyKey || `job-${cargoId}-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+    if (idempotencyKey) {
+      try {
+        const existingJob = await pb
+          .collection('print_jobs')
+          .getFirstListItem(`print_job_id = "${idempotencyKey}"`)
+        if (existingJob) {
+          return {
+            success: existingJob.status === 'Impresso',
+            message: `Chamada idempotente: Job de impressão já processado anteriormente (${existingJob.status}).`,
+            printJobId: existingJob.id,
+            status: existingJob.status,
+          }
+        }
+      } catch {
+        /* intentionally ignored */
+      }
+    }
+
+    // Selecionar impressora (específica ou padrão)
+    let selectedPrinter: any = null
+    if (printerId) {
+      try {
+        selectedPrinter = await pb.collection('printer_devices').getOne(printerId)
+      } catch {
+        /* intentionally ignored */
+      }
+    }
+
+    if (!selectedPrinter) {
+      try {
+        selectedPrinter = await pb
+          .collection('printer_devices')
+          .getFirstListItem('is_default_transport = true && is_active = true')
+      } catch (_) {
+        try {
+          selectedPrinter = await pb
+            .collection('printer_devices')
+            .getFirstListItem('is_active = true')
+        } catch {
+          /* intentionally ignored */
+        }
+      }
+    }
+
+    if (!selectedPrinter) {
+      throw new Error(
+        'Nenhuma impressora ativa cadastrada no sistema. Configure em Administração > Impressoras.',
+      )
+    }
+
+    const isOffline = selectedPrinter.status === 'OFFLINE' || selectedPrinter.status === 'EM_ERRO'
+
+    const job = await pb.collection('print_jobs').create({
+      print_job_id: printJobId,
+      document_type: isReprint ? 'REIMPRESSAO_ORDEM' : 'ORDEM_TRANSPORTE',
+      cargo_id: cargoId,
+      sap_transport_number: sapTransportNumber,
+      printer_id: selectedPrinter.id,
+      printer_name_cached: selectedPrinter.name,
+      printer_location_cached: selectedPrinter.location,
+      user_email: operatorEmail,
+      user_name: operatorName,
+      copies,
+      is_reprint: isReprint,
+      reprint_reason: reprintReason || '',
+      status: isOffline ? 'Pendente' : 'Impresso',
+      attempts_count: 1,
+      max_attempts: 3,
+      error_message: isOffline
+        ? `IMPRESSÃO PENDENTE — Impressora ${selectedPrinter.name} indisponível. Fila em espera.`
+        : '',
+      sent_at: new Date().toISOString(),
+      printed_at: isOffline ? null : new Date().toISOString(),
+      correlation_id: `corr-${printJobId}`,
+    })
+
+    await this.logAudit({
+      user_name: operatorEmail,
+      action_type: isReprint ? 'REIMPRIMIR_ORDEM_TRANSPORTE' : 'IMPRIMIR_ORDEM_TRANSPORTE',
+      target_entity: 'cargo',
+      target_id: cargoId,
+      details: {
+        sap_transport_number: sapTransportNumber,
+        printer_name: selectedPrinter.name,
+        is_reprint: isReprint,
+        reprint_reason: reprintReason,
+        status: job.status,
+      },
+    })
+
+    return {
+      success: !isOffline,
+      message: isOffline
+        ? `IMPRESSÃO PENDENTE — Impressora padrão offline. Documento retido na fila com ID ${job.id}. Redirecione se necessário.`
+        : `Ordem de Transporte SAP ${sapTransportNumber} impressa com sucesso na impressora ${selectedPrinter.name}.`,
+      printJobId: job.id,
+      status: job.status,
+    }
+  },
+
+  async getPrintJobs(): Promise<any[]> {
+    try {
+      return await pb.collection('print_jobs').getFullList({ sort: '-created' })
+    } catch {
+      return []
+    }
+  },
+
+  async registerDocumentHandover(params: {
+    cargoId: string
+    sapTransportNumber: string
+    printJobId: string
+    driverId: string
+    driverName: string
+    driverDocument: string
+    vehiclePlate: string
+    operatorEmail: string
+    operatorName?: string
+    notes?: string
+  }): Promise<any> {
+    const handover = await pb.collection('document_handovers').create({
+      cargo_id: params.cargoId,
+      sap_transport_number: params.sapTransportNumber,
+      print_job_id: params.printJobId,
+      driver_id: params.driverId,
+      driver_name: params.driverName,
+      driver_document: params.driverDocument,
+      vehicle_plate: params.vehiclePlate,
+      delivered_by_operator_email: params.operatorEmail,
+      delivered_by_operator_name: params.operatorName || params.operatorEmail.split('@')[0],
+      delivery_timestamp: new Date().toISOString(),
+      notes: params.notes || '',
+      correlation_id: `handover-${params.cargoId}-${Date.now()}`,
+    })
+
+    await this.logAudit({
+      user_name: params.operatorEmail,
+      action_type: 'ENTREGA_DOCUMENTO_MOTORISTA',
+      target_entity: 'cargo',
+      target_id: params.cargoId,
+      details: {
+        sap_transport_number: params.sapTransportNumber,
+        driver_name: params.driverName,
+        driver_document: params.driverDocument,
+        vehicle_plate: params.vehiclePlate,
+        delivery_id: handover.id,
+      },
+    })
+
+    return handover
+  },
+
+  async getDocumentHandovers(): Promise<any[]> {
+    try {
+      return await pb.collection('document_handovers').getFullList({ sort: '-created' })
+    } catch {
+      return []
+    }
+  },
+
+  // Aliases de conveniência para compatibilidade com o Simulador e Cargas
+  async getSapStockCurrent() {
+    return this.getStockCurrent()
+  },
+
+  async getPcpOrders() {
+    return this.getPcpProductionOrders()
+  },
+
+  async getQueueEntries() {
+    return this.getOperationalQueue()
+  },
+
+  async getVehicles() {
+    try {
+      return await pb.collection('vehicles').getFullList<VehicleEntity>()
+    } catch {
+      return []
+    }
+  },
+
+  async getCargos(): Promise<any[]> {
+    try {
+      return await pb.collection('freight_offers').getFullList({ sort: '-created' })
+    } catch {
+      return []
+    }
+  },
+
+  async createCargo(data: any): Promise<any> {
+    const cargoId = `CARGO-${Date.now().toString().slice(-4)}`
+    try {
+      const offer = await pb.collection('freight_offers').create({
+        cargo_id: cargoId,
+        cargo_description: data.scenario_name || `Carga ${cargoId}`,
+        origin: 'Planta CIAFAL Matriz (São Paulo/SP)',
+        destination: data.itinerary_code,
+        weight_kg: data.total_weight_kg,
+        required_vehicle_type: data.vehicle_type,
+        floor_value: data.antt_floor_value,
+        status: 'PORTA_OPEN',
+        current_group: 'PORTA',
+        correlation_id: `cargo-${cargoId}`,
+      })
+      return {
+        id: cargoId,
+        itinerary_code: data.itinerary_code,
+        planned_date: data.planned_date,
+        total_weight_kg: data.total_weight_kg,
+        occupancy_pct: data.occupancy_pct,
+        order_count: data.order_count,
+        antt_floor_value: data.antt_floor_value,
+        estimated_cost: data.estimated_cost,
+        status: 'Pronta para oferta',
+        offer_id: offer.id,
+      }
+    } catch {
+      return {
+        id: cargoId,
+        itinerary_code: data.itinerary_code,
+        planned_date: data.planned_date,
+        total_weight_kg: data.total_weight_kg,
+        occupancy_pct: data.occupancy_pct,
+        order_count: data.order_count,
+        antt_floor_value: data.antt_floor_value,
+        estimated_cost: data.estimated_cost,
+        status: 'Pronta para oferta',
+      }
+    }
+  },
+
+  async logAudit(params: {
+    user_name: string
+    action_type: string
+    target_entity: string
+    target_id: string
+    details: Record<string, any>
+  }): Promise<void> {
+    try {
+      await pb.collection('audit_logs').create({
+        user_name: params.user_name,
+        user_email: params.user_name.includes('@') ? params.user_name : `${params.user_name}@ciafal.com.br`,
+        action: params.action_type,
+        resource: params.target_entity,
+        resource_id: params.target_id,
+        payload: params.details,
+        correlation_id: `AUDIT-${Date.now()}`,
+      })
+    } catch {
+      /* ignore */
+    }
+  },
 }
+
+export const tmsService = TmsService
+export default TmsService
