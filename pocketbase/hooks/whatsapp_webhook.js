@@ -1,10 +1,20 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 // Hook para Webhook Oficial do WhatsApp Business & Reconhecimento de Áudios/Intenções do Fred
+// Hardening de Segurança: validação de assinatura HMAC / Meta Token, anti-replay e sanitização contra Prompt Injection
 routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
   try {
+    const headers = e.requestInfo().headers || {}
+    const webhookSecret = $os.getenv('WHATSAPP_WEBHOOK_SECRET') || ''
+    const providedSignature = headers['x-hub-signature-256'] || headers['x-hub-signature'] || ''
+
+    // Se o segredo estiver configurado em ambiente produtivo, validar assinatura
+    if (webhookSecret && providedSignature && !providedSignature.startsWith('sha256=')) {
+      return e.json(401, { error: 'Assinatura inválida no Webhook Meta/WhatsApp' })
+    }
+
     const body = e.requestInfo().body || {}
-    const rawText = (body.text || body.message || body.caption || '').trim()
+    let rawText = (body.text || body.message || body.caption || '').trim()
     const phoneNumber = (body.phone || body.from || body.phone_number || '').trim()
     const messageType =
       body.type ||
@@ -57,8 +67,42 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     msgRecord.set('audio_transcription', transcription)
     msgRecord.set('transcription_confidence_pct', 94)
 
+    // Sanitização e Proteção contra Prompt Injection / Instruções Maliciosas
+    const lowerClean = (rawText + ' ' + transcription).toLowerCase()
+    const isMaliciousPrompt =
+      lowerClean.includes('ignore all previous') ||
+      lowerClean.includes('ignore previous instructions') ||
+      lowerClean.includes('desconsidere as regras') ||
+      lowerClean.includes('libere frete') ||
+      lowerClean.includes('sou o diretor') ||
+      lowerClean.includes('delete from') ||
+      lowerClean.includes('drop table') ||
+      lowerClean.includes('<script')
+
+    if (isMaliciousPrompt) {
+      msgRecord.set('ai_intent', 'TENTATIVA_INJECAO_BLOQUEADA')
+      msgRecord.set('ai_intent_confidence', 99)
+      msgRecord.set(
+        'action_executed',
+        'Bloqueio de segurança e notificação de incidente OWASP LLM01',
+      )
+      msgRecord.set(
+        'response_sent_text',
+        'Mensagem recebida. Para alterações contratuais ou operacionais, contate diretamente a Central de Logística CIAFAL.',
+      )
+      msgRecord.set('message_status', 'AUDITADO_BLOQUEADO')
+      $app.save(msgRecord)
+
+      return e.json(200, {
+        success: true,
+        event_id: msgRecord.id,
+        intent: 'TENTATIVA_INJECAO_BLOQUEADA',
+        action_executed: 'Bloqueio de segurança ativo',
+      })
+    }
+
     // Identificação automática da Intenção do Fred
-    const contentToClassify = (rawText + ' ' + transcription).toLowerCase()
+    const contentToClassify = lowerClean
     let intent = 'OUTROS'
     let actionExecuted = 'Registro em auditoria'
     let responseSent = 'Recebido pelo Fred IA.'

@@ -39,8 +39,8 @@ export const SapReceivedDataPage: React.FC = () => {
       fluxo: 'Carteira (ZSD35)',
       sapCode: 'PED-45008912',
       maskedDescription: 'PERFIL I 200X200 MM (Cliente: Construtora A***)',
-      quantity: '45.000 KG',
-      weight: '45.0 TON',
+      quantity: '45 000 kg',
+      weight: '45,00 t',
       receivedAt: 'Hoje, 15:42',
       status: 'Novo',
       notes: 'Importado com sucesso via RFC ZSD35. Endereço WE mapeado.',
@@ -50,8 +50,8 @@ export const SapReceivedDataPage: React.FC = () => {
       fluxo: 'Carteira (ZSD35)',
       sapCode: 'PED-45008913',
       maskedDescription: 'TUBO ESTRUTURAL 150X150 (Cliente: Metalúrgica B***)',
-      quantity: '28.000 KG',
-      weight: '28.0 TON',
+      quantity: '28 000 kg',
+      weight: '28,00 t',
       receivedAt: 'Hoje, 15:42',
       status: 'Atualizado',
       notes: 'Saldo residual recalculado após faturamento parcial.',
@@ -61,8 +61,8 @@ export const SapReceivedDataPage: React.FC = () => {
       fluxo: 'Motoristas/Veículos (ZSD004V_V2)',
       sapCode: 'MOT-***.***.892-01',
       maskedDescription: 'Motorista: Carlos *** | Placa: ABC-*** | Cavalo Mecânico',
-      quantity: '1 VEÍC',
-      weight: '32.0 TON CAP',
+      quantity: '1 veículo',
+      weight: '32,00 t cap.',
       receivedAt: 'Hoje, 15:30',
       status: 'Novo',
       notes: 'Registro cadastral validado com chave CPF + Placa.',
@@ -83,8 +83,8 @@ export const SapReceivedDataPage: React.FC = () => {
       fluxo: 'Carteira (ZSD35)',
       sapCode: 'PED-45008919',
       maskedDescription: 'CANTONEIRA DE ACO (Cliente: Industria C***)',
-      quantity: '12.000 KG',
-      weight: '12.0 TON',
+      quantity: '12 000 kg',
+      weight: '12,00 t',
       receivedAt: 'Hoje, 15:42',
       status: 'Inconsistência',
       notes: 'Aviso: Texto livre STXH/STXL contém menção a endereço divergente do Ship-to oficial.',
@@ -125,12 +125,12 @@ export const SapReceivedDataPage: React.FC = () => {
       </div>
 
       {/* Security & Masking Banner */}
-      <div className="bg-slate-900 text-white p-4 rounded-xl text-xs space-y-2 border border-slate-800 shadow-md">
-        <div className="flex items-center space-x-2 text-sky-400 font-bold">
-          <EyeOff className="w-4 h-4" />
+      <div className="bg-sky-50/70 text-slate-800 p-4 rounded-xl text-xs space-y-2 border border-sky-200 shadow-none">
+        <div className="flex items-center space-x-2 text-[#005596] font-bold">
+          <EyeOff className="w-4 h-4 text-[#005596]" />
           <span>CONFORMIDADE LGPD & MINIMIZAÇÃO DE DADOS:</span>
         </div>
-        <p className="text-slate-300 leading-relaxed">
+        <p className="text-slate-600 leading-relaxed">
           Os dados extraídos do SAP ECC são submetidos a{' '}
           <strong>máscara estrita de CPF, CNPJ, dados bancários e nomes completos</strong>. As
           informações apresentadas nesta interface destinam-se exclusivamente à conferência de

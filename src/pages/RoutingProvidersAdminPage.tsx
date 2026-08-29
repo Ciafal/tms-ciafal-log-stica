@@ -379,18 +379,18 @@ export const RoutingProvidersAdminPage: React.FC = () => {
       </div>
 
       {/* Corporate Guidance Banner */}
-      <div className="bg-slate-900 text-white p-4 rounded-xl text-xs space-y-2 border border-slate-800 shadow-md">
-        <div className="flex items-center space-x-2 text-sky-400 font-bold">
-          <ShieldCheck className="w-4 h-4" />
+      <div className="bg-sky-50/70 text-slate-800 p-4 rounded-xl text-xs space-y-2 border border-sky-200 shadow-none">
+        <div className="flex items-center space-x-2 text-[#005596] font-bold">
+          <ShieldCheck className="w-4 h-4 text-[#005596]" />
           <span>DIRETRIZES MANDATÓRIAS DO POC DE ROTAS & TRANSPORTE PESADO:</span>
         </div>
-        <ul className="text-slate-300 list-disc list-inside space-y-1">
+        <ul className="text-slate-600 list-disc list-inside space-y-1">
           <li>
             <strong>Decisão Humana Soberana:</strong> O sistema calcula o score ponderado
             automaticamente, mas a decisão final é exclusivamente humana.
           </li>
           <li>
-            <strong>Sem Capability Fictícia:</strong> Onde não houver evidência técnica confirmada
+            <strong>Sem Capacidade Fictícia:</strong> Onde não houver evidência técnica confirmada
             para caminhões pesados, o item é mantido como <em>"A confirmar"</em>.
           </li>
           <li>
@@ -445,7 +445,7 @@ export const RoutingProvidersAdminPage: React.FC = () => {
                         <span className="text-xs text-slate-500 font-semibold">
                           Score Ponderado:
                         </span>
-                        <Badge className="bg-slate-900 text-white font-mono text-xs font-black">
+                        <Badge className="bg-[#005596] text-white font-mono text-xs font-black">
                           {score} / 100 pts
                         </Badge>
                       </div>

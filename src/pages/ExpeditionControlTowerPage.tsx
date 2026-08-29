@@ -43,20 +43,20 @@ export const ExpeditionControlTowerPage: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 text-white p-5 rounded-xl border border-slate-800 shadow-lg">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
         <div>
           <div className="flex items-center space-x-2.5">
-            <Zap className="w-6 h-6 text-amber-400" />
-            <h1 className="text-2xl font-black text-white tracking-tight">
+            <Zap className="w-6 h-6 text-[#005596]" />
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
               Torre de Controle Operacional — Visão Panorâmica
             </h1>
             <Badge className="bg-emerald-600 text-white text-xs font-bold px-2.5 py-0.5">
               Live Feed
             </Badge>
           </div>
-          <p className="text-sm text-slate-300 mt-1">
-            Modo visual de alta intensidade: monitoramento de veículos em pátio, carregamento,
-            alertas e prioridades.
+          <p className="text-sm text-slate-500 mt-1">
+            Monitoramento de veículos em pátio, carregamento, alertas e prioridades da expedição
+            CIAFAL.
           </p>
         </div>
 
@@ -65,7 +65,7 @@ export const ExpeditionControlTowerPage: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={loadData}
-            className="text-xs bg-slate-800 border-slate-700 text-white hover:bg-slate-700 gap-1.5"
+            className="text-xs border-slate-300 text-slate-700 hover:bg-slate-50 gap-1.5"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Atualizar Feed

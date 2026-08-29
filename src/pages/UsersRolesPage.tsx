@@ -183,7 +183,7 @@ export const UsersRolesPage: React.FC = () => {
               </div>
 
               <div className="flex items-center space-x-3">
-                <Badge className="bg-slate-800 text-white font-normal text-[10px]">
+                <Badge className="bg-[#005596] text-white font-medium text-[10px]">
                   {getRoleLabel(u.role || 'operador_logistica')}
                 </Badge>
               </div>

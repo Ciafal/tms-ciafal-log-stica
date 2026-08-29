@@ -408,13 +408,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
-      {/* Top Navigation Bar - CIAFAL Pantone 2945 */}
-      <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
+      {/* Top Navigation Bar - CIAFAL Pantone 2945 Corporativo */}
+      <header className="bg-[#005596] text-white border-b border-[#004275] sticky top-0 z-40 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Brand and Logo */}
           <div className="flex items-center space-x-4">
             <Link to="/tms/dashboard" className="flex items-center space-x-3 group">
-              <div className="h-10 px-2.5 py-1 rounded-xl bg-white flex items-center justify-center shadow-md border border-slate-700">
+              <div className="h-10 px-2.5 py-1 rounded-xl bg-white flex items-center justify-center shadow-sm border border-white/20">
                 <img
                   src={ciafalLogo}
                   alt="CIAFAL Wilson Santos"
@@ -426,18 +426,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   <span className="font-black text-base tracking-tight text-white leading-tight">
                     HUB CIAFAL
                   </span>
-                  <Badge className="bg-[#005596] text-white text-[9px] font-bold px-1.5 py-0">
+                  <Badge className="bg-white/20 text-white text-[9px] font-bold px-1.5 py-0">
                     Pantone 2945
                   </Badge>
                 </div>
-                <span className="text-[10px] text-sky-400 font-extrabold uppercase tracking-wider">
+                <span className="text-[10px] text-sky-200 font-bold uppercase tracking-wider">
                   TMS Logística Integrada
                 </span>
               </div>
             </Link>
 
-            <div className="hidden lg:flex items-center space-x-2 pl-4 border-l border-slate-800">
-              <Badge className="bg-[#005596] text-white text-[10px] font-bold px-2.5 py-0.5">
+            <div className="hidden lg:flex items-center space-x-2 pl-4 border-l border-white/20">
+              <Badge className="bg-white/15 text-white text-[10px] font-bold px-2.5 py-0.5 border-0">
                 DISPONIBILIDADE → PLANEJAMENTO → MESA DE FRETES → EXECUÇÃO
               </Badge>
             </div>
@@ -449,21 +449,21 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               <Link
                 to="/tms/fila-publica"
                 target="_blank"
-                className="text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-1.5 border border-slate-700 transition"
+                className="text-white hover:bg-white/20 bg-white/10 px-3 py-1.5 rounded-lg flex items-center gap-1.5 border border-white/15 transition"
               >
-                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                <Smartphone className="w-3.5 h-3.5 text-emerald-300" />
                 <span className="font-semibold">Link Público Motorista</span>
-                <ExternalLink className="w-3 h-3 text-slate-400" />
+                <ExternalLink className="w-3 h-3 text-sky-200" />
               </Link>
 
               <Link
                 to="/totem"
                 target="_blank"
-                className="text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-1.5 border border-slate-700 transition"
+                className="text-white hover:bg-white/20 bg-white/10 px-3 py-1.5 rounded-lg flex items-center gap-1.5 border border-white/15 transition"
               >
-                <Building className="w-3.5 h-3.5 text-sky-400" />
+                <Building className="w-3.5 h-3.5 text-sky-200" />
                 <span className="font-semibold">Totem PORTA</span>
-                <ExternalLink className="w-3 h-3 text-slate-400" />
+                <ExternalLink className="w-3 h-3 text-sky-200" />
               </Link>
             </div>
 
@@ -472,18 +472,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="flex items-center space-x-2 text-left hover:bg-slate-800 p-1.5 rounded-lg text-xs"
+                  className="flex items-center space-x-2 text-left hover:bg-white/10 p-1.5 rounded-lg text-xs text-white"
                 >
-                  <Avatar className="h-8 w-8 border border-[#005596]">
-                    <AvatarFallback className="bg-[#005596] text-white font-bold text-xs">
+                  <Avatar className="h-8 w-8 border border-white/40">
+                    <AvatarFallback className="bg-white text-[#005596] font-black text-xs">
                       {user?.name?.substring(0, 2).toUpperCase() || 'OP'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="hidden md:block">
-                    <div className="font-bold text-slate-100 truncate max-w-[130px]">
+                    <div className="font-bold text-white truncate max-w-[130px]">
                       {user?.name || 'Operador'}
                     </div>
-                    <div className="text-[10px] text-sky-400 font-mono">
+                    <div className="text-[10px] text-sky-200 font-medium">
                       {role ? getRoleLabel(role) : 'Perfil'}
                     </div>
                   </div>
@@ -558,13 +558,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         >
           <nav className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-sm space-y-2 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto">
             {/* Sidebar Branding Box */}
-            <div className="p-3 bg-gradient-to-r from-slate-900 to-slate-800 rounded-lg text-white flex items-center space-x-3 shadow-inner">
-              <div className="bg-white p-1 rounded-lg">
+            <div className="p-3 bg-sky-50 rounded-lg border border-sky-200 text-slate-900 flex items-center space-x-3 shadow-none">
+              <div className="bg-white p-1 rounded-lg border border-slate-200">
                 <img src={ciafalLogo} alt="CIAFAL" className="h-6 w-auto object-contain" />
               </div>
               <div>
-                <div className="text-xs font-black text-white leading-tight">MESA DE FRETES</div>
-                <div className="text-[9px] text-sky-400 font-bold uppercase">
+                <div className="text-xs font-black text-[#005596] leading-tight">
+                  MESA DE FRETES
+                </div>
+                <div className="text-[9px] text-slate-500 font-bold uppercase">
                   Motor Determinístico
                 </div>
               </div>

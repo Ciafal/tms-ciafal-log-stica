@@ -99,30 +99,30 @@ export const TotemEntry: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-4 sm:p-8 select-none">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between p-4 sm:p-8 select-none">
       {/* Header */}
       <div className="max-w-lg w-full mx-auto space-y-4 pt-4">
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center space-x-2 bg-[#005596]/30 border border-[#005596] px-4 py-1.5 rounded-full text-xs text-sky-300">
-            <Building className="w-4 h-4 text-sky-400" />
+          <div className="inline-flex items-center space-x-2 bg-sky-50 border border-sky-200 px-4 py-1.5 rounded-full text-xs text-[#005596] font-semibold">
+            <Building className="w-4 h-4 text-[#005596]" />
             <span>Totem de Autoatendimento • Portaria CIAFAL</span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
             Pátio CIAFAL Matriz
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400">
+          <p className="text-xs sm:text-sm text-slate-500">
             Confirme sua chegada física à portaria para registrar sua prioridade na Fila PORTA.
           </p>
         </div>
 
         {/* Informação sobre Transição FORA -> PORTA */}
-        <div className="bg-sky-950/60 border border-sky-800/80 rounded-xl p-3.5 text-xs text-sky-200 space-y-1">
-          <div className="font-bold flex items-center space-x-1.5 text-sky-300">
-            <ShieldCheck className="w-4 h-4" />
+        <div className="bg-sky-50/70 border border-sky-200 rounded-xl p-3.5 text-xs text-slate-700 space-y-1">
+          <div className="font-bold flex items-center space-x-1.5 text-[#005596]">
+            <ShieldCheck className="w-4 h-4 text-[#005596]" />
             <span>TRANSIÇÃO CONTROLADA FORA → PORTA:</span>
           </div>
-          <p className="text-[11px] leading-relaxed text-sky-300/90">
+          <p className="text-[11px] leading-relaxed text-slate-600">
             Se você já informou disponibilidade na Fila FORA, o sistema localizará seu cadastro
             automaticamente e o promoverá para a <strong>Fila PORTA</strong> com o novo horário de
             chegada física para desempate.
@@ -135,18 +135,18 @@ export const TotemEntry: React.FC = () => {
             className={`p-4 rounded-xl border animate-fade-in text-xs ${
               result.success
                 ? result.transitionedFromFora
-                  ? 'bg-sky-950/80 border-sky-500 text-sky-200'
+                  ? 'bg-sky-50 border-sky-300 text-sky-900'
                   : result.isPreReg
-                    ? 'bg-amber-950/80 border-amber-500 text-amber-200'
-                    : 'bg-emerald-950/80 border-emerald-500 text-emerald-200'
-                : 'bg-rose-950/80 border-rose-500 text-rose-200'
+                    ? 'bg-amber-50 border-amber-300 text-amber-900'
+                    : 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                : 'bg-rose-50 border-rose-300 text-rose-900'
             }`}
           >
             <div className="flex items-start space-x-3">
               {result.success ? (
-                <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+                <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0" />
               ) : (
-                <AlertTriangle className="w-6 h-6 text-rose-400 flex-shrink-0" />
+                <AlertTriangle className="w-6 h-6 text-rose-600 flex-shrink-0" />
               )}
               <div className="space-y-1">
                 <strong className="font-bold block text-sm">
@@ -165,13 +165,13 @@ export const TotemEntry: React.FC = () => {
         )}
 
         {/* Main Check-in Form Card */}
-        <Card className="bg-slate-900 border-slate-800 shadow-2xl text-white">
-          <CardHeader className="pb-3 border-b border-slate-800">
-            <CardTitle className="text-base font-bold text-white flex items-center space-x-2">
-              <Truck className="w-5 h-5 text-sky-400" />
+        <Card className="bg-white border-slate-200 shadow-sm text-slate-900">
+          <CardHeader className="pb-3 border-b border-slate-100">
+            <CardTitle className="text-base font-bold text-slate-900 flex items-center space-x-2">
+              <Truck className="w-5 h-5 text-[#005596]" />
               <span>Identificação do Motorista</span>
             </CardTitle>
-            <CardDescription className="text-xs text-slate-400">
+            <CardDescription className="text-xs text-slate-500">
               Digite seu documento e placa para liberação da entrada
             </CardDescription>
           </CardHeader>
@@ -180,19 +180,19 @@ export const TotemEntry: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               {/* Document */}
               <div className="space-y-1">
-                <label className="font-bold text-slate-300 block">CPF ou CNPJ:</label>
+                <label className="font-bold text-slate-700 block">CPF ou CNPJ:</label>
                 <Input
                   placeholder="000.000.000-00"
                   value={document}
                   onChange={(e) => setDocument(e.target.value)}
                   required
-                  className="bg-slate-950 border-slate-700 text-white font-mono text-sm h-11"
+                  className="bg-white border-slate-300 text-slate-900 font-mono text-sm h-11"
                 />
               </div>
 
               {/* WhatsApp */}
               <div className="space-y-1">
-                <label className="font-bold text-slate-300 block">
+                <label className="font-bold text-slate-700 block">
                   Telefone / WhatsApp (DDD + Número):
                 </label>
                 <Input
@@ -200,29 +200,29 @@ export const TotemEntry: React.FC = () => {
                   value={whatsapp}
                   onChange={(e) => setWhatsapp(e.target.value)}
                   required
-                  className="bg-slate-950 border-slate-700 text-white font-mono text-sm h-11"
+                  className="bg-white border-slate-300 text-slate-900 font-mono text-sm h-11"
                 />
               </div>
 
               {/* Plate and Vehicle Type */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-300 block">Placa do Cavalo:</label>
+                  <label className="font-bold text-slate-700 block">Placa do Cavalo:</label>
                   <Input
                     placeholder="ABC1D23"
                     value={plate}
                     onChange={(e) => setPlate(e.target.value.toUpperCase())}
-                    className="bg-slate-950 border-slate-700 text-white font-mono text-sm h-11 uppercase"
+                    className="bg-white border-slate-300 text-slate-900 font-mono text-sm h-11 uppercase"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-300 block">Tipo do Conjunto:</label>
+                  <label className="font-bold text-slate-700 block">Tipo do Conjunto:</label>
                   <Select value={vehicleType} onValueChange={setVehicleType}>
-                    <SelectTrigger className="bg-slate-950 border-slate-700 text-white text-xs h-11">
+                    <SelectTrigger className="bg-white border-slate-300 text-slate-900 text-xs h-11">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 text-white border-slate-700">
+                    <SelectContent className="bg-white text-slate-900 border-slate-200">
                       <SelectItem value="Carreta LS">Carreta LS</SelectItem>
                       <SelectItem value="Carreta Grade Baixa">Carreta Grade Baixa</SelectItem>
                       <SelectItem value="Bitrem">Bitrem</SelectItem>
@@ -238,7 +238,7 @@ export const TotemEntry: React.FC = () => {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-[#005596] hover:bg-[#004071] text-white font-bold text-base h-12 mt-2 shadow-lg"
+                className="w-full bg-[#005596] hover:bg-[#004275] text-white font-bold text-base h-12 mt-2 shadow-sm"
               >
                 {isSubmitting ? 'Validando Entrada...' : 'Registrar Entrada no Pátio (PORTA)'}
               </Button>
@@ -248,7 +248,7 @@ export const TotemEntry: React.FC = () => {
       </div>
 
       {/* Footer */}
-      <div className="text-center text-[10px] text-slate-500 py-4">
+      <div className="text-center text-[10px] text-slate-400 py-4">
         Totem de Portaria • Conectado à Rede Restrita CIAFAL (Fail-Closed) • TMS HUB CIAFAL
       </div>
     </div>

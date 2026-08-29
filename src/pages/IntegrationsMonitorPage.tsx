@@ -277,12 +277,12 @@ export const IntegrationsMonitorPage: React.FC = () => {
       </div>
 
       {/* Corporate Engineering Notice */}
-      <div className="bg-slate-900 text-white rounded-xl p-4 text-xs space-y-2 border border-slate-800 shadow-md">
-        <div className="flex items-center space-x-2 font-bold text-sky-400">
-          <ShieldCheck className="w-4 h-4" />
+      <div className="bg-sky-50/70 text-slate-800 rounded-xl p-4 text-xs space-y-2 border border-sky-200 shadow-none">
+        <div className="flex items-center space-x-2 font-bold text-[#005596]">
+          <ShieldCheck className="w-4 h-4 text-[#005596]" />
           <span>DIRETRIZES DE HOMOLOGAÇÃO REAL — SEM INTEGRAÇÕES FICTÍCIAS:</span>
         </div>
-        <p className="text-slate-300 leading-relaxed">
+        <p className="text-slate-600 leading-relaxed">
           1) <strong>SAP ECC 6.0:</strong> System of Record oficial. Permite RFC/BAPI/IDoc/qRFC
           (proibido REST direto no SAP). O sistema opera em modo <strong>READ-ONLY</strong> (
           <code>SAP_WRITE_ENABLED = false</code>) até homologação formal.

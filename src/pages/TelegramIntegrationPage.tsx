@@ -48,21 +48,20 @@ export const TelegramIntegrationPage: React.FC = () => {
       </div>
 
       {/* Critical Strict Notice - Agente Chicão não iniciado */}
-      <div className="bg-slate-900 text-white p-4 rounded-xl text-xs space-y-2 border border-slate-800 shadow-md">
-        <div className="flex items-center space-x-2 text-amber-400 font-bold">
-          <ShieldCheck className="w-4 h-4" />
-          <span>DIRETRIZES RIGOROSAS DA SPRINT 4.1 — NÃO INICIAR CHICÃO OU FRED:</span>
+      <div className="bg-sky-50/70 text-slate-800 p-4 rounded-xl text-xs space-y-2 border border-sky-200 shadow-none">
+        <div className="flex items-center space-x-2 text-[#005596] font-bold">
+          <ShieldCheck className="w-4 h-4 text-[#005596]" />
+          <span>DIRETRIZES DE CANAL DE MENSAGERIA & VINCULAÇÃO SEGURA:</span>
         </div>
-        <p className="text-slate-300 leading-relaxed">
-          1) <strong>O Agente de IA Chicão NÃO DEVE SER INICIADO</strong> nesta sprint. O canal
-          Telegram aqui configurado opera estritamente como <em>Canal de Mensageria Operacional</em>{' '}
-          (envio de links e notificações).
+        <p className="text-slate-600 leading-relaxed">
+          1) <strong>Canal Operacional Controlado:</strong> O canal de mensageria opera com envio
+          rastreável de links, ofertas e notificações.
           <br />
-          2) <strong>Segurança de Credenciais:</strong> O token do Bot do Telegram{' '}
+          2) <strong>Segurança de Credenciais:</strong> O token do Bot{' '}
           <strong>NUNCA É EXPOSTO</strong> na interface web nem em logs — exibindo unicamente{' '}
           <em>"Configurado"</em> ou <em>"Não configurado"</em>.<br />
           3) <strong>Vinculação Segura:</strong> Motoristas são identificados exclusivamente via ID
-          numérico unívoco (Telegram <code>chat_id</code> / <code>user_id</code>) associado ao CPF
+          numérico unívoco (<code>chat_id</code> / <code>user_id</code>) associado ao CPF
           cadastrado, <strong>NUNCA por nome livre</strong>.
         </p>
       </div>

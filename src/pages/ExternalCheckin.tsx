@@ -298,49 +298,49 @@ export const ExternalCheckin: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col justify-between p-3 sm:p-6">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between p-3 sm:p-6">
       <div className="max-w-lg w-full mx-auto space-y-4 pt-2">
         {/* Header */}
         <div className="text-center space-y-1.5">
-          <div className="inline-flex items-center space-x-2 bg-[#005596]/30 border border-[#005596]/60 px-3 py-1 rounded-full text-xs text-sky-300">
-            <Smartphone className="w-3.5 h-3.5 text-sky-400" />
+          <div className="inline-flex items-center space-x-2 bg-sky-50 border border-sky-200 px-3 py-1 rounded-full text-xs text-[#005596] font-semibold">
+            <Smartphone className="w-3.5 h-3.5 text-[#005596]" />
             <span>Link Público de Disponibilidade • TMS CIAFAL</span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
             Disponibilidade de Carga
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400">
-            Acesso via celular para motoristas e transportadores.
+          <p className="text-xs sm:text-sm text-slate-500">
+            Acesso via celular para motoristas e transportadores parceiros CIAFAL.
           </p>
         </div>
 
         {/* Stepper Indicator */}
-        <div className="grid grid-cols-4 gap-1.5 bg-slate-800/90 p-2 rounded-xl border border-slate-700 text-center text-[10px] font-bold uppercase">
+        <div className="grid grid-cols-4 gap-1.5 bg-white p-2 rounded-xl border border-slate-200 shadow-xs text-center text-[10px] font-bold uppercase">
           <div
-            className={`py-1 rounded ${
-              currentStep >= 1 ? 'bg-[#005596] text-white' : 'text-slate-500'
+            className={`py-1.5 rounded ${
+              currentStep >= 1 ? 'bg-[#005596] text-white' : 'text-slate-400 bg-slate-50'
             }`}
           >
             1. GPS
           </div>
           <div
-            className={`py-1 rounded ${
-              currentStep >= 2 ? 'bg-[#005596] text-white' : 'text-slate-500'
+            className={`py-1.5 rounded ${
+              currentStep >= 2 ? 'bg-[#005596] text-white' : 'text-slate-400 bg-slate-50'
             }`}
           >
             2. Placa
           </div>
           <div
-            className={`py-1 rounded ${
-              currentStep >= 3 ? 'bg-[#005596] text-white' : 'text-slate-500'
+            className={`py-1.5 rounded ${
+              currentStep >= 3 ? 'bg-[#005596] text-white' : 'text-slate-400 bg-slate-50'
             }`}
           >
             3. Cadastro
           </div>
           <div
-            className={`py-1 rounded ${
-              currentStep >= 4 ? 'bg-[#005596] text-white' : 'text-slate-500'
+            className={`py-1.5 rounded ${
+              currentStep >= 4 ? 'bg-[#005596] text-white' : 'text-slate-400 bg-slate-50'
             }`}
           >
             4. Rota & Fim
@@ -348,8 +348,8 @@ export const ExternalCheckin: React.FC = () => {
         </div>
 
         {/* Aviso de Privacidade e LGPD */}
-        <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3 text-[11px] text-slate-300 space-y-1 leading-relaxed">
-          <div className="flex items-center space-x-1.5 text-emerald-400 font-bold">
+        <div className="bg-sky-50/70 border border-sky-200 rounded-xl p-3 text-[11px] text-slate-700 space-y-1 leading-relaxed">
+          <div className="flex items-center space-x-1.5 text-[#005596] font-bold">
             <Lock className="w-3.5 h-3.5" />
             <span>TERMO DE PRIVACIDADE & LGPD:</span>
           </div>
@@ -361,46 +361,46 @@ export const ExternalCheckin: React.FC = () => {
 
         {/* STEP 1: GEOLOCATION VALIDATION */}
         {currentStep === 1 && (
-          <Card className="bg-slate-800 border-slate-700 text-white shadow-xl">
-            <CardHeader className="pb-3 border-b border-slate-700">
-              <CardTitle className="text-base font-bold flex items-center space-x-2">
-                <MapPin className="w-4 h-4 text-emerald-400" />
+          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
+            <CardHeader className="pb-3 border-b border-slate-100">
+              <CardTitle className="text-base font-bold flex items-center space-x-2 text-slate-900">
+                <MapPin className="w-4 h-4 text-emerald-600" />
                 <span>Etapa 1: Validação de Geolocalização</span>
               </CardTitle>
-              <CardDescription className="text-xs text-slate-400">
+              <CardDescription className="text-xs text-slate-500">
                 Obrigatório autorizar o GPS para verificação da distância em relação à CIAFAL.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-4 space-y-4 text-xs">
-              <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-700 space-y-3">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-300 uppercase flex items-center gap-1.5">
-                    <Radio className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="font-bold text-slate-700 uppercase flex items-center gap-1.5">
+                    <Radio className="w-3.5 h-3.5 text-emerald-600" />
                     Status do Sensor GPS
                   </span>
                   {geoStatus === 'acquired' && distanceCalculated !== null && (
                     <Badge className="bg-emerald-600 text-white font-mono">
-                      {distanceCalculated} km da Matriz
+                      {distanceCalculated.toLocaleString('pt-BR')} km da Matriz
                     </Badge>
                   )}
                 </div>
 
                 {geoStatus === 'requesting' && (
-                  <div className="text-slate-300 flex items-center space-x-2 py-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+                  <div className="text-slate-600 flex items-center space-x-2 py-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
                     <span>Obtendo coordenadas do satélite / celular...</span>
                   </div>
                 )}
 
                 {geoStatus === 'acquired' && coords && (
-                  <div className="space-y-2 text-slate-300">
-                    <div className="text-emerald-400 font-semibold">
-                      ✓ Localização capturada com precisão de ±{Math.round(coords.accuracy)}m.
+                  <div className="space-y-2 text-slate-700">
+                    <div className="text-emerald-700 font-semibold">
+                      ✓ Localização capturada com precisão de ±{Math.round(coords.accuracy)} m.
                     </div>
 
-                    <div className="p-2.5 bg-slate-800 rounded-lg border border-slate-700 space-y-1">
-                      <div className="text-slate-400 text-[10px] uppercase font-bold">
-                        Classificação Preliminar do Backend:
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-200 space-y-1">
+                      <div className="text-slate-500 text-[10px] uppercase font-bold">
+                        Classificação Preliminar do Sistema:
                       </div>
                       <div className="flex items-center space-x-2">
                         <Badge
@@ -414,7 +414,7 @@ export const ExternalCheckin: React.FC = () => {
                         >
                           GRUPO: {assignedGroup}
                         </Badge>
-                        <span className="text-[11px] text-slate-300">
+                        <span className="text-[11px] text-slate-600">
                           {assignedGroup === 'PORTA'
                             ? 'Dentro do pátio da CIAFAL (Presença física)'
                             : assignedGroup === 'FORA'
@@ -427,9 +427,9 @@ export const ExternalCheckin: React.FC = () => {
                 )}
 
                 {(geoStatus === 'denied' || geoStatus === 'error') && (
-                  <div className="space-y-2 p-3 bg-rose-950/60 border border-rose-600/40 rounded-lg text-rose-200">
-                    <div className="font-bold flex items-center gap-1.5">
-                      <AlertTriangle className="w-4 h-4 text-rose-400" />
+                  <div className="space-y-2 p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800">
+                    <div className="font-bold flex items-center gap-1.5 text-rose-700">
+                      <AlertTriangle className="w-4 h-4 text-rose-600" />
                       GPS Negado ou Indisponível
                     </div>
                     <p className="text-[11px]">
@@ -440,7 +440,7 @@ export const ExternalCheckin: React.FC = () => {
                       type="button"
                       size="sm"
                       onClick={requestLocation}
-                      className="text-xs bg-slate-700 hover:bg-slate-600 text-white"
+                      className="text-xs bg-slate-800 hover:bg-slate-700 text-white"
                     >
                       Tentar Novamente
                     </Button>
@@ -452,7 +452,7 @@ export const ExternalCheckin: React.FC = () => {
                 type="button"
                 onClick={() => setCurrentStep(2)}
                 disabled={geoStatus !== 'acquired' || !coords}
-                className="w-full bg-[#005596] hover:bg-[#004071] text-white font-bold text-sm h-11"
+                className="w-full bg-[#005596] hover:bg-[#004275] text-white font-bold text-sm h-11 shadow-sm"
               >
                 Prosseguir para Identificação da Placa
                 <ArrowRight className="w-4 h-4 ml-2" />
@@ -463,30 +463,30 @@ export const ExternalCheckin: React.FC = () => {
 
         {/* STEP 2: PLATE ENTRY & LOOKUP */}
         {currentStep === 2 && (
-          <Card className="bg-slate-800 border-slate-700 text-white shadow-xl">
-            <CardHeader className="pb-3 border-b border-slate-700">
-              <CardTitle className="text-base font-bold flex items-center space-x-2">
-                <Truck className="w-4 h-4 text-sky-400" />
+          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
+            <CardHeader className="pb-3 border-b border-slate-100">
+              <CardTitle className="text-base font-bold flex items-center space-x-2 text-slate-900">
+                <Truck className="w-4 h-4 text-[#005596]" />
                 <span>Etapa 2: Placa do Veículo (Chave Inicial)</span>
               </CardTitle>
-              <CardDescription className="text-xs text-slate-400">
+              <CardDescription className="text-xs text-slate-500">
                 A placa consulta a base sincronizada SAP ZSD004V_V2.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
               <form onSubmit={handleSearchPlate} className="space-y-4 text-xs">
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-300 block">
+                  <label className="font-bold text-slate-700 block">
                     Informe a Placa do Veículo / Cavalo:
                   </label>
                   <Input
                     placeholder="Ex: ABC-1234 ou ABC1D23"
                     value={plateInput}
                     onChange={(e) => setPlateInput(e.target.value.toUpperCase())}
-                    className="bg-slate-900 border-slate-700 text-white font-mono text-base font-bold tracking-wider h-11 uppercase"
+                    className="bg-white border-slate-300 text-slate-900 font-mono text-base font-bold tracking-wider h-11 uppercase"
                     required
                   />
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-500">
                     Se a placa existir no SAP, seus dados mascarados serão carregados. Caso
                     contrário, você será direcionado para pré-cadastro.
                   </p>
@@ -497,14 +497,14 @@ export const ExternalCheckin: React.FC = () => {
                     type="button"
                     variant="outline"
                     onClick={() => setCurrentStep(1)}
-                    className="border-slate-700 text-slate-300 hover:bg-slate-700 text-xs h-11"
+                    className="border-slate-300 text-slate-700 hover:bg-slate-50 text-xs h-11"
                   >
                     Voltar
                   </Button>
                   <Button
                     type="submit"
                     disabled={isSearchingPlate || !plateInput.trim()}
-                    className="flex-1 bg-[#005596] hover:bg-[#004071] text-white font-bold text-sm h-11"
+                    className="flex-1 bg-[#005596] hover:bg-[#004275] text-white font-bold text-sm h-11 shadow-sm"
                   >
                     {isSearchingPlate ? 'Consultando SAP...' : 'Verificar Placa'}
                     <Search className="w-4 h-4 ml-2" />
@@ -517,17 +517,17 @@ export const ExternalCheckin: React.FC = () => {
 
         {/* STEP 3: CONFIRMATION (FOUND) OR PRE-REGISTRATION (NOT FOUND) */}
         {currentStep === 3 && (
-          <Card className="bg-slate-800 border-slate-700 text-white shadow-xl">
-            <CardHeader className="pb-3 border-b border-slate-700">
-              <CardTitle className="text-base font-bold flex items-center space-x-2">
-                <UserCheck className="w-4 h-4 text-emerald-400" />
+          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
+            <CardHeader className="pb-3 border-b border-slate-100">
+              <CardTitle className="text-base font-bold flex items-center space-x-2 text-slate-900">
+                <UserCheck className="w-4 h-4 text-emerald-600" />
                 <span>
                   {plateLookupData?.found
                     ? 'Etapa 3: Confirmação Cadastral'
                     : 'Etapa 3: Pré-Cadastro de Motorista & Veículo'}
                 </span>
               </CardTitle>
-              <CardDescription className="text-xs text-slate-400">
+              <CardDescription className="text-xs text-slate-500">
                 {plateLookupData?.found
                   ? 'Placa localizada na base ativa. Confirme seus dados para prosseguir.'
                   : 'Placa não encontrada. Preencha os dados para análise da logística CIAFAL.'}
@@ -537,38 +537,40 @@ export const ExternalCheckin: React.FC = () => {
               {plateLookupData?.found && plateLookupData.driver ? (
                 // CADASTRO ENCONTRADO - APRESENTAR DADOS MASCARADOS
                 <div className="space-y-3">
-                  <div className="bg-emerald-950/60 border border-emerald-500/40 p-4 rounded-xl space-y-2">
-                    <div className="flex items-center space-x-2 text-emerald-300 font-bold text-sm">
-                      <CheckCircle2 className="w-4 h-4" />
+                  <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl space-y-2">
+                    <div className="flex items-center space-x-2 text-emerald-800 font-bold text-sm">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       <span>Cadastro Ativo Localizado no SAP!</span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-300 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-700 pt-1">
                       <div>
-                        <span className="text-slate-400 block font-bold">Motorista:</span>
-                        <strong className="text-white">{plateLookupData.driver.nameMasked}</strong>
+                        <span className="text-slate-500 block font-bold">Motorista:</span>
+                        <strong className="text-slate-900">
+                          {plateLookupData.driver.nameMasked}
+                        </strong>
                       </div>
                       <div>
-                        <span className="text-slate-400 block font-bold">Documento:</span>
-                        <strong className="text-white font-mono">
+                        <span className="text-slate-500 block font-bold">Documento:</span>
+                        <strong className="text-slate-900 font-mono">
                           {plateLookupData.driver.documentMasked}
                         </strong>
                       </div>
                       <div>
-                        <span className="text-slate-400 block font-bold">WhatsApp Cadastrado:</span>
-                        <strong className="text-white font-mono">
+                        <span className="text-slate-500 block font-bold">WhatsApp Cadastrado:</span>
+                        <strong className="text-slate-900 font-mono">
                           {plateLookupData.driver.phoneMasked}
                         </strong>
                       </div>
                       <div>
-                        <span className="text-slate-400 block font-bold">Tipo do Veículo:</span>
-                        <strong className="text-white">
+                        <span className="text-slate-500 block font-bold">Tipo do Veículo:</span>
+                        <strong className="text-slate-900">
                           {plateLookupData.vehicle?.type || vehicleType}
                         </strong>
                       </div>
                     </div>
                   </div>
 
-                  <p className="text-slate-300 text-[11px]">
+                  <p className="text-slate-600 text-[11px]">
                     Os dados acima conferem com seu veículo e condutor?
                   </p>
 
@@ -577,14 +579,14 @@ export const ExternalCheckin: React.FC = () => {
                       type="button"
                       variant="outline"
                       onClick={() => setCurrentStep(2)}
-                      className="border-slate-700 text-slate-300 hover:bg-slate-700 text-xs h-10"
+                      className="border-slate-300 text-slate-700 hover:bg-slate-50 text-xs h-10"
                     >
                       Alterar Placa
                     </Button>
                     <Button
                       type="button"
                       onClick={() => setCurrentStep(4)}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-10"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-10 shadow-sm"
                     >
                       Confirmar Dados e Escolher Itinerário
                       <ArrowRight className="w-4 h-4 ml-1.5" />
@@ -594,9 +596,9 @@ export const ExternalCheckin: React.FC = () => {
               ) : (
                 // NÃO ENCONTRADO - FORMULÁRIO DE PRÉ-CADASTRO (PRÉ-CADASTRO NÃO É CADASTRO)
                 <div className="space-y-3">
-                  <div className="bg-amber-950/60 border border-amber-500/40 p-3.5 rounded-xl space-y-1.5 text-amber-200">
+                  <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl space-y-1.5 text-amber-900">
                     <div className="flex items-center space-x-2 font-bold text-xs">
-                      <Clock className="w-4 h-4 text-amber-400" />
+                      <Clock className="w-4 h-4 text-amber-600" />
                       <span>Placa {plateInput} não localizada no SAP</span>
                     </div>
                     <p className="text-[11px] leading-relaxed">
@@ -607,37 +609,37 @@ export const ExternalCheckin: React.FC = () => {
 
                   <div className="space-y-3 pt-1">
                     <div className="space-y-1">
-                      <label className="font-bold text-slate-300 block">
+                      <label className="font-bold text-slate-700 block">
                         Nome Completo do Motorista:
                       </label>
                       <Input
                         placeholder="Nome completo"
                         value={driverName}
                         onChange={(e) => setDriverName(e.target.value)}
-                        className="bg-slate-900 border-slate-700 text-white text-xs h-9"
+                        className="bg-white border-slate-300 text-slate-900 text-xs h-9"
                         required
                       />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <label className="font-bold text-slate-300 block">CPF ou CNPJ:</label>
+                        <label className="font-bold text-slate-700 block">CPF ou CNPJ:</label>
                         <Input
                           placeholder="000.000.000-00"
                           value={document}
                           onChange={(e) => setDocument(e.target.value)}
-                          className="bg-slate-900 border-slate-700 text-white font-mono text-xs h-9"
+                          className="bg-white border-slate-300 text-slate-900 font-mono text-xs h-9"
                           required
                         />
                       </div>
 
                       <div className="space-y-1">
-                        <label className="font-bold text-slate-300 block">WhatsApp com DDD:</label>
+                        <label className="font-bold text-slate-700 block">WhatsApp com DDD:</label>
                         <Input
                           placeholder="(11) 98765-4321"
                           value={whatsapp}
                           onChange={(e) => setWhatsapp(e.target.value)}
-                          className="bg-slate-900 border-slate-700 text-white font-mono text-xs h-9"
+                          className="bg-white border-slate-300 text-slate-900 font-mono text-xs h-9"
                           required
                         />
                       </div>
@@ -645,37 +647,37 @@ export const ExternalCheckin: React.FC = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <label className="font-bold text-slate-300 block">
+                        <label className="font-bold text-slate-700 block">
                           Transportadora (se houver):
                         </label>
                         <Input
                           placeholder="Autônomo ou Nome da Empresa"
                           value={carrierName}
                           onChange={(e) => setCarrierName(e.target.value)}
-                          className="bg-slate-900 border-slate-700 text-white text-xs h-9"
+                          className="bg-white border-slate-300 text-slate-900 text-xs h-9"
                         />
                       </div>
 
                       <div className="space-y-1">
-                        <label className="font-bold text-slate-300 block">Tipo do Conjunto:</label>
+                        <label className="font-bold text-slate-700 block">Tipo do Conjunto:</label>
                         <Select value={vehicleType} onValueChange={setVehicleType}>
-                          <SelectTrigger className="bg-slate-900 border-slate-700 text-white text-xs h-9">
+                          <SelectTrigger className="bg-white border-slate-300 text-slate-900 text-xs h-9">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-slate-800 text-white border-slate-700">
-                            <SelectItem value="Carreta LS">Carreta LS (28-32t)</SelectItem>
+                          <SelectContent className="bg-white text-slate-900 border-slate-200">
+                            <SelectItem value="Carreta LS">Carreta LS (28-32 t)</SelectItem>
                             <SelectItem value="Carreta Grade Baixa">Carreta Grade Baixa</SelectItem>
-                            <SelectItem value="Bitrem">Bitrem (38t)</SelectItem>
-                            <SelectItem value="Rodotrem">Rodotrem (50t)</SelectItem>
-                            <SelectItem value="Truck">Truck (14t)</SelectItem>
-                            <SelectItem value="Toco">Toco (6t)</SelectItem>
+                            <SelectItem value="Bitrem">Bitrem (38 t)</SelectItem>
+                            <SelectItem value="Rodotrem">Rodotrem (50 t)</SelectItem>
+                            <SelectItem value="Truck">Truck (14 t)</SelectItem>
+                            <SelectItem value="Toco">Toco (6 t)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="font-bold text-slate-300 block">
+                      <label className="font-bold text-slate-700 block">
                         Capacidade Informada (kg):
                       </label>
                       <Input
@@ -683,7 +685,7 @@ export const ExternalCheckin: React.FC = () => {
                         placeholder="Ex: 28000"
                         value={declaredCapacityKg}
                         onChange={(e) => setDeclaredCapacityKg(Number(e.target.value))}
-                        className="bg-slate-900 border-slate-700 text-white font-mono text-xs h-9"
+                        className="bg-white border-slate-300 text-slate-900 font-mono text-xs h-9"
                       />
                     </div>
                   </div>
@@ -693,7 +695,7 @@ export const ExternalCheckin: React.FC = () => {
                       type="button"
                       variant="outline"
                       onClick={() => setCurrentStep(2)}
-                      className="border-slate-700 text-slate-300 hover:bg-slate-700 text-xs h-10"
+                      className="border-slate-300 text-slate-700 hover:bg-slate-50 text-xs h-10"
                     >
                       Voltar
                     </Button>
@@ -701,7 +703,7 @@ export const ExternalCheckin: React.FC = () => {
                       type="button"
                       onClick={() => setCurrentStep(4)}
                       disabled={!driverName || !document || !whatsapp}
-                      className="flex-1 bg-[#005596] hover:bg-[#004071] text-white font-bold text-xs h-10"
+                      className="flex-1 bg-[#005596] hover:bg-[#004275] text-white font-bold text-xs h-10 shadow-sm"
                     >
                       Prosseguir para Escolha do Itinerário
                       <ArrowRight className="w-4 h-4 ml-1.5" />
@@ -715,27 +717,27 @@ export const ExternalCheckin: React.FC = () => {
 
         {/* STEP 4: ITINERARY SELECTION & FUTURE DATE (PROGRAMADO) */}
         {currentStep === 4 && (
-          <Card className="bg-slate-800 border-slate-700 text-white shadow-xl">
-            <CardHeader className="pb-3 border-b border-slate-700">
-              <CardTitle className="text-base font-bold flex items-center space-x-2">
-                <Route className="w-4 h-4 text-purple-400" />
+          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
+            <CardHeader className="pb-3 border-b border-slate-100">
+              <CardTitle className="text-base font-bold flex items-center space-x-2 text-slate-900">
+                <Route className="w-4 h-4 text-[#005596]" />
                 <span>Etapa 4: Itinerário de Preferência & Disponibilidade</span>
               </CardTitle>
-              <CardDescription className="text-xs text-slate-400">
+              <CardDescription className="text-xs text-slate-500">
                 Selecione o itinerário oficial SAP cadastrado (lista controlada).
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-4 space-y-4 text-xs">
               {/* Itinerário Dropdown */}
               <div className="space-y-1.5">
-                <label className="font-bold text-slate-300 block">
+                <label className="font-bold text-slate-700 block">
                   Itinerário de Preferência (Fonte TVROT SAP):
                 </label>
                 <Select value={selectedItinerary} onValueChange={setSelectedItinerary}>
-                  <SelectTrigger className="bg-slate-900 border-slate-700 text-white text-xs h-10">
+                  <SelectTrigger className="bg-white border-slate-300 text-slate-900 text-xs h-10">
                     <SelectValue placeholder="Selecione o itinerário SAP" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 text-white border-slate-700 max-h-60">
+                  <SelectContent className="bg-white text-slate-900 border-slate-200 max-h-60">
                     {itineraries.map((it) => (
                       <SelectItem key={it.sap_code} value={it.sap_code}>
                         <strong>{it.sap_code}</strong> — {it.description} ({it.uf})
@@ -743,20 +745,23 @@ export const ExternalCheckin: React.FC = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-slate-500">
                   A escolha do itinerário alimenta o Planejador de Cargas e a Matriz de
                   Disponibilidade da CIAFAL.
                 </p>
               </div>
 
               {/* Se for PROGRAMADO ou desejar informar data futura */}
-              <div className="p-3.5 bg-slate-900/90 rounded-xl border border-slate-700 space-y-2.5">
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-300 uppercase flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-sky-400" />
+                  <span className="font-bold text-slate-700 uppercase flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-[#005596]" />
                     Previsão de Chegada na CIAFAL
                   </span>
-                  <Badge variant="outline" className="text-[10px] text-sky-300 border-sky-500/40">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] text-[#005596] border-sky-300 bg-sky-50"
+                  >
                     {assignedGroup === 'PROGRAMADO'
                       ? 'Obrigatório (> 60 km)'
                       : 'Opcional para data futura'}
@@ -764,7 +769,7 @@ export const ExternalCheckin: React.FC = () => {
                 </div>
 
                 {assignedGroup === 'PROGRAMADO' && (
-                  <p className="text-[11px] text-amber-300">
+                  <p className="text-[11px] text-amber-800">
                     "Informe sua previsão de disponibilidade para carregamento na CIAFAL." Como você
                     está a mais de 60 km, sua disponibilidade é classificada como PROGRAMADA
                     (capacidade futura).
@@ -772,7 +777,7 @@ export const ExternalCheckin: React.FC = () => {
                 )}
 
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-400 block text-[11px]">
+                  <label className="font-bold text-slate-600 block text-[11px]">
                     Data Prevista de Chegada:
                   </label>
                   <Input
@@ -780,21 +785,21 @@ export const ExternalCheckin: React.FC = () => {
                     value={scheduledArrivalDate}
                     onChange={(e) => setScheduledArrivalDate(e.target.value)}
                     min={new Date().toISOString().split('T')[0]}
-                    className="bg-slate-800 border-slate-700 text-white text-xs h-9"
+                    className="bg-white border-slate-300 text-slate-900 text-xs h-9"
                   />
                 </div>
               </div>
 
               {/* Observações Operacionais */}
               <div className="space-y-1.5">
-                <label className="font-bold text-slate-300 block">
+                <label className="font-bold text-slate-700 block">
                   Observações do Motorista (Opcional):
                 </label>
                 <Textarea
                   placeholder="Ex: Disponível para carregar a partir das 07h, carroceria com lona nova..."
                   value={driverNotes}
                   onChange={(e) => setDriverNotes(e.target.value)}
-                  className="bg-slate-900 border-slate-700 text-white text-xs h-16 resize-none"
+                  className="bg-white border-slate-300 text-slate-900 text-xs h-16 resize-none"
                 />
               </div>
 
@@ -804,7 +809,7 @@ export const ExternalCheckin: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => setCurrentStep(3)}
-                  className="border-slate-700 text-slate-300 hover:bg-slate-700 text-xs h-11"
+                  className="border-slate-300 text-slate-700 hover:bg-slate-50 text-xs h-11"
                 >
                   Voltar
                 </Button>
@@ -812,7 +817,7 @@ export const ExternalCheckin: React.FC = () => {
                   type="button"
                   onClick={handleFinalSubmit}
                   disabled={isSubmitting}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm h-11 shadow-lg"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm h-11 shadow-sm"
                 >
                   {isSubmitting ? 'Registrando na Fila...' : 'Confirmar Disponibilidade na CIAFAL'}
                 </Button>
@@ -823,26 +828,26 @@ export const ExternalCheckin: React.FC = () => {
 
         {/* STEP 5: FINAL CONFIRMATION RESULT */}
         {currentStep === 5 && submissionResult && (
-          <Card className="bg-slate-800 border-slate-700 text-white shadow-xl animate-fade-in">
-            <CardHeader className="pb-3 border-b border-slate-700 text-center">
-              <div className="w-12 h-12 rounded-full bg-emerald-950 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto mb-2">
+          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm animate-fade-in">
+            <CardHeader className="pb-3 border-b border-slate-100 text-center">
+              <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto mb-2">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
-              <CardTitle className="text-lg font-bold text-white">
+              <CardTitle className="text-lg font-bold text-slate-900">
                 {submissionResult.isPreReg
                   ? 'Pré-Cadastro Recebido pela Logística'
                   : 'Disponibilidade Registrada com Sucesso!'}
               </CardTitle>
-              <CardDescription className="text-xs text-slate-400">
-                Placa: <strong className="text-white font-mono">{plateInput}</strong> • Grupo:{' '}
-                <strong className="text-emerald-400">{submissionResult.group}</strong>
+              <CardDescription className="text-xs text-slate-500">
+                Placa: <strong className="text-slate-900 font-mono">{plateInput}</strong> • Grupo:{' '}
+                <strong className="text-emerald-700">{submissionResult.group}</strong>
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-4 space-y-4 text-xs">
-              <div className="p-3.5 bg-slate-900/90 rounded-xl border border-slate-700 space-y-2">
-                <div className="text-slate-300 font-medium">{submissionResult.message}</div>
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div className="text-slate-700 font-medium">{submissionResult.message}</div>
                 {submissionResult.calculatedLogisticsDate && (
-                  <div className="text-sky-300 font-bold">
+                  <div className="text-[#005596] font-bold">
                     Data Logística Calculada:{' '}
                     {new Date(
                       submissionResult.calculatedLogisticsDate + 'T12:00:00',
@@ -851,8 +856,8 @@ export const ExternalCheckin: React.FC = () => {
                 )}
               </div>
 
-              <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800 text-[11px] text-slate-400 space-y-1">
-                <div className="font-bold text-slate-300">Próximos Passos:</div>
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-[11px] text-slate-500 space-y-1">
+                <div className="font-bold text-slate-700">Próximos Passos:</div>
                 <p>
                   • Acompanhe as mensagens pelo seu WhatsApp cadastrado.
                   <br />• Caso esteja classificado como PROGRAMADO, ao chegar próximo ou na portaria
@@ -868,7 +873,7 @@ export const ExternalCheckin: React.FC = () => {
                   setSubmissionResult(null)
                   setPlateLookupData(null)
                 }}
-                className="w-full bg-[#005596] hover:bg-[#004071] text-white font-bold text-xs h-10"
+                className="w-full bg-[#005596] hover:bg-[#004275] text-white font-bold text-xs h-10 shadow-sm"
               >
                 Realizar Novo Check-in / Consulta
               </Button>
@@ -878,7 +883,7 @@ export const ExternalCheckin: React.FC = () => {
       </div>
 
       {/* Footer */}
-      <div className="text-center text-[10px] text-slate-500 py-3">
+      <div className="text-center text-[10px] text-slate-400 py-3">
         TMS CIAFAL Logística • HUB Integrado • Versão 1.2
       </div>
     </div>

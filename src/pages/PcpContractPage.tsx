@@ -82,17 +82,17 @@ export const PcpContractPage: React.FC = () => {
       </div>
 
       {/* Contract Architecture Guidelines */}
-      <div className="bg-slate-900 text-white p-4 rounded-xl text-xs space-y-2 border border-slate-800 shadow-md">
-        <div className="flex items-center space-x-2 text-sky-400 font-bold">
-          <ShieldCheck className="w-4 h-4" />
+      <div className="bg-sky-50/70 text-slate-800 p-4 rounded-xl text-xs space-y-2 border border-sky-200 shadow-none">
+        <div className="flex items-center space-x-2 text-[#005596] font-bold">
+          <ShieldCheck className="w-4 h-4 text-[#005596]" />
           <span>DIRETRIZ ARQUITETURAL DO PCP ROBOTIZADO:</span>
         </div>
-        <p className="text-slate-300 leading-relaxed">
+        <p className="text-slate-600 leading-relaxed">
           O PCP Robotizado é a <strong>fonte da programação operacional de produção</strong>. Não
           substitui o planejamento mestre do SAP. Dados futuros representam{' '}
           <strong>PREVISÃO</strong>, nunca saldo em estoque garantido. Se o payload recebido estiver
           fora do schema, o barramento rejeita imediatamente com{' '}
-          <code className="bg-slate-800 text-amber-300 px-1 py-0.5 rounded">
+          <code className="bg-slate-100 text-amber-800 px-1 py-0.5 rounded border border-slate-300 font-mono">
             SCHEMA_INCOMPATIVEL
           </code>
           .
@@ -198,7 +198,7 @@ export const PcpContractPage: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-4 space-y-3 text-xs">
-            <div className="bg-slate-900 text-slate-100 p-3 rounded-lg font-mono text-[11px] overflow-x-auto">
+            <div className="bg-slate-50 text-slate-800 border border-slate-200 p-3 rounded-lg font-mono text-[11px] overflow-x-auto">
               <pre>{JSON.stringify(JSON.parse(contractConfig.expectedPayloadSchema), null, 2)}</pre>
             </div>
 

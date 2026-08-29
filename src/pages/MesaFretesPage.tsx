@@ -50,7 +50,16 @@ import {
   Info,
   SlidersHorizontal,
   AlertCircle,
+  Building,
 } from 'lucide-react'
+import {
+  formatCurrency,
+  formatWeight,
+  formatPercent,
+  formatDate,
+  formatDateTime,
+  formatDurationMinutes,
+} from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -376,7 +385,7 @@ export const MesaFretesPage: React.FC = () => {
       )
 
       const pedagio = 428.4
-      const initialMessage = `Olá, ${selectedDriverForCarlao.driverName}! Tudo bem? Temos uma carga CIAFAL (${selectedCargoForOffer.cargo_id}) para ${selectedCargoForOffer.destination || 'Campinas/SP'} com previsão de carregamento hoje. Vi que seu veículo (${selectedDriverForCarlao.vehiclePlate || '---'}) atende perfeitamente. Frete proposto de R$ ${band.metaCiafal.toLocaleString('pt-BR')} líquido + Pedágio integral de R$ ${pedagio.toLocaleString('pt-BR')}. Quer que eu te passe todos os detalhes?`
+      const initialMessage = `Olá, ${selectedDriverForCarlao.driverName}! Tudo bem? Temos uma carga CIAFAL (${selectedCargoForOffer.cargo_id}) para ${selectedCargoForOffer.destination || 'Campinas/SP'} com previsão de carregamento hoje. Vi que seu veículo (${selectedDriverForCarlao.vehiclePlate || '---'}) atende perfeitamente. Frete proposto de ${formatCurrency(band.metaCiafal)} líquido + Pedágio integral de ${formatCurrency(pedagio)}. Deseja que eu passe todos os detalhes?`
 
       const newNegData = {
         cargo_id: selectedCargoForOffer.cargo_id,
@@ -424,7 +433,7 @@ export const MesaFretesPage: React.FC = () => {
           referencia: band.referenciaMercado,
           autonomia: band.autonomiaMaximaCarlao,
           score: selectedDriverForCarlao.score,
-          motivo: `Abertura de Onda ${selectedDriverForCarlao.suggestedWave} com motorista de score ${selectedDriverForCarlao.score}/100. Separação obrigatória de frete e pedágio.`,
+          motivo: `Abertura de Onda ${selectedDriverForCarlao.suggestedWave} com motorista de score ${selectedDriverForCarlao.score}/100. Separação obrigatória de frete e pedágio conforme política CIAFAL.`,
         },
       }
 
@@ -768,7 +777,7 @@ export const MesaFretesPage: React.FC = () => {
                 <div className="text-2xl font-black text-slate-800 mt-0.5">{offers.length}</div>
                 <p className="text-[10px] text-slate-500">Planejadas pelo IA</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[#005596]">
                 <Layers className="w-5 h-5" />
               </div>
             </CardContent>
@@ -797,7 +806,7 @@ export const MesaFretesPage: React.FC = () => {
                 <p className="text-[11px] font-bold uppercase tracking-wider text-amber-900">
                   Autonomia do Carlão
                 </p>
-                <div className="text-2xl font-black text-amber-700 mt-0.5">82,4%</div>
+                <div className="text-2xl font-black text-amber-700 mt-0.5">82,4 %</div>
                 <p className="text-[10px] text-amber-700">Sem intervenção humana</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
@@ -829,12 +838,10 @@ export const MesaFretesPage: React.FC = () => {
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   Tempo Médio Fechamento
                 </p>
-                <div className="text-2xl font-black text-slate-800 mt-0.5">
-                  14,8 <span className="text-xs font-normal">min</span>
-                </div>
+                <div className="text-2xl font-black text-slate-800 mt-0.5">14 min 48 s</div>
                 <p className="text-[10px] text-slate-500">Agilidade Carlão</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[#005596]">
                 <Clock className="w-5 h-5" />
               </div>
             </CardContent>
@@ -899,7 +906,7 @@ export const MesaFretesPage: React.FC = () => {
                             {offer.cargo_id}
                           </Badge>
                           <span className="text-[11px] font-bold text-slate-500">
-                            {((offer.weight_kg || 27000) / 1000).toFixed(1)}t •{' '}
+                            {formatWeight(offer.weight_kg || 27000)} •{' '}
                             {offer.required_vehicle_type || 'Carreta'}
                           </span>
                         </div>
@@ -917,16 +924,16 @@ export const MesaFretesPage: React.FC = () => {
                           <div className="flex justify-between text-[11px] text-slate-500">
                             <span>Piso ANTT:</span>
                             <span className="font-bold text-slate-700">
-                              R$ {band.pisoAntt.toLocaleString('pt-BR')}
+                              {formatCurrency(band.pisoAntt)}
                             </span>
                           </div>
                           <div className="flex justify-between text-[11px] text-[#005596] font-bold">
                             <span>Meta CIAFAL:</span>
-                            <span>R$ {band.metaCiafal.toLocaleString('pt-BR')}</span>
+                            <span>{formatCurrency(band.metaCiafal)}</span>
                           </div>
                           <div className="flex justify-between text-[11px] text-amber-700 font-semibold">
                             <span>Autonomia Carlão:</span>
-                            <span>Até R$ {band.autonomiaMaximaCarlao.toLocaleString('pt-BR')}</span>
+                            <span>Até {formatCurrency(band.autonomiaMaximaCarlao)}</span>
                           </div>
                           <div className="flex justify-between text-[11px] text-emerald-700 font-bold border-t pt-1">
                             <span>Pedágio Destacado:</span>
@@ -1392,7 +1399,7 @@ export const MesaFretesPage: React.FC = () => {
                       {selectedCargoForOffer?.cargo_id}
                     </strong> •
                     Destino: {selectedCargoForOffer?.destination} • Peso:{' '}
-                    {((selectedCargoForOffer?.weight_kg || 27000) / 1000).toFixed(1)}t
+                    {formatWeight(selectedCargoForOffer?.weight_kg || 27000)}
                   </DialogDescription>
                 </div>
                 <Button
@@ -1499,12 +1506,11 @@ export const MesaFretesPage: React.FC = () => {
                             </Badge>
                           </div>
                           <p className="text-[11px] text-slate-500">
-                            {cand.vehicleType || 'Carreta Vanderléia'} • Frete Histórico: R${' '}
-                            {cand.expectedCostDetails.nominalFreight.toLocaleString('pt-BR')} •
-                            Custo Total Esperado:{' '}
+                            {cand.vehicleType || 'Carreta Vanderléia'} • Frete Histórico:{' '}
+                            {formatCurrency(cand.expectedCostDetails.nominalFreight)} • Custo Total
+                            Esperado:{' '}
                             <strong className="text-slate-800">
-                              R${' '}
-                              {cand.expectedCostDetails.totalExpectedCost.toLocaleString('pt-BR')}
+                              {formatCurrency(cand.expectedCostDetails.totalExpectedCost)}
                             </strong>{' '}
                             (Confiança {cand.expectedCostDetails.confidenceLevel})
                           </p>
@@ -1681,22 +1687,19 @@ export const MesaFretesPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="p-2.5">
-                          R$ {cand.expectedCostDetails.nominalFreight.toLocaleString('pt-BR')}
+                          {formatCurrency(cand.expectedCostDetails.nominalFreight)}
                         </td>
                         <td className="p-2.5">
-                          R$ {cand.expectedCostDetails.pedagio.toLocaleString('pt-BR')}
+                          {formatCurrency(cand.expectedCostDetails.pedagio)}
                         </td>
                         <td className="p-2.5 text-amber-700">
-                          R${' '}
-                          {cand.expectedCostDetails.occurrenceExpectedRiskCost.toLocaleString(
-                            'pt-BR',
-                          )}
+                          {formatCurrency(cand.expectedCostDetails.occurrenceExpectedRiskCost)}
                         </td>
                         <td className="p-2.5 font-bold text-slate-900">
-                          R$ {cand.expectedCostDetails.totalExpectedCost.toLocaleString('pt-BR')}
+                          {formatCurrency(cand.expectedCostDetails.totalExpectedCost)}
                           <span className="block text-[10px] text-slate-500 font-normal">
-                            Faixa: R$ {cand.expectedCostDetails.costRangeMin}–
-                            {cand.expectedCostDetails.costRangeMax}
+                            Faixa: {formatCurrency(cand.expectedCostDetails.costRangeMin)} a{' '}
+                            {formatCurrency(cand.expectedCostDetails.costRangeMax)}
                           </span>
                         </td>
                         <td className="p-2.5 font-black text-[#005596]">{cand.fitnessScore}/100</td>
@@ -1955,16 +1958,16 @@ export const MesaFretesPage: React.FC = () => {
               <div className="space-y-3 py-2 text-xs">
                 <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
                   <div>
-                    Piso ANTT Obrigatório: <strong>R$ {explainData.piso}</strong>
+                    Piso ANTT Obrigatório: <strong>{formatCurrency(explainData.piso)}</strong>
                   </div>
                   <div>
-                    Meta CIAFAL: <strong>R$ {explainData.meta}</strong>
+                    Meta CIAFAL: <strong>{formatCurrency(explainData.meta)}</strong>
                   </div>
                   <div>
-                    Mediana da Rota: <strong>R$ {explainData.referencia}</strong>
+                    Mediana da Rota: <strong>{formatCurrency(explainData.referencia)}</strong>
                   </div>
                   <div>
-                    Autonomia Máxima IA: <strong>R$ {explainData.autonomia}</strong>
+                    Autonomia Máxima IA: <strong>{formatCurrency(explainData.autonomia)}</strong>
                   </div>
                 </div>
 

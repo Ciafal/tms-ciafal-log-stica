@@ -169,12 +169,12 @@ export const TollProvidersAdminPage: React.FC = () => {
       </div>
 
       {/* Corporate Guidance Banner */}
-      <div className="bg-slate-900 text-white p-4 rounded-xl text-xs space-y-2 border border-slate-800 shadow-md">
-        <div className="flex items-center space-x-2 text-sky-400 font-bold">
-          <ShieldCheck className="w-4 h-4" />
+      <div className="bg-sky-50/70 text-slate-800 p-4 rounded-xl text-xs space-y-2 border border-sky-200 shadow-none">
+        <div className="flex items-center space-x-2 text-[#005596] font-bold">
+          <ShieldCheck className="w-4 h-4 text-[#005596]" />
           <span>DIRETRIZ ARQUITETURAL DE PEDÁGIOS (TollProvider Desacoplado):</span>
         </div>
-        <p className="text-slate-300 leading-relaxed">
+        <p className="text-slate-600 leading-relaxed">
           O cálculo de pedágio é{' '}
           <strong>estritamente desacoplado do cálculo de traçado de rota</strong>. O TMS nunca
           assume que o provedor de rotas fornecerá pedágios corretos no Brasil. A homologação de

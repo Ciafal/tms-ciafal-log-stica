@@ -384,20 +384,20 @@ export const FredControlTowerPage: React.FC = () => {
         <div className="lg:col-span-7">
           {selectedTransport ? (
             <Card className="border-slate-200 bg-white shadow-sm overflow-hidden">
-              <CardHeader className="p-4 bg-slate-900 text-white">
+              <CardHeader className="p-4 bg-sky-50 border-b border-sky-100 text-slate-900">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-sky-400 uppercase tracking-wide">
+                      <span className="text-xs font-bold text-[#005596] uppercase tracking-wide">
                         Visão 360º de Viagem
                       </span>
                       <Badge className="bg-[#005596] text-white text-[10px] font-bold">
                         SAP {selectedTransport.sap_transport_number}
                       </Badge>
                     </div>
-                    <CardTitle className="text-lg font-black text-white mt-0.5 flex items-center gap-2">
+                    <CardTitle className="text-lg font-black text-slate-900 mt-0.5 flex items-center gap-2">
                       <span>{selectedTransport.driver_name}</span>
-                      <span className="text-xs text-slate-400 font-mono font-normal">
+                      <span className="text-xs text-slate-500 font-mono font-normal">
                         ({selectedTransport.vehicle_plate} •{' '}
                         {selectedTransport.vehicle_type || 'Carreta'})
                       </span>
@@ -409,7 +409,7 @@ export const FredControlTowerPage: React.FC = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-xs bg-slate-800 text-white border-slate-700 hover:bg-slate-700"
+                        className="text-xs border-slate-300 text-slate-700 hover:bg-white bg-white"
                       >
                         <ExternalLink className="w-3 h-3 mr-1" />
                         Abrir Painel Completo
@@ -419,16 +419,16 @@ export const FredControlTowerPage: React.FC = () => {
                 </div>
 
                 {/* Status Bar */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-800 text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-sky-200/60 text-xs">
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Próxima Parada</span>
-                    <span className="font-bold text-slate-100 truncate block">
+                    <span className="text-[10px] text-slate-500 block">Próxima Parada</span>
+                    <span className="font-bold text-slate-900 truncate block">
                       {selectedTransport.current_next_stop_name || 'Comercial ABC Metais'}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Previsão (ETA)</span>
-                    <span className="font-bold text-amber-400">
+                    <span className="text-[10px] text-slate-500 block">Previsão (ETA)</span>
+                    <span className="font-bold text-amber-700">
                       {selectedTransport.current_next_stop_eta
                         ? new Date(selectedTransport.current_next_stop_eta).toLocaleTimeString(
                             'pt-BR',
@@ -441,16 +441,16 @@ export const FredControlTowerPage: React.FC = () => {
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Situação</span>
-                    <span className="font-bold text-slate-200">
+                    <span className="text-[10px] text-slate-500 block">Situação</span>
+                    <span className="font-bold text-slate-800">
                       {selectedTransport.trip_status === 'EM_ROTA'
                         ? '🚚 Em Rota'
                         : selectedTransport.trip_status}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Condução</span>
-                    <span className="font-bold text-sky-400">
+                    <span className="text-[10px] text-slate-500 block">Condução</span>
+                    <span className="font-bold text-[#005596]">
                       {selectedTransport.active_actor === 'FRED_IA' ? '🤖 Fred IA' : '👤 Humano'}
                     </span>
                   </div>
@@ -474,72 +474,77 @@ export const FredControlTowerPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Mapa Operacional Integrado (Simulação Vetorial Interativa) */}
-                <div className="relative h-64 bg-slate-900 rounded-xl overflow-hidden border border-slate-800 flex flex-col justify-between p-4 text-white">
+                {/* Mapa Operacional Integrado (Simulação Vetorial Interativa de Fundo Claro) */}
+                <div className="relative h-64 bg-slate-50 rounded-xl overflow-hidden border border-slate-200 flex flex-col justify-between p-4 text-slate-900">
                   <div className="flex items-center justify-between z-10">
-                    <Badge className="bg-slate-800/90 text-sky-400 border border-slate-700 text-[10px]">
+                    <Badge className="bg-white text-[#005596] border border-slate-200 text-[10px] shadow-xs">
                       🗺️ Rota: Matriz CIAFAL → Divinópolis → Betim → BH
                     </Badge>
-                    <Badge className="bg-emerald-600/90 text-white text-[10px]">
+                    <Badge className="bg-emerald-600 text-white text-[10px]">
                       GPS Ativo via WhatsApp Celular
                     </Badge>
                   </div>
 
                   {/* Simulação visual do mapa e traçado */}
-                  <div className="absolute inset-0 opacity-30 bg-[radial-gradient(#005596_1px,transparent_1px)] [background-size:16px_16px]" />
-                  <div className="absolute top-1/2 left-8 right-8 h-1 bg-sky-500/50 rounded transform -translate-y-1/2" />
+                  <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#005596_1.5px,transparent_1.5px)] [background-size:20px_20px]" />
+                  <div className="absolute top-1/2 left-8 right-8 h-1 bg-[#005596]/30 rounded transform -translate-y-1/2" />
 
                   {/* Pontos da rota */}
                   <div className="relative z-10 flex items-center justify-between px-4">
                     <div className="text-center">
-                      <div className="w-7 h-7 rounded-full bg-emerald-600 border-2 border-white flex items-center justify-center text-[10px] font-bold mx-auto shadow-md">
+                      <div className="w-7 h-7 rounded-full bg-emerald-600 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white mx-auto shadow-sm">
                         ✓
                       </div>
-                      <span className="text-[10px] text-slate-300 mt-1 block">CIAFAL</span>
+                      <span className="text-[10px] text-slate-600 font-semibold mt-1 block">
+                        CIAFAL
+                      </span>
                     </div>
 
                     <div className="text-center">
-                      <div className="w-7 h-7 rounded-full bg-emerald-600 border-2 border-white flex items-center justify-center text-[10px] font-bold mx-auto shadow-md">
+                      <div className="w-7 h-7 rounded-full bg-emerald-600 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white mx-auto shadow-sm">
                         ✓
                       </div>
-                      <span className="text-[10px] text-slate-300 mt-1 block">Itaúna</span>
+                      <span className="text-[10px] text-slate-600 font-semibold mt-1 block">
+                        Itaúna
+                      </span>
                     </div>
 
                     <div className="text-center">
-                      <div className="w-8 h-8 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center text-xs font-bold mx-auto shadow-lg animate-bounce">
+                      <div className="w-8 h-8 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center text-xs font-bold text-white mx-auto shadow-md animate-bounce">
                         🚚
                       </div>
-                      <span className="text-[10px] font-bold text-amber-300 mt-1 block">
+                      <span className="text-[10px] font-bold text-amber-800 mt-1 block">
                         Divinópolis (Atual)
                       </span>
                     </div>
 
                     <div className="text-center">
-                      <div className="w-7 h-7 rounded-full bg-slate-700 border-2 border-slate-500 flex items-center justify-center text-[10px] font-bold mx-auto shadow-md">
+                      <div className="w-7 h-7 rounded-full bg-slate-200 border-2 border-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-700 mx-auto shadow-xs">
                         3
                       </div>
-                      <span className="text-[10px] text-slate-400 mt-1 block">Betim (ABC)</span>
+                      <span className="text-[10px] text-slate-500 mt-1 block">Betim (ABC)</span>
                     </div>
 
                     <div className="text-center">
-                      <div className="w-7 h-7 rounded-full bg-slate-700 border-2 border-slate-500 flex items-center justify-center text-[10px] font-bold mx-auto shadow-md">
+                      <div className="w-7 h-7 rounded-full bg-slate-200 border-2 border-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-700 mx-auto shadow-xs">
                         4
                       </div>
-                      <span className="text-[10px] text-slate-400 mt-1 block">
+                      <span className="text-[10px] text-slate-500 mt-1 block">
                         BH (Minas Perfis)
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 z-10 bg-slate-950/80 p-2 rounded-lg border border-slate-800">
+                  <div className="flex items-center justify-between text-[11px] text-slate-600 z-10 bg-white/95 p-2 rounded-lg border border-slate-200 shadow-xs">
                     <span>
-                      Distância restante: <strong>142 km</strong>
+                      Distância restante: <strong className="text-slate-800">142 km</strong>
                     </span>
                     <span>
-                      Tempo estimado: <strong>2h 15m</strong>
+                      Tempo estimado: <strong className="text-slate-800">2 h 15 min</strong>
                     </span>
                     <span>
-                      Status: <strong className="text-amber-400">🟡 +18m (Obras BR-381)</strong>
+                      Status:{' '}
+                      <strong className="text-amber-700">🟡 +18 min (Obras na BR-381)</strong>
                     </span>
                   </div>
                 </div>

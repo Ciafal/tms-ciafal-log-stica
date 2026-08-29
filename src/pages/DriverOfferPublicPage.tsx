@@ -25,6 +25,13 @@ import {
   Check,
   Sparkles,
 } from 'lucide-react'
+import {
+  formatCurrency,
+  formatWeight,
+  formatPercent,
+  formatDate,
+  formatDateTime,
+} from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -201,27 +208,25 @@ export const DriverOfferPublicPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col">
-      {/* Header Mobile / Public */}
-      <header className="bg-slate-900 text-white border-b border-slate-800 py-3.5 px-4 shadow sticky top-0 z-30">
+      {/* Header Mobile / Public - CIAFAL Pantone 2945 */}
+      <header className="bg-[#005596] text-white border-b border-[#004275] py-3.5 px-4 shadow-sm sticky top-0 z-30">
         <div className="max-w-xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <img
-              src={ciafalLogo}
-              alt="CIAFAL"
-              className="h-8 w-auto object-contain bg-white/10 p-1 rounded"
-            />
+            <div className="bg-white p-1 rounded-md">
+              <img src={ciafalLogo} alt="CIAFAL" className="h-7 w-auto object-contain" />
+            </div>
             <div>
               <span className="font-black text-sm text-white tracking-tight block">
                 CIAFAL FRETES
               </span>
-              <span className="text-[10px] text-sky-400 font-bold uppercase">
+              <span className="text-[10px] text-sky-200 font-bold uppercase">
                 Oferta Pública de Transporte
               </span>
             </div>
           </div>
 
-          <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-            {isPorta ? 'Janela 1 PORTA' : isFora ? 'Janela 2 FORA' : 'Oferta'}
+          <Badge className="bg-white text-[#005596] text-[10px] font-black">
+            {isPorta ? 'Janela 1 PORTA' : isFora ? 'Janela 2 FORA' : 'Oferta Ativa'}
           </Badge>
         </div>
       </header>
@@ -299,8 +304,7 @@ export const DriverOfferPublicPage: React.FC = () => {
                   <span className="text-[10px] uppercase font-bold">Peso Total</span>
                 </div>
                 <div className="text-base font-black text-slate-900">
-                  {((offer.weight_kg || 0) / 1000).toFixed(1)}{' '}
-                  <span className="text-xs font-semibold">toneladas</span>
+                  {formatWeight(offer.weight_kg || 0)}
                 </div>
               </div>
 
@@ -326,7 +330,7 @@ export const DriverOfferPublicPage: React.FC = () => {
                 </p>
               </div>
               <div className="text-xl font-black text-emerald-800">
-                R$ {(offer.floor_value || offer.floor_price || 0).toLocaleString('pt-BR')}
+                {formatCurrency(offer.floor_value || offer.floor_price || 0)}
               </div>
             </div>
 

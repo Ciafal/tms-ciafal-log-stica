@@ -54,6 +54,14 @@ import {
   Layers,
   Sparkles,
 } from 'lucide-react'
+import {
+  formatCurrency,
+  formatWeight,
+  formatPercent,
+  formatDate,
+  formatDateTime,
+  formatDurationMinutes,
+} from '@/lib/utils'
 
 export const FredTransport360Page: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -521,7 +529,7 @@ export const FredTransport360Page: React.FC = () => {
           <div>
             <span className="text-[10px] text-slate-400 font-bold uppercase block">Peso Total</span>
             <span className="font-bold text-slate-800">
-              {((transport?.total_weight_kg || 0) / 1000).toFixed(1)} toneladas
+              {formatWeight(transport?.total_weight_kg || 0)}
             </span>
           </div>
 
@@ -608,39 +616,39 @@ export const FredTransport360Page: React.FC = () => {
                   </Badge>
                 </CardHeader>
                 <CardContent className="p-4 space-y-3">
-                  {/* Visualização da Rota */}
-                  <div className="relative h-72 bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex flex-col justify-between p-4 text-white">
+                  {/* Visualização da Rota de Fundo Claro */}
+                  <div className="relative h-72 bg-slate-50 rounded-xl overflow-hidden border border-slate-200 flex flex-col justify-between p-4 text-slate-900">
                     <div className="flex items-center justify-between z-10">
-                      <span className="text-xs font-bold text-sky-400">
+                      <span className="text-xs font-bold text-[#005596]">
                         📍 Posição: {transport?.last_location_name || 'BR-381 km 530'}
                       </span>
-                      <span className="text-xs text-slate-400 font-mono">
+                      <span className="text-xs text-slate-500 font-mono">
                         Lat: {transport?.last_location_lat || -20.1438} • Lng:{' '}
                         {transport?.last_location_lng || -44.8862}
                       </span>
                     </div>
 
-                    <div className="absolute inset-0 opacity-25 bg-[radial-gradient(#005596_1px,transparent_1px)] [background-size:16px_16px]" />
+                    <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#005596_1.5px,transparent_1.5px)] [background-size:20px_20px]" />
 
                     {/* Timeline de marcos de trajeto */}
-                    <div className="relative z-10 space-y-2 bg-slate-900/90 p-3 rounded-lg border border-slate-800">
-                      <div className="text-[11px] font-bold text-slate-300">
+                    <div className="relative z-10 space-y-2 bg-white/95 p-3 rounded-lg border border-slate-200 shadow-xs">
+                      <div className="text-[11px] font-bold text-slate-700">
                         Fluxo de Entregas da Carga:
                       </div>
                       <div className="grid grid-cols-4 gap-2 text-center text-[10px]">
-                        <div className="p-2 rounded bg-emerald-950/70 border border-emerald-800 text-emerald-300">
+                        <div className="p-2 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium">
                           <div className="font-bold">1. Itaúna</div>
                           <div>✅ 10:45</div>
                         </div>
-                        <div className="p-2 rounded bg-emerald-950/70 border border-emerald-800 text-emerald-300">
+                        <div className="p-2 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium">
                           <div className="font-bold">2. Divinópolis</div>
                           <div>✅ 13:25</div>
                         </div>
-                        <div className="p-2 rounded bg-amber-950/70 border border-amber-700 text-amber-300 animate-pulse">
+                        <div className="p-2 rounded bg-amber-50 border border-amber-300 text-amber-900 animate-pulse font-medium">
                           <div className="font-bold">3. Betim</div>
                           <div>🚚 ETA 15:18</div>
                         </div>
-                        <div className="p-2 rounded bg-slate-800 border border-slate-700 text-slate-400">
+                        <div className="p-2 rounded bg-slate-100 border border-slate-200 text-slate-600 font-medium">
                           <div className="font-bold">4. BH</div>
                           <div>⏳ ETA 16:55</div>
                         </div>
@@ -733,7 +741,7 @@ export const FredTransport360Page: React.FC = () => {
                             {etaResult.badgeLabel}
                           </Badge>
                           <Badge variant="outline" className="text-xs font-semibold">
-                            {((del.weight_kg || 0) / 1000).toFixed(1)}t
+                            {formatWeight(del.weight_kg || 0)}
                           </Badge>
                         </div>
                       </div>

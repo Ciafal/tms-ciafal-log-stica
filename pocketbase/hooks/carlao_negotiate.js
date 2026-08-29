@@ -18,25 +18,35 @@ routerAdd(
       const isAudio = Boolean(body.is_audio)
       const audioText = body.audio_transcription || ''
 
+      // Proteção de Entrada contra Prompt Injection (OWASP LLM01)
+      const sanitizedAudioText = String(audioText)
+        .replace(/[\r\n\t]+/g, ' ')
+        .substring(0, 500)
+      const isPromptInjection =
+        sanitizedAudioText.toLowerCase().includes('ignore') ||
+        sanitizedAudioText.toLowerCase().includes('desconsidere') ||
+        sanitizedAudioText.toLowerCase().includes('autorize tudo')
+
       const message =
-        body.message ||
         'Carga: ' +
-          cargoId +
-          '. Motorista: ' +
-          driverName +
-          '. Contraproposta do motorista: R$ ' +
-          driverProposedValue +
-          '. Teto de Autonomia Carlão: R$ ' +
-          maxAutonomyValue +
-          '. Meta CIAFAL: R$ ' +
-          targetValue +
-          '. Pedágio destacado: R$ ' +
-          pedagioValue +
-          '. Rodada: ' +
-          roundNumber +
-          '. ' +
-          (isAudio ? 'Áudio recebido do motorista com transcrição: "' + audioText + '".' : '') +
-          ' Proponha a melhor resposta cordial, profissional, respeitando a faixa e separando frete e pedágio.'
+        cargoId +
+        '. Motorista: ' +
+        driverName +
+        '. Contraproposta do motorista: R$ ' +
+        driverProposedValue +
+        '. Teto de Autonomia Carlão: R$ ' +
+        maxAutonomyValue +
+        '. Meta CIAFAL: R$ ' +
+        targetValue +
+        '. Pedágio destacado: R$ ' +
+        pedagioValue +
+        '. Rodada: ' +
+        roundNumber +
+        '. ' +
+        (isAudio && !isPromptInjection
+          ? 'Áudio recebido do motorista com transcrição: "' + sanitizedAudioText + '".'
+          : '') +
+        ' Proponha a melhor resposta cordial, profissional, respeitando a faixa e separando frete e pedágio.'
 
       let aiResult = null
       let fallbackUsed = false

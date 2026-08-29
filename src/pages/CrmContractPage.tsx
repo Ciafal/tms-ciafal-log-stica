@@ -172,17 +172,17 @@ export const CrmContractPage: React.FC = () => {
       </div>
 
       {/* Contract Architecture Guidelines */}
-      <div className="bg-slate-900 text-white p-4 rounded-xl text-xs space-y-2 border border-slate-800 shadow-md">
-        <div className="flex items-center space-x-2 text-emerald-400 font-bold">
-          <ShieldCheck className="w-4 h-4" />
+      <div className="bg-sky-50/70 text-slate-800 p-4 rounded-xl text-xs space-y-2 border border-sky-200 shadow-none">
+        <div className="flex items-center space-x-2 text-[#005596] font-bold">
+          <ShieldCheck className="w-4 h-4 text-[#005596]" />
           <span>DIRETRIZES DE INTEGRAÇÃO DO CRM 360°:</span>
         </div>
-        <p className="text-slate-300 leading-relaxed">
+        <p className="text-slate-600 leading-relaxed">
           1) <strong>TMS → CRM:</strong> Envio de solicitação de complemento de carga e
           oportunidades logísticas com <code>correlation_id</code> idempotente.
           <br />
           2) <strong>CRM → TMS:</strong> Webhook seguro com assinatura HMAC SHA-256, proteção contra
-          replay attacks (janela de 300s) e rate limiting.
+          replay attacks (janela de 300 s) e rate limiting.
           <br />
           3) <strong>Validação Oficial:</strong> O TMS somente consolida novo pedido na carga após o
           espelho oficial retornado pelo SAP ECC 6.0 (ZSD35).

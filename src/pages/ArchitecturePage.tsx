@@ -47,19 +47,19 @@ export const ArchitecturePage: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-2">
-          <Badge className="bg-slate-900 text-white font-mono text-xs">
+          <Badge className="bg-[#005596] text-white font-mono text-xs">
             Padrão: SAP System of Record
           </Badge>
         </div>
       </div>
 
       {/* Core Architectural Principle */}
-      <div className="bg-[#005596] text-white p-5 rounded-xl shadow-md space-y-2">
+      <div className="bg-[#005596] text-white p-5 rounded-xl shadow-sm space-y-2">
         <div className="flex items-center space-x-2 font-bold text-sky-200 text-sm">
-          <ShieldCheck className="w-5 h-5 text-sky-300" />
+          <ShieldCheck className="w-5 h-5 text-sky-200" />
           <span>PRINCÍPIO ARQUITETURAL FUNDAMENTAL TMS CIAFAL:</span>
         </div>
-        <p className="text-sm leading-relaxed text-slate-100">
+        <p className="text-sm leading-relaxed text-white">
           <strong>
             "O agente conversa. O motor de regras decide. O SAP registra o documento corporativo. O
             TMS orquestra a logística."
@@ -86,20 +86,20 @@ export const ArchitecturePage: React.FC = () => {
           {/* Top Systems Tier */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
             {/* SAP ECC */}
-            <div className="p-4 bg-slate-900 text-white rounded-xl shadow-sm border border-slate-800 space-y-2">
-              <div className="flex items-center justify-center gap-1.5 font-bold text-sky-400 text-sm">
+            <div className="p-4 bg-sky-50 text-slate-900 rounded-xl shadow-xs border border-sky-200 space-y-2">
+              <div className="flex items-center justify-center gap-1.5 font-bold text-[#005596] text-sm">
                 <Database className="w-4 h-4" />
                 SAP ECC 6.0 (System of Record)
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-slate-600">
                 Carteira ZSD35 • Motoristas ZSD004V_V2 • Estoque MB52 • Crédito KNKK • Transporte
                 VT01N
               </p>
-              <Badge className="bg-sky-600 text-white text-[10px]">Inbound / Outbound RFC</Badge>
+              <Badge className="bg-[#005596] text-white text-[10px]">Inbound / Outbound RFC</Badge>
             </div>
 
             {/* Central TMS */}
-            <div className="p-4 bg-blue-50 border-2 border-[#005596] rounded-xl shadow-md space-y-2">
+            <div className="p-4 bg-white border-2 border-[#005596] rounded-xl shadow-sm space-y-2">
               <div className="flex items-center justify-center gap-1.5 font-black text-[#005596] text-base">
                 <Cpu className="w-5 h-5 text-[#005596]" />
                 TMS CIAFAL (Hub Orquestrador)
@@ -112,12 +112,12 @@ export const ArchitecturePage: React.FC = () => {
             </div>
 
             {/* PCP Robotizado */}
-            <div className="p-4 bg-slate-900 text-white rounded-xl shadow-sm border border-slate-800 space-y-2">
-              <div className="flex items-center justify-center gap-1.5 font-bold text-emerald-400 text-sm">
+            <div className="p-4 bg-emerald-50 text-slate-900 rounded-xl shadow-xs border border-emerald-200 space-y-2">
+              <div className="flex items-center justify-center gap-1.5 font-bold text-emerald-800 text-sm">
                 <Server className="w-4 h-4" />
                 PCP Robotizado (Fábrica)
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-slate-600">
                 Programação de Laminação • Previsão D+1/D+2 • Confiança de Produção • mTLS / JSON
               </p>
               <Badge className="bg-emerald-600 text-white text-[10px]">Inbound HTTPS mTLS</Badge>
