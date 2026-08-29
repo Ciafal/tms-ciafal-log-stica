@@ -360,6 +360,10 @@ export function processCarlaoRound(
   notes?: string,
   isAudio?: boolean,
   audioTranscription?: string,
+  operationalContext?: {
+    weightTon?: number
+    dischargesCount?: number
+  },
 ): {
   decision: 'ACCEPT' | 'COUNTER_PROPOSAL' | 'ESCALATE_HUMAN' | 'REJECT'
   carlaoProposedFreight: number
@@ -371,6 +375,8 @@ export function processCarlaoRound(
   const band = currentSession.priceBand
   const round = currentSession.currentRound + 1
   const pedagio = currentSession.pedagioValue
+  const weightTon = operationalContext?.weightTon ?? 27.5
+  const dischargesCount = operationalContext?.dischargesCount ?? 1
 
   let decision: 'ACCEPT' | 'COUNTER_PROPOSAL' | 'ESCALATE_HUMAN' | 'REJECT' = 'COUNTER_PROPOSAL'
   let carlaoFreight = band.metaCiafal
@@ -395,15 +401,25 @@ export function processCarlaoRound(
   }
 
   let message = ''
+  const opInfoText =
+    dischargesCount > 1
+      ? ` [Carga ${weightTon.toFixed(2)} t · ${dischargesCount} descargas]`
+      : ` [Carga ${weightTon.toFixed(2)} t]`
+
   if (decision === 'ACCEPT') {
-    message = `Confirmando: Carga ${currentSession.cargoId} · Frete Líquido: R$ ${carlaoFreight.toLocaleString('pt-BR')} · Pedágio (separado): R$ ${pedagio.toLocaleString('pt-BR')} · Total: R$ ${(carlaoFreight + pedagio).toLocaleString('pt-BR')}. Posso confirmar a contratação?`
+    message = `Confirmando: Carga ${currentSession.cargoId}${opInfoText} · Frete Líquido: R$ ${carlaoFreight.toLocaleString('pt-BR')} · Pedágio (separado): R$ ${pedagio.toLocaleString('pt-BR')} · Total: R$ ${(carlaoFreight + pedagio).toLocaleString('pt-BR')}. Posso confirmar a contratação?`
   } else if (decision === 'ESCALATE_HUMAN') {
-    message = `Olá, ${currentSession.driverName}! Seu valor de R$ ${driverCounterValue.toLocaleString('pt-BR')} ultrapassa meu limite operacional direto. Nossa gerência de carga foi notificada e entrará em contato em instantes para aprovação de exceção.`
+    message = `Olá, ${currentSession.driverName}! Seu valor de R$ ${driverCounterValue.toLocaleString('pt-BR')} ultrapassa meu limite operacional direto para esta operação (${weightTon.toFixed(2)} t, ${dischargesCount} descarga(s)). Nossa gerência de carga foi notificada e entrará em contato em instantes para aprovação de exceção.`
   } else {
-    message = `Olá, ${currentSession.driverName}! Para viabilizarmos essa saída hoje, conseguimos avançar o Frete para R$ ${carlaoFreight.toLocaleString('pt-BR')}, além do Pedágio garantido de R$ ${pedagio.toLocaleString('pt-BR')}. Fica bom para você?`
+    message = `Olá, ${currentSession.driverName}! Para viabilizarmos essa saída hoje${opInfoText}, conseguimos avançar o Frete para R$ ${carlaoFreight.toLocaleString('pt-BR')}, além do Pedágio garantido de R$ ${pedagio.toLocaleString('pt-BR')}. Fica bom para você?`
   }
 
-  const explain = `Piso ANTT R$ ${band.pisoAntt} · Meta R$ ${band.metaCiafal} · Mediana R$ ${band.referenciaMercado} · Autonomia Carlão até R$ ${band.autonomiaMaximaCarlao}. Decisão baseada no score do motorista (${currentSession.eligibilityScore}/100) e rodada ${round}.`
+  const complexityText =
+    dischargesCount > 1
+      ? ` Carga de ${weightTon.toFixed(2)} t com ${dischargesCount} pontos de descarga (maior complexidade operacional).`
+      : ` Carga de ${weightTon.toFixed(2)} t (operação padrão).`
+
+  const explain = `Piso ANTT R$ ${band.pisoAntt} · Meta R$ ${band.metaCiafal} · Mediana R$ ${band.referenciaMercado} · Autonomia Carlão até R$ ${band.autonomiaMaximaCarlao}.${complexityText} Decisão baseada no score do motorista (${currentSession.eligibilityScore}/100) e rodada ${round}. Regras regulatórias da ANTT estritamente preservadas.`
 
   return {
     decision,

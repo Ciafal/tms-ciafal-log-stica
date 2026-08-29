@@ -86,6 +86,154 @@ export interface AnttCalculationOutput {
   hash: string
 }
 
+// ----------------------------------------------------
+// ANÁLISE OPERACIONAL DA VIAGEM & REGRAS ECONÔMICAS CIAFAL
+// (Isolado e separado da fórmula regulatória ANTT)
+// ----------------------------------------------------
+export interface TripOperationalAnalysisInput {
+  distanceKm: number
+  weightTon: number // Em toneladas (t)
+  axlesCount: number
+  cargoType: string
+  dischargesCount: number // Mínimo 1
+  anttFloorValue: number
+  tollCost?: number
+  operationalAdditionals?: number
+  additionalPerDischarge?: number // Parametrizável (R$ por descarga a partir da 2ª)
+  appliesFromDischargeNum?: number // Padrão: 2 (1ª inclusa)
+  clientFreightCharged?: number // Quando existir frete cobrado do cliente
+  driverOfferedFreight?: number // Frete ofertado ao motorista
+  carlaoNegotiatedFreight?: number // Frete efetivamente negociado
+}
+
+export interface TripOperationalAnalysisResult {
+  // Parâmetros Operacionais
+  weightTon: number
+  dischargesCount: number
+  distanceKm: number
+  axlesCount: number
+  cargoType: string
+
+  // Piso ANTT Oficial
+  anttFloorValue: number
+  costPerTon: number // R$/t = Piso ANTT / toneladas
+  costPerKm: number // R$/km = Piso ANTT / distância
+  costPerTonKm: number // R$/t·km = Piso ANTT / (toneladas * distância)
+
+  // Adicionais Operacionais & Descargas Extras
+  includedDischargesCount: number
+  extraDischargesCount: number
+  ratePerExtraDischarge: number
+  totalDischargesAdditionalCost: number
+  tollCost: number
+  otherAdditionalsCost: number
+
+  // Composição da Referência Econômica CIAFAL
+  ciafalEconomicReferenceTotal: number // Piso + Pedágio + Adicionais + Adicional Múltiplas Descargas
+
+  // Análise Comparativa / Margem (quando aplicável)
+  driverOfferedFreight?: number
+  carlaoNegotiatedFreight?: number
+  clientFreightCharged?: number
+  marginFreightValue?: number
+  marginFreightPct?: number
+  resultPerDischarge?: number
+  chargedPerTon?: number
+  chargedPerKm?: number
+  chargedPerTonKm?: number
+}
+
+/**
+ * Calcula a Análise Operacional da Viagem com separação estrita entre:
+ * A. Piso ANTT Oficial (Fórmula regulatória inalterada)
+ * B. Parâmetros Operacionais CIAFAL (toneladas, descargas, rota)
+ * C. Análise Econômica da Viagem (adicionais, margens, R$/t, R$/km, R$/t·km)
+ */
+export function calculateTripOperationalAnalysis(
+  input: TripOperationalAnalysisInput,
+): TripOperationalAnalysisResult {
+  const {
+    distanceKm,
+    weightTon,
+    axlesCount,
+    cargoType,
+    dischargesCount,
+    anttFloorValue,
+    tollCost = 0,
+    operationalAdditionals = 0,
+    additionalPerDischarge = 250,
+    appliesFromDischargeNum = 2,
+    clientFreightCharged,
+    driverOfferedFreight,
+    carlaoNegotiatedFreight,
+  } = input
+
+  const safeTon = Math.max(0.01, weightTon)
+  const safeKm = Math.max(1, distanceKm)
+  const safeDischarges = Math.max(1, Math.floor(dischargesCount))
+
+  // Fórmulas exatas do Piso ANTT
+  const costPerTon = Math.round((anttFloorValue / safeTon) * 100) / 100
+  const costPerKm = Math.round((anttFloorValue / safeKm) * 100) / 100
+  const costPerTonKm = Math.round((anttFloorValue / (safeTon * safeKm)) * 10000) / 10000
+
+  // Regra de múltiplas descargas
+  const extraDischargesCount = Math.max(0, safeDischarges - (appliesFromDischargeNum - 1))
+  const totalDischargesAdditionalCost = extraDischargesCount * additionalPerDischarge
+
+  // Composição da Referência Econômica CIAFAL:
+  // Piso ANTT Oficial + Pedágio + Adicionais Operacionais + Adicional Múltiplas Descargas
+  const ciafalEconomicReferenceTotal =
+    anttFloorValue + tollCost + operationalAdditionals + totalDischargesAdditionalCost
+
+  let marginFreightValue: number | undefined
+  let marginFreightPct: number | undefined
+  let resultPerDischarge: number | undefined
+  let chargedPerTon: number | undefined
+  let chargedPerKm: number | undefined
+  let chargedPerTonKm: number | undefined
+
+  if (clientFreightCharged && clientFreightCharged > 0) {
+    const costBasis =
+      carlaoNegotiatedFreight || driverOfferedFreight || ciafalEconomicReferenceTotal
+    marginFreightValue = clientFreightCharged - costBasis - tollCost
+    marginFreightPct =
+      Math.round(((clientFreightCharged - costBasis) / clientFreightCharged) * 10000) / 100
+    resultPerDischarge = Math.round((marginFreightValue / safeDischarges) * 100) / 100
+    chargedPerTon = Math.round((clientFreightCharged / safeTon) * 100) / 100
+    chargedPerKm = Math.round((clientFreightCharged / safeKm) * 100) / 100
+    chargedPerTonKm = Math.round((clientFreightCharged / (safeTon * safeKm)) * 10000) / 10000
+  }
+
+  return {
+    weightTon: safeTon,
+    dischargesCount: safeDischarges,
+    distanceKm: safeKm,
+    axlesCount,
+    cargoType,
+    anttFloorValue,
+    costPerTon,
+    costPerKm,
+    costPerTonKm,
+    includedDischargesCount: Math.min(safeDischarges, appliesFromDischargeNum - 1),
+    extraDischargesCount,
+    ratePerExtraDischarge: additionalPerDischarge,
+    totalDischargesAdditionalCost,
+    tollCost,
+    otherAdditionalsCost: operationalAdditionals,
+    ciafalEconomicReferenceTotal: Math.round(ciafalEconomicReferenceTotal * 100) / 100,
+    driverOfferedFreight,
+    carlaoNegotiatedFreight,
+    clientFreightCharged,
+    marginFreightValue,
+    marginFreightPct,
+    resultPerDischarge,
+    chargedPerTon,
+    chargedPerKm,
+    chargedPerTonKm,
+  }
+}
+
 export class AnttCalculationEngine {
   private versions: Map<string, OfficialAnttRateVersion> = new Map()
 

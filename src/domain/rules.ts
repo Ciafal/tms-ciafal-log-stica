@@ -459,6 +459,35 @@ export interface SystemParameterEntity {
   updated?: string
 }
 
+export interface FreightRuleParameterEntity {
+  id: string
+  rule_name: string
+  rule_code: string
+  additional_discharge_value?: number
+  value_type: 'FIXO' | 'VARIAVEL_PERCENTUAL'
+  applies_from_discharge_num: number
+  region_scope?: string
+  customer_scope?: string
+  vehicle_type_scope?: string
+  effective_date_start: string
+  effective_date_end?: string
+  is_active?: boolean
+  responsible_user?: string
+  notes?: string
+  changelog_json?:
+    | string
+    | Array<{
+        timestamp: string
+        user: string
+        action: string
+        previous_value?: number | string
+        new_value?: number | string
+        notes?: string
+      }>
+  created?: string
+  updated?: string
+}
+
 export type FreightOfferStatus =
   | 'PENDING'
   | 'PORTA_OPEN'

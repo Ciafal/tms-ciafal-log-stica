@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T21:23:38.183Z",
+  "generatedAt": "2026-08-29T21:39:00.414Z",
   "collections": [
     {
       "name": "users",
@@ -9461,6 +9461,122 @@
       "indexes": [
         "CREATE INDEX idx_learn_code ON ai_weight_learning_proposals (proposal_code)",
         "CREATE INDEX idx_learn_status ON ai_weight_learning_proposals (status)"
+      ]
+    },
+    {
+      "name": "freight_rule_parameters",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "rule_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "rule_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "additional_discharge_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "value_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["FIXO", "VARIAVEL_PERCENTUAL"]
+        },
+        {
+          "name": "applies_from_discharge_num",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "region_scope",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_scope",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_type_scope",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "effective_date_start",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "effective_date_end",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsible_user",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "changelog_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_freight_rule_code ON freight_rule_parameters (rule_code)",
+        "CREATE INDEX idx_freight_rule_active ON freight_rule_parameters (is_active)"
       ]
     }
   ]

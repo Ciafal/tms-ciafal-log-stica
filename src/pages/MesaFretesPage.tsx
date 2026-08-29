@@ -376,6 +376,10 @@ export const MesaFretesPage: React.FC = () => {
     setActionLoading(true)
 
     try {
+      const weightTon = (selectedCargoForOffer.weight_kg || 27000) / 1000
+      const dischargesCount =
+        selectedCargoForOffer.customers_count || selectedCargoForOffer.deliveries_count || 1
+
       const band = calculateSmartPriceBand(
         120,
         selectedCargoForOffer.weight_kg || 27000,
@@ -385,7 +389,12 @@ export const MesaFretesPage: React.FC = () => {
       )
 
       const pedagio = 428.4
-      const initialMessage = `Olá, ${selectedDriverForCarlao.driverName}! Tudo bem? Temos uma carga CIAFAL (${selectedCargoForOffer.cargo_id}) para ${selectedCargoForOffer.destination || 'Campinas/SP'} com previsão de carregamento hoje. Vi que seu veículo (${selectedDriverForCarlao.vehiclePlate || '---'}) atende perfeitamente. Frete proposto de ${formatCurrency(band.metaCiafal)} líquido + Pedágio integral de ${formatCurrency(pedagio)}. Deseja que eu passe todos os detalhes?`
+      const opDetail =
+        dischargesCount > 1
+          ? ` (${weightTon.toFixed(2)} t · ${dischargesCount} descargas)`
+          : ` (${weightTon.toFixed(2)} t)`
+
+      const initialMessage = `Olá, ${selectedDriverForCarlao.driverName}! Tudo bem? Temos uma carga CIAFAL (${selectedCargoForOffer.cargo_id})${opDetail} para ${selectedCargoForOffer.destination || 'Campinas/SP'} com previsão de carregamento hoje. Vi que seu veículo (${selectedDriverForCarlao.vehiclePlate || '---'}) atende perfeitamente. Frete proposto de ${formatCurrency(band.metaCiafal)} líquido + Pedágio integral de ${formatCurrency(pedagio)}. Deseja que eu passe todos os detalhes?`
 
       const newNegData = {
         cargo_id: selectedCargoForOffer.cargo_id,
@@ -483,6 +492,8 @@ export const MesaFretesPage: React.FC = () => {
         is_audio: isAudio,
         audio_transcription: audioText,
         driver_score: activeNegotiation.eligibility_score || 94,
+        weight_ton: 28.5,
+        discharges_count: 2,
       })
 
       const updatedRounds = [
@@ -1399,7 +1410,12 @@ export const MesaFretesPage: React.FC = () => {
                       {selectedCargoForOffer?.cargo_id}
                     </strong> •
                     Destino: {selectedCargoForOffer?.destination} • Peso:{' '}
-                    {formatWeight(selectedCargoForOffer?.weight_kg || 27000)}
+                    {formatWeight(selectedCargoForOffer?.weight_kg || 27000)} (
+                    {((selectedCargoForOffer?.weight_kg || 27000) / 1000).toFixed(2)} t) •
+                    Descargas:{' '}
+                    {selectedCargoForOffer?.customers_count ||
+                      selectedCargoForOffer?.deliveries_count ||
+                      1}
                   </DialogDescription>
                 </div>
                 <Button

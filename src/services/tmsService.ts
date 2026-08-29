@@ -1310,6 +1310,174 @@ export const TmsService = {
   },
 
   // ----------------------------------------------------
+  // REGRAS DE FRETE & PARÂMETROS DE MÚLTIPLAS DESCARGAS
+  // ----------------------------------------------------
+  async getFreightRuleParameters(): Promise<import('@/domain/rules').FreightRuleParameterEntity[]> {
+    try {
+      return await pb.collection('freight_rule_parameters').getFullList({
+        sort: '-created',
+      })
+    } catch (err) {
+      console.warn('Failed to fetch freight_rule_parameters from DB:', err)
+      return []
+    }
+  },
+
+  async saveFreightRuleParameter(
+    rule: Partial<import('@/domain/rules').FreightRuleParameterEntity>,
+    userEmail = 'admin@ciafal.logistica',
+    userName = 'Gestor de Fretes CIAFAL',
+  ): Promise<import('@/domain/rules').FreightRuleParameterEntity | null> {
+    try {
+      const payload: Record<string, any> = {
+        rule_name: rule.rule_name || 'Regra de Frete Operacional',
+        rule_code: rule.rule_code || `REGRA_${Date.now()}`,
+        additional_discharge_value: rule.additional_discharge_value ?? 250,
+        value_type: rule.value_type || 'FIXO',
+        applies_from_discharge_num: rule.applies_from_discharge_num ?? 2,
+        region_scope: rule.region_scope || 'TODAS',
+        customer_scope: rule.customer_scope || 'TODOS',
+        vehicle_type_scope: rule.vehicle_type_scope || 'TODOS',
+        effective_date_start: rule.effective_date_start || new Date().toISOString(),
+        effective_date_end: rule.effective_date_end || null,
+        is_active: rule.is_active !== false,
+        responsible_user: rule.responsible_user || userName,
+        notes: rule.notes || '',
+      }
+
+      let result: any
+      if (rule.id) {
+        const existing = await pb.collection('freight_rule_parameters').getOne(rule.id)
+        const oldHistory = Array.isArray(existing.changelog_json)
+          ? existing.changelog_json
+          : typeof existing.changelog_json === 'string' && existing.changelog_json.trim()
+            ? JSON.parse(existing.changelog_json)
+            : []
+
+        const newLogEntry = {
+          timestamp: new Date().toISOString(),
+          user: `${userName} (${userEmail})`,
+          action: 'Atualização de parâmetro de regra de frete',
+          previous_value: existing.additional_discharge_value,
+          new_value: payload.additional_discharge_value,
+          notes: rule.notes,
+        }
+
+        payload.changelog_json = JSON.stringify([newLogEntry, ...oldHistory])
+        result = await pb.collection('freight_rule_parameters').update(rule.id, payload)
+
+        await pb.collection('audit_logs').create({
+          user_email: userEmail,
+          user_name: userName,
+          user_role: 'admin_tms',
+          action: 'UPDATE_FREIGHT_RULE_PARAMETER',
+          resource: 'freight_rule_parameters',
+          resource_id: rule.id,
+          previous_state: `R$ ${existing.additional_discharge_value} a partir da ${existing.applies_from_discharge_num}ª descarga`,
+          new_state: `R$ ${payload.additional_discharge_value} a partir da ${payload.applies_from_discharge_num}ª descarga`,
+          reason: rule.notes || 'Atualização de adicional de múltiplas descargas',
+          correlation_id: `RULE-AUDIT-${Date.now()}`,
+          payload: { rule_code: payload.rule_code, ...payload },
+        })
+      } else {
+        const initialLog = [
+          {
+            timestamp: new Date().toISOString(),
+            user: `${userName} (${userEmail})`,
+            action: 'Criação de nova regra de adicional de frete',
+            new_value: payload.additional_discharge_value,
+            notes: rule.notes,
+          },
+        ]
+        payload.changelog_json = JSON.stringify(initialLog)
+        result = await pb.collection('freight_rule_parameters').create(payload)
+
+        await pb.collection('audit_logs').create({
+          user_email: userEmail,
+          user_name: userName,
+          user_role: 'admin_tms',
+          action: 'CREATE_FREIGHT_RULE_PARAMETER',
+          resource: 'freight_rule_parameters',
+          resource_id: result.id,
+          new_state: `R$ ${payload.additional_discharge_value} a partir da ${payload.applies_from_discharge_num}ª descarga`,
+          reason: rule.notes || 'Nova regra de contratação e descargas adicionais',
+          correlation_id: `RULE-AUDIT-${Date.now()}`,
+          payload: { rule_code: payload.rule_code, ...payload },
+        })
+      }
+      return result as import('@/domain/rules').FreightRuleParameterEntity
+    } catch (err) {
+      console.error('Error saving freight rule parameter:', err)
+      return null
+    }
+  },
+
+  /**
+   * Salva simulação oficial da ANTT e Análise Operacional da Viagem com auditoria completa
+   */
+  async saveOfficialAnttSimulationAudit(data: {
+    distanceKm: number
+    weightTon: number
+    axlesCount: number
+    cargoType: string
+    dischargesCount: number
+    tableVersion: string
+    resolutionNumber: string
+    anttFloorValue: number
+    ccd: number
+    cc: number
+    costPerTon: number
+    costPerKm: number
+    costPerTonKm: number
+    totalDischargesAdditionalCost: number
+    ciafalEconomicReferenceTotal: number
+    userEmail: string
+    userName: string
+    notes?: string
+  }): Promise<{ success: boolean; simulationId: string }> {
+    const simulationId = `SIM-ANTT-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+    try {
+      await pb.collection('audit_logs').create({
+        user_email: data.userEmail,
+        user_name: data.userName,
+        user_role: 'gerente_carga',
+        action: 'SIMULATE_OFFICIAL_ANTT_FLOOR',
+        resource: 'antt_official_simulator',
+        resource_id: simulationId,
+        new_state: `Piso ANTT R$ ${data.anttFloorValue.toFixed(2)} | Ref CIAFAL R$ ${data.ciafalEconomicReferenceTotal.toFixed(2)}`,
+        reason: `Simulação oficial de piso regulatório e análise operacional da viagem (${data.weightTon} t, ${data.dischargesCount} descargas, ${data.distanceKm} km)`,
+        correlation_id: simulationId,
+        payload: {
+          simulation_id: simulationId,
+          timestamp: new Date().toISOString(),
+          user_email: data.userEmail,
+          user_name: data.userName,
+          table_version: data.tableVersion,
+          resolution: data.resolutionNumber,
+          distance_km: data.distanceKm,
+          weight_ton: data.weightTon,
+          axles_count: data.axlesCount,
+          cargo_type: data.cargoType,
+          discharges_count: data.dischargesCount,
+          antt_floor_value: data.anttFloorValue,
+          ccd: data.ccd,
+          cc: data.cc,
+          cost_per_ton: data.costPerTon,
+          cost_per_km: data.costPerKm,
+          cost_per_ton_km: data.costPerTonKm,
+          discharges_additional: data.totalDischargesAdditionalCost,
+          ciafal_economic_reference: data.ciafalEconomicReferenceTotal,
+          notes: data.notes || '',
+        },
+      })
+      return { success: true, simulationId }
+    } catch (err) {
+      console.error('Failed to log ANTT simulation audit:', err)
+      return { success: false, simulationId }
+    }
+  },
+
+  // ----------------------------------------------------
   // SPRINT 2: MESA DE FRETES & MOTOR DE LEILÃO PORTA/FORA
   // ----------------------------------------------------
 
@@ -3490,6 +3658,8 @@ export const TmsService = {
     audio_transcription?: string
     driver_score?: number
     message?: string
+    weight_ton?: number
+    discharges_count?: number
   }): Promise<{
     status: string
     fallback_used: boolean
@@ -3548,14 +3718,27 @@ export const TmsService = {
         decision = 'ESCALATE_HUMAN'
       }
 
+      const weightTon = params.weight_ton || 27.5
+      const dischargesCount = params.discharges_count || 1
+
       let msg = ''
+      const opInfoText =
+        dischargesCount > 1
+          ? ` (${weightTon.toFixed(2)} t · ${dischargesCount} descargas)`
+          : ` (${weightTon.toFixed(2)} t)`
+
       if (decision === 'ACCEPT') {
-        msg = `Confirmando: Carga ${params.cargo_id} · Frete Líquido: R$ ${proposedFreight.toLocaleString('pt-BR')} · Pedágio (separado): R$ ${pedagio.toLocaleString('pt-BR')} · Total: R$ ${(proposedFreight + pedagio).toLocaleString('pt-BR')}. Posso confirmar a contratação?`
+        msg = `Confirmando: Carga ${params.cargo_id}${opInfoText} · Frete Líquido: R$ ${proposedFreight.toLocaleString('pt-BR')} · Pedágio (separado): R$ ${pedagio.toLocaleString('pt-BR')} · Total: R$ ${(proposedFreight + pedagio).toLocaleString('pt-BR')}. Posso confirmar a contratação?`
       } else if (decision === 'ESCALATE_HUMAN') {
-        msg = `Olá, ${params.driver_name}! Seu valor de R$ ${counter.toLocaleString('pt-BR')} excede a alçada permitida. Solicitei avaliação prioritária de um gestor humano.`
+        msg = `Olá, ${params.driver_name}! Seu valor de R$ ${counter.toLocaleString('pt-BR')} excede a alçada permitida para esta operação${opInfoText}. Solicitei avaliação prioritária de um gestor humano.`
       } else {
-        msg = `Olá, ${params.driver_name}! Conseguimos chegar a R$ ${proposedFreight.toLocaleString('pt-BR')} de frete líquido + pedágio integral de R$ ${pedagio.toLocaleString('pt-BR')}. Fica viável para você?`
+        msg = `Olá, ${params.driver_name}! Para esta carga${opInfoText}, conseguimos chegar a R$ ${proposedFreight.toLocaleString('pt-BR')} de frete líquido + pedágio integral de R$ ${pedagio.toLocaleString('pt-BR')}. Fica viável para você?`
       }
+
+      const complexityNotes =
+        dischargesCount > 1
+          ? ` Carga com ${dischargesCount} pontos de descarga e ${weightTon.toFixed(2)} t.`
+          : ` Carga com ponto único de descarga e ${weightTon.toFixed(2)} t.`
 
       return {
         status: 'fallback',
@@ -3572,7 +3755,9 @@ export const TmsService = {
           referencia_mercado: ref,
           autonomia_maxima: maxAutonomy,
           driver_score: params.driver_score || 92,
-          justificativa: `Proposta gerada via motor determinístico seguro para a carga ${params.cargo_id}.`,
+          weight_ton: weightTon,
+          discharges_count: dischargesCount,
+          justificativa: `Proposta determinística considerando Piso ANTT inalterado de R$ ${floor.toFixed(2)}, meta CIAFAL e ${dischargesCount} descarga(s).${complexityNotes}`,
         },
         governance: {
           model: 'DETERMINISTIC_CARLAO_ENGINE_LOCAL',

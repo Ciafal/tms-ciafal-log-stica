@@ -982,4 +982,90 @@ describe('TMS CIAFAL — Sprint 2: 30 Testes Obrigatórios de Regras de Negócio
     expect(ceilingProtected).toBe(3500)
     expect(ceilingProtected).toBeGreaterThan(anttFloor)
   })
+
+  // =========================================================================
+  // EVOLUÇÃO TABELA ANTT & ANÁLISE OPERACIONAL DA VIAGEM
+  // =========================================================================
+  it('66. Análise Operacional: calcula R$/t, R$/km e R$/t·km mantendo Piso ANTT inalterado', async () => {
+    const { calculateTripOperationalAnalysis } = await import('@/domain/anttAndTollEngine')
+
+    const result = calculateTripOperationalAnalysis({
+      distanceKm: 380,
+      weightTon: 28.5,
+      axlesCount: 5,
+      cargoType: 'Geral',
+      dischargesCount: 3,
+      anttFloorValue: 2532.0,
+      tollCost: 428.4,
+      operationalAdditionals: 0,
+      additionalPerDischarge: 250.0,
+      appliesFromDischargeNum: 2,
+    })
+
+    // Piso ANTT preservado
+    expect(result.anttFloorValue).toBe(2532.0)
+    // R$/t = 2532 / 28.5 = 88.84
+    expect(result.costPerTon).toBe(88.84)
+    // R$/km = 2532 / 380 = 6.66
+    expect(result.costPerKm).toBe(6.66)
+    // R$/t·km = 2532 / (28.5 * 380) = 0.2338
+    expect(result.costPerTonKm).toBe(0.2338)
+
+    // Descargas extras (3 descargas, 1ª inclusa => 2 extras a R$ 250 = R$ 500)
+    expect(result.extraDischargesCount).toBe(2)
+    expect(result.totalDischargesAdditionalCost).toBe(500.0)
+
+    // Referência Econômica CIAFAL: 2532 (Piso) + 428.40 (Pedágio) + 500 (2 descargas) = 3460.40
+    expect(result.ciafalEconomicReferenceTotal).toBe(3460.4)
+  })
+
+  it('67. Carlão Engine: recebe contexto operacional (peso e descargas) sem violar regras regulatórias', async () => {
+    const { processCarlaoRound } = await import('@/domain/carlaoNegotiationEngine')
+
+    const mockSession: import('@/domain/carlaoNegotiationEngine').NegotiationSession = {
+      cargoId: 'CARGA-SP-100',
+      driverId: 'drv-01',
+      driverName: 'João da Silva',
+      driverPhone: '19987654321',
+      driverPlate: 'ABC1D23',
+      currentRound: 0,
+      channel: 'WHATSAPP',
+      channelStatus: 'Ativo',
+      status: 'EM_NEGOCIACAO',
+      activeActor: 'CARLAO',
+      eligibilityScore: 92,
+      offerWave: 1,
+      priceBand: {
+        pisoAntt: 2532,
+        metaCiafal: 2650,
+        referenciaMercado: 2720,
+        autonomiaMaximaCarlao: 2820,
+        tetoOrcamentarioProtegido: 3000,
+      },
+      currentProposedFreight: 2650,
+      pedagioValue: 428.4,
+      outrosCustosValue: 0,
+      totalContractValue: 3078.4,
+      aiAutonomousCompletion: false,
+      rounds: [],
+      explicabilidade: {
+        piso: 2532,
+        meta: 2650,
+        referencia: 2720,
+        autonomia: 2820,
+        motivoDecisao: 'Abertura de negociação',
+        confianca: 'Alta',
+      },
+    }
+
+    const roundRes = processCarlaoRound(mockSession, 2750, undefined, false, undefined, {
+      weightTon: 28.5,
+      dischargesCount: 3,
+    })
+
+    expect(roundRes.decision).toBe('COUNTER_PROPOSAL')
+    expect(roundRes.messageToDriver).toContain('28.50 t · 3 descargas')
+    expect(roundRes.explainability).toContain('3 pontos de descarga')
+    expect(roundRes.pedagioValue).toBe(428.4)
+  })
 })
