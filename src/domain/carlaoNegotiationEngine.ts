@@ -20,7 +20,7 @@ export interface DriverEligibilityEvaluation {
   capacityKg?: number
   currentStatus: string
   queueType: 'PORTA' | 'FORA' | 'PROGRAMADO'
-  score: number // 0 a 100
+  score: number // 0 a 100 (Elegibilidade Básica)
   scoreBreakdown: {
     statusDocScore: number // 0 a 20: Cadastro ativo, CNH válida
     capacityVehicleScore: number // 0 a 25: Aderência ao peso e tipo de carroceria
@@ -32,6 +32,83 @@ export interface DriverEligibilityEvaluation {
   isEligible: boolean
   rejectionReason?: string
   suggestedWave: 1 | 2 | 3
+}
+
+export interface SelectionCriteriaWeights {
+  operationalCompatibilityPct: number // Padrão: 20
+  historicalPerformancePct: number // Padrão: 15
+  routeExperiencePct: number // Padrão: 10
+  customerExperiencePct: number // Padrão: 10
+  locationAvailabilityPct: number // Padrão: 10
+  expectedCostPct: number // Padrão: 20
+  punctualityPct: number // Padrão: 5
+  occurrencesPct: number // Padrão: 5
+  fredCollaborationPct: number // Padrão: 5
+}
+
+export const DEFAULT_SELECTION_WEIGHTS: SelectionCriteriaWeights = {
+  operationalCompatibilityPct: 20,
+  historicalPerformancePct: 15,
+  routeExperiencePct: 10,
+  customerExperiencePct: 10,
+  locationAvailabilityPct: 10,
+  expectedCostPct: 20,
+  punctualityPct: 5,
+  occurrencesPct: 5,
+  fredCollaborationPct: 5,
+}
+
+export interface CargoDriverFitnessResult {
+  driverId: string
+  driverName: string
+  driverDocument?: string
+  driverPhone?: string
+  vehiclePlate?: string
+  vehicleType?: string
+  isEligible: boolean
+  isRecommended: boolean
+  fitnessScore: number // 0 a 100: Score de Adequação à Carga
+  subscores: {
+    operationalCompatibility: number // 0-100
+    historicalPerformance: number // 0-100
+    routeExperience: number // 0-100
+    customerExperience: number // 0-100
+    locationAvailability: number // 0-100
+    expectedCost: number // 0-100
+    punctuality: number // 0-100
+    occurrences: number // 0-100
+    fredCollaboration: number // 0-100
+  }
+  pointsContribution: {
+    operationalCompatibility: number
+    historicalPerformance: number
+    routeExperience: number
+    customerExperience: number
+    locationAvailability: number
+    expectedCost: number
+    punctuality: number
+    occurrences: number
+    fredCollaboration: number
+    totalSum: number
+  }
+  expectedCostDetails: {
+    nominalFreight: number
+    pedagio: number
+    occurrenceExpectedRiskCost: number
+    totalExpectedCost: number
+    confidenceLevel: 'ALTA' | 'MEDIA' | 'BAIXA' | 'INSUFICIENTE'
+    costRangeMin: number
+    costRangeMax: number
+    sampleSize: number
+    explanation: string
+  }
+  aiJustification: {
+    headline: string
+    reasons: string[]
+    risks: string[]
+    recommendationSummary: string
+    statisticalConfidence: 'ALTA' | 'MEDIA' | 'BAIXA' | 'PROVISORIA'
+  }
 }
 
 export interface NegotiationRound {
@@ -367,4 +444,280 @@ export function calculateSustainableCostIndex(params: {
     params.relationshipScore * weights.relationship
 
   return Math.round(Math.min(100, Math.max(0, score)))
+}
+
+/**
+ * Motor Multicritério de Score de Adequação à Carga
+ * Combina 9 dimensões explicáveis e calcula o Custo Total Esperado (Preditivo).
+ * Separa explicitamente "Elegível" de "Recomendado".
+ */
+export function calculateCargoDriverFitness(params: {
+  driver: {
+    id: string
+    name: string
+    document?: string
+    phone?: string
+    status?: string
+  }
+  vehicle: {
+    plate?: string
+    type?: string
+    bodyType?: string
+    capacityKg?: number
+  }
+  queueEntry: {
+    type?: 'PORTA' | 'FORA' | 'PROGRAMADO'
+    status?: string
+    distanceKm?: number
+  }
+  cargo: {
+    cargoId: string
+    weightKg: number
+    requiredVehicleType?: string
+    itineraryCode?: string
+    destinationCity?: string
+    customerCode?: string
+    customerName?: string
+    targetFreight?: number
+    anttFloorFreight?: number
+  }
+  performanceScore?: {
+    score_consolidated?: number
+    score_punctuality?: number
+    score_route_adherence?: number
+    score_communication?: number
+    score_fred_collaboration?: number
+    score_delivery_quality?: number
+    trips_evaluated_count?: number
+  }
+  historicalStats?: {
+    tripsInRoute?: number
+    tripsWithCustomer?: number
+    historicalAvgFreight?: number
+    occurrencesAttributedCount?: number
+    totalOccurrencesCost?: number
+  }
+  weights?: Partial<SelectionCriteriaWeights>
+  templateCode?: string
+}): CargoDriverFitnessResult {
+  const w: SelectionCriteriaWeights = {
+    operationalCompatibilityPct:
+      params.weights?.operationalCompatibilityPct ??
+      DEFAULT_SELECTION_WEIGHTS.operationalCompatibilityPct,
+    historicalPerformancePct:
+      params.weights?.historicalPerformancePct ??
+      DEFAULT_SELECTION_WEIGHTS.historicalPerformancePct,
+    routeExperiencePct:
+      params.weights?.routeExperiencePct ?? DEFAULT_SELECTION_WEIGHTS.routeExperiencePct,
+    customerExperiencePct:
+      params.weights?.customerExperiencePct ?? DEFAULT_SELECTION_WEIGHTS.customerExperiencePct,
+    locationAvailabilityPct:
+      params.weights?.locationAvailabilityPct ?? DEFAULT_SELECTION_WEIGHTS.locationAvailabilityPct,
+    expectedCostPct: params.weights?.expectedCostPct ?? DEFAULT_SELECTION_WEIGHTS.expectedCostPct,
+    punctualityPct: params.weights?.punctualityPct ?? DEFAULT_SELECTION_WEIGHTS.punctualityPct,
+    occurrencesPct: params.weights?.occurrencesPct ?? DEFAULT_SELECTION_WEIGHTS.occurrencesPct,
+    fredCollaborationPct:
+      params.weights?.fredCollaborationPct ?? DEFAULT_SELECTION_WEIGHTS.fredCollaborationPct,
+  }
+
+  const driver = params.driver
+  const vehicle = params.vehicle
+  const queue = params.queueEntry
+  const cargo = params.cargo
+  const perf = params.performanceScore
+  const stats = params.historicalStats
+
+  // 1. Compatibilidade Operacional (0 a 100)
+  const capKg = vehicle.capacityKg || 27000
+  let subCompat = 100
+  if (capKg < cargo.weightKg) {
+    const diffPct = (cargo.weightKg - capKg) / cargo.weightKg
+    subCompat = Math.max(0, Math.round(100 - diffPct * 150))
+  }
+  if (
+    cargo.requiredVehicleType &&
+    vehicle.type &&
+    !vehicle.type.toLowerCase().includes(cargo.requiredVehicleType.toLowerCase().slice(0, 4))
+  ) {
+    subCompat = Math.max(20, subCompat - 30)
+  }
+
+  // 2. Performance Histórica (0 a 100)
+  const subPerf = perf?.score_consolidated ?? 85
+
+  // 3. Experiência na Rota (0 a 100)
+  const routeTrips = stats?.tripsInRoute ?? 6
+  let subRoute = 50
+  if (routeTrips >= 15) subRoute = 100
+  else if (routeTrips >= 8) subRoute = 88
+  else if (routeTrips >= 3) subRoute = 75
+  else if (routeTrips >= 1) subRoute = 60
+
+  // 4. Experiência no Cliente (0 a 100)
+  const custTrips = stats?.tripsWithCustomer ?? 4
+  let subCustomer = 50
+  if (custTrips >= 10) subCustomer = 100
+  else if (custTrips >= 5) subCustomer = 85
+  else if (custTrips >= 2) subCustomer = 70
+  else if (custTrips >= 1) subCustomer = 60
+
+  // 5. Disponibilidade e Localização (0 a 100)
+  const qType = queue.type || 'FORA'
+  const dist = queue.distanceKm || (qType === 'PORTA' ? 0 : 25)
+  let subLoc = 70
+  if (qType === 'PORTA') {
+    subLoc = 100
+  } else if (dist <= 15) {
+    subLoc = 90
+  } else if (dist <= 40) {
+    subLoc = 75
+  } else if (dist <= 80) {
+    subLoc = 60
+  } else {
+    subLoc = 45
+  }
+
+  // 6. Custo Total Previsto / Competitividade (0 a 100)
+  const targetFreight = cargo.targetFreight || 3200
+  const histFreight = stats?.historicalAvgFreight || targetFreight
+  let subCost = 80
+  if (histFreight <= targetFreight * 0.95) subCost = 100
+  else if (histFreight <= targetFreight) subCost = 90
+  else if (histFreight <= targetFreight * 1.05) subCost = 75
+  else if (histFreight <= targetFreight * 1.12) subCost = 60
+  else subCost = 40
+
+  // 7. Pontualidade (0 a 100)
+  const subPunct = perf?.score_punctuality ?? 95
+
+  // 8. Ocorrências Atribuídas (0 a 100)
+  const occCount = stats?.occurrencesAttributedCount ?? 0
+  let subOcc = 100
+  if (occCount === 1) subOcc = 80
+  else if (occCount === 2) subOcc = 60
+  else if (occCount >= 3) subOcc = 30
+
+  // 9. Colaboração com Fred (0 a 100)
+  const subFred = perf?.score_fred_collaboration ?? 92
+
+  // Cálculo da Contribuição Ponderada (Total 100 pts)
+  const ptCompat = (subCompat * w.operationalCompatibilityPct) / 100
+  const ptPerf = (subPerf * w.historicalPerformancePct) / 100
+  const ptRoute = (subRoute * w.routeExperiencePct) / 100
+  const ptCustomer = (subCustomer * w.customerExperiencePct) / 100
+  const ptLoc = (subLoc * w.locationAvailabilityPct) / 100
+  const ptCost = (subCost * w.expectedCostPct) / 100
+  const ptPunct = (subPunct * w.punctualityPct) / 100
+  const ptOcc = (subOcc * w.occurrencesPct) / 100
+  const ptFred = (subFred * w.fredCollaborationPct) / 100
+
+  const totalSum =
+    ptCompat + ptPerf + ptRoute + ptCustomer + ptLoc + ptCost + ptPunct + ptOcc + ptFred
+  const fitnessScore = Math.min(100, Math.max(0, Math.round(totalSum)))
+
+  // Cálculo de Custo Total Esperado (Preditivo)
+  const tripsCount = perf?.trips_evaluated_count ?? routeTrips + 3
+  const pedagio = 428.4
+  const probOccurrence = occCount > 0 ? Math.min(0.35, occCount / Math.max(1, tripsCount)) : 0.03
+  const avgCostPerOcc =
+    stats?.totalOccurrencesCost && occCount > 0 ? stats.totalOccurrencesCost / occCount : 450
+  const occurrenceExpectedRiskCost = Math.round(probOccurrence * avgCostPerOcc)
+  const totalExpectedCost = Math.round(histFreight + pedagio + occurrenceExpectedRiskCost)
+
+  let costConf: 'ALTA' | 'MEDIA' | 'BAIXA' | 'INSUFICIENTE' = 'INSUFICIENTE'
+  if (tripsCount >= 15) costConf = 'ALTA'
+  else if (tripsCount >= 5) costConf = 'MEDIA'
+  else if (tripsCount >= 2) costConf = 'BAIXA'
+
+  const spread = costConf === 'ALTA' ? 0.04 : costConf === 'MEDIA' ? 0.08 : 0.15
+  const costRangeMin = Math.round(totalExpectedCost * (1 - spread))
+  const costRangeMax = Math.round(totalExpectedCost * (1 + spread))
+
+  // Distinção Elegível x Recomendado
+  const isDriverActive = driver.status !== 'bloqueado'
+  const isEligible = isDriverActive && capKg >= cargo.weightKg * 0.85 && subCompat >= 40
+  const isRecommended = isEligible && fitnessScore >= 75
+
+  // Justificativa da IA
+  const reasons: string[] = []
+  const risks: string[] = []
+
+  if (subCompat >= 90)
+    reasons.push(
+      `Veículo 100% compatível (${(capKg / 1000).toFixed(1)}t para ${(cargo.weightKg / 1000).toFixed(1)}t).`,
+    )
+  if (subPerf >= 90) reasons.push(`Score de performance consolidado elevado (${subPerf}/100).`)
+  if (subRoute >= 85) reasons.push(`Alta familiaridade na rota (${routeTrips} viagens concluídas).`)
+  if (subCustomer >= 85)
+    reasons.push(`Histórico positivo e sem atritos com o cliente (${custTrips} entregas).`)
+  if (qType === 'PORTA')
+    reasons.push('Motorista presente no pátio da CIAFAL (PORTA), pronto para chamada.')
+  else if (dist <= 25) reasons.push(`Localização estratégica próxima (${dist} km).`)
+
+  if (subCost < 65) risks.push(`Valor histórico de frete acima da meta orçada CIAFAL.`)
+  if (occCount > 1) risks.push(`Apresenta ${occCount} ocorrências atribuídas no histórico recente.`)
+  if (tripsCount < 5)
+    risks.push('Amostra estatística reduzida; previsão com margem de incerteza moderada.')
+
+  const headline = isRecommended
+    ? `Altamente Recomendado · Score de Adequação ${fitnessScore}/100 (${reasons[0] || 'Excelente perfil operacional'})`
+    : isEligible
+      ? `Elegível · Score ${fitnessScore}/100 (Atende requisitos mínimos com pontos de atenção)`
+      : `Não Elegível (${isDriverActive ? 'Veículo insuficiente' : 'Cadastro bloqueado'})`
+
+  return {
+    driverId: driver.id,
+    driverName: driver.name,
+    driverDocument: driver.document,
+    driverPhone: driver.phone,
+    vehiclePlate: vehicle.plate,
+    vehicleType: vehicle.type,
+    isEligible,
+    isRecommended,
+    fitnessScore,
+    subscores: {
+      operationalCompatibility: subCompat,
+      historicalPerformance: subPerf,
+      routeExperience: subRoute,
+      customerExperience: subCustomer,
+      locationAvailability: subLoc,
+      expectedCost: subCost,
+      punctuality: subPunct,
+      occurrences: subOcc,
+      fredCollaboration: subFred,
+    },
+    pointsContribution: {
+      operationalCompatibility: Math.round(ptCompat * 10) / 10,
+      historicalPerformance: Math.round(ptPerf * 10) / 10,
+      routeExperience: Math.round(ptRoute * 10) / 10,
+      customerExperience: Math.round(ptCustomer * 10) / 10,
+      locationAvailability: Math.round(ptLoc * 10) / 10,
+      expectedCost: Math.round(ptCost * 10) / 10,
+      punctuality: Math.round(ptPunct * 10) / 10,
+      occurrences: Math.round(ptOcc * 10) / 10,
+      fredCollaboration: Math.round(ptFred * 10) / 10,
+      totalSum: Math.round(totalSum * 10) / 10,
+    },
+    expectedCostDetails: {
+      nominalFreight: histFreight,
+      pedagio,
+      occurrenceExpectedRiskCost,
+      totalExpectedCost,
+      confidenceLevel: costConf,
+      costRangeMin,
+      costRangeMax,
+      sampleSize: tripsCount,
+      explanation:
+        costConf === 'INSUFICIENTE'
+          ? 'Amostra insuficiente para previsão de custo confiável (< 2 viagens).'
+          : `Frete esperado R$ ${histFreight.toLocaleString('pt-BR')} + Pedágio R$ ${pedagio.toLocaleString('pt-BR')} + Risco de ocorrência R$ ${occurrenceExpectedRiskCost.toLocaleString('pt-BR')} (Confiança ${costConf}).`,
+    },
+    aiJustification: {
+      headline,
+      reasons,
+      risks,
+      recommendationSummary: `Adequação ${fitnessScore}/100 · Contribuição principal: Custo (${ptCost.toFixed(1)} pts) + Compatibilidade (${ptCompat.toFixed(1)} pts) + Performance (${ptPerf.toFixed(1)} pts).`,
+      statisticalConfidence: tripsCount >= 20 ? 'ALTA' : tripsCount >= 5 ? 'MEDIA' : 'PROVISORIA',
+    },
+  }
 }

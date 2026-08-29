@@ -96,11 +96,33 @@ export interface FreightPlannedCalculationResult {
   tableVersion: string
 }
 
+export interface OccurrenceCostItem {
+  id?: string
+  occurrenceType: string
+  description?: string
+  costValue: number
+  financialResponsible:
+    | 'CLIENTE'
+    | 'CIAFAL'
+    | 'MOTORISTA'
+    | 'TRANSPORTADORA'
+    | 'FORNECEDOR_TERCEIRO'
+    | 'COMPARTILHADA'
+    | 'SUBSIDIADO_CIAFAL'
+  impactsDriverPerformance: boolean
+  chargeStatus:
+    | 'COBRADO_CLIENTE'
+    | 'DEBITADO_PARCEIRO'
+    | 'ABSORVIDO_CIAFAL'
+    | 'PENDENTE_CONCILIACAO'
+}
+
 export interface FreightRealizedCalculationInput {
   receitaFreteReal: number
   fretePagoMotorista: number
   pedagioReal: number
   outrosCustosReais?: number
+  occurrenceCosts?: OccurrenceCostItem[]
   resultadoPrevistoRef?: number
   fretePrevistoMotoristaRef?: number
 }
@@ -110,6 +132,7 @@ export interface FreightRealizedCalculationResult {
   fretePagoMotorista: number
   pedagioReal: number
   outrosCustosReais: number
+  totalCustosOcorrencias: number
   custoTotalReal: number
   resultadoRealizado: number
   margemRealizadaPct: number
@@ -118,6 +141,13 @@ export interface FreightRealizedCalculationResult {
   desvioFreteMotorista: number
   isDesvioFavoravel: boolean
   isLucrativo: boolean
+  occurrenceImpactSummary: {
+    totalOccCost: number
+    costsByResponsible: Record<string, number>
+    topOccurrenceCostType: string
+    topOccurrenceValue: number
+    explanationText: string
+  }
 }
 
 /**
@@ -201,12 +231,32 @@ export function calculateRealizedFreightResult(
     fretePagoMotorista,
     pedagioReal,
     outrosCustosReais = 0,
+    occurrenceCosts = [],
     resultadoPrevistoRef = 0,
     fretePrevistoMotoristaRef = fretePagoMotorista,
   } = input
 
+  // Somatório de custos das ocorrências
+  let totalCustosOcorrencias = 0
+  const costsByResponsible: Record<string, number> = {}
+  let topCostType = 'NENHUMA'
+  let topCostVal = 0
+
+  for (const occ of occurrenceCosts) {
+    const val = Number(occ.costValue || 0)
+    totalCustosOcorrencias += val
+    const resp = occ.financialResponsible || 'CIAFAL'
+    costsByResponsible[resp] = (costsByResponsible[resp] || 0) + val
+    if (val > topCostVal) {
+      topCostVal = val
+      topCostType = occ.occurrenceType || 'OUTROS'
+    }
+  }
+
   const custoTotalReal =
-    Math.round((fretePagoMotorista + pedagioReal + outrosCustosReais) * 100) / 100
+    Math.round(
+      (fretePagoMotorista + pedagioReal + outrosCustosReais + totalCustosOcorrencias) * 100,
+    ) / 100
   const resultadoRealizado = Math.round((receitaFreteReal - custoTotalReal) * 100) / 100
   const margemRealizadaPct =
     receitaFreteReal > 0 ? Math.round((resultadoRealizado / receitaFreteReal) * 10000) / 100 : 0
@@ -223,11 +273,17 @@ export function calculateRealizedFreightResult(
   const isDesvioFavoravel = desvioResultado >= 0
   const isLucrativo = resultadoRealizado > 0
 
+  let explanationText = 'Transporte sem custos extras de ocorrências registradas.'
+  if (totalCustosOcorrencias > 0) {
+    explanationText = `Impacto de ocorrências: -R$ ${totalCustosOcorrencias.toLocaleString('pt-BR')} (Principal causa: ${topCostType} com R$ ${topCostVal.toLocaleString('pt-BR')}).`
+  }
+
   return {
     receitaFreteReal,
     fretePagoMotorista,
     pedagioReal,
     outrosCustosReais,
+    totalCustosOcorrencias,
     custoTotalReal,
     resultadoRealizado,
     margemRealizadaPct,
@@ -236,6 +292,13 @@ export function calculateRealizedFreightResult(
     desvioFreteMotorista,
     isDesvioFavoravel,
     isLucrativo,
+    occurrenceImpactSummary: {
+      totalOccCost: totalCustosOcorrencias,
+      costsByResponsible,
+      topOccurrenceCostType: topCostType,
+      topOccurrenceValue: topCostVal,
+      explanationText,
+    },
   }
 }
 
@@ -332,4 +395,96 @@ export function aggregateProfitability(records: any[]): ProfitabilityAggregation
     rotasPrejuizoCount: 0,
     cargasComPrejuizoCount: cargasNegativas,
   }
+}
+
+/**
+ * Análise de Rentabilidade por Dimensões (Cliente, Rota, Motorista, Transportadora)
+ */
+export interface DimensionProfitabilitySummary {
+  dimensionKey: string
+  dimensionLabel: string
+  transportsCount: number
+  totalTons: number
+  receitaTotal: number
+  fretePagoTotal: number
+  pedagioTotal: number
+  custoOcorrenciasTotal: number
+  resultadoRealTotal: number
+  margemPct: number
+  margemPorTonelada: number
+  custoTotalPorTonelada: number
+  isPrejuizo: boolean
+}
+
+export function aggregateProfitabilityByDimension(
+  records: any[],
+  dimension: 'customer' | 'itinerary' | 'driver' | 'carrier',
+): DimensionProfitabilitySummary[] {
+  const groups: Record<string, { label: string; records: any[] }> = {}
+
+  for (const r of records) {
+    let key = 'OUTROS'
+    let label = 'Outros'
+
+    if (dimension === 'customer') {
+      key = r.customer_code || r.customer_name || 'CUST_DIVERSOS'
+      label = r.customer_name || r.customer_code || 'Cliente Diverso'
+    } else if (dimension === 'itinerary') {
+      key = r.itinerary_code || r.destination_city || 'ROTA_PADRAO'
+      label = `${r.itinerary_code || 'ROTA'} · ${r.destination_city || 'Destino'}`
+    } else if (dimension === 'driver') {
+      key = r.driver_id || r.driver_name || 'DRV_DIVERSO'
+      label = r.driver_name || 'Motorista'
+    } else if (dimension === 'carrier') {
+      key = r.carrier_name || 'AUTONOMOS'
+      label = r.carrier_name || 'Autônomos / Diversos'
+    }
+
+    if (!groups[key]) groups[key] = { label, records: [] }
+    groups[key].records.push(r)
+  }
+
+  const result: DimensionProfitabilitySummary[] = []
+
+  for (const [key, grp] of Object.entries(groups)) {
+    let tons = 0
+    let rec = 0
+    let frete = 0
+    let ped = 0
+    let occ = 0
+    let res = 0
+
+    for (const r of grp.records) {
+      tons += Number(r.total_weight_kg || 0) / 1000
+      rec += Number(r.receita_frete_real ?? r.receita_frete_prevista ?? 0)
+      frete += Number(r.frete_pago_motorista ?? r.frete_previsto_motorista ?? 0)
+      ped += Number(r.pedagio_real ?? r.pedagio_previsto ?? 0)
+      occ += Number(r.outros_custos_reais ?? 0)
+      res += Number(r.resultado_realizado ?? r.resultado_previsto ?? 0)
+    }
+
+    const count = grp.records.length
+    const margemPct = rec > 0 ? Math.round((res / rec) * 10000) / 100 : 0
+    const margemPorTonelada = tons > 0 ? Math.round((res / tons) * 100) / 100 : 0
+    const custoTotalPorTonelada =
+      tons > 0 ? Math.round(((frete + ped + occ) / tons) * 100) / 100 : 0
+
+    result.push({
+      dimensionKey: key,
+      dimensionLabel: grp.label,
+      transportsCount: count,
+      totalTons: Math.round(tons * 10) / 10,
+      receitaTotal: Math.round(rec),
+      fretePagoTotal: Math.round(frete),
+      pedagioTotal: Math.round(ped),
+      custoOcorrenciasTotal: Math.round(occ),
+      resultadoRealTotal: Math.round(res),
+      margemPct,
+      margemPorTonelada,
+      custoTotalPorTonelada,
+      isPrejuizo: res < 0,
+    })
+  }
+
+  return result.sort((a, b) => b.resultadoRealTotal - a.resultadoRealTotal)
 }

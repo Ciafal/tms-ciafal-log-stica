@@ -704,6 +704,160 @@ export interface CalculateCustomerLogisticScoreResult {
   internalWarningNotes: string
 }
 
+export interface DriverPersonalFeedbackData {
+  driverId: string
+  driverName: string
+  scoreConsolidated: number // 0-100
+  classification: DriverClassification
+  starsRating: number
+  punctualityPct: number
+  cleanDeliveriesPct: number // % entregas sem ocorrência atribuída
+  fredCollaborationPct: number
+  tripsEvaluatedCount: number
+  trend: 'POSITIVA_SUBINDO' | 'ESTAVEL' | 'REQUER_ATENCAO'
+  topStrengths: Array<{ title: string; detail: string }>
+  growthOpportunities: Array<{ title: string; suggestion: string }>
+  recognitions: Array<{
+    id: string
+    title: string
+    description: string
+    icon: string
+    achievedDate: string
+  }>
+  monthlyHistory: Array<{ month: string; score: number; trips: number }>
+  fredConversationalText: string
+}
+
+export function generateDriverPersonalFeedback(
+  scoreEntity: Partial<DriverPerformanceScoreEntity>,
+  stats?: { cleanDeliveriesCount?: number; totalTrips?: number },
+): DriverPersonalFeedbackData {
+  const driverName = scoreEntity.driver_name || 'Motorista Parceiro'
+  const score = scoreEntity.score_consolidated ?? 93
+  const punct = scoreEntity.score_punctuality ?? 96
+  const fredCollab = scoreEntity.score_fred_collaboration ?? 94
+  const trips = scoreEntity.trips_evaluated_count ?? stats?.totalTrips ?? 28
+  const cleanPct =
+    stats?.cleanDeliveriesCount && stats?.totalTrips
+      ? Math.round((stats.cleanDeliveriesCount / stats.totalTrips) * 100)
+      : 96
+
+  let classification: DriverClassification = 'EXCELENTE'
+  if (score >= 90) classification = 'EXCELENTE'
+  else if (score >= 80) classification = 'MUITO_BOM'
+  else if (score >= 70) classification = 'ADEQUADO'
+  else if (score >= 60) classification = 'ATENCAO'
+  else classification = 'NECESSITA_AVALIACAO'
+
+  const stars = Number(Math.max(1, score / 20).toFixed(1))
+
+  // Pontos Fortes (máx 3)
+  const topStrengths: Array<{ title: string; detail: string }> = []
+  if (punct >= 90) {
+    topStrengths.push({
+      title: 'Pontualidade Exemplar',
+      detail: `${punct}% das entregas realizadas estritamente no horário previsto da janela.`,
+    })
+  }
+  if (cleanPct >= 90) {
+    topStrengths.push({
+      title: 'Viagens Sem Ocorrência',
+      detail: `${cleanPct}% dos transportes entregues com integridade total e canhoto legível.`,
+    })
+  }
+  if (fredCollab >= 85) {
+    topStrengths.push({
+      title: 'Colaboração com Fred',
+      detail: `Alta taxa de resposta e compartilhamento proativo de status e fotos durante a rota.`,
+    })
+  }
+  if (topStrengths.length < 3) {
+    topStrengths.push({
+      title: 'Experiência Acumulada',
+      detail: `${trips} viagens completadas com a CIAFAL com alto índice de confiança.`,
+    })
+  }
+
+  // Oportunidades de Melhoria (máx 3, tom não punitivo)
+  const growthOpportunities: Array<{ title: string; suggestion: string }> = []
+  if (scoreEntity.score_communication && scoreEntity.score_communication < 85) {
+    growthOpportunities.push({
+      title: 'Aviso Antecipado de Paradas',
+      suggestion:
+        'Sempre que houver fila ou retenção na rodovia, envie uma mensagem rápida ou áudio para o Fred. Isso ajusta o ETA do cliente e protege seu indicador.',
+    })
+  } else {
+    growthOpportunities.push({
+      title: 'Envio Imediato do Canhoto',
+      suggestion:
+        'Fotografar o comprovante assim que a descarga for finalizada agiliza a liberação do seu próximo frete na Mesa.',
+    })
+  }
+
+  // Reconhecimentos Positivos
+  const recognitions: Array<{
+    id: string
+    title: string
+    description: string
+    icon: string
+    achievedDate: string
+  }> = []
+  if (trips >= 50) {
+    recognitions.push({
+      id: 'rec_50_trips',
+      title: 'Marca de 50+ Viagens CIAFAL',
+      description: 'Parceiro com mais de 50 transportes executados com sucesso.',
+      icon: '🏆',
+      achievedDate: '2025-01-15',
+    })
+  } else if (trips >= 20) {
+    recognitions.push({
+      id: 'rec_20_trips',
+      title: 'Marca de 20+ Viagens',
+      description: 'Constância e confiabilidade operacional comprovada.',
+      icon: '🎖️',
+      achievedDate: '2025-01-10',
+    })
+  }
+  if (punct >= 95) {
+    recognitions.push({
+      id: 'rec_punct_star',
+      title: 'Pontualidade 95%+',
+      description: 'Destaque contínuo no cumprimento das janelas de descarga.',
+      icon: '⭐',
+      achievedDate: '2025-01-20',
+    })
+  }
+
+  const fredConversationalText = `${driverName.split(' ')[0]}, considerando seus últimos ${trips} transportes com a CIAFAL: Score atual ${score}/100, Classificação ${classification.replace('_', ' ')}, Pontualidade ${punct}%, Entregas sem ocorrência ${cleanPct}%, Colaboração comigo ${fredCollab}%, Tendência estável. Seu principal ponto positivo é a ${topStrengths[0]?.title.toLowerCase() || 'qualidade da entrega'}. ${growthOpportunities[0]?.suggestion ? `Dica de melhoria: ${growthOpportunities[0].suggestion}` : ''}`
+
+  const monthlyHistory = [
+    { month: 'Set/24', score: Math.max(70, score - 3), trips: Math.max(2, Math.round(trips / 5)) },
+    { month: 'Out/24', score: Math.max(70, score - 2), trips: Math.max(3, Math.round(trips / 4)) },
+    { month: 'Nov/24', score: Math.max(70, score - 1), trips: Math.max(4, Math.round(trips / 3)) },
+    { month: 'Dez/24', score: score, trips: Math.max(5, Math.round(trips / 2)) },
+    { month: 'Jan/25', score: score, trips: Math.max(6, trips) },
+  ]
+
+  return {
+    driverId: scoreEntity.driver_id || 'drv_01',
+    driverName,
+    scoreConsolidated: score,
+    classification,
+    starsRating: stars,
+    punctualityPct: punct,
+    cleanDeliveriesPct: cleanPct,
+    fredCollaborationPct: fredCollab,
+    tripsEvaluatedCount: trips,
+    trend: 'ESTAVEL',
+    topStrengths: topStrengths.slice(0, 3),
+    growthOpportunities: growthOpportunities.slice(0, 3),
+    recognitions,
+    monthlyHistory,
+    fredConversationalText,
+  }
+}
+
 export function calculateCustomerLogisticScore(
   input: CalculateCustomerLogisticScoreInput,
 ): CalculateCustomerLogisticScoreResult {

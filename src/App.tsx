@@ -59,6 +59,7 @@ import { FredTransport360Page } from '@/pages/FredTransport360Page'
 import { FredAnalyticsPage } from '@/pages/FredAnalyticsPage'
 import { FredChatPage } from '@/pages/FredChatPage'
 import { DriverMobileCompanionPage } from '@/pages/DriverMobileCompanionPage'
+import SelectionGovernanceAndLoopPage from '@/pages/SelectionGovernanceAndLoopPage'
 import NotFound from '@/pages/NotFound'
 
 export const App: React.FC = () => {
@@ -131,6 +132,22 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <DriverPerformanceManagementPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/governanca-selecao-loop"
+            element={
+              <Layout>
+                <SelectionGovernanceAndLoopPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/feedback-loop"
+            element={
+              <Layout>
+                <SelectionGovernanceAndLoopPage />
               </Layout>
             }
           />

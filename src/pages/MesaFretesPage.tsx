@@ -10,6 +10,10 @@ import {
   DriverEligibilityEvaluation,
   SmartPriceBand,
   NegotiationSession,
+  calculateCargoDriverFitness,
+  CargoDriverFitnessResult,
+  SelectionCriteriaWeights,
+  DEFAULT_SELECTION_WEIGHTS,
 } from '@/domain/carlaoNegotiationEngine'
 import {
   BadgeDollarSign,
@@ -44,6 +48,8 @@ import {
   RefreshCw,
   Sparkles,
   Info,
+  SlidersHorizontal,
+  AlertCircle,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -74,16 +80,35 @@ export const MesaFretesPage: React.FC = () => {
   const [driverPerfs, setDriverPerfs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Modals state
+  // Templates de Seleção e Pesos Parametrizáveis
+  const [templates, setTemplates] = useState<any[]>([])
+  const [selectedTemplateCode, setSelectedTemplateCode] = useState<string>('TPL_CARGA_PADRAO')
+
+  // Modals state & Fitness Multi-critério
   const [selectedCargoForOffer, setSelectedCargoForOffer] = useState<any | null>(null)
   const [offerEligibleDrivers, setOfferEligibleDrivers] = useState<DriverEligibilityEvaluation[]>(
     [],
   )
+  const [fitnessResults, setFitnessResults] = useState<CargoDriverFitnessResult[]>([])
+  const [selectedFitnessCandidate, setSelectedFitnessCandidate] =
+    useState<CargoDriverFitnessResult | null>(null)
   const [selectedDriverForCarlao, setSelectedDriverForCarlao] =
     useState<DriverEligibilityEvaluation | null>(null)
   const [carlaoModalOpen, setCarlaoModalOpen] = useState(false)
   const [explainModalOpen, setExplainModalOpen] = useState(false)
   const [explainData, setExplainData] = useState<any | null>(null)
+
+  // Simulação Comparativa Multi-Motoristas (Parte 4)
+  const [simulationModalOpen, setSimulationModalOpen] = useState(false)
+  const [simulationSelectedDriverIds, setSimulationSelectedDriverIds] = useState<string[]>([])
+
+  // Human Override Modal & Justificativa (Parte 4)
+  const [overrideModalOpen, setOverrideModalOpen] = useState(false)
+  const [overrideReasonCategory, setOverrideReasonCategory] = useState('RELACIONAMENTO_ESTRATEGICO')
+  const [overrideJustificationText, setOverrideJustificationText] = useState('')
+  const [candidateToOverride, setCandidateToOverride] = useState<CargoDriverFitnessResult | null>(
+    null,
+  )
 
   // Human Takeover modal
   const [takeoverModalOpen, setTakeoverModalOpen] = useState(false)
@@ -108,18 +133,22 @@ export const MesaFretesPage: React.FC = () => {
   // Load real data
   const loadData = useCallback(async () => {
     try {
-      const [fetchedOffers, fetchedQueue, fetchedNegs, fetchedPerfs, fetchedScores] =
+      const [fetchedOffers, fetchedQueue, fetchedNegs, fetchedPerfs, fetchedScores, fetchedTpls] =
         await Promise.all([
           tmsService.getFreightOffers(),
           tmsService.getOperationalQueue(),
           tmsService.getFreightNegotiations(),
           tmsService.getDriverPerformanceIndicators(),
           tmsService.getDriverPerformanceScores(),
+          tmsService.getSelectionCriteriaTemplates(),
         ])
       setOffers(fetchedOffers)
       setQueueEntries(fetchedQueue)
       setNegotiations(fetchedNegs)
       setDriverPerfs(fetchedPerfs)
+      if (fetchedTpls && fetchedTpls.length > 0) {
+        setTemplates(fetchedTpls)
+      }
     } catch (err) {
       console.error('Error loading Mesa de Fretes data:', err)
       toast({
@@ -136,11 +165,27 @@ export const MesaFretesPage: React.FC = () => {
     loadData()
   }, [loadData])
 
-  // Abre cálculo de elegibilidade para disparar Carlão
-  const handleOpenCarlaoOffer = (cargo: any) => {
+  // Abre cálculo de adequação multicritério e elegibilidade para disparar Carlão
+  const handleOpenCarlaoOffer = (cargo: any, templateCodeParam?: string) => {
     setSelectedCargoForOffer(cargo)
+    const activeTplCode = templateCodeParam || selectedTemplateCode
+    const activeTpl = templates.find((t) => t.template_code === activeTplCode)
 
-    // Avaliar motoristas da fila para esta carga
+    const weights: SelectionCriteriaWeights = activeTpl
+      ? {
+          operationalCompatibilityPct: activeTpl.weight_operational_compatibility_pct ?? 20,
+          historicalPerformancePct: activeTpl.weight_historical_performance_pct ?? 15,
+          routeExperiencePct: activeTpl.weight_route_experience_pct ?? 10,
+          customerExperiencePct: activeTpl.weight_customer_experience_pct ?? 10,
+          locationAvailabilityPct: activeTpl.weight_location_availability_pct ?? 10,
+          expectedCostPct: activeTpl.weight_expected_cost_pct ?? 20,
+          punctualityPct: activeTpl.weight_punctuality_pct ?? 5,
+          occurrencesPct: activeTpl.weight_occurrences_pct ?? 5,
+          fredCollaborationPct: activeTpl.weight_fred_collaboration_pct ?? 5,
+        }
+      : DEFAULT_SELECTION_WEIGHTS
+
+    // 1. Avaliação de Elegibilidade Básica
     const evaluated: DriverEligibilityEvaluation[] = queueEntries.map((q) => {
       const perf = driverPerfs.find((p) => p.driver_id === q.driver_id) || {
         punctualityPct: 96,
@@ -182,13 +227,138 @@ export const MesaFretesPage: React.FC = () => {
       )
     })
 
-    // Ordenar por maior score
+    // 2. Cálculo do Score de Adequação à Carga (0 a 100) + Custo Total Esperado (Preditivo)
+    const fitnessList: CargoDriverFitnessResult[] = queueEntries.map((q) => {
+      return calculateCargoDriverFitness({
+        driver: {
+          id: q.driver_id || `drv-${q.id}`,
+          name: q.driver_name || q.driver_name_cached || 'Motorista Parceiro',
+          document: q.driver_cpf || '---',
+          phone: q.driver_phone || '(19) 99999-0000',
+          status: q.status === 'bloqueado' ? 'bloqueado' : 'ativo',
+        },
+        vehicle: {
+          plate: q.vehicle_plate || q.vehicle_plate_cached || 'ABC1D23',
+          type: q.vehicle_type || q.vehicle_type_cached || 'Carreta Vanderléia 3E',
+          bodyType: 'Sider',
+          capacityKg: 28000,
+        },
+        queueEntry: {
+          type: q.type || 'PORTA',
+          status: q.status || 'disponivel',
+          distanceKm: q.distance_km || (q.type === 'PORTA' ? 0 : 18),
+        },
+        cargo: {
+          cargoId: cargo.cargo_id,
+          weightKg: cargo.weight_kg || 27000,
+          requiredVehicleType: cargo.required_vehicle_type,
+          destinationCity: cargo.destination,
+          targetFreight: cargo.target_freight || 2720,
+        },
+        weights,
+        templateCode: activeTplCode,
+      })
+    })
+
+    // Ordenar por Score de Adequação Decrescente
+    fitnessList.sort((a, b) => b.fitnessScore - a.fitnessScore)
     evaluated.sort((a, b) => b.score - a.score)
+
     setOfferEligibleDrivers(evaluated)
-    if (evaluated.length > 0) {
-      setSelectedDriverForCarlao(evaluated[0])
+    setFitnessResults(fitnessList)
+
+    if (fitnessList.length > 0) {
+      setSelectedFitnessCandidate(fitnessList[0])
+      const matchingEligible = evaluated.find((e) => e.driverId === fitnessList[0].driverId)
+      setSelectedDriverForCarlao(matchingEligible || evaluated[0])
+      setSimulationSelectedDriverIds(
+        [fitnessList[0].driverId, fitnessList[1]?.driverId].filter(Boolean) as string[],
+      )
     }
+
     setCarlaoModalOpen(true)
+  }
+
+  // Mudança do template de seleção
+  const handleTemplateChange = (tplCode: string) => {
+    setSelectedTemplateCode(tplCode)
+    if (selectedCargoForOffer) {
+      handleOpenCarlaoOffer(selectedCargoForOffer, tplCode)
+    }
+  }
+
+  // Seleção com Override Humano
+  const handleSelectWithOverride = (cand: CargoDriverFitnessResult) => {
+    const topRecommended = fitnessResults[0]
+    if (topRecommended && topRecommended.driverId !== cand.driverId) {
+      setCandidateToOverride(cand)
+      setOverrideModalOpen(true)
+    } else {
+      setSelectedFitnessCandidate(cand)
+      const matchingEligible = offerEligibleDrivers.find((e) => e.driverId === cand.driverId)
+      if (matchingEligible) setSelectedDriverForCarlao(matchingEligible)
+      toast({
+        title: 'Candidato Selecionado',
+        description: `${cand.driverName} selecionado como foco da negociação com Carlão.`,
+      })
+    }
+  }
+
+  // Confirmar Override Humano
+  const handleConfirmOverride = async () => {
+    if (!candidateToOverride || !selectedCargoForOffer) return
+    const topRecommended = fitnessResults[0]
+
+    try {
+      await tmsService.recordSelectionDecisionAudit({
+        cargo_id: selectedCargoForOffer.cargo_id,
+        template_code_used: selectedTemplateCode,
+        formula_version_used: 'Modelo Seleção v1.0',
+        eligible_candidates_count: fitnessResults.filter((f) => f.isEligible).length,
+        candidates_snapshot_json: fitnessResults.map((f) => ({
+          driver_id: f.driverId,
+          driver_name: f.driverName,
+          fitness_score: f.fitnessScore,
+          expected_cost: f.expectedCostDetails.totalExpectedCost,
+        })),
+        ai_top_recommended_driver_id: topRecommended?.driverId,
+        ai_top_recommended_driver_name: topRecommended?.driverName,
+        ai_top_recommended_score: topRecommended?.fitnessScore,
+        ai_top_recommended_expected_cost: topRecommended?.expectedCostDetails.totalExpectedCost,
+        selected_driver_id: candidateToOverride.driverId,
+        selected_driver_name: candidateToOverride.driverName,
+        selected_driver_score: candidateToOverride.fitnessScore,
+        selected_driver_negotiated_freight: candidateToOverride.expectedCostDetails.nominalFreight,
+        selected_driver_total_cost: candidateToOverride.expectedCostDetails.totalExpectedCost,
+        is_human_override: true,
+        override_reason_category: overrideReasonCategory,
+        override_justification_text:
+          overrideJustificationText || 'Decisão operacional registrada pelo gestor.',
+        decided_by_user_name: user?.name || 'Gestor de Fretes CIAFAL',
+        decided_by_user_email: user?.email || 'gestor@ciafal.com.br',
+        decision_timestamp: new Date().toISOString(),
+        estimated_avoided_cost: 0,
+      })
+
+      setSelectedFitnessCandidate(candidateToOverride)
+      const matchingEligible = offerEligibleDrivers.find(
+        (e) => e.driverId === candidateToOverride.driverId,
+      )
+      if (matchingEligible) setSelectedDriverForCarlao(matchingEligible)
+
+      toast({
+        title: 'Override Humano Registrado',
+        description: `Decisão auditada e registrada. Motorista ${candidateToOverride.driverName} selecionado.`,
+        className: 'bg-amber-600 text-white',
+      })
+      setOverrideModalOpen(false)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao registrar auditoria',
+        description: err?.message || 'Falha ao gravar auditoria da decisão.',
+        variant: 'destructive',
+      })
+    }
   }
 
   // Disparar negociação do Carlão com o motorista selecionado
@@ -1206,156 +1376,250 @@ export const MesaFretesPage: React.FC = () => {
           </TabsContent>
         </Tabs>
 
-        {/* MODAL: SCORE DE ELEGIBILIDADE & DISPARO DO CARLÃO */}
+        {/* MODAL: SELEÇÃO MULTICRITÉRIO INTELIGENTE & SCORE DE ADEQUAÇÃO À CARGA */}
         <Dialog open={carlaoModalOpen} onOpenChange={setCarlaoModalOpen}>
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-4xl max-h-[92vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <Bot className="w-5 h-5 text-[#005596]" />
-                Score de Elegibilidade & Estratégia de Ondas
-              </DialogTitle>
-              <DialogDescription className="text-xs text-slate-500">
-                Carga: <strong>{selectedCargoForOffer?.cargo_id}</strong> • Destino:{' '}
-                {selectedCargoForOffer?.destination} • Peso:{' '}
-                {((selectedCargoForOffer?.weight_kg || 27000) / 1000).toFixed(1)}t
-              </DialogDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <DialogTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+                    <Bot className="w-5 h-5 text-[#005596]" />
+                    Seleção Multicritério Inteligente & Adequação à Carga
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-slate-500">
+                    Carga:{' '}
+                    <strong className="text-slate-800">
+                      {selectedCargoForOffer?.cargo_id}
+                    </strong> •
+                    Destino: {selectedCargoForOffer?.destination} • Peso:{' '}
+                    {((selectedCargoForOffer?.weight_kg || 27000) / 1000).toFixed(1)}t
+                  </DialogDescription>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSimulationModalOpen(true)}
+                  className="text-xs border-[#005596] text-[#005596] hover:bg-sky-50 gap-1 font-bold"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  Simular / Comparar Motoristas
+                </Button>
+              </div>
             </DialogHeader>
 
             <div className="space-y-4 py-2 text-xs">
-              {/* Filtro por Ondas */}
-              <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                <span className="font-bold text-slate-700">Filtrar por Onda de Oferta:</span>
-                <div className="flex gap-1.5">
-                  <Button
-                    size="sm"
-                    variant={selectedWaveFilter === 0 ? 'default' : 'outline'}
-                    onClick={() => setSelectedWaveFilter(0)}
-                    className="h-7 text-xs px-2.5"
+              {/* Seletor de Template de Seleção com Pesos Parametrizáveis */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="font-bold text-slate-800 block">
+                    Template de Seleção por Operação:
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Ajusta os pesos dos 9 critérios dinamicamente
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedTemplateCode}
+                    onChange={(e) => handleTemplateChange(e.target.value)}
+                    className="text-xs p-1.5 rounded-lg border border-slate-300 font-semibold bg-white text-slate-800"
                   >
-                    Todas ({offerEligibleDrivers.length})
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={selectedWaveFilter === 1 ? 'default' : 'outline'}
-                    onClick={() => setSelectedWaveFilter(1)}
-                    className="h-7 text-xs px-2.5"
-                  >
-                    Onda 1 (Alta Aderência)
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={selectedWaveFilter === 2 ? 'default' : 'outline'}
-                    onClick={() => setSelectedWaveFilter(2)}
-                    className="h-7 text-xs px-2.5"
-                  >
-                    Onda 2 (Ampliada)
-                  </Button>
+                    <option value="TPL_CARGA_PADRAO">Carga Padrão CIAFAL (Equilibrado)</option>
+                    <option value="TPL_CLIENTE_CRITICO">Cliente Crítico & Janela Estrita</option>
+                    <option value="TPL_ENTREGA_URGENTE">Entrega Urgente / Imediata</option>
+                    <option value="TPL_OPERACAO_COMPLEXA">Operação Complexa / Rota Sensível</option>
+                  </select>
                 </div>
               </div>
 
-              {/* Lista de Motoristas com Score Detalhado */}
-              <div className="space-y-2">
-                {filteredEligibleDrivers.map((driver) => {
-                  const isSelected = selectedDriverForCarlao?.driverId === driver.driverId
+              {/* Alerta Inteligente de Qualidade de Dados / Confiança */}
+              <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>
+                    <strong>Critério de Decisão:</strong> Separamos <em>Motoristas Elegíveis</em>{' '}
+                    (requisitos mínimos) de <em>Motoristas Recomendados</em> (melhor custo total
+                    esperado).
+                  </span>
+                </div>
+                <Badge
+                  variant="outline"
+                  className="bg-white text-amber-800 border-amber-300 text-[10px]"
+                >
+                  Fórmula: Modelo Seleção v1.0
+                </Badge>
+              </div>
+
+              {/* Lista de Motoristas Ordenados por Score de Adequação */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between font-bold text-slate-700 text-xs">
+                  <span>Candidatos Avaliados ({fitnessResults.length}):</span>
+                  <span className="text-[11px] text-slate-500 font-normal">
+                    Ordenados por Score de Adequação à Carga
+                  </span>
+                </div>
+
+                {fitnessResults.map((cand, idx) => {
+                  const isSelected = selectedFitnessCandidate?.driverId === cand.driverId
+                  const isTopRanked = idx === 0
 
                   return (
                     <div
-                      key={driver.driverId}
-                      onClick={() => setSelectedDriverForCarlao(driver)}
-                      className={`p-3 rounded-xl border cursor-pointer transition flex items-center justify-between ${
+                      key={cand.driverId}
+                      className={`p-3.5 rounded-xl border transition ${
                         isSelected
-                          ? 'border-[#005596] bg-sky-50/70 shadow-sm'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                          ? 'border-[#005596] bg-sky-50/60 shadow-sm ring-1 ring-[#005596]'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
                       }`}
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-extrabold text-slate-900 text-sm">
-                            {driver.driverName}
-                          </span>
-                          <Badge className="bg-[#005596] text-white text-[10px]">
-                            Onda {driver.suggestedWave}
-                          </Badge>
-                          <Badge variant="outline" className="text-[10px]">
-                            {driver.queueType}
-                          </Badge>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-extrabold text-slate-900 text-sm">
+                              #{idx + 1} {cand.driverName}
+                            </span>
+                            {cand.isRecommended ? (
+                              <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
+                                RECOMENDADO IA
+                              </Badge>
+                            ) : cand.isEligible ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-slate-100 text-slate-700 border-slate-300 text-[10px]"
+                              >
+                                ELEGÍVEL
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive" className="text-[10px]">
+                                NÃO ELEGÍVEL
+                              </Badge>
+                            )}
+                            <Badge variant="outline" className="text-[10px] font-mono">
+                              {cand.vehiclePlate || 'ABC1D23'}
+                            </Badge>
+                          </div>
+                          <p className="text-[11px] text-slate-500">
+                            {cand.vehicleType || 'Carreta Vanderléia'} • Frete Histórico: R${' '}
+                            {cand.expectedCostDetails.nominalFreight.toLocaleString('pt-BR')} •
+                            Custo Total Esperado:{' '}
+                            <strong className="text-slate-800">
+                              R${' '}
+                              {cand.expectedCostDetails.totalExpectedCost.toLocaleString('pt-BR')}
+                            </strong>{' '}
+                            (Confiança {cand.expectedCostDetails.confidenceLevel})
+                          </p>
                         </div>
-                        <p className="text-[11px] text-slate-500">
-                          Veículo: {driver.vehiclePlate || '---'} ({driver.vehicleType}) • Tel:{' '}
-                          {driver.driverPhone}
-                        </p>
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="text-2xl font-black text-[#005596]">
+                                {cand.fitnessScore}
+                              </span>
+                              <span className="text-xs text-slate-400 font-bold">/100</span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-semibold block">
+                              Score de Adequação
+                            </span>
+                          </div>
+
+                          <Button
+                            size="sm"
+                            onClick={() => handleSelectWithOverride(cand)}
+                            variant={isSelected ? 'default' : 'outline'}
+                            className={`text-xs font-bold ${
+                              isSelected
+                                ? 'bg-[#005596] text-white hover:bg-[#004275]'
+                                : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            {isSelected
+                              ? 'Selecionado'
+                              : isTopRanked
+                                ? 'Selecionar'
+                                : 'Override Humano'}
+                          </Button>
+                        </div>
                       </div>
 
-                      <div className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <span className="text-xl font-black text-emerald-700">
-                            {driver.score}/100
-                          </span>
-                          {driver.score >= 90 && (
-                            <span
-                              title="Motorista Preferencial CIAFAL"
-                              className="text-amber-500 font-bold text-xs"
-                            >
-                              ⭐
-                            </span>
-                          )}
+                      {/* Linha da Justificativa da IA e Linha de Explicabilidade Detalhada */}
+                      <div className="mt-2.5 pt-2 border-t border-slate-200/80 bg-slate-50 p-2.5 rounded-lg space-y-2">
+                        <div className="flex items-start gap-1.5 text-[11px] text-slate-700">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                          <div>
+                            <strong className="text-slate-900">IA:</strong>{' '}
+                            {cand.aiJustification.headline}
+                          </div>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-semibold block">
-                          Score Multicritério Carlão
-                        </span>
+
+                        {/* Contribuição dos 9 Critérios (Explicabilidade sem caixa-preta) */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 text-[10px] bg-white p-2 rounded border border-slate-200">
+                          <div>
+                            Compat:{' '}
+                            <strong className="text-slate-800">
+                              +{cand.pointsContribution.operationalCompatibility} pts
+                            </strong>
+                          </div>
+                          <div>
+                            Perform:{' '}
+                            <strong className="text-slate-800">
+                              +{cand.pointsContribution.historicalPerformance} pts
+                            </strong>
+                          </div>
+                          <div>
+                            Exp Rota:{' '}
+                            <strong className="text-slate-800">
+                              +{cand.pointsContribution.routeExperience} pts
+                            </strong>
+                          </div>
+                          <div>
+                            Exp Cliente:{' '}
+                            <strong className="text-slate-800">
+                              +{cand.pointsContribution.customerExperience} pts
+                            </strong>
+                          </div>
+                          <div>
+                            Localização:{' '}
+                            <strong className="text-slate-800">
+                              +{cand.pointsContribution.locationAvailability} pts
+                            </strong>
+                          </div>
+                          <div>
+                            Custo:{' '}
+                            <strong className="text-slate-800">
+                              +{cand.pointsContribution.expectedCost} pts
+                            </strong>
+                          </div>
+                          <div>
+                            Pontual:{' '}
+                            <strong className="text-slate-800">
+                              +{cand.pointsContribution.punctuality} pts
+                            </strong>
+                          </div>
+                          <div>
+                            Ocorrências:{' '}
+                            <strong className="text-slate-800">
+                              +{cand.pointsContribution.occurrences} pts
+                            </strong>
+                          </div>
+                          <div>
+                            Colab Fred:{' '}
+                            <strong className="text-slate-800">
+                              +{cand.pointsContribution.fredCollaboration} pts
+                            </strong>
+                          </div>
+                          <div className="font-bold text-[#005596]">
+                            Total: {cand.pointsContribution.totalSum} pts
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )
                 })}
               </div>
-
-              {/* Composição do Score do Motorista Selecionado */}
-              {selectedDriverForCarlao && (
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
-                  <span className="font-bold text-slate-800 block">
-                    Composição do Score — {selectedDriverForCarlao.driverName}:
-                  </span>
-                  <div className="grid grid-cols-3 gap-2 text-[11px]">
-                    <div>
-                      Documentação:{' '}
-                      <strong>{selectedDriverForCarlao.scoreBreakdown.statusDocScore}/20</strong>
-                    </div>
-                    <div>
-                      Capacidade/Veículo:{' '}
-                      <strong>
-                        {selectedDriverForCarlao.scoreBreakdown.capacityVehicleScore}/25
-                      </strong>
-                    </div>
-                    <div>
-                      Proximidade/Fila:{' '}
-                      <strong>
-                        {selectedDriverForCarlao.scoreBreakdown.proximityLocationScore}/20
-                      </strong>
-                    </div>
-                    <div>
-                      Pontualidade/Histórico:{' '}
-                      <strong>
-                        {selectedDriverForCarlao.scoreBreakdown.punctualityHistoryScore}/15
-                      </strong>
-                    </div>
-                    <div>
-                      Exp. Rota/Região:{' '}
-                      <strong>
-                        {selectedDriverForCarlao.scoreBreakdown.routeExperienceScore}/10
-                      </strong>
-                    </div>
-                    <div>
-                      Custo Sustentável:{' '}
-                      <strong>
-                        {selectedDriverForCarlao.scoreBreakdown.sustainableCostScore}/10
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-2 sm:gap-0 border-t pt-3">
               <Button
                 variant="outline"
                 size="sm"
@@ -1370,7 +1634,188 @@ export const MesaFretesPage: React.FC = () => {
                 disabled={actionLoading || !selectedDriverForCarlao}
                 className="bg-[#005596] hover:bg-[#004275] text-white font-bold"
               >
-                {actionLoading ? 'Disparando Carlão...' : 'Iniciar Negociação com Carlão'}
+                {actionLoading
+                  ? 'Disparando Carlão...'
+                  : `Iniciar Negociação com ${selectedDriverForCarlao?.driverName || 'Motorista'}`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* MODAL: SIMULAÇÃO / COMPARAÇÃO DE MOTORISTAS (PARTE 4) */}
+        <Dialog open={simulationModalOpen} onOpenChange={setSimulationModalOpen}>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-base font-black text-slate-900 flex items-center gap-2">
+                <SlidersHorizontal className="w-5 h-5 text-[#005596]" />
+                Simulador Comparativo de Motoristas & Trade-Off Custo × Score
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500">
+                Compare múltiplos candidatos para avaliar o menor Custo Total Esperado vs Menor
+                Frete Nominal.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2 text-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border border-slate-200 rounded-lg">
+                  <thead className="bg-slate-100 text-slate-700 font-bold border-b">
+                    <tr>
+                      <th className="p-2.5">Motorista</th>
+                      <th className="p-2.5">Frete Nominal</th>
+                      <th className="p-2.5">Pedágio</th>
+                      <th className="p-2.5">Risco Ocorrência</th>
+                      <th className="p-2.5">Custo Total Esperado</th>
+                      <th className="p-2.5">Score Adequação</th>
+                      <th className="p-2.5">Pontualidade</th>
+                      <th className="p-2.5">Status IA</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 bg-white">
+                    {fitnessResults.map((cand) => (
+                      <tr key={cand.driverId} className="hover:bg-slate-50">
+                        <td className="p-2.5 font-bold text-slate-900">
+                          {cand.driverName}
+                          <span className="block text-[10px] text-slate-400 font-normal font-mono">
+                            {cand.vehiclePlate || 'ABC1D23'}
+                          </span>
+                        </td>
+                        <td className="p-2.5">
+                          R$ {cand.expectedCostDetails.nominalFreight.toLocaleString('pt-BR')}
+                        </td>
+                        <td className="p-2.5">
+                          R$ {cand.expectedCostDetails.pedagio.toLocaleString('pt-BR')}
+                        </td>
+                        <td className="p-2.5 text-amber-700">
+                          R${' '}
+                          {cand.expectedCostDetails.occurrenceExpectedRiskCost.toLocaleString(
+                            'pt-BR',
+                          )}
+                        </td>
+                        <td className="p-2.5 font-bold text-slate-900">
+                          R$ {cand.expectedCostDetails.totalExpectedCost.toLocaleString('pt-BR')}
+                          <span className="block text-[10px] text-slate-500 font-normal">
+                            Faixa: R$ {cand.expectedCostDetails.costRangeMin}–
+                            {cand.expectedCostDetails.costRangeMax}
+                          </span>
+                        </td>
+                        <td className="p-2.5 font-black text-[#005596]">{cand.fitnessScore}/100</td>
+                        <td className="p-2.5 text-emerald-700 font-bold">
+                          {cand.subscores.punctuality}%
+                        </td>
+                        <td className="p-2.5">
+                          {cand.isRecommended ? (
+                            <Badge className="bg-emerald-600 text-white text-[10px]">
+                              RECOMENDADO
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px]">
+                              ELEGÍVEL
+                            </Badge>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl space-y-1.5 text-slate-800">
+                <span className="font-bold text-[#005596] flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4" /> Recomendação Final da IA:
+                </span>
+                <p className="text-xs text-slate-700">
+                  O motorista <strong>{fitnessResults[0]?.driverName}</strong> oferece a melhor
+                  relação entre custo total esperado e segurança de entrega. Embora seu frete
+                  nominal possa não ser o menor da mesa, o risco estimado de ocorrências e atrasos é
+                  estatisticamente inferior, resultando em menor custo consolidado para a CIAFAL.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                size="sm"
+                onClick={() => setSimulationModalOpen(false)}
+                className="bg-[#005596] text-white"
+              >
+                Fechar Simulador
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* MODAL: OVERRIDE HUMANO DE SELEÇÃO (AUDITORIA E GOVERNANÇA) */}
+        <Dialog open={overrideModalOpen} onOpenChange={setOverrideModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-base font-black text-slate-900 flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-amber-600" />
+                Registrar Decisão com Override Humano
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500">
+                Você está selecionando um candidato diferente do 1º recomendado pela IA. A decisão
+                será registrada na trilha de governança.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 py-2 text-xs">
+              <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                <div>
+                  Motorista Recomendado: <strong>{fitnessResults[0]?.driverName}</strong> (Score{' '}
+                  {fitnessResults[0]?.fitnessScore})
+                </div>
+                <div className="text-amber-800 font-bold mt-1">
+                  Motorista Escolhido por Você: {candidateToOverride?.driverName} (Score{' '}
+                  {candidateToOverride?.fitnessScore})
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700">Motivo do Override:</label>
+                <select
+                  value={overrideReasonCategory}
+                  onChange={(e) => setOverrideReasonCategory(e.target.value)}
+                  className="w-full p-2 border rounded-md text-xs bg-white"
+                >
+                  <option value="RELACIONAMENTO_ESTRATEGICO">
+                    Relacionamento Estratégico com Parceiro
+                  </option>
+                  <option value="NECESSIDADE_OPERACIONAL_URGENTE">
+                    Necessidade Operacional Urgente
+                  </option>
+                  <option value="ACORDO_COMERCIAL_ESPECIFICO">Acordo Comercial Específico</option>
+                  <option value="DISPONIBILIDADE_IMEDIATA">
+                    Disponibilidade Imediata em Pátio
+                  </option>
+                  <option value="DECISAO_GESTAO">Decisão Diretiva da Gestão</option>
+                  <option value="OUTRO">Outro Motivo</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700">
+                  Justificativa Operacional (Obrigatório):
+                </label>
+                <Textarea
+                  value={overrideJustificationText}
+                  onChange={(e) => setOverrideJustificationText(e.target.value)}
+                  placeholder="Explique o motivo da escolha para auditoria..."
+                  className="text-xs h-20"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" size="sm" onClick={() => setOverrideModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleConfirmOverride}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
+              >
+                Confirmar Escolha Auditada
               </Button>
             </DialogFooter>
           </DialogContent>

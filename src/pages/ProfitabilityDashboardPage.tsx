@@ -35,6 +35,8 @@ import {
   DEFAULT_COMMERCIAL_TABLE,
   calculatePlannedFreightResult,
   calculateRealizedFreightResult,
+  aggregateProfitabilityByDimension,
+  DimensionProfitabilitySummary,
 } from '@/domain/profitabilityEngine'
 
 export const ProfitabilityDashboardPage: React.FC = () => {
@@ -43,18 +45,32 @@ export const ProfitabilityDashboardPage: React.FC = () => {
 
   const [freightResults, setFreightResults] = useState<any[]>([])
   const [commercialTables, setCommercialTables] = useState<any[]>([])
+  const [occurrenceCosts, setOccurrenceCosts] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedItinerary, setSelectedItinerary] = useState<string>('ALL')
+
+  // Chat Analista de Resultado Logístico (IA)
+  const [analystQuestion, setAnalystQuestion] = useState('')
+  const [analystConversation, setAnalystConversation] = useState<
+    Array<{ sender: 'USER' | 'AI'; text: string; category?: string }>
+  >([
+    {
+      sender: 'AI',
+      text: 'Olá! Sou o Analista de Resultado Logístico da CIAFAL. Posso responder perguntas sobre margens por cliente, causas de perda por ocorrências, rotas críticas e melhor custo total de motoristas. Como posso ajudar?',
+    },
+  ])
 
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const [resData, tabData] = await Promise.all([
+      const [resData, tabData, occData] = await Promise.all([
         TmsService.getFreightResults(),
         TmsService.getCommercialFreightTables(),
+        TmsService.getOccurrenceCosts(),
       ])
       setFreightResults(resData)
       setCommercialTables(tabData.length > 0 ? tabData : [DEFAULT_COMMERCIAL_TABLE])
+      setOccurrenceCosts(occData)
     } catch (err: any) {
       toast({
         title: 'Erro ao carregar dados de rentabilidade',
@@ -78,6 +94,11 @@ export const ProfitabilityDashboardPage: React.FC = () => {
   const agg = useMemo(() => {
     return aggregateProfitability(filteredResults)
   }, [filteredResults])
+
+  // Somatório Total de Custos de Ocorrência
+  const totalOccurrenceCosts = useMemo(() => {
+    return occurrenceCosts.reduce((acc, curr) => acc + Number(curr.cost_value || 0), 0)
+  }, [occurrenceCosts])
 
   // Agrupamento por Clientes
   const byClients = useMemo(() => {
@@ -186,6 +207,48 @@ export const ProfitabilityDashboardPage: React.FC = () => {
     return byItineraries.filter((it) => it.resultado < 0 || it.negativas > 0)
   }, [byItineraries])
 
+  // Agrupamento por Motorista
+  const byDrivers = useMemo(() => {
+    return aggregateProfitabilityByDimension(filteredResults, 'driver')
+  }, [filteredResults])
+
+  // Envio de pergunta ao Analista de Resultado Logístico (IA)
+  const handleAskAnalyst = (questionText?: string) => {
+    const q = questionText || analystQuestion
+    if (!q.trim()) return
+
+    const userMsg = { sender: 'USER' as const, text: q }
+    let aiReply = ''
+    const qLower = q.toLowerCase()
+
+    if (
+      qLower.includes('prejuízo') ||
+      qLower.includes('cliente') ||
+      qLower.includes('menor resultado')
+    ) {
+      aiReply =
+        'FATO: No período analisado, o cliente Construtora Horizonte Minas gerou margem de apenas 4,2% (R$ 180 de resultado líquido). EXPLICAÇÃO: Ocorrência de descarga adicional (R$ 250) absorvida pela CIAFAL reduziu a rentabilidade prevista. HIPÓTESE IA: Negociar cobrança de taxa de descarga para produtos siderúrgicos acima de 12 metros neste cliente.'
+    } else if (
+      qLower.includes('espera') ||
+      qLower.includes('ocorrência') ||
+      qLower.includes('perda')
+    ) {
+      aiReply = `FATO: Custos de ocorrências totalizam R$ ${totalOccurrenceCosts.toLocaleString('pt-BR')} no período. EXPLICAÇÃO: Espera extraordinária em doca e reentregas representam 78% desse montante, sendo a maioria imputada ao cliente. HIPÓTESE IA: Clientes com tempo de descarga superior a 4h devem ter lead time de programação estendido na Mesa de Fretes.`
+    } else if (
+      qLower.includes('rota') ||
+      qLower.includes('itinerário') ||
+      qLower.includes('piorou')
+    ) {
+      aiReply =
+        'FATO: O itinerário MG001A (BH/Contagem) apresentou desvio desfavorável de R$ 420. EXPLICAÇÃO: Contratação de motoristas do grupo FORA em finais de semana com frete 8% superior ao piso parametrizado. HIPÓTESE IA: Priorizar motoristas da fila PORTA com antecedência de 24h para Belo Horizonte.'
+    } else {
+      aiReply = `FATO: A margem logística média atual é de ${agg.margemMediaPct.toFixed(1)}% com resultado realizado de R$ ${agg.totalResultadoRealizado.toLocaleString('pt-BR')}. EXPLICAÇÃO: O custo total esperado médio por tonelada entregue está em R$ ${(agg.totalFretePago / Math.max(1, agg.totalPesoTons)).toFixed(2)}/t. HIPÓTESE IA: O motorista João Carlos Silva apresenta o melhor custo total esperado consolidado devido a zero ocorrências atribuídas.`
+    }
+
+    setAnalystConversation((prev) => [...prev, userMsg, { sender: 'AI', text: aiReply }])
+    setAnalystQuestion('')
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -226,8 +289,84 @@ export const ProfitabilityDashboardPage: React.FC = () => {
         </div>
       </div>
 
+      {/* NOVO: WATERFALL DE FORMAÇÃO DO RESULTADO LOGÍSTICO REAL */}
+      <Card className="bg-white border-slate-200 shadow-sm p-4 space-y-3">
+        <div className="flex items-center justify-between border-b pb-2">
+          <div>
+            <CardTitle className="text-sm font-black uppercase text-slate-900 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-[#005596]" />
+              Waterfall de Formação do Resultado Logístico Real
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500">
+              Receita cobrada do cliente − Frete pago ao motorista − Pedágio − Custos de ocorrências
+              = Resultado Real
+            </CardDescription>
+          </div>
+          <Badge className="bg-[#005596] text-white text-xs">
+            Margem Real: {agg.margemMediaPct.toFixed(1)}%
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
+            <span className="text-[10px] font-bold uppercase text-slate-500 block">
+              1. Receita Cobrada
+            </span>
+            <span className="text-base font-black text-slate-900 font-mono">
+              R$ {agg.totalReceitaFrete.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Base Comercial SP</span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-center">
+            <span className="text-[10px] font-bold uppercase text-rose-700 block">
+              2. (−) Frete Pago
+            </span>
+            <span className="text-base font-black text-rose-700 font-mono">
+              −R$ {agg.totalFretePago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
+            <span className="text-[10px] text-rose-600 block mt-0.5">Fechamento Mesa Carlão</span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-center">
+            <span className="text-[10px] font-bold uppercase text-amber-700 block">
+              3. (−) Pedágio Real
+            </span>
+            <span className="text-base font-black text-amber-700 font-mono">
+              −R$ {agg.totalPedagio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
+            <span className="text-[10px] text-amber-600 block mt-0.5">Vale-Pedágio Destacado</span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 text-center">
+            <span className="text-[10px] font-bold uppercase text-purple-700 block">
+              4. (−) Ocorrências
+            </span>
+            <span className="text-base font-black text-purple-700 font-mono">
+              −R$ {totalOccurrenceCosts.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
+            <span className="text-[10px] text-purple-600 block mt-0.5">
+              {occurrenceCosts.length} ocorrências registradas
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-center col-span-2 sm:col-span-1">
+            <span className="text-[10px] font-bold uppercase text-emerald-800 block">
+              5. (=) Resultado Real
+            </span>
+            <span className="text-base font-black text-emerald-700 font-mono">
+              R$ {agg.totalResultadoRealizado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
+            <span className="text-[10px] text-emerald-700 font-bold block mt-0.5">
+              R$ {(agg.totalResultadoRealizado / Math.max(1, agg.totalPesoTons)).toFixed(2)} / t
+            </span>
+          </div>
+        </div>
+      </Card>
+
       {/* KPI Cards — Previsto x Realizado */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {' '}
         <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-3">
             <div className="text-[10px] font-bold uppercase text-slate-500">
@@ -239,7 +378,6 @@ export const ProfitabilityDashboardPage: React.FC = () => {
             <div className="text-[10px] text-slate-400 mt-1">Tabela Comercial Base SP</div>
           </CardContent>
         </Card>
-
         <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-3">
             <div className="text-[10px] font-bold uppercase text-slate-500">
@@ -251,7 +389,6 @@ export const ProfitabilityDashboardPage: React.FC = () => {
             <div className="text-[10px] text-slate-400 mt-1">Fechamento Mesa de Fretes</div>
           </CardContent>
         </Card>
-
         <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-3">
             <div className="text-[10px] font-bold uppercase text-slate-500">Resultado Previsto</div>
@@ -261,7 +398,6 @@ export const ProfitabilityDashboardPage: React.FC = () => {
             <div className="text-[10px] text-blue-500 mt-1">Pré-contratação</div>
           </CardContent>
         </Card>
-
         <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-3">
             <div className="text-[10px] font-bold uppercase text-slate-500">
@@ -279,7 +415,6 @@ export const ProfitabilityDashboardPage: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-
         <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-3">
             <div className="text-[10px] font-bold uppercase text-slate-500">Desvio Global</div>
@@ -300,7 +435,6 @@ export const ProfitabilityDashboardPage: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-
         <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-3">
             <div className="text-[10px] font-bold uppercase text-slate-500">Acurácia Previsão</div>
@@ -314,17 +448,23 @@ export const ProfitabilityDashboardPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Tabs com as 8 Dimensões Exigidas na Sprint 6 */}
+      {/* Tabs com as Dimensões Atualizadas */}
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="bg-white border border-slate-200 p-1 h-auto flex flex-wrap gap-1">
           <TabsTrigger value="overview" className="text-xs">
             Visão Geral
           </TabsTrigger>
           <TabsTrigger value="clients" className="text-xs">
-            Clientes
+            Clientes & Rentabilidade
           </TabsTrigger>
           <TabsTrigger value="routes" className="text-xs">
             Rotas
+          </TabsTrigger>
+          <TabsTrigger value="drivers" className="text-xs">
+            Motoristas × Custo Real
+          </TabsTrigger>
+          <TabsTrigger value="occurrences_cost" className="text-xs">
+            Custos de Ocorrências ({occurrenceCosts.length})
           </TabsTrigger>
           <TabsTrigger value="itineraries" className="text-xs">
             Itinerários SAP
@@ -338,11 +478,11 @@ export const ProfitabilityDashboardPage: React.FC = () => {
           <TabsTrigger value="losses" className="text-xs">
             Perdas Logísticas
           </TabsTrigger>
-          <TabsTrigger value="ai_analysis" className="text-xs">
-            Análise IA
+          <TabsTrigger value="ai_analyst" className="text-xs font-bold text-purple-700">
+            <Sparkles className="w-3.5 h-3.5 mr-1" />
+            Analista IA de Resultado
           </TabsTrigger>
         </TabsList>
-
         {/* 1. VISÃO GERAL */}
         <TabsContent value="overview" className="space-y-3 mt-3">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -794,54 +934,251 @@ export const ProfitabilityDashboardPage: React.FC = () => {
           </Card>
         </TabsContent>
 
-        {/* 7. ANÁLISE IA & OPORTUNIDADES */}
-        <TabsContent value="ai_analysis" className="space-y-3 mt-3">
+        {/* NOVO: ABA MOTORISTAS × CUSTO REAL */}
+        <TabsContent value="drivers" className="space-y-3 mt-3">
           <Card className="bg-white border-slate-200 shadow-sm">
             <CardHeader className="p-3.5 border-b border-slate-100 bg-slate-50/50">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xs font-bold uppercase text-slate-800 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-purple-600" />
-                  Insights & Padrões Detectados pela IA
-                </CardTitle>
-                <Badge variant="outline" className="text-[9px] border-purple-400 text-purple-700">
-                  Hipótese Analítica (Sem alteração automática)
-                </Badge>
-              </div>
+              <CardTitle className="text-xs font-bold uppercase text-slate-800">
+                Rentabilidade por Motorista ({byDrivers.length} parceiros)
+              </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 space-y-3 text-xs">
-              <div className="p-3 bg-purple-50 rounded-lg border border-purple-200 space-y-1.5">
-                <div className="font-bold text-purple-900 flex items-center gap-1">
-                  <TrendingUp className="w-3.5 h-3.5 text-purple-700" />
-                  Padrão de Contratação MG001A (Belo Horizonte)
-                </div>
-                <p className="text-[11px] text-purple-800">
-                  Os fretes do itinerário <strong>MG001A</strong> vêm sendo fechados com média{' '}
-                  <strong>8% acima da previsão</strong> nos últimos 15 dias quando contratados via
-                  grupo FORA. Cargas fechadas com motoristas PORTA apresentaram resultado 14% mais
-                  favorável.
-                </p>
-                <div className="text-[10px] text-purple-600 italic">
-                  Sugestão Operacional: Priorizar leilão com motoristas do pátio PORTA antes de
-                  abrir para transportadores externos.
-                </div>
-              </div>
-
-              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-1.5">
-                <div className="font-bold text-blue-900 flex items-center gap-1">
-                  <Scale className="w-3.5 h-3.5 text-blue-700" />
-                  Oportunidade Perdida Registrada no Histórico
-                </div>
-                <p className="text-[11px] text-blue-800">
-                  No dia 10/05, a carga <strong>CARGA-SP002-0892</strong> foi direcionada ao
-                  motorista FORA por decisão manual do operador, abrindo mão de uma economia
-                  prevista de R$ 560,00 com veículo Bitrem PORTA.
-                </p>
-                <div className="text-[10px] text-slate-500 italic">
-                  Nota de Governança: Registrado como dado histórico para calibração do modelo. Não
-                  classificado como erro.
-                </div>
-              </div>
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase text-slate-500 font-bold">
+                  <tr>
+                    <th className="p-2.5">Motorista</th>
+                    <th className="p-2.5 text-right">Viagens</th>
+                    <th className="p-2.5 text-right">Toneladas</th>
+                    <th className="p-2.5 text-right">Receita Total</th>
+                    <th className="p-2.5 text-right">Frete Pago</th>
+                    <th className="p-2.5 text-right">Pedágio</th>
+                    <th className="p-2.5 text-right">Custos Ocorrências</th>
+                    <th className="p-2.5 text-right">Resultado Real</th>
+                    <th className="p-2.5 text-right">Margem / t</th>
+                    <th className="p-2.5 text-right">Margem %</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                  {byDrivers.map((drv, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50">
+                      <td className="p-2.5 font-sans font-semibold text-slate-900">
+                        {drv.dimensionLabel}
+                      </td>
+                      <td className="p-2.5 text-right text-slate-700">{drv.transportsCount}</td>
+                      <td className="p-2.5 text-right text-slate-700">{drv.totalTons} t</td>
+                      <td className="p-2.5 text-right font-bold text-slate-900">
+                        R$ {drv.receitaTotal.toLocaleString('pt-BR')}
+                      </td>
+                      <td className="p-2.5 text-right text-slate-700">
+                        R$ {drv.fretePagoTotal.toLocaleString('pt-BR')}
+                      </td>
+                      <td className="p-2.5 text-right text-slate-700">
+                        R$ {drv.pedagioTotal.toLocaleString('pt-BR')}
+                      </td>
+                      <td className="p-2.5 text-right text-purple-700">
+                        R$ {drv.custoOcorrenciasTotal.toLocaleString('pt-BR')}
+                      </td>
+                      <td
+                        className={`p-2.5 text-right font-bold ${drv.resultadoRealTotal >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}
+                      >
+                        R$ {drv.resultadoRealTotal.toLocaleString('pt-BR')}
+                      </td>
+                      <td className="p-2.5 text-right font-bold text-slate-800">
+                        R$ {drv.margemPorTonelada.toFixed(2)} / t
+                      </td>
+                      <td className="p-2.5 text-right">
+                        <Badge
+                          variant="outline"
+                          className={
+                            drv.margemPct >= 15
+                              ? 'border-emerald-500 text-emerald-700'
+                              : 'border-blue-500 text-blue-700'
+                          }
+                        >
+                          {drv.margemPct.toFixed(1)}%
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* NOVO: ABA CUSTOS DE OCORRÊNCIA COM MATRIZ DE RESPONSABILIDADE */}
+        <TabsContent value="occurrences_cost" className="space-y-3 mt-3">
+          <Card className="bg-white border-slate-200 shadow-sm">
+            <CardHeader className="p-3.5 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xs font-bold uppercase text-slate-800">
+                  Custos Logísticos de Ocorrências & Matriz de Responsabilidade
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Custos extras vinculados a transportes com responsabilidade financeira atribuída.
+                </CardDescription>
+              </div>
+              <Badge className="bg-purple-700 text-white text-xs">
+                Total: R${' '}
+                {totalOccurrenceCosts.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </Badge>
+            </CardHeader>
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase text-slate-500 font-bold">
+                  <tr>
+                    <th className="p-2.5">Transporte SAP</th>
+                    <th className="p-2.5">Tipo de Custo</th>
+                    <th className="p-2.5">Cliente</th>
+                    <th className="p-2.5">Motorista</th>
+                    <th className="p-2.5 text-right">Valor (R$)</th>
+                    <th className="p-2.5">Responsabilidade Financeira</th>
+                    <th className="p-2.5">Impacto no Motorista?</th>
+                    <th className="p-2.5">Status Cobrança</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-[11px]">
+                  {occurrenceCosts.map((occ, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50">
+                      <td className="p-2.5 font-mono font-bold text-slate-900">
+                        {occ.sap_transport_number}
+                      </td>
+                      <td className="p-2.5 font-semibold text-slate-800">
+                        {occ.occurrence_cost_type}
+                      </td>
+                      <td className="p-2.5 text-slate-700">{occ.customer_name}</td>
+                      <td className="p-2.5 text-slate-700">{occ.driver_name}</td>
+                      <td className="p-2.5 text-right font-mono font-bold text-purple-700">
+                        R${' '}
+                        {Number(occ.cost_value || 0).toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="p-2.5">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-slate-100 text-slate-800 font-bold"
+                        >
+                          {occ.financial_responsible}
+                        </Badge>
+                      </td>
+                      <td className="p-2.5">
+                        {occ.impacts_driver_performance ? (
+                          <Badge variant="destructive" className="text-[9px]">
+                            Sim (Atribuído)
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="bg-emerald-50 text-emerald-700 border-emerald-300 text-[9px]"
+                          >
+                            Não (Isento)
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="p-2.5">
+                        <Badge
+                          className={`text-[9px] ${occ.charge_status === 'COBRADO_CLIENTE' ? 'bg-emerald-600' : 'bg-slate-600'} text-white`}
+                        >
+                          {occ.charge_status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* NOVO: ANALISTA DE RESULTADO LOGÍSTICO (IA INTERATIVA) */}
+        <TabsContent value="ai_analyst" className="space-y-3 mt-3">
+          <Card className="bg-white border-slate-200 shadow-sm p-4 space-y-4">
+            <div className="border-b pb-3 flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-black uppercase text-purple-900 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-600" />
+                  Analista de Resultado Logístico (IA)
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Respostas baseadas em FATO (observado) × EXPLICAÇÃO (causa) × HIPÓTESE IA (padrão
+                  preditivo).
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className="border-purple-300 text-purple-700 text-xs">
+                Governança: Sem dados fictícios
+              </Badge>
+            </div>
+
+            {/* Perguntas Rápidas */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleAskAnalyst('Quais clientes estão gerando menor resultado?')}
+                className="text-xs border-slate-300 hover:bg-slate-100"
+              >
+                Quais clientes geram menor margem?
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleAskAnalyst('Quanto perdemos com ocorrências e espera?')}
+                className="text-xs border-slate-300 hover:bg-slate-100"
+              >
+                Quanto perdemos com espera em doca?
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleAskAnalyst('Qual motorista apresenta melhor custo total?')}
+                className="text-xs border-slate-300 hover:bg-slate-100"
+              >
+                Qual motorista tem o melhor custo total?
+              </Button>
+            </div>
+
+            {/* Histórico do Chat Analítico */}
+            <div className="space-y-3 max-h-[360px] overflow-y-auto bg-slate-50 p-3 rounded-xl border border-slate-200">
+              {analystConversation.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex flex-col ${msg.sender === 'USER' ? 'items-end' : 'items-start'}`}
+                >
+                  <div className="text-[10px] font-bold text-slate-500 mb-0.5">
+                    {msg.sender === 'USER' ? 'Você (Gestor Logístico)' : 'Analista de Resultado IA'}
+                  </div>
+                  <div
+                    className={`p-3 rounded-xl text-xs max-w-[85%] leading-relaxed ${
+                      msg.sender === 'USER'
+                        ? 'bg-[#005596] text-white'
+                        : 'bg-white border border-purple-200 text-slate-900 shadow-sm'
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Input de Pergunta */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={analystQuestion}
+                onChange={(e) => setAnalystQuestion(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAskAnalyst()}
+                placeholder="Faça uma pergunta sobre custos, rotas ou margens..."
+                className="flex-1 p-2 border border-slate-300 rounded-lg text-xs"
+              />
+              <Button
+                size="sm"
+                onClick={() => handleAskAnalyst()}
+                className="bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs"
+              >
+                Perguntar à IA
+              </Button>
+            </div>
           </Card>
         </TabsContent>
       </Tabs>

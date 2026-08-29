@@ -127,6 +127,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           badgeColor: 'bg-[#005596]',
           show: true,
         },
+        {
+          title: 'Critérios & Feedback Loop',
+          path: '/tms/governanca-selecao-loop',
+          badge: 'Governança',
+          badgeColor: 'bg-purple-700',
+          show: true,
+        },
       ],
     },
     {

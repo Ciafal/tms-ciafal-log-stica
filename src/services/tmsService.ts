@@ -3968,6 +3968,149 @@ export const TmsService = {
       throw err
     }
   },
+
+  // =========================================================================
+  // 10. FEEDBACK LOOP, SELEÇÃO MULTICRITÉRIO & RENTABILIDADE REAL
+  // =========================================================================
+
+  async getSelectionCriteriaTemplates(filter?: string, sort = 'template_code'): Promise<any[]> {
+    try {
+      return await pb.collection('selection_criteria_templates').getFullList({
+        filter,
+        sort,
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async saveSelectionCriteriaTemplate(id: string | null, data: Record<string, any>): Promise<any> {
+    try {
+      if (id) {
+        return await pb.collection('selection_criteria_templates').update(id, data)
+      }
+      return await pb.collection('selection_criteria_templates').create(data)
+    } catch (err) {
+      console.error('Erro ao salvar template de critérios de seleção:', err)
+      throw err
+    }
+  },
+
+  async getCargoDriverFitnessScores(filter?: string, sort = '-fitness_score'): Promise<any[]> {
+    try {
+      return await pb.collection('cargo_driver_fitness_scores').getFullList({
+        filter,
+        sort,
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async saveCargoDriverFitnessScore(data: Record<string, any>): Promise<any> {
+    try {
+      return await pb.collection('cargo_driver_fitness_scores').create(data)
+    } catch (err) {
+      console.error('Erro ao salvar score de adequação à carga:', err)
+      throw err
+    }
+  },
+
+  async getSelectionDecisionAudits(filter?: string, sort = '-created'): Promise<any[]> {
+    try {
+      return await pb.collection('selection_decision_audits').getFullList({
+        filter,
+        sort,
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async recordSelectionDecisionAudit(data: Record<string, any>): Promise<any> {
+    try {
+      return await pb.collection('selection_decision_audits').create(data)
+    } catch (err) {
+      console.error('Erro ao registrar auditoria de decisão de seleção:', err)
+      throw err
+    }
+  },
+
+  async getOccurrenceCosts(filter?: string, sort = '-created'): Promise<any[]> {
+    try {
+      return await pb.collection('occurrence_costs').getFullList({
+        filter,
+        sort,
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async createOccurrenceCost(data: Record<string, any>): Promise<any> {
+    try {
+      return await pb.collection('occurrence_costs').create(data)
+    } catch (err) {
+      console.error('Erro ao registrar custo de ocorrência:', err)
+      throw err
+    }
+  },
+
+  async getDriverPerformanceAppeals(filter?: string, sort = '-created'): Promise<any[]> {
+    try {
+      return await pb.collection('driver_performance_appeals').getFullList({
+        filter,
+        sort,
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async submitDriverPerformanceAppeal(data: Record<string, any>): Promise<any> {
+    try {
+      return await pb.collection('driver_performance_appeals').create(data)
+    } catch (err) {
+      console.error('Erro ao enviar contestação de avaliação:', err)
+      throw err
+    }
+  },
+
+  async updateDriverPerformanceAppeal(id: string, data: Record<string, any>): Promise<any> {
+    try {
+      return await pb.collection('driver_performance_appeals').update(id, data)
+    } catch (err) {
+      console.error('Erro ao atualizar contestação de avaliação:', err)
+      throw err
+    }
+  },
+
+  async queryDriverPersonalFeedback(params: {
+    token?: string
+    phone?: string
+    driver_id?: string
+  }): Promise<any> {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/driver-feedback/query`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(params),
+        },
+      )
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        throw new Error(payload?.error || 'Falha ao consultar feedback do motorista')
+      }
+      return await res.json()
+    } catch (err) {
+      console.error('Erro ao chamar query de feedback do motorista:', err)
+      throw err
+    }
+  },
 }
 
 export const tmsService = TmsService
