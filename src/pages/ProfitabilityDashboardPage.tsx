@@ -505,84 +505,101 @@ export const ProfitabilityDashboardPage: React.FC = () => {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Badge className="bg-emerald-600 text-white text-xs">Sincronizado Qlik Hub</Badge>
+                <Badge className="bg-amber-50 text-amber-800 border border-amber-300 text-xs">
+                  Integração aguardando credenciais/configuração
+                </Badge>
               </div>
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase text-slate-500 font-bold">
-                  <tr>
-                    <th className="p-2.5">Transp. SAP</th>
-                    <th className="p-2.5">Remessa / NF</th>
-                    <th className="p-2.5">Cliente (Ship-To)</th>
-                    <th className="p-2.5">Itinerário / Região</th>
-                    <th className="p-2.5">Motorista</th>
-                    <th className="p-2.5 text-right">Peso (t)</th>
-                    <th className="p-2.5 text-right">Frete Cobrado</th>
-                    <th className="p-2.5 text-right">Frete Pago</th>
-                    <th className="p-2.5 text-right">Pedágio</th>
-                    <th className="p-2.5 text-right">Margem Qlik (R$)</th>
-                    <th className="p-2.5 text-right">Margem %</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-                  {qlikRecords.map((q, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50">
-                      <td className="p-2.5 font-bold text-slate-900">{q.sap_transport_number}</td>
-                      <td className="p-2.5 text-slate-600">
-                        {q.delivery_number} / {q.invoice_number}
-                      </td>
-                      <td className="p-2.5 font-sans font-semibold text-slate-800">
-                        {q.customer_name}{' '}
-                        <span className="text-[10px] font-mono text-slate-400">
-                          ({q.ship_to_code})
-                        </span>
-                      </td>
-                      <td className="p-2.5 font-sans text-slate-600">
-                        {q.itinerary_code} - {q.region}
-                      </td>
-                      <td className="p-2.5 font-sans text-slate-700">{q.driver_name}</td>
-                      <td className="p-2.5 text-right text-slate-700">
-                        {Number(q.weight_ton || 0).toFixed(1)}
-                      </td>
-                      <td className="p-2.5 text-right font-bold text-slate-900">
-                        R${' '}
-                        {Number(q.frete_cobrado_cliente || 0).toLocaleString('pt-BR', {
-                          minimumFractionDigits: 2,
-                        })}
-                      </td>
-                      <td className="p-2.5 text-right text-slate-700">
-                        R${' '}
-                        {Number(q.frete_pago_motorista || 0).toLocaleString('pt-BR', {
-                          minimumFractionDigits: 2,
-                        })}
-                      </td>
-                      <td className="p-2.5 text-right text-slate-700">
-                        R${' '}
-                        {Number(q.pedagio_total || 0).toLocaleString('pt-BR', {
-                          minimumFractionDigits: 2,
-                        })}
-                      </td>
-                      <td
-                        className={`p-2.5 text-right font-bold ${Number(q.margem_logistica_bruta || 0) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}
-                      >
-                        R${' '}
-                        {Number(q.margem_logistica_bruta || 0).toLocaleString('pt-BR', {
-                          minimumFractionDigits: 2,
-                        })}
-                      </td>
-                      <td className="p-2.5 text-right">
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] ${Number(q.margem_logistica_pct || 0) >= 10 ? 'border-emerald-500 text-emerald-700' : 'border-blue-500 text-blue-700'}`}
-                        >
-                          {Number(q.margem_logistica_pct || 0).toFixed(1)}%
-                        </Badge>
-                      </td>
+              {qlikRecords.length === 0 ? (
+                <div className="py-12 px-4 text-center space-y-2">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-400 mb-1">
+                    <BarChart3 className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800">
+                    Sem dados / aguardando sincronização oficial QLIK Sense
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    Nenhum registro de rentabilidade sincronizado no momento. A carga analítica será
+                    consolidada assim que as credenciais do conector Qlik Sense forem ativadas.
+                  </p>
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase text-slate-500 font-bold">
+                    <tr>
+                      <th className="p-2.5">Transp. SAP</th>
+                      <th className="p-2.5">Remessa / NF</th>
+                      <th className="p-2.5">Cliente (Ship-To)</th>
+                      <th className="p-2.5">Itinerário / Região</th>
+                      <th className="p-2.5">Motorista</th>
+                      <th className="p-2.5 text-right">Peso (t)</th>
+                      <th className="p-2.5 text-right">Frete Cobrado</th>
+                      <th className="p-2.5 text-right">Frete Pago</th>
+                      <th className="p-2.5 text-right">Pedágio</th>
+                      <th className="p-2.5 text-right">Margem Qlik (R$)</th>
+                      <th className="p-2.5 text-right">Margem %</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                    {qlikRecords.map((q, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="p-2.5 font-bold text-slate-900">{q.sap_transport_number}</td>
+                        <td className="p-2.5 text-slate-600">
+                          {q.delivery_number} / {q.invoice_number}
+                        </td>
+                        <td className="p-2.5 font-sans font-semibold text-slate-800">
+                          {q.customer_name}{' '}
+                          <span className="text-[10px] font-mono text-slate-400">
+                            ({q.ship_to_code})
+                          </span>
+                        </td>
+                        <td className="p-2.5 font-sans text-slate-600">
+                          {q.itinerary_code} - {q.region}
+                        </td>
+                        <td className="p-2.5 font-sans text-slate-700">{q.driver_name}</td>
+                        <td className="p-2.5 text-right text-slate-700">
+                          {Number(q.weight_ton || 0).toFixed(1)}
+                        </td>
+                        <td className="p-2.5 text-right font-bold text-slate-900">
+                          R${' '}
+                          {Number(q.frete_cobrado_cliente || 0).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                          })}
+                        </td>
+                        <td className="p-2.5 text-right text-slate-700">
+                          R${' '}
+                          {Number(q.frete_pago_motorista || 0).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                          })}
+                        </td>
+                        <td className="p-2.5 text-right text-slate-700">
+                          R${' '}
+                          {Number(q.pedagio_total || 0).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                          })}
+                        </td>
+                        <td
+                          className={`p-2.5 text-right font-bold ${Number(q.margem_logistica_bruta || 0) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}
+                        >
+                          R${' '}
+                          {Number(q.margem_logistica_bruta || 0).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                          })}
+                        </td>
+                        <td className="p-2.5 text-right">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] ${Number(q.margem_logistica_pct || 0) >= 10 ? 'border-emerald-500 text-emerald-700' : 'border-blue-500 text-blue-700'}`}
+                          >
+                            {Number(q.margem_logistica_pct || 0).toFixed(1)}%
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

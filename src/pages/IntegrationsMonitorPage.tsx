@@ -200,7 +200,11 @@ export const IntegrationsMonitorPage: React.FC = () => {
       case 'Atenção':
         return <Badge className="bg-amber-500 text-white">Atenção</Badge>
       case 'Aguardando configuração':
-        return <Badge className="bg-sky-600 text-white">Aguardando Credenciais</Badge>
+        return (
+          <Badge className="bg-amber-50 text-amber-800 border-amber-300">
+            Aguardando Credenciais
+          </Badge>
+        )
       case 'Erro':
       case 'Offline':
         return <Badge className="bg-rose-600 text-white">Offline</Badge>

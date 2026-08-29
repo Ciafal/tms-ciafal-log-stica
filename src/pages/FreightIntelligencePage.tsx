@@ -278,92 +278,108 @@ export const FreightIntelligencePage: React.FC = () => {
               </Badge>
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase text-slate-500 font-bold">
-                  <tr>
-                    <th className="p-2.5">Carga / Transp. SAP</th>
-                    <th className="p-2.5">Cliente / Região</th>
-                    <th className="p-2.5">Modalidade Negociação</th>
-                    <th className="p-2.5">Baseline Utilizado</th>
-                    <th className="p-2.5 text-right">Valor Baseline</th>
-                    <th className="p-2.5 text-right">Custo Fechado</th>
-                    <th className="p-2.5 text-right">Economia Real</th>
-                    <th className="p-2.5 text-right">Economia %</th>
-                    <th className="p-2.5 text-center">Drill-Down</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-                  {savingsRecords.map((rec) => (
-                    <tr
-                      key={rec.cargo_id}
-                      onClick={() => {
-                        setSelectedDrilldown(rec)
-                        setDrilldownOpen(true)
-                      }}
-                      className="hover:bg-sky-50/50 cursor-pointer transition-colors"
-                    >
-                      <td className="p-2.5 font-bold text-slate-900">
-                        {rec.cargo_id}
-                        <span className="text-[10px] block text-slate-400 font-normal">
-                          SAP: {rec.sap_transport_number || '10048201'}
-                        </span>
-                      </td>
-                      <td className="p-2.5 font-sans">
-                        <span className="font-semibold text-slate-800 block">
-                          {rec.customer_name}
-                        </span>
-                        <span className="text-[10px] text-slate-500">
-                          {rec.region} ({rec.itinerary_code})
-                        </span>
-                      </td>
-                      <td className="p-2.5 font-sans">
-                        <Badge
-                          variant="outline"
-                          className={`text-[9px] font-bold ${
-                            rec.negotiation_mode === 'PREDOMINANTE_CARLAO'
-                              ? 'bg-sky-50 text-[#005596] border-sky-300'
-                              : rec.negotiation_mode === 'APOIADA_IA'
-                                ? 'bg-purple-50 text-purple-800 border-purple-300'
-                                : 'bg-slate-50 text-slate-700'
-                          }`}
-                        >
-                          {rec.negotiation_mode}
-                        </Badge>
-                      </td>
-                      <td className="p-2.5 font-sans text-slate-600 text-[10px]">
-                        {rec.baseline_type_used}
-                      </td>
-                      <td className="p-2.5 text-right text-slate-700">
-                        R${' '}
-                        {Number(rec.baseline_value || 0).toLocaleString('pt-BR', {
-                          minimumFractionDigits: 2,
-                        })}
-                      </td>
-                      <td className="p-2.5 text-right font-bold text-slate-900">
-                        R${' '}
-                        {Number(rec.total_negotiated_cost || 0).toLocaleString('pt-BR', {
-                          minimumFractionDigits: 2,
-                        })}
-                      </td>
-                      <td className="p-2.5 text-right font-bold text-emerald-700">
-                        R${' '}
-                        {Number(rec.realized_savings || 0).toLocaleString('pt-BR', {
-                          minimumFractionDigits: 2,
-                        })}
-                      </td>
-                      <td className="p-2.5 text-right font-bold text-emerald-700">
-                        {Number(rec.realized_savings_pct || 0).toFixed(1)}%
-                      </td>
-                      <td className="p-2.5 text-center font-sans">
-                        <Button size="sm" variant="ghost" className="h-7 text-xs text-[#005596]">
-                          <Eye className="w-3.5 h-3.5 mr-1" />
-                          Ver
-                        </Button>
-                      </td>
+              {savingsRecords.length === 0 ? (
+                <div className="py-12 px-4 text-center space-y-2">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-400 mb-1">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800">
+                    Sem registros operacionais de economia no momento
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    Os registros de economia financeira e drill-down auditável serão gerados
+                    automaticamente conforme viagens reais forem negociadas e fechadas pelo Carlão e
+                    pela Mesa de Fretes.
+                  </p>
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase text-slate-500 font-bold">
+                    <tr>
+                      <th className="p-2.5">Carga / Transp. SAP</th>
+                      <th className="p-2.5">Cliente / Região</th>
+                      <th className="p-2.5">Modalidade Negociação</th>
+                      <th className="p-2.5">Baseline Utilizado</th>
+                      <th className="p-2.5 text-right">Valor Baseline</th>
+                      <th className="p-2.5 text-right">Custo Fechado</th>
+                      <th className="p-2.5 text-right">Economia Real</th>
+                      <th className="p-2.5 text-right">Economia %</th>
+                      <th className="p-2.5 text-center">Drill-Down</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                    {savingsRecords.map((rec) => (
+                      <tr
+                        key={rec.cargo_id}
+                        onClick={() => {
+                          setSelectedDrilldown(rec)
+                          setDrilldownOpen(true)
+                        }}
+                        className="hover:bg-sky-50/50 cursor-pointer transition-colors"
+                      >
+                        <td className="p-2.5 font-bold text-slate-900">
+                          {rec.cargo_id}
+                          <span className="text-[10px] block text-slate-400 font-normal">
+                            SAP: {rec.sap_transport_number || '10048201'}
+                          </span>
+                        </td>
+                        <td className="p-2.5 font-sans">
+                          <span className="font-semibold text-slate-800 block">
+                            {rec.customer_name}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {rec.region} ({rec.itinerary_code})
+                          </span>
+                        </td>
+                        <td className="p-2.5 font-sans">
+                          <Badge
+                            variant="outline"
+                            className={`text-[9px] font-bold ${
+                              rec.negotiation_mode === 'PREDOMINANTE_CARLAO'
+                                ? 'bg-sky-50 text-[#005596] border-sky-300'
+                                : rec.negotiation_mode === 'APOIADA_IA'
+                                  ? 'bg-purple-50 text-purple-800 border-purple-300'
+                                  : 'bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            {rec.negotiation_mode}
+                          </Badge>
+                        </td>
+                        <td className="p-2.5 font-sans text-slate-600 text-[10px]">
+                          {rec.baseline_type_used}
+                        </td>
+                        <td className="p-2.5 text-right text-slate-700">
+                          R${' '}
+                          {Number(rec.baseline_value || 0).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                          })}
+                        </td>
+                        <td className="p-2.5 text-right font-bold text-slate-900">
+                          R${' '}
+                          {Number(rec.total_negotiated_cost || 0).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                          })}
+                        </td>
+                        <td className="p-2.5 text-right font-bold text-emerald-700">
+                          R${' '}
+                          {Number(rec.realized_savings || 0).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                          })}
+                        </td>
+                        <td className="p-2.5 text-right font-bold text-emerald-700">
+                          {Number(rec.realized_savings_pct || 0).toFixed(1)}%
+                        </td>
+                        <td className="p-2.5 text-center font-sans">
+                          <Button size="sm" variant="ghost" className="h-7 text-xs text-[#005596]">
+                            <Eye className="w-3.5 h-3.5 mr-1" />
+                            Ver
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -602,71 +618,88 @@ export const FreightIntelligencePage: React.FC = () => {
               <Badge className="bg-purple-700 text-white text-xs">Governança Ativa</Badge>
             </CardHeader>
             <CardContent className="p-4 space-y-3">
-              {aiProposals.map((prop) => (
-                <div
-                  key={prop.proposal_code}
-                  className="p-4 rounded-xl border border-purple-200 bg-purple-50/40 space-y-2 text-xs"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="font-bold text-purple-950 text-sm">
-                      Proposta: {prop.dimension_name} ({prop.target_template_code})
-                    </div>
-                    <Badge className="bg-purple-800 text-white text-[10px]">{prop.status}</Badge>
+              {aiProposals.length === 0 ? (
+                <div className="py-10 text-center space-y-2">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-purple-50 text-purple-400 mb-1">
+                    <Sparkles className="w-6 h-6" />
                   </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-white p-2.5 rounded-lg border border-purple-100 font-mono text-[11px]">
-                    <div>
-                      <span className="text-[10px] text-slate-400 font-sans block">
-                        Peso Atual:
-                      </span>
-                      <strong>{prop.current_weight_pct}%</strong>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-purple-700 font-sans font-bold block">
-                        Peso Sugerido IA:
-                      </span>
-                      <strong className="text-purple-700">{prop.suggested_weight_pct}%</strong>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 font-sans block">
-                        Amostra Analisada:
-                      </span>
-                      <strong>
-                        {prop.trips_analyzed_count} viagens ({prop.historical_days_analyzed}d)
-                      </strong>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 font-sans block">
-                        Confiança Estatística:
-                      </span>
-                      <strong className="text-emerald-700">{prop.confidence_pct}%</strong>
-                    </div>
-                  </div>
-
-                  <p className="text-slate-800 pt-1">
-                    <strong>Fato Observado:</strong> {prop.rationale_fact}
+                  <h4 className="text-sm font-bold text-slate-800">
+                    Nenhuma proposta de reponderação pendente
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    A IA analisa continuamente o histórico de viagens e fechamentos para sugerir
+                    ajustes nos pesos multicritério. Nenhuma anomalia de peso detectada até o
+                    momento.
                   </p>
-                  <p className="text-slate-700">
-                    <strong>Hipótese de Impacto:</strong> {prop.ai_hypothesis}
-                  </p>
-
-                  <div className="pt-2 flex items-center justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs border-purple-300 text-purple-800 hover:bg-purple-100"
-                      onClick={() => {
-                        toast({
-                          title: 'Proposta submetida à diretoria',
-                          description: 'Alteração registrada no log de conformidade de governança.',
-                        })
-                      }}
-                    >
-                      Aprovar e Aplicar Peso (Admin)
-                    </Button>
-                  </div>
                 </div>
-              ))}
+              ) : (
+                aiProposals.map((prop) => (
+                  <div
+                    key={prop.proposal_code}
+                    className="p-4 rounded-xl border border-purple-200 bg-purple-50/40 space-y-2 text-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-purple-950 text-sm">
+                        Proposta: {prop.dimension_name} ({prop.target_template_code})
+                      </div>
+                      <Badge className="bg-purple-800 text-white text-[10px]">{prop.status}</Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-white p-2.5 rounded-lg border border-purple-100 font-mono text-[11px]">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-sans block">
+                          Peso Atual:
+                        </span>
+                        <strong>{prop.current_weight_pct}%</strong>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-purple-700 font-sans font-bold block">
+                          Peso Sugerido IA:
+                        </span>
+                        <strong className="text-purple-700">{prop.suggested_weight_pct}%</strong>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-sans block">
+                          Amostra Analisada:
+                        </span>
+                        <strong>
+                          {prop.trips_analyzed_count} viagens ({prop.historical_days_analyzed}d)
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-sans block">
+                          Confiança Estatística:
+                        </span>
+                        <strong className="text-emerald-700">{prop.confidence_pct}%</strong>
+                      </div>
+                    </div>
+
+                    <p className="text-slate-800 pt-1">
+                      <strong>Fato Observado:</strong> {prop.rationale_fact}
+                    </p>
+                    <p className="text-slate-700">
+                      <strong>Hipótese de Impacto:</strong> {prop.ai_hypothesis}
+                    </p>
+
+                    <div className="pt-2 flex items-center justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs border-purple-300 text-purple-800 hover:bg-purple-100"
+                        onClick={() => {
+                          toast({
+                            title: 'Proposta submetida à diretoria',
+                            description:
+                              'Alteração registrada no log de conformidade de governança.',
+                          })
+                        }}
+                      >
+                        Aprovar e Aplicar Peso (Admin)
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </TabsContent>
