@@ -21,7 +21,6 @@ import { TmsDashboard } from '@/pages/TmsDashboard'
 import { IntegrationsMonitorPage } from '@/pages/IntegrationsMonitorPage'
 import { LoadPlannerPage } from '@/pages/LoadPlannerPage'
 import { LoadRouterAndSimulatorPage } from '@/pages/LoadRouterAndSimulatorPage'
-import { SalesWalletPage } from '@/pages/SalesWalletPage'
 import { StockAndProductionPage } from '@/pages/StockAndProductionPage'
 import { AnttRatesPage } from '@/pages/AnttRatesPage'
 import { FutureProgrammingPage } from '@/pages/FutureProgrammingPage'
@@ -47,6 +46,8 @@ import ProfitabilityDashboardPage from '@/pages/ProfitabilityDashboardPage'
 import ExpeditionPerformancePage from '@/pages/ExpeditionPerformancePage'
 import WmsLoadingMapPage from '@/pages/WmsLoadingMapPage'
 import Zsd35ImportPage from '@/pages/Zsd35ImportPage'
+import SalesWalletPage from '@/pages/SalesWalletPage'
+import Zsd35MappingAdminPage from '@/pages/Zsd35MappingAdminPage'
 import AiPlannerParamsPage from '@/pages/AiPlannerParamsPage'
 import NotFound from '@/pages/NotFound'
 
@@ -140,10 +141,26 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/tms/carteira"
+            element={
+              <Layout>
+                <SalesWalletPage />
+              </Layout>
+            }
+          />
+          <Route
             path="/tms/carteira-pedidos"
             element={
               <Layout>
                 <SalesWalletPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/zsd35-mapeamento"
+            element={
+              <Layout>
+                <Zsd35MappingAdminPage />
               </Layout>
             }
           />
@@ -540,6 +557,14 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <AiPlannerParamsPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/administracao/mapeamento-zsd35"
+            element={
+              <Layout>
+                <Zsd35MappingAdminPage />
               </Layout>
             }
           />

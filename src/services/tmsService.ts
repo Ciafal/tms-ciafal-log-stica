@@ -745,18 +745,25 @@ export const TmsService = {
     }
   },
 
-  async getAuditLogs(limit = 150): Promise<AuditLogEntity[]> {
+  async getAuditLogs(
+    paramsOrLimit: number | { action?: string; limit?: number } = 150,
+  ): Promise<AuditLogEntity[]> {
     try {
-      return await pb.collection('audit_logs').getFullList<AuditLogEntity>({
+      const limit = typeof paramsOrLimit === 'number' ? paramsOrLimit : paramsOrLimit.limit || 150
+      const actionFilter =
+        typeof paramsOrLimit === 'object' && paramsOrLimit.action
+          ? `action = "${paramsOrLimit.action}"`
+          : ''
+      const records = await pb.collection('audit_logs').getList<AuditLogEntity>(1, limit, {
+        filter: actionFilter,
         sort: '-created',
-        limit,
       })
+      return records.items
     } catch (err) {
       console.error('Failed to fetch audit logs:', err)
       return []
     }
   },
-
   // ----------------------------------------------------
   // SAP SALES ORDERS (CARTEIRA ZSD35) & LOAD PLANNING
   // ----------------------------------------------------
@@ -3015,21 +3022,32 @@ export const TmsService = {
 
   async logAudit(params: {
     user_name: string
-    action_type: string
-    target_entity: string
-    target_id: string
-    details: Record<string, any>
+    action_type?: string
+    action?: string
+    target_entity?: string
+    resource?: string
+    target_id?: string
+    resource_id?: string
+    user_email?: string
+    user_role?: string
+    details?: Record<string, any>
+    payload?: Record<string, any>
   }): Promise<void> {
     try {
+      const email =
+        params.user_email ||
+        (params.user_name.includes('@')
+          ? params.user_name
+          : `${params.user_name.toLowerCase().replace(/\s+/g, '.')}@ciafal.com.br`)
+
       await pb.collection('audit_logs').create({
         user_name: params.user_name,
-        user_email: params.user_name.includes('@')
-          ? params.user_name
-          : `${params.user_name}@ciafal.com.br`,
-        action: params.action_type,
-        resource: params.target_entity,
-        resource_id: params.target_id,
-        payload: params.details,
+        user_email: email,
+        user_role: params.user_role || 'operador_logistica',
+        action: params.action || params.action_type || 'ZSD35_OPERATION',
+        resource: params.resource || params.target_entity || 'sap_sales_orders',
+        resource_id: params.resource_id || params.target_id || 'ZSD35',
+        payload: params.details || params.payload || {},
         correlation_id: `AUDIT-${Date.now()}`,
       })
     } catch {
@@ -3194,10 +3212,43 @@ export const TmsService = {
     }
   },
 
-  // 1.1 Inserção de Pedidos da Carteira SAP (ZSD35)
+  // 1.1 Inserção / Upsert de Pedidos da Carteira SAP (ZSD35) com Chave Técnica Única
+  async upsertSalesOrder(data: any): Promise<{ record: any; isNew: boolean }> {
+    try {
+      const orderNumber = data.order_number
+      const material = data.material || ''
+      // Busca registro existente por order_number e opcionalmente material
+      const existing = await pb.collection('sap_sales_orders').getFullList({
+        filter: `order_number = "${orderNumber}"`,
+      })
+      const matched = existing.find(
+        (rec) =>
+          !material ||
+          !rec.material ||
+          rec.material.trim().toLowerCase() === material.trim().toLowerCase(),
+      )
+
+      if (matched) {
+        const updated = await pb.collection('sap_sales_orders').update(matched.id, data)
+        return { record: updated, isNew: false }
+      }
+      const created = await pb.collection('sap_sales_orders').create(data)
+      return { record: created, isNew: true }
+    } catch (err) {
+      console.warn('upsertSalesOrder error, fallbacking to create:', err)
+      try {
+        const created = await pb.collection('sap_sales_orders').create(data)
+        return { record: created, isNew: true }
+      } catch (e2) {
+        return { record: null, isNew: false }
+      }
+    }
+  },
+
   async createSalesOrder(data: any): Promise<any> {
     try {
-      return await pb.collection('sap_sales_orders').create(data)
+      const res = await this.upsertSalesOrder(data)
+      return res.record
     } catch (err) {
       console.warn('createSalesOrder error:', err)
       return null
@@ -3225,21 +3276,28 @@ export const TmsService = {
   },
 
   async saveZsd35ColumnMapping(
-    profileName: string,
-    mappings: Record<string, string>,
+    data:
+      | { profile_name: string; mappings_json: Record<string, string>; is_default?: boolean }
+      | string,
+    mappingsArg?: Record<string, string>,
   ): Promise<any> {
     try {
+      const profileName = typeof data === 'string' ? data : data.profile_name
+      const mappings = typeof data === 'string' ? mappingsArg || {} : data.mappings_json
+      const isDefault = typeof data === 'string' ? true : (data.is_default ?? true)
+
       const existing = await pb.collection('zsd35_column_mappings').getFullList({
         filter: `profile_name = "${profileName}"`,
       })
       if (existing.length > 0) {
         return await pb.collection('zsd35_column_mappings').update(existing[0].id, {
           mappings_json: mappings,
+          is_default: isDefault,
         })
       }
       return await pb.collection('zsd35_column_mappings').create({
         profile_name: profileName,
-        is_default: true,
+        is_default: isDefault,
         mappings_json: mappings,
       })
     } catch (err: any) {

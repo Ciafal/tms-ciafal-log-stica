@@ -164,7 +164,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           path: '/tms/zsd35-importar',
           badge: 'Excel',
           badgeColor: 'bg-emerald-600',
-          show: permissions.canImportZsd35,
+          show: permissions.canImportZsd35 || permissions.canViewZsd35History,
+        },
+        {
+          title: 'Mapeamento ZSD35',
+          path: '/tms/zsd35-mapeamento',
+          badge: '28 Campos',
+          badgeColor: 'bg-[#005596]',
+          show: permissions.canManageZsd35Mapping || permissions.canManageSystemParameters,
         },
         {
           title: 'Estoque & Produção',
@@ -443,6 +450,17 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           title: 'Blueprint SAP (12 Colunas)',
           path: '/tms/sap-blueprint',
           show: true,
+        },
+        {
+          title: 'Mapeamento ZSD35',
+          path: '/tms/administracao/mapeamento-zsd35',
+          badge: 'Sprint 6',
+          badgeColor: 'bg-[#005596]',
+          show:
+            permissions.canManageZsd35Mapping ||
+            permissions.canManageSystemParameters ||
+            role === 'admin_master' ||
+            role === 'admin_tms',
         },
         {
           title: 'Parâmetros Planejador IA',

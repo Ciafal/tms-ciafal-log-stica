@@ -10,6 +10,7 @@ import {
 } from '../domain/wmsEngine'
 import {
   processZsd35Rows,
+  parseZsd35CsvText,
 } from '../domain/zsd35ImportEngine'
 import {
   calculateMilestoneIntervals,
@@ -222,44 +223,327 @@ describe('SPRINT 6 SUITE: WMS & Mapa de Carregamento', () => {
   })
 })
 
-describe('SPRINT 6 SUITE: Importação Carteira ZSD35 (.xlsx)', () => {
-  it('7. Deve processar linhas válidas e descartar cabeçalhos repetidos e subtotais', () => {
+describe('SPRINT 6 SUITE: Importação Carteira ZSD35 (.xlsx / .csv) — 20 Casos de Teste Oficiais', () => {
+  // Teste 1: XLSX com cabeçalho oficial de 28 campos
+  it('1. Deve importar planilha XLSX com os 28 campos oficiais da Sprint 6', () => {
     const rawRows = [
       {
-        'Documento de vendas': 'Documento de vendas',
-        'Recebedor Merc': 'Cabeçalho',
-      },
-      {
-        'Documento de vendas': '45000101',
-        'Recebedor Merc': 'AÇO BRASIL S.A.',
-        'Emissor da ordem': 'CLI-101',
-        'Cidade': 'Contagem',
-        'Região': 'MG',
-        'Itinerário': 'MG001A',
-        'Qtde Real': '14,500',
-        'Texto breve de material': 'PERFIL ESTRUTURAL 100X50',
-        'Motivo Crédito': 'Liberado',
-        'Motivo Estoque': 'DP34 Disponível',
-        'Data Remessa(Semana)': '2025-06-01',
-      },
-      {
-        'Documento de vendas': '*** TOTAL GERAL ***',
-        'Qtde Real': '14,500',
-      },
-      {
-        'Documento de vendas': 'Subtotal Região',
-        'Qtde Real': '14,500',
+        'Q.Dias': 9,
+        Gerar: 'SIM',
+        Status: 'Aberto',
+        Inco: 'CIF',
+        'Documento de vendas': '258477',
+        Região: 'AL',
+        Cidade: 'MACEIO',
+        'Qtde Real': '2.0',
+        'Qtde.Amar.': '10',
+        'Est. Sider': '158.565',
+        'Texto breve de material': 'B. CH. 1 X 1/8 - 6,00M - 10',
+        'Valor do Frete': '531',
+        'Recebedor Merc': 'METALURGICA ALAGOAS S.A.',
+        'Limite de Crédito': '104944.72',
+        'Emissor da ordem': 'CLI-258477',
+        'Compromisso especial': 'NORMAL',
+        'Condição de Pagament': '30 DIAS',
+        'Motivo Estoque': 'DISPONIVEL',
+        'Qtde.Estoque': '159.825',
+        Saldo: '2.0',
+        'Data do Pedido': '2026-08-20',
+        'Hora do Pedido': '00:00:00',
+        'Quantidade da ordem': '2.0',
+        'Data Remessa(Semana)': '34.2026',
+        Itinerário: 'AL001C',
+        'Motivo Crédito': 'CRÉDITO OK/CHECAR LIMITE',
+        'Total a Receber': '12500',
+        'Estoque Total': '159.825',
       },
     ]
 
     const report = processZsd35Rows(rawRows)
-    expect(report.totalRowsRead).toBe(4)
+    expect(report.validOrders.length).toBe(1)
+    expect(report.validOrders[0].order_number).toBe('258477')
+    expect(report.validOrders[0].uf).toBe('AL')
+    expect(report.validOrders[0].destination_city).toBe('MACEIO')
+    expect(report.validOrders[0].weight_kg).toBe(2000)
+    expect(report.validOrders[0].freight_value).toBe(531)
+    expect(report.validOrders[0].credit_limit).toBe(104944.72)
+    expect(report.validOrders[0].itinerary_code).toBe('AL001C')
+    expect(report.validOrders[0].credit_reason).toBe('CRÉDITO OK/CHECAR LIMITE')
+  })
+
+  // Teste 2: CSV delimitado por ponto e vírgula
+  it('2. Deve parsear CSV delimitado por ponto e vírgula com cabeçalho padrão', () => {
+    const csv = `Documento de vendas;Região;Cidade;Qtde Real;Texto breve de material;Itinerário;Motivo Crédito
+258506;AL;MACEIO;2.0;B. CH. 2 X 1/8 - 6,00 M - 10;AL001C;CRÉDITO OK`
+    const parsed = parseZsd35CsvText(csv)
+    expect(parsed.length).toBe(1)
+    const report = processZsd35Rows(parsed)
+    expect(report.validOrders.length).toBe(1)
+    expect(report.validOrders[0].order_number).toBe('258506')
+  })
+
+  // Teste 3: CSV delimitado por tabulação
+  it('3. Deve parsear CSV delimitado por tabulação (TSV)', () => {
+    const tsv = `Documento de vendas\tRegião\tCidade\tQtde Real\tTexto breve de material\tItinerário
+257591\tAM\tMANAUS\t2.0\tB.RED.107,95MM-NBR1129\tAM001C`
+    const parsed = parseZsd35CsvText(tsv)
+    const report = processZsd35Rows(parsed)
+    expect(report.validOrders.length).toBe(1)
+    expect(report.validOrders[0].order_number).toBe('257591')
+    expect(report.validOrders[0].uf).toBe('AM')
+  })
+
+  // Teste 4: Descarte de linhas com subtotais e totais gerais
+  it('4. Deve identificar e ignorar linhas de subtotal e total geral', () => {
+    const rows = [
+      { 'Documento de vendas': '258520', 'Texto breve de material': 'CANT. 2 X 3/16', 'Qtde Real': 1.0 },
+      { 'Documento de vendas': '*** TOTAL GERAL ***', 'Qtde Real': 100.0 },
+      { 'Documento de vendas': 'Subtotal AL', 'Qtde Real': 10.0 },
+      { 'Documento de vendas': 'Resultado Final', 'Qtde Real': 50.0 },
+    ]
+    const report = processZsd35Rows(rows)
     expect(report.validOrders.length).toBe(1)
     expect(report.ignoredRowsCount).toBe(3)
-    expect(report.validOrders[0].order_number).toBe('45000101')
-    expect(report.validOrders[0].customer_name).toBe('AÇO BRASIL S.A.')
-    expect(report.validOrders[0].weight_kg).toBe(14500)
+  })
+
+  // Teste 5: Descarte de cabeçalhos repetidos no meio da planilha
+  it('5. Deve descartar cabeçalhos repetidos no meio do arquivo', () => {
+    const rows = [
+      { 'Documento de vendas': '258679', 'Texto breve de material': 'B. CH. 1 X 1/4', 'Qtde Real': 1.0 },
+      { 'Documento de vendas': 'Documento de vendas', 'Texto breve de material': 'Texto breve de material' },
+      { 'Documento de vendas': '258679', 'Texto breve de material': 'CANT. 1.1/4 X 1/8', 'Qtde Real': 2.0 },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders.length).toBe(2)
+    expect(report.ignoredRowsCount).toBe(1)
+  })
+
+  // Teste 6: Chave técnica única composta por Documento de Vendas + Material
+  it('6. Deve gerar chave técnica única combinando ordem e material', () => {
+    const rows = [
+      { 'Documento de vendas': '258090', 'Texto breve de material': 'B. RED. 1/2', 'Qtde Real': 1.0 },
+      { 'Documento de vendas': '258090', 'Texto breve de material': 'CANT. 1.1/2 X 1/8', 'Qtde Real': 1.0 },
+      { 'Documento de vendas': '258090', 'Texto breve de material': 'CANT. 1.1/2 X 3/16', 'Qtde Real': 1.0 },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders.length).toBe(3)
+    const keys = report.validOrders.map((o) => o.technical_key)
+    expect(new Set(keys).size).toBe(3)
+  })
+
+  // Teste 7: Deduplicação e atualização de registros com mesma chave técnica no lote
+  it('7. Deve deduplicar e atualizar registros com mesma chave técnica dentro do mesmo lote', () => {
+    const rows = [
+      { 'Documento de vendas': '257690', 'Texto breve de material': 'B. QUAD. 2" - 102', 'Qtde Real': 1.0, Saldo: 1.0 },
+      { 'Documento de vendas': '257690', 'Texto breve de material': 'B. QUAD. 2" - 102', 'Qtde Real': 2.5, Saldo: 2.5 },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders.length).toBe(1)
+    expect(report.updatedCount).toBe(1)
+    expect(report.validOrders[0].weight_kg).toBe(2500)
+  })
+
+  // Teste 8: Formato de número com padrão brasileiro de vírgula e milhar
+  it('8. Deve converter valores monetários e pesos no formato brasileiro (104.944,72)', () => {
+    const rows = [
+      {
+        'Documento de vendas': '258477',
+        'Texto breve de material': 'B. CHAPA',
+        'Limite de Crédito': '104.944,72',
+        'Qtde Real': '0,747',
+        'Est. Sider': '158,565',
+      },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders[0].credit_limit).toBeCloseTo(104944.72, 2)
+    expect(report.validOrders[0].weight_kg).toBe(747)
+  })
+
+  // Teste 9: Tratamento de valores negativos (Limite de Crédito negativo)
+  it('9. Deve suportar limites de crédito e saldos negativos (-5636.0)', () => {
+    const rows = [
+      {
+        'Documento de vendas': '256473',
+        'Texto breve de material': 'B. RED. 3/4',
+        'Limite de Crédito': '-5636.0',
+        'Valor do Frete': '500',
+      },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders[0].credit_limit).toBe(-5636.0)
+  })
+
+  // Teste 10: Classificação do Status de Crédito: Liberado
+  it('10. Deve classificar status de crédito como Liberado quando motivo for CRÉDITO OK', () => {
+    const rows = [
+      {
+        'Documento de vendas': '256473',
+        'Texto breve de material': 'CANT. 1 X 1/8',
+        'Motivo Crédito': 'CRÉDITO OK',
+      },
+    ]
+    const report = processZsd35Rows(rows)
     expect(report.validOrders[0].credit_status).toBe('Liberado')
+  })
+
+  // Teste 11: Classificação do Status de Crédito: Em Análise
+  it('11. Deve classificar status como Em Análise para REVISÃO ou CHECAR LIMITE', () => {
+    const rows = [
+      {
+        'Documento de vendas': '257690',
+        'Texto breve de material': 'B. QUAD 2',
+        'Motivo Crédito': 'DATA SEGUINTE P/ REVISÃO',
+      },
+      {
+        'Documento de vendas': '258477',
+        'Texto breve de material': 'B. CHAPA',
+        'Motivo Crédito': 'CRÉDITO OK/CHECAR LIMITE',
+      },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders[0].credit_status).toBe('Em Análise')
+    expect(report.validOrders[1].credit_status).toBe('Em Análise')
+  })
+
+  // Teste 12: Classificação do Status de Crédito: Bloqueado
+  it('12. Deve classificar status como Bloqueado quando cliente tiver bloqueio ou limite estourado', () => {
+    const rows = [
+      {
+        'Documento de vendas': '259999',
+        'Texto breve de material': 'VIGA W',
+        'Motivo Crédito': 'BLOQUEIO FINANCEIRO SERASA',
+      },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders[0].credit_status).toBe('Bloqueado')
+  })
+
+  // Teste 13: Cálculo do indicador de Tempo em Carteira (Q.Dias)
+  it('13. Deve preservar e calcular corretamente o tempo em carteira (Q.Dias)', () => {
+    const rows = [
+      {
+        'Documento de vendas': '256473',
+        'Texto breve de material': 'BARRA',
+        'Q.Dias': 50,
+        'Data do Pedido': '2026-07-10',
+      },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders[0].q_dias).toBe(50)
+    expect(report.validOrders[0].walletDays).toBeDefined()
+  })
+
+  // Teste 14: Indicador de Atraso e Comparação com Data de Remessa
+  it('14. Deve calcular atraso em dias quando data remessa for anterior à data corrente', () => {
+    const rows = [
+      {
+        'Documento de vendas': '258000',
+        'Texto breve de material': 'PERFIL',
+        'Data Remessa(Semana)': '2020-01-01',
+      },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders[0].isOverdue).toBe(true)
+    expect(report.validOrders[0].overdueDays).toBeGreaterThan(100)
+  })
+
+  // Teste 15: Cruzamento Visual: Classificação ESTOQUE_ATUAL (DP34)
+  it('15. Deve classificar como ESTOQUE_ATUAL quando houver saldo em estoque suficiente', () => {
+    const rows = [
+      {
+        'Documento de vendas': '258477',
+        'Texto breve de material': 'BARRA AÇO',
+        'Qtde Real': '2.0',
+        'Estoque Total': '159.825',
+      },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders[0].stockIntersectionType).toBe('ESTOQUE_ATUAL')
+  })
+
+  // Teste 16: Cruzamento Visual: Classificação PRODUCAO_FUTURA (PCP)
+  it('16. Deve classificar como PRODUCAO_FUTURA quando estoque for insuficiente e houver apontamento PCP', () => {
+    const rows = [
+      {
+        'Documento de vendas': '259001',
+        'Texto breve de material': 'CANTONEIRA ESPECIAL',
+        'Qtde Real': '10.0',
+        'Estoque Total': '0.0',
+        'Motivo Estoque': 'Em Producao Laminador 02',
+      },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders[0].stockIntersectionType).toBe('PRODUCAO_FUTURA')
+  })
+
+  // Teste 17: Cruzamento Visual: Classificação SEM_PREVISAO
+  it('17. Deve classificar como SEM_PREVISAO quando estoque for zero e sem PCP', () => {
+    const rows = [
+      {
+        'Documento de vendas': '259002',
+        'Texto breve de material': 'TUBO REQ',
+        'Qtde Real': '5.0',
+        'Estoque Total': '0.0',
+        'Motivo Estoque': 'Sem Estoque e Sem Programacao',
+      },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders[0].stockIntersectionType).toBe('SEM_PREVISAO')
+  })
+
+  // Teste 18: Suporte a Mapeamento Customizado de Colunas
+  it('18. Deve aplicar dicionário de mapeamento customizado de colunas', () => {
+    const rows = [
+      {
+        OrdemVenda: '998877',
+        EstadoDestino: 'CE',
+        Municipio: 'JUAZEIRO DO NORTE',
+        DescricaoMaterial: 'PERFIL I 150',
+        PesoTotal: '1.5',
+      },
+    ]
+    const customMap = {
+      'Documento de vendas': 'OrdemVenda',
+      Região: 'EstadoDestino',
+      Cidade: 'Municipio',
+      'Texto breve de material': 'DescricaoMaterial',
+      'Qtde Real': 'PesoTotal',
+    }
+    const report = processZsd35Rows(rows, customMap)
+    expect(report.validOrders.length).toBe(1)
+    expect(report.validOrders[0].order_number).toBe('998877')
+    expect(report.validOrders[0].uf).toBe('CE')
+    expect(report.validOrders[0].destination_city).toBe('JUAZEIRO DO NORTE')
+    expect(report.validOrders[0].material).toBe('PERFIL I 150')
+  })
+
+  // Teste 19: Rejeição de linhas inválidas sem Doc de Vendas
+  it('19. Deve registrar rejeições em log para linhas sem número de documento de vendas', () => {
+    const rows = [
+      { 'Documento de vendas': '', 'Texto breve de material': 'TESTE' },
+      { 'Documento de vendas': '12', 'Texto breve de material': 'MUITO CURTO' },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders.length).toBe(0)
+    expect(report.rejectedRowsCount).toBe(2)
+    expect(report.rejectionsLog.length).toBe(2)
+  })
+
+  // Teste 20: Idempotência e Suporte a Rollback por correlação auditável
+  it('20. Deve permitir rastreabilidade de correlação para auditoria e suporte a rollback', () => {
+    const rows = [
+      {
+        'Documento de vendas': '258713',
+        'Texto breve de material': 'B. RED.3/8',
+        'Qtde Real': '1.0',
+        Cidade: 'CACHOEIRO DE ITAPEMIRIM',
+        Região: 'ES',
+        Itinerário: 'ES001A',
+      },
+    ]
+    const report = processZsd35Rows(rows)
+    expect(report.validOrders.length).toBe(1)
+    expect(report.validOrders[0].technical_key).toBe('258713_BRED38')
     expect(report.summaryStatus).toBe('VALIDO')
   })
 })

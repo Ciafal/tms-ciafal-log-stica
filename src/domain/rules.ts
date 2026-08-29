@@ -393,6 +393,21 @@ export interface SapSalesOrderEntity {
   dest_longitude?: number
   address_validated?: boolean
   status?: 'disponivel' | 'em_montagem' | 'carregado' | 'cancelado'
+  // ZSD35 Rich Fields from SAP ECC / Preview PNG
+  q_dias?: number
+  raw_q_dias?: number
+  freight_value?: number
+  credit_limit?: number
+  credit_reason?: string
+  stock_total?: number
+  stock_sider?: number
+  order_hour?: string
+  quantity_order?: number
+  delivery_week?: string
+  incoterms?: string
+  is_sidercentro?: boolean
+  stock_quantity_kg?: number
+  balance_quantity_kg?: number
   created?: string
   updated?: string
 }
@@ -877,6 +892,8 @@ export interface Permissions {
   canViewWmsLoadingMap: boolean // wms.mapa_carregamento
   canConfirmWmsLoading: boolean // wms.confirmar_carregamento
   canImportZsd35: boolean // zsd35.importar
+  canViewZsd35History: boolean // zsd35.ver_historico
+  canManageZsd35Mapping: boolean // zsd35.mapeamento
 }
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
@@ -918,6 +935,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewWmsLoadingMap: true,
     canConfirmWmsLoading: true,
     canImportZsd35: true,
+    canViewZsd35History: true,
+    canManageZsd35Mapping: true,
   },
   admin_tms: {
     canViewQueue: true,
@@ -957,6 +976,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewWmsLoadingMap: true,
     canConfirmWmsLoading: true,
     canImportZsd35: true,
+    canViewZsd35History: true,
+    canManageZsd35Mapping: true,
   },
   gestor_logistica: {
     canViewQueue: true,
@@ -996,6 +1017,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewWmsLoadingMap: true,
     canConfirmWmsLoading: true,
     canImportZsd35: true,
+    canViewZsd35History: true,
+    canManageZsd35Mapping: true,
   },
   gerente_carga: {
     canViewQueue: true,
@@ -1035,6 +1058,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewWmsLoadingMap: true,
     canConfirmWmsLoading: true,
     canImportZsd35: true,
+    canViewZsd35History: true,
+    canManageZsd35Mapping: false,
   },
   operador_logistica: {
     canViewQueue: true,
@@ -1074,6 +1099,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewWmsLoadingMap: true,
     canConfirmWmsLoading: true,
     canImportZsd35: false,
+    canViewZsd35History: true,
+    canManageZsd35Mapping: false,
   },
   portaria: {
     canViewQueue: true,
@@ -1113,6 +1140,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewWmsLoadingMap: false,
     canConfirmWmsLoading: false,
     canImportZsd35: false,
+    canViewZsd35History: false,
+    canManageZsd35Mapping: false,
   },
   financeiro: {
     canViewQueue: true,
@@ -1152,6 +1181,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewWmsLoadingMap: false,
     canConfirmWmsLoading: false,
     canImportZsd35: false,
+    canViewZsd35History: true,
+    canManageZsd35Mapping: false,
   },
   comercial: {
     canViewQueue: true,
@@ -1191,6 +1222,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewWmsLoadingMap: false,
     canConfirmWmsLoading: false,
     canImportZsd35: false,
+    canViewZsd35History: true,
+    canManageZsd35Mapping: false,
   },
   auditor: {
     canViewQueue: true,
@@ -1230,6 +1263,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canViewWmsLoadingMap: true,
     canConfirmWmsLoading: false,
     canImportZsd35: false,
+    canViewZsd35History: true,
+    canManageZsd35Mapping: false,
   },
 }
 
@@ -1288,11 +1323,12 @@ export function getUserPermissions(role?: UserRole): Permissions {
       canViewWmsLoadingMap: false,
       canConfirmWmsLoading: false,
       canImportZsd35: false,
+      canViewZsd35History: false,
+      canManageZsd35Mapping: false,
     }
   }
-  return ROLE_PERMISSIONS[role]
+  return { ...ROLE_PERMISSIONS[role] }
 }
-
 // ----------------------------------------------------
 // MOTOR DETERMINÍSTICO DE MONTAGEM DE CARGA (PLANEJADOR)
 // ----------------------------------------------------
