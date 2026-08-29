@@ -894,6 +894,13 @@ export interface Permissions {
   canImportZsd35: boolean // zsd35.importar
   canViewZsd35History: boolean // zsd35.ver_historico
   canManageZsd35Mapping: boolean // zsd35.mapeamento
+  // Sprint 7: Mesa de Fretes, Carlão, Expedição e Inteligência
+  canNegotiateFreights: boolean // fretes.negociar
+  canSuperviseCarlao: boolean // carlao.supervisao
+  canManageCarlaoAutonomy: boolean // carlao.autonomia
+  canManageExpeditionWorkflow: boolean // expedicao.workflow
+  canConfigureExpeditionSla: boolean // expedicao.sla_config
+  canViewFreightIntelligence: boolean // fretes.inteligencia
 }
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
@@ -937,6 +944,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canImportZsd35: true,
     canViewZsd35History: true,
     canManageZsd35Mapping: true,
+    canNegotiateFreights: true,
+    canSuperviseCarlao: true,
+    canManageCarlaoAutonomy: true,
+    canManageExpeditionWorkflow: true,
+    canConfigureExpeditionSla: true,
+    canViewFreightIntelligence: true,
   },
   admin_tms: {
     canViewQueue: true,
@@ -978,6 +991,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canImportZsd35: true,
     canViewZsd35History: true,
     canManageZsd35Mapping: true,
+    canNegotiateFreights: true,
+    canSuperviseCarlao: true,
+    canManageCarlaoAutonomy: true,
+    canManageExpeditionWorkflow: true,
+    canConfigureExpeditionSla: true,
+    canViewFreightIntelligence: true,
   },
   gestor_logistica: {
     canViewQueue: true,
@@ -1019,6 +1038,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canImportZsd35: true,
     canViewZsd35History: true,
     canManageZsd35Mapping: true,
+    canNegotiateFreights: true,
+    canSuperviseCarlao: true,
+    canManageCarlaoAutonomy: true,
+    canManageExpeditionWorkflow: true,
+    canConfigureExpeditionSla: true,
+    canViewFreightIntelligence: true,
   },
   gerente_carga: {
     canViewQueue: true,
@@ -1060,6 +1085,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canImportZsd35: true,
     canViewZsd35History: true,
     canManageZsd35Mapping: false,
+    canNegotiateFreights: true,
+    canSuperviseCarlao: false,
+    canManageCarlaoAutonomy: false,
+    canManageExpeditionWorkflow: true,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
   },
   operador_logistica: {
     canViewQueue: true,
@@ -1101,6 +1132,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canImportZsd35: false,
     canViewZsd35History: true,
     canManageZsd35Mapping: false,
+    canNegotiateFreights: true,
+    canSuperviseCarlao: false,
+    canManageCarlaoAutonomy: false,
+    canManageExpeditionWorkflow: true,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: false,
   },
   portaria: {
     canViewQueue: true,
@@ -1142,6 +1179,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canImportZsd35: false,
     canViewZsd35History: false,
     canManageZsd35Mapping: false,
+    canNegotiateFreights: false,
+    canSuperviseCarlao: false,
+    canManageCarlaoAutonomy: false,
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: false,
   },
   financeiro: {
     canViewQueue: true,
@@ -1183,6 +1226,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canImportZsd35: false,
     canViewZsd35History: true,
     canManageZsd35Mapping: false,
+    canNegotiateFreights: false,
+    canSuperviseCarlao: false,
+    canManageCarlaoAutonomy: false,
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
   },
   comercial: {
     canViewQueue: true,
@@ -1224,6 +1273,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canImportZsd35: false,
     canViewZsd35History: true,
     canManageZsd35Mapping: false,
+    canNegotiateFreights: false,
+    canSuperviseCarlao: false,
+    canManageCarlaoAutonomy: false,
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
   },
   auditor: {
     canViewQueue: true,
@@ -1265,6 +1320,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canImportZsd35: false,
     canViewZsd35History: true,
     canManageZsd35Mapping: false,
+    canNegotiateFreights: false,
+    canSuperviseCarlao: true,
+    canManageCarlaoAutonomy: false,
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
   },
 }
 
@@ -1325,6 +1386,12 @@ export function getUserPermissions(role?: UserRole): Permissions {
       canImportZsd35: false,
       canViewZsd35History: false,
       canManageZsd35Mapping: false,
+      canNegotiateFreights: false,
+      canSuperviseCarlao: false,
+      canManageCarlaoAutonomy: false,
+      canManageExpeditionWorkflow: false,
+      canConfigureExpeditionSla: false,
+      canViewFreightIntelligence: false,
     }
   }
   return { ...ROLE_PERMISSIONS[role] }

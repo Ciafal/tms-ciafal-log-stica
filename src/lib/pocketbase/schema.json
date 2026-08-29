@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T18:36:55.571Z",
+  "generatedAt": "2026-08-29T19:05:58.826Z",
   "collections": [
     {
       "name": "users",
@@ -4002,6 +4002,1027 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_zsd_prof ON zsd35_column_mappings (profile_name)"]
+    },
+    {
+      "name": "freight_negotiations",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "offer_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "freight_offers"
+        },
+        {
+          "name": "driver_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "drivers"
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "driver_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "channel",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["WHATSAPP", "TELEGRAM", "WEB", "TOTEM", "MANUAL"]
+        },
+        {
+          "name": "channel_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "OFERTADA",
+            "EM_NEGOCIACAO",
+            "CONTRATADO",
+            "RECUSADO",
+            "PAUSADO_HUMANO",
+            "CANCELADO",
+            "EXPIRADO"
+          ]
+        },
+        {
+          "name": "active_actor",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["CARLAO", "HUMANO", "MOTORISTA", "SISTEMA"]
+        },
+        {
+          "name": "human_takeover_user",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_takeover_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_takeover_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "handback_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "eligibility_score",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score_breakdown",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "offer_wave",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_round",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rounds_data",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "initial_offer_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_counter_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "final_freight_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pedagio_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "outros_custos_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_contract_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "target_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reference_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "max_autonomy_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "floor_antt_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "explicabilidade_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_autonomous_completion",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "messages_history",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "audios_received",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_interaction_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_fneg_cargo ON freight_negotiations (cargo_id)",
+        "CREATE INDEX idx_fneg_driver ON freight_negotiations (driver_id)",
+        "CREATE INDEX idx_fneg_status ON freight_negotiations (status)",
+        "CREATE INDEX idx_fneg_actor ON freight_negotiations (active_actor)"
+      ]
+    },
+    {
+      "name": "negotiation_parameters",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "rule_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "region",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autonomy_level",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "max_counter_rounds",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wave1_duration_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wave2_duration_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wave3_duration_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "default_margin_target_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "max_autonomy_spread_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_negparam_rule ON negotiation_parameters (rule_name)",
+        "CREATE INDEX idx_negparam_active ON negotiation_parameters (is_active)"
+      ]
+    },
+    {
+      "name": "sap_reprocessing_queue",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "negotiation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "freight_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pedagio_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payload_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "PENDENTE",
+            "EM_PROCESSAMENTO",
+            "SUCESSO",
+            "ERRO_DEFINITIVO",
+            "CANCELADO"
+          ]
+        },
+        {
+          "name": "attempts_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "max_attempts",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_error_message",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_attempt_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "next_retry_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_sapretry_cargo ON sap_reprocessing_queue (cargo_id)",
+        "CREATE INDEX idx_sapretry_status ON sap_reprocessing_queue (status)"
+      ]
+    },
+    {
+      "name": "expedition_tracking",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "driver_document",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "carrier_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination_cities",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "clients_summary",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_total_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "volume_total_m3",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deliveries_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "operational_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "PROGRAMADA",
+            "MOTORISTA_CONFIRMADO",
+            "A_CAMINHO_CIAFAL",
+            "PRESENCA_NO_PATIO",
+            "CHECK_IN",
+            "AGUARDANDO_LIBERACAO",
+            "AGUARDANDO_ESTOQUE",
+            "ESTOQUE_LIBERADO",
+            "EM_SEPARACAO",
+            "SEPARACAO_CONCLUIDA",
+            "AGUARDANDO_CARREGAMENTO",
+            "EM_CARREGAMENTO",
+            "CARREGAMENTO_CONCLUIDO",
+            "CONFERENCIA",
+            "AGUARDANDO_FATURAMENTO",
+            "FATURADO",
+            "LIBERADO",
+            "SAIDA_DO_PATIO",
+            "EM_VIAGEM"
+          ]
+        },
+        {
+          "name": "current_stage_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_stage_start",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_stage_duration_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "entry_time",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "exit_time",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_lead_time_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "target_lead_time_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sla_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["NORMAL", "ATENCAO", "CRITICO_ATRASADO"]
+        },
+        {
+          "name": "delay_risk_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delay_root_cause",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delay_evidence",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delay_suggested_action",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delay_reason_category",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "MOTORISTA",
+            "DOCUMENTACAO",
+            "ESTOQUE",
+            "WMS",
+            "SEPARACAO",
+            "CARREGAMENTO",
+            "BALANCA",
+            "CONFERENCIA",
+            "SAP",
+            "FATURAMENTO",
+            "QUALIDADE",
+            "MANUTENCAO",
+            "LOGISTICA",
+            "CLIENTE",
+            "OUTRO"
+          ]
+        },
+        {
+          "name": "priority_level",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["NORMAL", "ALTA", "URGENTE", "CRITICA"]
+        },
+        {
+          "name": "wms_status_detail",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wms_available_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wms_pending_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wms_priority_requested",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wms_priority_requested_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "stages_log",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "timeline_events",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assigned_dock",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "source_system",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_exptrack_cargo ON expedition_tracking (cargo_id)",
+        "CREATE INDEX idx_exptrack_plate ON expedition_tracking (vehicle_plate)",
+        "CREATE INDEX idx_exptrack_status ON expedition_tracking (operational_status)",
+        "CREATE INDEX idx_exptrack_sla ON expedition_tracking (sla_status)"
+      ]
+    },
+    {
+      "name": "expedition_sla_parameters",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "stage_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "stage_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "target_min",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "warning_threshold_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "critical_threshold_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsible_sector",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_exp_sla_code ON expedition_sla_parameters (stage_code)"]
+    },
+    {
+      "name": "driver_performance_indicators",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "driver_document",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sustainable_cost_index",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "offers_received_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "offers_accepted_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "offers_refused_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cancellations_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "accept_rate_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avg_response_time_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avg_price_deviation_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avg_punctuality_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avg_yard_stay_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delivery_performance_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historical_trips_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "preferred_regions",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "operational_metrics",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_driver_perf_driver ON driver_performance_indicators (driver_id)",
+        "CREATE INDEX idx_driver_perf_sci ON driver_performance_indicators (sustainable_cost_index)"
+      ]
     }
   ]
 }

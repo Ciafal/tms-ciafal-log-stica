@@ -40,6 +40,10 @@ import { ArchitecturePage } from '@/pages/ArchitecturePage'
 import { SecurityLgpdPage } from '@/pages/SecurityLgpdPage'
 import { StubModulePage } from '@/pages/StubModulePage'
 import PrintersAdminPage from '@/pages/PrintersAdminPage'
+import { ExpeditionManagementPage } from '@/pages/ExpeditionManagementPage'
+import { ExpeditionControlTowerPage } from '@/pages/ExpeditionControlTowerPage'
+import { FreightIntelligencePage } from '@/pages/FreightIntelligencePage'
+import { AiAutonomyAndRulesPage } from '@/pages/AiAutonomyAndRulesPage'
 import PrintMonitorPage from '@/pages/PrintMonitorPage'
 import CargoDetailPage from '@/pages/CargoDetailPage'
 import ProfitabilityDashboardPage from '@/pages/ProfitabilityDashboardPage'
@@ -197,7 +201,7 @@ export const App: React.FC = () => {
             }
           />
 
-          {/* 3. FRETES */}
+          {/* 3. CONTRATAÇÃO & MESA DE FRETES COM CARLÃO */}
           <Route
             path="/tms/mesa-fretes"
             element={
@@ -219,6 +223,14 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <MesaFretesPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/inteligencia-fretes"
+            element={
+              <Layout>
+                <FreightIntelligencePage />
               </Layout>
             }
           />
@@ -247,6 +259,32 @@ export const App: React.FC = () => {
                   subtitle="Registro histórico de cotações, acordos e leilões encerrados."
                   moduleKey="historico_fretes"
                 />
+              </Layout>
+            }
+          />
+
+          {/* 4. EXPEDIÇÃO OPERACIONAL & TORRE DE CONTROLE */}
+          <Route
+            path="/tms/expedicao"
+            element={
+              <Layout>
+                <ExpeditionManagementPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/torre-controle"
+            element={
+              <Layout>
+                <ExpeditionControlTowerPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/regras-autonomia"
+            element={
+              <Layout>
+                <AiAutonomyAndRulesPage />
               </Layout>
             }
           />
