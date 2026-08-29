@@ -567,6 +567,240 @@ export function formatLocationFreshness(
 // 4. CLASSIFICAÇÃO E SUGESTÃO DE IMAGENS COM EXIGÊNCIA DE CONFIRMAÇÃO HUMANA
 // -------------------------------------------------------------------------
 
+// WHATSAPP BUSINESS & AUDIO TRANSCRIBER INTERFACES
+export type WhatsAppSenderRole =
+  | 'MOTORISTA'
+  | 'REPRESENTANTE'
+  | 'VENDEDOR'
+  | 'CLIENTE'
+  | 'OPERADOR_INTERNO'
+  | 'DESCONHECIDO'
+
+export type WhatsAppMessageType =
+  | 'TEXTO'
+  | 'AUDIO'
+  | 'IMAGEM'
+  | 'DOCUMENTO'
+  | 'LOCALIZACAO'
+  | 'STATUS_ENTREGA'
+  | 'OUTRO'
+
+export type FredIntentCategory =
+  | 'POSICAO_LOCALIZACAO'
+  | 'PREVISAO_CHEGADA'
+  | 'ATRASO'
+  | 'CHEGADA_CLIENTE'
+  | 'INICIO_DESCARGA'
+  | 'FIM_DESCARGA'
+  | 'RECUSA_RECEBIMENTO'
+  | 'ESPERA_FILA'
+  | 'PROBLEMA_MECANICO'
+  | 'ACIDENTE'
+  | 'BLOQUEIO_RODOVIA'
+  | 'PROBLEMA_DOCUMENTAL'
+  | 'SOLICITACAO_CLIENTE'
+  | 'ALTERACAO_JANELA'
+  | 'FOTO_COMPROVANTE'
+  | 'OCORRENCIA_GERAL'
+  | 'SOLICITACAO_VENDEDOR'
+  | 'CONSULTA_TRANSPORTE'
+  | 'AVALIACAO_MOTORISTA'
+  | 'CONTESTACAO_AVALIACAO'
+  | 'OUTROS'
+
+export interface WhatsAppWebhookEventEntity {
+  id?: string
+  message_wamid?: string
+  phone_number: string
+  sender_role: WhatsAppSenderRole
+  sender_name?: string
+  sap_transport_number?: string
+  driver_id?: string
+  customer_code?: string
+  message_type: WhatsAppMessageType
+  raw_text?: string
+  media_url?: string
+  media_file_name?: string
+  media_mime_type?: string
+  audio_duration_seconds?: number
+  audio_transcription?: string
+  transcription_confidence_pct?: number
+  ai_intent: FredIntentCategory
+  ai_intent_confidence?: number
+  latitude?: number
+  longitude?: number
+  location_address?: string
+  location_speed_kmh?: number
+  is_proactive_alert?: boolean
+  message_status:
+    | 'RECEBIDA'
+    | 'TRANSCRITA'
+    | 'INTENCAO_IDENTIFICADA'
+    | 'PROCESSADA'
+    | 'HUMAN_REVIEW_REQUIRED'
+    | 'FALHA'
+  response_sent_text?: string
+  action_executed?: string
+  read_at?: string
+  is_ai_origin?: boolean
+  correlation_id?: string
+  created?: string
+}
+
+export interface ClassifyFredIntentInput {
+  rawText?: string
+  audioTranscription?: string
+  hasImage?: boolean
+  hasLocation?: boolean
+  hasDocument?: boolean
+}
+
+export interface ClassifyFredIntentResult {
+  intent: FredIntentCategory
+  confidencePct: number
+  suggestedAction: string
+  standardFriendlyResponse: string
+  requiresHumanIntervention: boolean
+}
+
+/**
+ * Classificador Determinístico e Semântico de Intenções do Fred
+ */
+export function classifyFredIntent(input: ClassifyFredIntentInput): ClassifyFredIntentResult {
+  const combined = ((input.rawText || '') + ' ' + (input.audioTranscription || '')).toLowerCase()
+
+  if (input.hasLocation) {
+    return {
+      intent: 'POSICAO_LOCALIZACAO',
+      confidencePct: 98,
+      suggestedAction: 'Atualizar coordenadas GPS, calcular distância restante e reestimar ETA.',
+      standardFriendlyResponse:
+        'Localização recebida. Atualizamos sua posição na Torre de Controle.',
+      requiresHumanIntervention: false,
+    }
+  }
+
+  if (
+    combined.includes('contest') ||
+    combined.includes('revis') ||
+    combined.includes('injusta') ||
+    combined.includes('descont')
+  ) {
+    return {
+      intent: 'CONTESTACAO_AVALIACAO',
+      confidencePct: 95,
+      suggestedAction: 'Abrir protocolo formal em driver_performance_appeals e notificar gestor.',
+      standardFriendlyResponse:
+        'Recebi sua solicitação de revisão de avaliação. O caso foi registrado e será analisado pela gestão com apoio da IA.',
+      requiresHumanIntervention: true,
+    }
+  }
+
+  if (
+    combined.includes('atras') ||
+    combined.includes('demorar') ||
+    combined.includes('transito') ||
+    combined.includes('engarraf')
+  ) {
+    return {
+      intent: 'ATRASO',
+      confidencePct: 92,
+      suggestedAction: 'Recalcular ETA e atualizar status do transporte para RISCO_ATRASO.',
+      standardFriendlyResponse:
+        'Entendido. Registrei a informação de atraso e estamos recalculando sua janela de chegada.',
+      requiresHumanIntervention: false,
+    }
+  }
+
+  if (
+    combined.includes('pneu') ||
+    combined.includes('quebr') ||
+    combined.includes('mecanic') ||
+    combined.includes('guincho')
+  ) {
+    return {
+      intent: 'PROBLEMA_MECANICO',
+      confidencePct: 94,
+      suggestedAction: 'Criar ocorrência PANE_MECANICA (severidade ALTA) e acionar suporte.',
+      standardFriendlyResponse:
+        'Ocorrência mecânica registrada. Você já acionou o socorro ou necessita de apoio da CIAFAL?',
+      requiresHumanIntervention: true,
+    }
+  }
+
+  if (
+    combined.includes('recus') ||
+    combined.includes('não quer receber') ||
+    combined.includes('portaria fechada') ||
+    combined.includes('fechou')
+  ) {
+    return {
+      intent: 'RECUSA_RECEBIMENTO',
+      confidencePct: 96,
+      suggestedAction: 'Gerar alerta crítico para o Representante Comercial no CRM 360.',
+      standardFriendlyResponse:
+        'Alerta de recusa/impossibilidade de entrega registrado. Estamos contatando o vendedor e cliente imediatamente.',
+      requiresHumanIntervention: true,
+    }
+  }
+
+  if (
+    combined.includes('cheguei') ||
+    combined.includes('na portaria') ||
+    combined.includes('no cliente') ||
+    combined.includes('no patio')
+  ) {
+    return {
+      intent: 'CHEGADA_CLIENTE',
+      confidencePct: 95,
+      suggestedAction: 'Atualizar parada para NA_PORTARIA e iniciar cronômetro de espera.',
+      standardFriendlyResponse:
+        'Perfeito! Chegada no cliente confirmada. Me avise quando chamarem para a doca de descarga.',
+      requiresHumanIntervention: false,
+    }
+  }
+
+  if (
+    combined.includes('descarreg') ||
+    combined.includes('finaliz') ||
+    combined.includes('conclui') ||
+    combined.includes('liberado')
+  ) {
+    return {
+      intent: 'FIM_DESCARGA',
+      confidencePct: 96,
+      suggestedAction: 'Atualizar parada para ENTREGUE e solicitar canhoto assinado.',
+      standardFriendlyResponse:
+        'Excelente! Descarga concluída. Por gentileza, nos envie a foto do canhoto ou comprovante assinado.',
+      requiresHumanIntervention: false,
+    }
+  }
+
+  if (
+    input.hasImage ||
+    combined.includes('foto') ||
+    combined.includes('canhoto') ||
+    combined.includes('comprovante')
+  ) {
+    return {
+      intent: 'FOTO_COMPROVANTE',
+      confidencePct: 90,
+      suggestedAction: 'Vincular imagem como evidência fiscal no transporte SAP.',
+      standardFriendlyResponse:
+        'Comprovante recebido com sucesso. Anexado ao registro fiscal da viagem.',
+      requiresHumanIntervention: false,
+    }
+  }
+
+  return {
+    intent: 'OUTROS',
+    confidencePct: 75,
+    suggestedAction: 'Registrar mensagem no histórico para auditoria e acompanhamento humano.',
+    standardFriendlyResponse: 'Mensagem recebida pelo assistente Fred.',
+    requiresHumanIntervention: false,
+  }
+}
+
 export interface ImageAnalysisSuggestion {
   suggestedTag: FredEvidenceEntity['evidence_type']
   suggestedOccurrenceCategory?: OccurrenceCategory

@@ -194,13 +194,16 @@ export const IntegrationsMonitorPage: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Conectado':
-        return <Badge className="bg-emerald-600 text-white">Conectado</Badge>
+      case 'Online':
+        return <Badge className="bg-emerald-600 text-white">Online / Conectado</Badge>
       case 'Degradado':
-        return <Badge className="bg-amber-500 text-white">Degradado</Badge>
+      case 'Atenção':
+        return <Badge className="bg-amber-500 text-white">Atenção</Badge>
       case 'Aguardando configuração':
-        return <Badge className="bg-sky-600 text-white">Aguardando configuração</Badge>
+        return <Badge className="bg-sky-600 text-white">Aguardando Credenciais</Badge>
       case 'Erro':
-        return <Badge className="bg-rose-600 text-white">Erro</Badge>
+      case 'Offline':
+        return <Badge className="bg-rose-600 text-white">Offline</Badge>
       case 'Desabilitado':
         return <Badge className="bg-slate-500 text-white">Desabilitado</Badge>
       default:

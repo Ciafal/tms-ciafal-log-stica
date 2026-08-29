@@ -400,6 +400,341 @@ export function aggregateProfitability(records: any[]): ProfitabilityAggregation
 /**
  * Análise de Rentabilidade por Dimensões (Cliente, Rota, Motorista, Transportadora)
  */
+// QLIK Integration & Smart Selection Savings Data Structures
+export interface QlikProfitabilityRecord {
+  id?: string
+  sap_transport_number: string
+  order_number?: string
+  delivery_number?: string
+  invoice_number?: string
+  company_code?: string
+  plant_code?: string
+  customer_code?: string
+  customer_name?: string
+  ship_to_code?: string
+  itinerary_code?: string
+  region?: string
+  product_family?: string
+  driver_id?: string
+  driver_name?: string
+  carrier_name?: string
+  vehicle_plate?: string
+  vehicle_type?: string
+  weight_ton?: number
+  distance_km?: number
+  receita_liquida?: number
+  frete_cobrado_cliente?: number
+  frete_pago_motorista?: number
+  pedagio_total?: number
+  custos_adicionais?: number
+  custo_logistico_total?: number
+  margem_logistica_bruta?: number
+  margem_logistica_pct?: number
+  reais_por_tonelada?: number
+  reais_por_km?: number
+  period_reference?: string
+  qlik_sync_timestamp?: string
+  correlation_id?: string
+}
+
+export type BaselineType =
+  | 'HISTORICO_ROTAS'
+  | 'MEDIANA_OFERTAS'
+  | 'TABELA_REFERENCIA'
+  | 'SEGUNDA_MELHOR_OFERTA'
+
+export type NegotiationMode =
+  | 'EXCLUSIVAMENTE_HUMANA'
+  | 'APOIADA_IA'
+  | 'PREDOMINANTE_CARLAO'
+  | 'INTERVENCAO_HUMANA'
+
+export interface SmartSelectionSavingsRecord {
+  id?: string
+  cargo_id: string
+  sap_transport_number?: string
+  itinerary_code?: string
+  region?: string
+  customer_code?: string
+  customer_name?: string
+  vehicle_type?: string
+  weight_ton?: number
+  baseline_type_used: BaselineType
+  baseline_value: number
+  target_value: number
+  contracted_freight_value: number
+  pedagio_value: number
+  adicionais_value: number
+  total_negotiated_cost: number
+  realized_cost: number
+  estimated_savings: number
+  estimated_savings_pct: number
+  contracted_savings: number
+  contracted_savings_pct: number
+  realized_savings: number
+  realized_savings_pct: number
+  negotiation_mode: NegotiationMode
+  selected_driver_id?: string
+  selected_driver_name?: string
+  selected_driver_score?: number
+  rounds_count?: number
+  messages_ai_count?: number
+  messages_human_count?: number
+  duration_minutes?: number
+  had_human_intervention?: boolean
+  intervention_reason?: string
+  model_version?: string
+  correlation_id?: string
+}
+
+export interface ExecutiveSavingsDashboardSummary {
+  fretesNegociadosCount: number
+  toneladasTransportadas: number
+  gastoTotalFretes: number
+  baselineEstimadoTotal: number
+  economiaEstimadaTotal: number
+  economiaContratadaTotal: number
+  economiaRealizadaTotal: number
+  economiaMediaPorTransporte: number
+  economiaMediaPorTonelada: number
+  margemLogisticaMediaPct: number
+  pctCargasSelecionadasComIA: number
+  byNegotiationMode: Record<
+    NegotiationMode,
+    {
+      count: number
+      totalSpend: number
+      totalSavings: number
+      avgDurationMin: number
+      avgRounds: number
+      handoffsCount: number
+    }
+  >
+}
+
+/**
+ * Calcula os indicadores consolidados para o Relatório Executivo de Economia da Seleção Inteligente
+ */
+export function calculateExecutiveSavingsSummary(
+  records: SmartSelectionSavingsRecord[],
+): ExecutiveSavingsDashboardSummary {
+  const count = records.length
+  if (count === 0) {
+    return {
+      fretesNegociadosCount: 0,
+      toneladasTransportadas: 0,
+      gastoTotalFretes: 0,
+      baselineEstimadoTotal: 0,
+      economiaEstimadaTotal: 0,
+      economiaContratadaTotal: 0,
+      economiaRealizadaTotal: 0,
+      economiaMediaPorTransporte: 0,
+      economiaMediaPorTonelada: 0,
+      margemLogisticaMediaPct: 0,
+      pctCargasSelecionadasComIA: 0,
+      byNegotiationMode: {
+        EXCLUSIVAMENTE_HUMANA: {
+          count: 0,
+          totalSpend: 0,
+          totalSavings: 0,
+          avgDurationMin: 0,
+          avgRounds: 0,
+          handoffsCount: 0,
+        },
+        APOIADA_IA: {
+          count: 0,
+          totalSpend: 0,
+          totalSavings: 0,
+          avgDurationMin: 0,
+          avgRounds: 0,
+          handoffsCount: 0,
+        },
+        PREDOMINANTE_CARLAO: {
+          count: 0,
+          totalSpend: 0,
+          totalSavings: 0,
+          avgDurationMin: 0,
+          avgRounds: 0,
+          handoffsCount: 0,
+        },
+        INTERVENCAO_HUMANA: {
+          count: 0,
+          totalSpend: 0,
+          totalSavings: 0,
+          avgDurationMin: 0,
+          avgRounds: 0,
+          handoffsCount: 0,
+        },
+      },
+    }
+  }
+
+  let totalTons = 0
+  let totalGasto = 0
+  let totalBaseline = 0
+  let totalEstSavings = 0
+  let totalContrSavings = 0
+  let totalRealSavings = 0
+  let iaAssistedCount = 0
+
+  const modeMap: Record<
+    NegotiationMode,
+    {
+      count: number
+      totalSpend: number
+      totalSavings: number
+      totalDur: number
+      totalRounds: number
+      handoffs: number
+    }
+  > = {
+    EXCLUSIVAMENTE_HUMANA: {
+      count: 0,
+      totalSpend: 0,
+      totalSavings: 0,
+      totalDur: 0,
+      totalRounds: 0,
+      handoffs: 0,
+    },
+    APOIADA_IA: {
+      count: 0,
+      totalSpend: 0,
+      totalSavings: 0,
+      totalDur: 0,
+      totalRounds: 0,
+      handoffs: 0,
+    },
+    PREDOMINANTE_CARLAO: {
+      count: 0,
+      totalSpend: 0,
+      totalSavings: 0,
+      totalDur: 0,
+      totalRounds: 0,
+      handoffs: 0,
+    },
+    INTERVENCAO_HUMANA: {
+      count: 0,
+      totalSpend: 0,
+      totalSavings: 0,
+      totalDur: 0,
+      totalRounds: 0,
+      handoffs: 0,
+    },
+  }
+
+  for (const r of records) {
+    totalTons += Number(r.weight_ton || 0)
+    totalGasto += Number(r.total_negotiated_cost || 0)
+    totalBaseline += Number(r.baseline_value || 0)
+    totalEstSavings += Number(r.estimated_savings || 0)
+    totalContrSavings += Number(r.contracted_savings || 0)
+    totalRealSavings += Number(r.realized_savings || 0)
+
+    if (r.negotiation_mode !== 'EXCLUSIVAMENTE_HUMANA') {
+      iaAssistedCount++
+    }
+
+    const mode = r.negotiation_mode || 'EXCLUSIVAMENTE_HUMANA'
+    if (modeMap[mode]) {
+      modeMap[mode].count++
+      modeMap[mode].totalSpend += Number(r.total_negotiated_cost || 0)
+      modeMap[mode].totalSavings += Number(r.realized_savings || 0)
+      modeMap[mode].totalDur += Number(r.duration_minutes || 0)
+      modeMap[mode].totalRounds += Number(r.rounds_count || 1)
+      if (r.had_human_intervention) modeMap[mode].handoffs++
+    }
+  }
+
+  const byNegotiationMode: ExecutiveSavingsDashboardSummary['byNegotiationMode'] = {
+    EXCLUSIVAMENTE_HUMANA: {
+      count: modeMap.EXCLUSIVAMENTE_HUMANA.count,
+      totalSpend: modeMap.EXCLUSIVAMENTE_HUMANA.totalSpend,
+      totalSavings: modeMap.EXCLUSIVAMENTE_HUMANA.totalSavings,
+      avgDurationMin:
+        modeMap.EXCLUSIVAMENTE_HUMANA.count > 0
+          ? Math.round(
+              (modeMap.EXCLUSIVAMENTE_HUMANA.totalDur / modeMap.EXCLUSIVAMENTE_HUMANA.count) * 10,
+            ) / 10
+          : 0,
+      avgRounds:
+        modeMap.EXCLUSIVAMENTE_HUMANA.count > 0
+          ? Math.round(
+              (modeMap.EXCLUSIVAMENTE_HUMANA.totalRounds / modeMap.EXCLUSIVAMENTE_HUMANA.count) *
+                10,
+            ) / 10
+          : 0,
+      handoffsCount: modeMap.EXCLUSIVAMENTE_HUMANA.handoffs,
+    },
+    APOIADA_IA: {
+      count: modeMap.APOIADA_IA.count,
+      totalSpend: modeMap.APOIADA_IA.totalSpend,
+      totalSavings: modeMap.APOIADA_IA.totalSavings,
+      avgDurationMin:
+        modeMap.APOIADA_IA.count > 0
+          ? Math.round((modeMap.APOIADA_IA.totalDur / modeMap.APOIADA_IA.count) * 10) / 10
+          : 0,
+      avgRounds:
+        modeMap.APOIADA_IA.count > 0
+          ? Math.round((modeMap.APOIADA_IA.totalRounds / modeMap.APOIADA_IA.count) * 10) / 10
+          : 0,
+      handoffsCount: modeMap.APOIADA_IA.handoffs,
+    },
+    PREDOMINANTE_CARLAO: {
+      count: modeMap.PREDOMINANTE_CARLAO.count,
+      totalSpend: modeMap.PREDOMINANTE_CARLAO.totalSpend,
+      totalSavings: modeMap.PREDOMINANTE_CARLAO.totalSavings,
+      avgDurationMin:
+        modeMap.PREDOMINANTE_CARLAO.count > 0
+          ? Math.round(
+              (modeMap.PREDOMINANTE_CARLAO.totalDur / modeMap.PREDOMINANTE_CARLAO.count) * 10,
+            ) / 10
+          : 0,
+      avgRounds:
+        modeMap.PREDOMINANTE_CARLAO.count > 0
+          ? Math.round(
+              (modeMap.PREDOMINANTE_CARLAO.totalRounds / modeMap.PREDOMINANTE_CARLAO.count) * 10,
+            ) / 10
+          : 0,
+      handoffsCount: modeMap.PREDOMINANTE_CARLAO.handoffs,
+    },
+    INTERVENCAO_HUMANA: {
+      count: modeMap.INTERVENCAO_HUMANA.count,
+      totalSpend: modeMap.INTERVENCAO_HUMANA.totalSpend,
+      totalSavings: modeMap.INTERVENCAO_HUMANA.totalSavings,
+      avgDurationMin:
+        modeMap.INTERVENCAO_HUMANA.count > 0
+          ? Math.round(
+              (modeMap.INTERVENCAO_HUMANA.totalDur / modeMap.INTERVENCAO_HUMANA.count) * 10,
+            ) / 10
+          : 0,
+      avgRounds:
+        modeMap.INTERVENCAO_HUMANA.count > 0
+          ? Math.round(
+              (modeMap.INTERVENCAO_HUMANA.totalRounds / modeMap.INTERVENCAO_HUMANA.count) * 10,
+            ) / 10
+          : 0,
+      handoffsCount: modeMap.INTERVENCAO_HUMANA.handoffs,
+    },
+  }
+
+  return {
+    fretesNegociadosCount: count,
+    toneladasTransportadas: Math.round(totalTons * 10) / 10,
+    gastoTotalFretes: Math.round(totalGasto),
+    baselineEstimadoTotal: Math.round(totalBaseline),
+    economiaEstimadaTotal: Math.round(totalEstSavings),
+    economiaContratadaTotal: Math.round(totalContrSavings),
+    economiaRealizadaTotal: Math.round(totalRealSavings),
+    economiaMediaPorTransporte: count > 0 ? Math.round(totalRealSavings / count) : 0,
+    economiaMediaPorTonelada:
+      totalTons > 0 ? Math.round((totalRealSavings / totalTons) * 100) / 100 : 0,
+    margemLogisticaMediaPct:
+      totalBaseline > 0 ? Math.round((totalRealSavings / totalBaseline) * 10000) / 100 : 0,
+    pctCargasSelecionadasComIA: Math.round((iaAssistedCount / count) * 100),
+    byNegotiationMode,
+  }
+}
+
 export interface DimensionProfitabilitySummary {
   dimensionKey: string
   dimensionLabel: string

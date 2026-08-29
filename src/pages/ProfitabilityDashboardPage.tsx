@@ -46,8 +46,10 @@ export const ProfitabilityDashboardPage: React.FC = () => {
   const [freightResults, setFreightResults] = useState<any[]>([])
   const [commercialTables, setCommercialTables] = useState<any[]>([])
   const [occurrenceCosts, setOccurrenceCosts] = useState<any[]>([])
+  const [qlikRecords, setQlikRecords] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedItinerary, setSelectedItinerary] = useState<string>('ALL')
+  const [isQlikSynced, setIsQlikSynced] = useState<boolean>(true)
 
   // Chat Analista de Resultado Logístico (IA)
   const [analystQuestion, setAnalystQuestion] = useState('')
@@ -63,14 +65,16 @@ export const ProfitabilityDashboardPage: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const [resData, tabData, occData] = await Promise.all([
+      const [resData, tabData, occData, qlikData] = await Promise.all([
         TmsService.getFreightResults(),
         TmsService.getCommercialFreightTables(),
         TmsService.getOccurrenceCosts(),
+        TmsService.getQlikProfitabilityRecords(),
       ])
       setFreightResults(resData)
       setCommercialTables(tabData.length > 0 ? tabData : [DEFAULT_COMMERCIAL_TABLE])
       setOccurrenceCosts(occData)
+      setQlikRecords(qlikData)
     } catch (err: any) {
       toast({
         title: 'Erro ao carregar dados de rentabilidade',
@@ -454,6 +458,9 @@ export const ProfitabilityDashboardPage: React.FC = () => {
           <TabsTrigger value="overview" className="text-xs">
             Visão Geral
           </TabsTrigger>
+          <TabsTrigger value="qlik_integration" className="text-xs font-bold text-[#005596]">
+            QLIK — Rentabilidade Consolidada ({qlikRecords.length})
+          </TabsTrigger>
           <TabsTrigger value="clients" className="text-xs">
             Clientes & Rentabilidade
           </TabsTrigger>
@@ -483,6 +490,103 @@ export const ProfitabilityDashboardPage: React.FC = () => {
             Analista IA de Resultado
           </TabsTrigger>
         </TabsList>
+        {/* NOVO: ABA QLIK RENTABILIDADE CONSOLIDADA OFICIAL */}
+        <TabsContent value="qlik_integration" className="space-y-3 mt-3">
+          <Card className="bg-white border-slate-200 shadow-sm">
+            <CardHeader className="p-3.5 border-b border-slate-100 bg-sky-50/50 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xs font-bold uppercase text-slate-800 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-[#005596]" />
+                  Estrutura de Rentabilidade Consolidada QLIK Sense
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Consumo direto do modelo analítico oficial Qlik com chaves SAP (Empresa, Centro,
+                  Cliente, Ship-To, Remessa, NF e Transporte).
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-emerald-600 text-white text-xs">Sincronizado Qlik Hub</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase text-slate-500 font-bold">
+                  <tr>
+                    <th className="p-2.5">Transp. SAP</th>
+                    <th className="p-2.5">Remessa / NF</th>
+                    <th className="p-2.5">Cliente (Ship-To)</th>
+                    <th className="p-2.5">Itinerário / Região</th>
+                    <th className="p-2.5">Motorista</th>
+                    <th className="p-2.5 text-right">Peso (t)</th>
+                    <th className="p-2.5 text-right">Frete Cobrado</th>
+                    <th className="p-2.5 text-right">Frete Pago</th>
+                    <th className="p-2.5 text-right">Pedágio</th>
+                    <th className="p-2.5 text-right">Margem Qlik (R$)</th>
+                    <th className="p-2.5 text-right">Margem %</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                  {qlikRecords.map((q, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50">
+                      <td className="p-2.5 font-bold text-slate-900">{q.sap_transport_number}</td>
+                      <td className="p-2.5 text-slate-600">
+                        {q.delivery_number} / {q.invoice_number}
+                      </td>
+                      <td className="p-2.5 font-sans font-semibold text-slate-800">
+                        {q.customer_name}{' '}
+                        <span className="text-[10px] font-mono text-slate-400">
+                          ({q.ship_to_code})
+                        </span>
+                      </td>
+                      <td className="p-2.5 font-sans text-slate-600">
+                        {q.itinerary_code} - {q.region}
+                      </td>
+                      <td className="p-2.5 font-sans text-slate-700">{q.driver_name}</td>
+                      <td className="p-2.5 text-right text-slate-700">
+                        {Number(q.weight_ton || 0).toFixed(1)}
+                      </td>
+                      <td className="p-2.5 text-right font-bold text-slate-900">
+                        R${' '}
+                        {Number(q.frete_cobrado_cliente || 0).toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="p-2.5 text-right text-slate-700">
+                        R${' '}
+                        {Number(q.frete_pago_motorista || 0).toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="p-2.5 text-right text-slate-700">
+                        R${' '}
+                        {Number(q.pedagio_total || 0).toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td
+                        className={`p-2.5 text-right font-bold ${Number(q.margem_logistica_bruta || 0) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}
+                      >
+                        R${' '}
+                        {Number(q.margem_logistica_bruta || 0).toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="p-2.5 text-right">
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] ${Number(q.margem_logistica_pct || 0) >= 10 ? 'border-emerald-500 text-emerald-700' : 'border-blue-500 text-blue-700'}`}
+                        >
+                          {Number(q.margem_logistica_pct || 0).toFixed(1)}%
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* 1. VISÃO GERAL */}
         <TabsContent value="overview" className="space-y-3 mt-3">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

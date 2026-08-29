@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T20:44:32.209Z",
+  "generatedAt": "2026-08-29T21:02:37.994Z",
   "collections": [
     {
       "name": "users",
@@ -8598,6 +8598,869 @@
       "indexes": [
         "CREATE UNIQUE INDEX idx_fbtoken_tok ON driver_feedback_tokens (token)",
         "CREATE INDEX idx_fbtoken_drv ON driver_feedback_tokens (driver_id)"
+      ]
+    },
+    {
+      "name": "qlik_profitability_records",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.id != \"\""
+      },
+      "fields": [
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "order_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delivery_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "invoice_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "company_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "plant_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ship_to_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "region",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "product_family",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "carrier_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_ton",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "distance_km",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "receita_liquida",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "frete_cobrado_cliente",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "frete_pago_motorista",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pedagio_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custos_adicionais",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_logistico_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "margem_logistica_bruta",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "margem_logistica_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reais_por_tonelada",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reais_por_km",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "period_reference",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "qlik_sync_timestamp",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_qlik_transp ON qlik_profitability_records (sap_transport_number)",
+        "CREATE INDEX idx_qlik_cust ON qlik_profitability_records (customer_code)",
+        "CREATE INDEX idx_qlik_itin ON qlik_profitability_records (itinerary_code)",
+        "CREATE INDEX idx_qlik_driver ON qlik_profitability_records (driver_id)"
+      ]
+    },
+    {
+      "name": "smart_selection_savings_ledger",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.id != \"\""
+      },
+      "fields": [
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "region",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_ton",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "baseline_type_used",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "HISTORICO_ROTAS",
+            "MEDIANA_OFERTAS",
+            "TABELA_REFERENCIA",
+            "SEGUNDA_MELHOR_OFERTA"
+          ]
+        },
+        {
+          "name": "baseline_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "target_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contracted_freight_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pedagio_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "adicionais_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_negotiated_cost",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "realized_cost",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estimated_savings",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estimated_savings_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contracted_savings",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contracted_savings_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "realized_savings",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "realized_savings_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "negotiation_mode",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "EXCLUSIVAMENTE_HUMANA",
+            "APOIADA_IA",
+            "PREDOMINANTE_CARLAO",
+            "INTERVENCAO_HUMANA"
+          ]
+        },
+        {
+          "name": "selected_driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "selected_driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "selected_driver_score",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rounds_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "messages_ai_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "messages_human_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "duration_minutes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "had_human_intervention",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "intervention_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "model_version",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_savings_cargo ON smart_selection_savings_ledger (cargo_id)",
+        "CREATE INDEX idx_savings_transp ON smart_selection_savings_ledger (sap_transport_number)",
+        "CREATE INDEX idx_savings_mode ON smart_selection_savings_ledger (negotiation_mode)",
+        "CREATE INDEX idx_savings_driver ON smart_selection_savings_ledger (selected_driver_id)"
+      ]
+    },
+    {
+      "name": "whatsapp_webhook_events",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.id != \"\""
+      },
+      "fields": [
+        {
+          "name": "message_wamid",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "phone_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sender_role",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "MOTORISTA",
+            "REPRESENTANTE",
+            "VENDEDOR",
+            "CLIENTE",
+            "OPERADOR_INTERNO",
+            "DESCONHECIDO"
+          ]
+        },
+        {
+          "name": "sender_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "message_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "TEXTO",
+            "AUDIO",
+            "IMAGEM",
+            "DOCUMENTO",
+            "LOCALIZACAO",
+            "STATUS_ENTREGA",
+            "OUTRO"
+          ]
+        },
+        {
+          "name": "raw_text",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "media_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "media_file_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "media_mime_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "audio_duration_seconds",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "audio_transcription",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "transcription_confidence_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_intent",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "POSICAO_LOCALIZACAO",
+            "PREVISAO_CHEGADA",
+            "ATRASO",
+            "CHEGADA_CLIENTE",
+            "INICIO_DESCARGA",
+            "FIM_DESCARGA",
+            "RECUSA_RECEBIMENTO",
+            "ESPERA_FILA",
+            "PROBLEMA_MECANICO",
+            "ACIDENTE",
+            "BLOQUEIO_RODOVIA",
+            "PROBLEMA_DOCUMENTAL",
+            "SOLICITACAO_CLIENTE",
+            "ALTERACAO_JANELA",
+            "FOTO_COMPROVANTE",
+            "OCORRENCIA_GERAL",
+            "SOLICITACAO_VENDEDOR",
+            "CONSULTA_TRANSPORTE",
+            "AVALIACAO_MOTORISTA",
+            "CONTESTACAO_AVALIACAO",
+            "OUTROS"
+          ]
+        },
+        {
+          "name": "ai_intent_confidence",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "latitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "longitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "location_address",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "location_speed_kmh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_proactive_alert",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "message_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "RECEBIDA",
+            "TRANSCRITA",
+            "INTENCAO_IDENTIFICADA",
+            "PROCESSADA",
+            "HUMAN_REVIEW_REQUIRED",
+            "FALHA"
+          ]
+        },
+        {
+          "name": "response_sent_text",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "action_executed",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "read_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_ai_origin",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_wpp_phone ON whatsapp_webhook_events (phone_number)",
+        "CREATE INDEX idx_wpp_transp ON whatsapp_webhook_events (sap_transport_number)",
+        "CREATE INDEX idx_wpp_intent ON whatsapp_webhook_events (ai_intent)",
+        "CREATE INDEX idx_wpp_status ON whatsapp_webhook_events (message_status)"
+      ]
+    },
+    {
+      "name": "ai_weight_learning_proposals",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.id != \"\""
+      },
+      "fields": [
+        {
+          "name": "proposal_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "target_template_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "dimension_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "current_weight_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "suggested_weight_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historical_days_analyzed",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "trips_analyzed_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "statistical_correlation_r",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rationale_fact",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_hypothesis",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "expected_impact_summary",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "confidence_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["SUGERIDA", "APROVADA_E_APLICADA", "REJEITADA_GESTOR", "EXPIRADA"]
+        },
+        {
+          "name": "reviewed_by_user_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reviewed_by_user_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "review_decision_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "applied_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_learn_code ON ai_weight_learning_proposals (proposal_code)",
+        "CREATE INDEX idx_learn_status ON ai_weight_learning_proposals (status)"
       ]
     }
   ]

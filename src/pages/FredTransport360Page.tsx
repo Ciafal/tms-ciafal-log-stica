@@ -24,9 +24,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { tmsService } from '@/services/tmsService'
 import { useToast } from '@/hooks/use-toast'
 import {
   Truck,
@@ -91,6 +93,59 @@ export const FredTransport360Page: React.FC = () => {
     'Canhoto assinado e carimbado na portaria',
   )
   const [mediaType, setMediaType] = useState<string>('CANHOTO_ASSINADO')
+
+  // Modal Simulação de Envio de WhatsApp Webhook Oficial (Áudio / Texto / Localização / Contestação)
+  const [wppSimDialogOpen, setWppSimDialogOpen] = useState(false)
+  const [wppSimType, setWppSimType] = useState<string>('AUDIO')
+  const [wppSimAudioText, setWppSimAudioText] = useState(
+    'Vou atrasar umas duas horas por causa do trânsito na serra.',
+  )
+  const [wppSimLat, setWppSimLat] = useState('-23.5505')
+  const [wppSimLng, setWppSimLng] = useState('-46.6333')
+
+  // Disparo do Webhook do WhatsApp Business para Homologação
+  const handleSimulateWhatsAppWebhook = async () => {
+    if (!transport) return
+    setIsSending(true)
+    try {
+      let payload: any = {
+        phone: transport.driver_phone || '(11) 98765-4321',
+        sender_name: transport.driver_name,
+        sender_role: 'MOTORISTA',
+        sap_transport_number: transport.sap_transport_number,
+        type: wppSimType,
+      }
+
+      if (wppSimType === 'AUDIO') {
+        payload.audio_url = 'https://storage.usecurling.com/audios/audio_motorista_gravacao.ogg'
+        payload.audio_duration = 18
+        payload.text = wppSimAudioText
+      } else if (wppSimType === 'LOCALIZACAO') {
+        payload.latitude = parseFloat(wppSimLat) || -23.5505
+        payload.longitude = parseFloat(wppSimLng) || -46.6333
+        payload.address = 'Rod. Anhanguera, km 64 - Jundiaí/SP'
+        payload.text = 'Localização GPS compartilhada em tempo real via WhatsApp'
+      } else {
+        payload.text = wppSimAudioText
+      }
+
+      const res = await tmsService.sendWhatsAppWebhookEvent(payload)
+      toast({
+        title: 'Webhook WhatsApp Processado',
+        description: `Intenção identificada: ${res.intent} • Resposta: ${res.response_sent}`,
+      })
+      setWppSimDialogOpen(false)
+      loadTransportDetails()
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao disparar webhook WhatsApp',
+        description: err.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSending(false)
+    }
+  }
 
   // Carregar dados completos do transporte SAP
   const loadTransportDetails = async () => {
@@ -901,22 +956,33 @@ export const FredTransport360Page: React.FC = () => {
             <CardHeader className="p-4 border-b border-slate-100 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-sm font-black text-slate-900">
-                  Evidências Fotográficas e Áudios Transcritos
+                  Evidências Fotográficas, Áudios Transcritos & Webhook WhatsApp
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Classificação sugerida pela IA exigindo confirmação humana antes de validação
+                  Classificação de áudios e comprovantes com auditoria integral e reconhecimento de
+                  intenções
                 </CardDescription>
               </div>
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setMediaUploadOpen(true)}
-                className="text-xs font-bold border-slate-300"
-              >
-                + Enviar Nova Evidência
-              </Button>
-            </CardHeader>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => setWppSimDialogOpen(true)}
+                  className="bg-[#25D366] hover:bg-[#1ebd5b] text-white text-xs font-bold flex items-center gap-1.5"
+                >
+                  <Mic className="w-3.5 h-3.5" />
+                  Simular Áudio/WhatsApp
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setMediaUploadOpen(true)}
+                  className="text-xs font-bold border-slate-300"
+                >
+                  + Enviar Comprovante
+                </Button>
+              </div>
+            </CardHeader>{' '}
             <CardContent className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {evidences.map((evid) => (
@@ -1203,6 +1269,140 @@ export const FredTransport360Page: React.FC = () => {
               className="bg-[#005596] hover:bg-[#004275] text-white font-bold"
             >
               Enviar para o Fred
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL SIMULADOR DE WEBHOOK WHATSAPP (ÁUDIO / INTENÇÕES / LOCALIZAÇÃO) */}
+      <Dialog open={wppSimDialogOpen} onOpenChange={setWppSimDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Mic className="w-4 h-4 text-[#25D366]" />
+              Simular Recepção de Áudio / Webhook WhatsApp Business
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Testa o pipeline: Recebe Áudio/Evento → Transcreve por IA → Classifica Intenção →
+              Notifica Torre Fred.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                Tipo de Evento WhatsApp
+              </label>
+              <select
+                className="w-full p-2 border border-slate-200 rounded-lg text-xs"
+                value={wppSimType}
+                onChange={(e) => setWppSimType(e.target.value)}
+              >
+                <option value="AUDIO">Mensagem de Voz / Áudio (OGG)</option>
+                <option value="LOCALIZACAO">Compartilhamento de Localização GPS</option>
+                <option value="TEXTO">Mensagem de Texto do Motorista</option>
+              </select>
+            </div>
+
+            {wppSimType === 'AUDIO' && (
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                  Conteúdo da Fala do Motorista (Simulação de Áudio):
+                </label>
+                <textarea
+                  className="w-full p-2.5 border border-slate-200 rounded-lg text-xs"
+                  rows={3}
+                  value={wppSimAudioText}
+                  onChange={(e) => setWppSimAudioText(e.target.value)}
+                  placeholder="Ex: Vou atrasar umas duas horas por causa do trânsito / Estou parado porque furou o pneu / Quero contestar minha avaliação..."
+                />
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  <Badge
+                    variant="outline"
+                    className="cursor-pointer text-[9px] hover:bg-slate-100"
+                    onClick={() =>
+                      setWppSimAudioText(
+                        'Vou atrasar umas duas horas por causa do trânsito na serra.',
+                      )
+                    }
+                  >
+                    Atraso 2h
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="cursor-pointer text-[9px] hover:bg-slate-100"
+                    onClick={() =>
+                      setWppSimAudioText(
+                        'Estou parado no acostamento porque furou o pneu traseiro.',
+                      )
+                    }
+                  >
+                    Pneu Furado
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="cursor-pointer text-[9px] hover:bg-slate-100"
+                    onClick={() =>
+                      setWppSimAudioText('Cheguei no cliente e já descarreguei tudo, liberado.')
+                    }
+                  >
+                    Fim Descarga
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="cursor-pointer text-[9px] hover:bg-slate-100"
+                    onClick={() =>
+                      setWppSimAudioText(
+                        'Quero contestar minha avaliação dessa viagem, o atraso foi na fábrica.',
+                      )
+                    }
+                  >
+                    Contestar Avaliação
+                  </Badge>
+                </div>
+              </div>
+            )}
+
+            {wppSimType === 'LOCALIZACAO' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-slate-500 font-bold block">Latitude</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-slate-200 rounded-lg text-xs font-mono"
+                    value={wppSimLat}
+                    onChange={(e) => setWppSimLat(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-500 font-bold block">Longitude</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-slate-200 rounded-lg text-xs font-mono"
+                    value={wppSimLng}
+                    onChange={(e) => setWppSimLng(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setWppSimDialogOpen(false)}
+              className="text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSimulateWhatsAppWebhook}
+              disabled={isSending}
+              className="bg-[#25D366] hover:bg-[#1ebd5b] text-white text-xs font-bold"
+            >
+              Processar Webhook
             </Button>
           </DialogFooter>
         </DialogContent>

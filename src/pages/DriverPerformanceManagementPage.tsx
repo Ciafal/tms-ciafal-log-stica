@@ -389,11 +389,109 @@ export const DriverPerformanceManagementPage: React.FC = () => {
             <TabsTrigger value="configuracao" className="text-xs font-bold gap-1.5">
               <Sliders className="w-3.5 h-3.5" /> Fórmulas & Pesos
             </TabsTrigger>
+            <TabsTrigger value="contestoes" className="text-xs font-bold gap-1.5 text-rose-700">
+              <FileCheck2 className="w-3.5 h-3.5 text-rose-600" /> Contestações & Revisões
+            </TabsTrigger>
             <TabsTrigger value="auditoria" className="text-xs font-bold gap-1.5">
               <History className="w-3.5 h-3.5" /> Trilha de Auditoria
             </TabsTrigger>
           </TabsList>
         </div>
+
+        {/* ABA: CONTESTAÇÕES E REVISÃO DE AVALIAÇÕES (GOVERNANÇA HUMANA + RECOMENDAÇÃO IA) */}
+        <TabsContent value="contestoes" className="space-y-4">
+          <Card className="border-slate-200 bg-white shadow-sm">
+            <CardHeader className="p-4 border-b border-slate-100 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-black text-slate-900 uppercase flex items-center gap-2">
+                  <FileCheck2 className="w-4 h-4 text-rose-600" />
+                  Contestação e Revisão das Avaliações dos Motoristas
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Fluxo formal: Contestada → Em Análise → Decisão Humana com Apoio da IA (Procedente
+                  / Improcedente).
+                </CardDescription>
+              </div>
+              <Badge className="bg-rose-600 text-white text-xs">Processo Auditável</Badge>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3">
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-slate-900 text-sm">
+                      Contestação #REV-2025-081
+                    </span>
+                    <span className="text-slate-500 block text-[11px]">
+                      Motorista: <strong>Carlos Eduardo Santos</strong> • Transporte SAP:{' '}
+                      <strong>10048202</strong> • Rota: SP-SJC-02
+                    </span>
+                  </div>
+                  <Badge className="bg-amber-600 text-white text-[10px] font-bold">
+                    EM ANÁLISE GESTOR
+                  </Badge>
+                </div>
+
+                <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-1.5">
+                  <div className="text-[11px] text-slate-500 font-bold uppercase">
+                    Alegação do Motorista (Recebida via Fred/WhatsApp):
+                  </div>
+                  <p className="text-slate-800 italic">
+                    "Gostaria de pedir revisão da nota da viagem de São José dos Campos. O atraso de
+                    1h30 ocorreu porque a portaria da fábrica atrasou a liberação da nota fiscal na
+                    expedição, e não por problema na rodovia."
+                  </p>
+                </div>
+
+                <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 space-y-1.5">
+                  <div className="text-[11px] text-purple-900 font-bold uppercase flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-700" />
+                    Parecer e Recomendação da IA (Fred & Torre):
+                  </div>
+                  <p className="text-slate-800">
+                    <strong>Evidências Cruzadas:</strong> O registro da portaria no Totem confirmou
+                    entrada às 07:10 e saída do pátio apenas às 09:40. O trânsito na Dutra esteve
+                    livre (velocidade média 68 km/h).
+                  </p>
+                  <p className="text-emerald-800 font-bold">
+                    <strong>Recomendação IA (Confiança 94%):</strong> PROCEDENTE. Isentar a
+                    pontualidade do motorista e transferir o desvio para a expedição interna da
+                    CIAFAL.
+                  </p>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs text-rose-700 border-rose-200 hover:bg-rose-50"
+                    onClick={() => {
+                      toast({
+                        title: 'Contestação julgada Improcedente',
+                        description:
+                          'Decisão humana registrada e comunicada ao motorista com justificativa.',
+                      })
+                    }}
+                  >
+                    Julgar Improcedente
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                    onClick={() => {
+                      toast({
+                        title: 'Contestação Aprovada (Procedente)',
+                        description:
+                          'Score recalculado para 92/100 e auditado no Ledger do Motorista.',
+                      })
+                    }}
+                  >
+                    Aprovar Revisão (Procedente)
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* ----------------------------------------------------------------- */}
         {/* ABA 1: VISÃO GERAL & SCORES DOS MOTORISTAS                        */}
