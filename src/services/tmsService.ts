@@ -3736,6 +3736,238 @@ export const TmsService = {
       return []
     }
   },
+
+  // =========================================================================
+  // 9. GESTÃO DE PERFORMANCE E EXPERIÊNCIA DOS MOTORISTAS (SPRINT 9)
+  // =========================================================================
+
+  async getDriverPerformanceScores(filter?: string, sort = '-score_consolidated'): Promise<any[]> {
+    try {
+      return await pb.collection('driver_performance_scores').getFullList({
+        filter,
+        sort,
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async getDriverPerformanceScoreById(driverId: string): Promise<any | null> {
+    try {
+      return await pb
+        .collection('driver_performance_scores')
+        .getFirstListItem(`driver_id = "${driverId}"`)
+    } catch {
+      return null
+    }
+  },
+
+  async saveDriverPerformanceScore(data: Record<string, any>): Promise<any> {
+    try {
+      if (data.id) {
+        return await pb.collection('driver_performance_scores').update(data.id, data)
+      }
+      return await pb.collection('driver_performance_scores').create(data)
+    } catch (err) {
+      console.error('Erro ao salvar score de performance do motorista:', err)
+      throw err
+    }
+  },
+
+  async updateDriverOperationalStatus(
+    driverId: string,
+    newStatus: string,
+    reason: string,
+    userEmail: string,
+    userName: string,
+  ): Promise<any> {
+    try {
+      const rec = await pb
+        .collection('driver_performance_scores')
+        .getFirstListItem(`driver_id = "${driverId}"`)
+      const prevStatus = rec.operational_status
+      const updated = await pb.collection('driver_performance_scores').update(rec.id, {
+        operational_status: newStatus,
+      })
+
+      // Grava no Ledger de Auditoria
+      await pb.collection('performance_audit_ledger').create({
+        driver_id: driverId,
+        driver_name: rec.driver_name,
+        event_type: 'STATUS_CHANGED',
+        score_before: rec.score_consolidated,
+        score_after: rec.score_consolidated,
+        user_email: userEmail,
+        user_name: userName,
+        human_notes: `Status alterado de ${prevStatus} para ${newStatus}. Justificativa: ${reason}`,
+      })
+
+      return updated
+    } catch (err) {
+      console.error('Erro ao atualizar status operacional do motorista:', err)
+      throw err
+    }
+  },
+
+  async getDriverCiafalSurveys(filter?: string, sort = '-created'): Promise<any[]> {
+    try {
+      return await pb.collection('driver_ciafal_surveys').getFullList({
+        filter,
+        sort,
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async submitDriverCiafalSurvey(data: Record<string, any>): Promise<any> {
+    try {
+      return await pb.collection('driver_ciafal_surveys').create(data)
+    } catch (err) {
+      console.error('Erro ao registrar pesquisa de satisfação com a CIAFAL:', err)
+      throw err
+    }
+  },
+
+  async getCustomerLogisticProfiles(filter?: string, sort = '-logistic_score'): Promise<any[]> {
+    try {
+      return await pb.collection('customer_logistic_profiles').getFullList({
+        filter,
+        sort,
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async getCustomerLogisticProfileByCode(customerCode: string): Promise<any | null> {
+    try {
+      return await pb
+        .collection('customer_logistic_profiles')
+        .getFirstListItem(`customer_code = "${customerCode}"`)
+    } catch {
+      return null
+    }
+  },
+
+  async getPerformanceResponsibilityMatrix(filter?: string, sort = '-created'): Promise<any[]> {
+    try {
+      return await pb.collection('performance_responsibility_matrix').getFullList({
+        filter,
+        sort,
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async getPerformanceScoreParameters(): Promise<any | null> {
+    try {
+      return await pb
+        .collection('performance_score_parameters')
+        .getFirstListItem('is_active = true')
+    } catch {
+      return null
+    }
+  },
+
+  async savePerformanceScoreParameters(id: string | null, data: Record<string, any>): Promise<any> {
+    try {
+      if (id) {
+        return await pb.collection('performance_score_parameters').update(id, data)
+      }
+      return await pb.collection('performance_score_parameters').create(data)
+    } catch (err) {
+      console.error('Erro ao salvar parâmetros da fórmula de score:', err)
+      throw err
+    }
+  },
+
+  async getPerformanceAuditLedger(filter?: string, sort = '-created'): Promise<any[]> {
+    try {
+      return await pb.collection('performance_audit_ledger').getFullList({
+        filter,
+        sort,
+        limit: 100,
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async getTransportPerformanceEvaluations(filter?: string, sort = '-created'): Promise<any[]> {
+    try {
+      return await pb.collection('transport_performance_evaluations').getFullList({
+        filter,
+        sort,
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async runTransportEvaluationEngine(
+    sapTransportNumber: string,
+    driverId: string,
+    driverName: string,
+  ): Promise<any> {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/performance/evaluate-transport`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: pb.authStore.token,
+          },
+          body: JSON.stringify({
+            sap_transport_number: sapTransportNumber,
+            driver_id: driverId,
+            driver_name: driverName,
+          }),
+        },
+      )
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        throw new Error(payload?.error || 'Falha ao executar motor de avaliação')
+      }
+      return await res.json()
+    } catch (err) {
+      console.error('Erro ao chamar motor de avaliação de performance:', err)
+      throw err
+    }
+  },
+
+  async submitDriverJustification(payload: {
+    occurrence_id: string
+    sap_transport_number: string
+    driver_id: string
+    driver_name: string
+    justification_text?: string
+    audio_url?: string
+  }): Promise<any> {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/performance/submit-justification`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: pb.authStore.token,
+          },
+          body: JSON.stringify(payload),
+        },
+      )
+      if (!res.ok) {
+        const errPayload = await res.json().catch(() => ({}))
+        throw new Error(errPayload?.error || 'Falha ao enviar justificativa')
+      }
+      return await res.json()
+    } catch (err) {
+      console.error('Erro ao submeter justificativa:', err)
+      throw err
+    }
+  },
 }
 
 export const tmsService = TmsService

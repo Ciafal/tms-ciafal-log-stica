@@ -108,12 +108,14 @@ export const MesaFretesPage: React.FC = () => {
   // Load real data
   const loadData = useCallback(async () => {
     try {
-      const [fetchedOffers, fetchedQueue, fetchedNegs, fetchedPerfs] = await Promise.all([
-        tmsService.getFreightOffers(),
-        tmsService.getOperationalQueue(),
-        tmsService.getFreightNegotiations(),
-        tmsService.getDriverPerformanceIndicators(),
-      ])
+      const [fetchedOffers, fetchedQueue, fetchedNegs, fetchedPerfs, fetchedScores] =
+        await Promise.all([
+          tmsService.getFreightOffers(),
+          tmsService.getOperationalQueue(),
+          tmsService.getFreightNegotiations(),
+          tmsService.getDriverPerformanceIndicators(),
+          tmsService.getDriverPerformanceScores(),
+        ])
       setOffers(fetchedOffers)
       setQueueEntries(fetchedQueue)
       setNegotiations(fetchedNegs)
@@ -1285,11 +1287,21 @@ export const MesaFretesPage: React.FC = () => {
                       </div>
 
                       <div className="text-right">
-                        <div className="text-xl font-black text-emerald-700">
-                          {driver.score}/100
+                        <div className="flex items-center justify-end gap-1">
+                          <span className="text-xl font-black text-emerald-700">
+                            {driver.score}/100
+                          </span>
+                          {driver.score >= 90 && (
+                            <span
+                              title="Motorista Preferencial CIAFAL"
+                              className="text-amber-500 font-bold text-xs"
+                            >
+                              ⭐
+                            </span>
+                          )}
                         </div>
-                        <span className="text-[10px] text-slate-400 font-semibold">
-                          Score de Elegibilidade
+                        <span className="text-[10px] text-slate-400 font-semibold block">
+                          Score Multicritério Carlão
                         </span>
                       </div>
                     </div>

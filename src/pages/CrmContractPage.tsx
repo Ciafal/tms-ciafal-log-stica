@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Link } from 'react-router-dom'
 import { crmService } from '@/domain/crmIntegration'
-import { Bot, Truck, MapPin, Search } from 'lucide-react'
+import { Bot, Truck, MapPin, Search, Building2 } from 'lucide-react'
 
 export const CrmContractPage: React.FC = () => {
   const { toast } = useToast()
@@ -204,6 +204,94 @@ export const CrmContractPage: React.FC = () => {
           <p className="text-emerald-800">{testResult.message}</p>
         </div>
       )}
+
+      {/* Score Logístico do Cliente — Visão Integrada CRM 360º & Apoio ao Vendedor */}
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-[#005596]" />
+            <h2 className="text-base font-black text-slate-900">
+              Score Logístico do Cliente — Visão 360º de Desempenho Operacional
+            </h2>
+          </div>
+          <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[10px] font-bold">
+            Uso Interno TMS / CRM (Confidencial)
+          </Badge>
+        </div>
+        <p className="text-xs text-slate-500">
+          Apoio direto ao vendedor e representante comercial para antecipação de problemas de
+          descarga, formação justa do preço de frete e roteirização otimizada.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-xs">
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <div className="flex justify-between items-start">
+              <span className="font-bold text-slate-900">Estruturas Metálicas ABC</span>
+              <Badge className="bg-amber-600 text-white text-[9px]">Score 64/100 (Regular)</Badge>
+            </div>
+            <div className="text-[11px] text-slate-600 space-y-0.5">
+              <div>
+                Espera Média: <strong>68 min</strong> (P90 descarga: 175m)
+              </div>
+              <div>
+                Janela Cumprida: <strong className="text-amber-700">72%</strong>
+              </div>
+              <div>
+                Avaliação dos Motoristas: <strong>3.1 / 5.0</strong>
+              </div>
+            </div>
+            <div className="p-2 bg-amber-50 rounded border border-amber-200 text-[10px] text-amber-900">
+              <strong>Alerta Comercial:</strong> Recomenda-se acréscimo de R$ 180 na diária/frete
+              para compensar tempo parado.
+            </div>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <div className="flex justify-between items-start">
+              <span className="font-bold text-slate-900">Metalúrgica Campinas S.A.</span>
+              <Badge className="bg-emerald-600 text-white text-[9px]">
+                Score 93/100 (Excelente)
+              </Badge>
+            </div>
+            <div className="text-[11px] text-slate-600 space-y-0.5">
+              <div>
+                Espera Média: <strong>15 min</strong> (P90 descarga: 55m)
+              </div>
+              <div>
+                Janela Cumprida: <strong className="text-emerald-700">98%</strong>
+              </div>
+              <div>
+                Avaliação dos Motoristas: <strong>4.9 / 5.0</strong>
+              </div>
+            </div>
+            <div className="p-2 bg-emerald-50 rounded border border-emerald-200 text-[10px] text-emerald-900">
+              <strong>Fluidez Total:</strong> Excelente estrutura de descarregamento contínuo.
+            </div>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <div className="flex justify-between items-start">
+              <span className="font-bold text-slate-900">Ferragens Triângulo Ltda</span>
+              <Badge className="bg-[#005596] text-white text-[9px]">Score 82/100 (Bom)</Badge>
+            </div>
+            <div className="text-[11px] text-slate-600 space-y-0.5">
+              <div>
+                Espera Média: <strong>28 min</strong> (P90 descarga: 75m)
+              </div>
+              <div>
+                Janela Cumprida: <strong className="text-slate-800">88%</strong>
+              </div>
+              <div>
+                Avaliação dos Motoristas: <strong>4.2 / 5.0</strong>
+              </div>
+            </div>
+            <div className="p-2 bg-sky-50 rounded border border-sky-200 text-[10px] text-sky-900">
+              <strong>Restrição de Veículo:</strong> Acesso urbano estreito. Priorizar caminhão
+              Truck.
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Technical Contract Details Card */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

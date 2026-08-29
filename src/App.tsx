@@ -10,6 +10,7 @@ import { TotemEntry } from '@/pages/TotemEntry'
 import { ExternalCheckin } from '@/pages/ExternalCheckin'
 import { PreRegistrationsPage } from '@/pages/PreRegistrationsPage'
 import { DriversVehiclesPage } from '@/pages/DriversVehiclesPage'
+import { DriverPerformanceManagementPage } from '@/pages/DriverPerformanceManagementPage'
 import { FreightOffersPreparationPage } from '@/pages/FreightOffersPreparationPage'
 import { MesaFretesPage } from '@/pages/MesaFretesPage'
 import { DriverOfferPublicPage } from '@/pages/DriverOfferPublicPage'
@@ -122,6 +123,22 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <DriversVehiclesPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/performance-motoristas"
+            element={
+              <Layout>
+                <DriverPerformanceManagementPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/gestao-motoristas"
+            element={
+              <Layout>
+                <DriverPerformanceManagementPage />
               </Layout>
             }
           />

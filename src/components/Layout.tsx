@@ -120,6 +120,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           path: '/tms/motoristas',
           show: true,
         },
+        {
+          title: 'Gestão de Performance',
+          path: '/tms/gestao-motoristas',
+          badge: 'Mão Dupla',
+          badgeColor: 'bg-[#005596]',
+          show: true,
+        },
       ],
     },
     {
@@ -330,8 +337,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         },
         {
           title: 'Motoristas & Ranking',
-          path: '/tms/inteligencia-fretes',
-          badge: 'SCI',
+          path: '/tms/gestao-motoristas',
+          badge: 'Score 360º',
           badgeColor: 'bg-emerald-600',
           show: true,
         },
