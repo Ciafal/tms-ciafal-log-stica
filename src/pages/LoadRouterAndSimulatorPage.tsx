@@ -147,7 +147,7 @@ export function LoadRouterAndSimulatorPage() {
                 weight_kg: 14500,
                 total_value: 87500,
                 desired_date: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0], // Atrasado 2 dias
-                status: 'Liberado',
+                status: 'disponivel',
                 credit_status: 'Liberado',
               },
               {
@@ -165,7 +165,7 @@ export function LoadRouterAndSimulatorPage() {
                 weight_kg: 12700,
                 total_value: 74200,
                 desired_date: new Date(Date.now() - 1 * 86400000).toISOString().split('T')[0], // Atrasado 1 dia
-                status: 'Liberado',
+                status: 'disponivel',
                 credit_status: 'Liberado',
               },
               {
@@ -183,7 +183,7 @@ export function LoadRouterAndSimulatorPage() {
                 weight_kg: 9200,
                 total_value: 52000,
                 desired_date: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0], // Futuro (+3 dias)
-                status: 'Liberado',
+                status: 'disponivel',
                 credit_status: 'Liberado',
               },
               {
@@ -201,7 +201,7 @@ export function LoadRouterAndSimulatorPage() {
                 weight_kg: 8500,
                 total_value: 49000,
                 desired_date: new Date().toISOString().split('T')[0],
-                status: 'Bloqueado',
+                status: 'disponivel',
                 credit_status: 'Bloqueado', // Bloqueado Financeiro
               },
               {
@@ -219,7 +219,7 @@ export function LoadRouterAndSimulatorPage() {
                 weight_kg: 13500,
                 total_value: 79000,
                 desired_date: new Date().toISOString().split('T')[0],
-                status: 'Liberado',
+                status: 'disponivel',
                 credit_status: 'Em Análise', // Requer aprovação
               },
             ]

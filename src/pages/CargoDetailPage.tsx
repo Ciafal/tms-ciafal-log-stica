@@ -210,17 +210,23 @@ export default function CargoDetailPage() {
     try {
       const res = await tmsService.createSapTransportOrder(
         cargo.cargoId,
+        cargo.itineraryCode || 'SP001A',
+        cargo.vehiclePlate || 'ABC1D23',
+        cargo.driverDocument || '11144477735',
+        [],
+        cargo.totalWeightKg || 0,
+        cargo.contractedFreightValue || 0,
         user?.email || 'operador@ciafal.com.br',
       )
 
       if (res.success) {
         toast({
           title: 'Ordem SAP Confirmada',
-          description: `Ordem de Transporte Oficial gerada com sucesso: ${res.transportNumber || res.sapTransportNumber}`,
+          description: `Ordem de Transporte Oficial gerada com sucesso: ${res.sapTransportNumber}`,
         })
         setCargo({
           ...cargo,
-          sapTransportNumber: res.transportNumber || res.sapTransportNumber,
+          sapTransportNumber: res.sapTransportNumber,
           sapTransportStatus: 'Criado',
           status: 'Ordem SAP criada',
         })
@@ -228,7 +234,7 @@ export default function CargoDetailPage() {
         toast({
           variant: 'destructive',
           title: 'Falha na Ordem SAP',
-          description: res.message || 'Falha ao processar solicitação no SAP.',
+          description: res.errorMessage || 'Falha ao processar solicitação no SAP.',
         })
       }
       setIsSapOrderModalOpen(false)

@@ -3023,7 +3023,9 @@ export const TmsService = {
     try {
       await pb.collection('audit_logs').create({
         user_name: params.user_name,
-        user_email: params.user_name.includes('@') ? params.user_name : `${params.user_name}@ciafal.com.br`,
+        user_email: params.user_name.includes('@')
+          ? params.user_name
+          : `${params.user_name}@ciafal.com.br`,
         action: params.action_type,
         resource: params.target_entity,
         resource_id: params.target_id,
