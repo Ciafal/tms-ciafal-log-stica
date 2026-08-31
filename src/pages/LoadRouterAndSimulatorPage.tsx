@@ -88,13 +88,17 @@ export function LoadRouterAndSimulatorPage() {
   const [pcpOrders, setPcpOrders] = useState<PcpProductionOrderEntity[]>([])
   const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
   const [vehicles, setVehicles] = useState<VehicleEntity[]>([])
+  const [itinerariesMetadata, setItinerariesMetadata] = useState<
+    Record<string, { description: string; region?: string; uf?: string }>
+  >({})
   const [loading, setLoading] = useState(true)
 
   // Filtros da Simulação
-  const [selectedItinerary, setSelectedItinerary] = useState<string>('ITIN-SP-INTERIOR')
+  const [selectedItinerary, setSelectedItinerary] = useState<string>('')
   const [plannedDate, setPlannedDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [selectedVehicleType, setSelectedVehicleType] = useState<string>('Carreta 5 Eixos')
   const [vehicleCapacityKg, setVehicleCapacityKg] = useState<number>(28000)
+  const [isUnmappedModalOpen, setIsUnmappedModalOpen] = useState(false)
 
   // Cenários gerados
   const [scenarios, setScenarios] = useState<OptimizedScenario[]>([])
@@ -119,12 +123,13 @@ export function LoadRouterAndSimulatorPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [ordList, stList, pcpList, qList, vList] = await Promise.all([
+      const [ordList, stList, pcpList, qList, vList, itinList] = await Promise.all([
         tmsService.getSapSalesOrders(),
         tmsService.getSapStockCurrent(),
         tmsService.getPcpOrders(),
         tmsService.getQueueEntries(),
         tmsService.getVehicles(),
+        tmsService.getSapItineraries(),
       ])
 
       const realOrders = ordList || []
@@ -132,6 +137,20 @@ export function LoadRouterAndSimulatorPage() {
       const realPcp = pcpList || []
       const realQueue = qList || []
       const realVehicles = vList || []
+      const realItineraries = itinList || []
+
+      // Monta dicionário de metadados dos itinerários ativos/cadastrados
+      const itinMetaMap: Record<string, { description: string; region?: string; uf?: string }> = {}
+      realItineraries.forEach((it) => {
+        if (it.sap_code) {
+          itinMetaMap[it.sap_code.trim()] = {
+            description: it.description || it.region || it.sap_code,
+            region: it.region,
+            uf: it.uf,
+          }
+        }
+      })
+      setItinerariesMetadata(itinMetaMap)
 
       setOrders(realOrders)
       setStocks(realStocks)
@@ -139,29 +158,43 @@ export function LoadRouterAndSimulatorPage() {
       setQueueEntries(realQueue)
       setVehicles(realVehicles)
 
-      // Identifica itinerário inicial a partir da carteira real se houver
-      let initialItin = selectedItinerary
-      if (realOrders.length > 0) {
-        const orderItins = Array.from(
-          new Set(realOrders.map((o) => o.itinerary_code).filter(Boolean)),
-        )
-        if (orderItins.length > 0 && !orderItins.includes(selectedItinerary)) {
-          initialItin = orderItins[0]
-          setSelectedItinerary(initialItin)
-        }
-      }
+      // Extrair itinerários reais com pedidos válidos na carteira
+      const activeItinsInWallet = Array.from(
+        new Set(
+          realOrders
+            .map((o) => o.itinerary_code?.trim())
+            .filter((code): code is string => Boolean(code)),
+        ),
+      ).sort()
 
-      // Executar otimização determinística inicial com dados 100% reais
-      executeOptimization(
-        realOrders,
-        realStocks,
-        realPcp,
-        realQueue,
-        initialItin,
-        plannedDate,
-        vehicleCapacityKg,
-        selectedVehicleType,
-      )
+      // Lógica de estado inicial do Roteirizador:
+      // - Se 1 único itinerário na carteira -> seleciona automaticamente
+      // - Se múltiplos itinerários -> string vazia (placeholder "Selecione um itinerário")
+      // - Se 0 itinerários -> string vazia
+      let initialItin = ''
+      if (activeItinsInWallet.length === 1) {
+        initialItin = activeItinsInWallet[0]
+      }
+      setSelectedItinerary(initialItin)
+
+      // Se houver um itinerário único selecionado automaticamente, executa otimização
+      if (initialItin) {
+        executeOptimization(
+          realOrders,
+          realStocks,
+          realPcp,
+          realQueue,
+          initialItin,
+          plannedDate,
+          vehicleCapacityKg,
+          selectedVehicleType,
+        )
+      } else {
+        setScenarios([])
+        setImmediateCargos([])
+        setSelectedScenario(null)
+        setOptimizerSummary(null)
+      }
     } catch (err: any) {
       toast({
         title: 'Aviso ao carregar dados',
@@ -187,6 +220,14 @@ export function LoadRouterAndSimulatorPage() {
     capKg = vehicleCapacityKg,
     vType = selectedVehicleType,
   ) => {
+    if (!itin) {
+      setScenarios([])
+      setImmediateCargos([])
+      setSelectedScenario(null)
+      setOptimizerSummary(null)
+      return
+    }
+
     const result = runCiafalOptimizer({
       itineraryCode: itin,
       plannedDate: date,
@@ -209,11 +250,22 @@ export function LoadRouterAndSimulatorPage() {
       setActiveTab('immediate_exit')
     } else if (result.scenarios.length > 0) {
       setSelectedScenario(result.scenarios[0])
+    } else {
+      setSelectedScenario(null)
     }
   }
 
   // Mudança de parâmetros
   const handleRunOptimizerClick = () => {
+    if (!selectedItinerary) {
+      toast({
+        variant: 'destructive',
+        title: 'Selecione um Itinerário',
+        description: 'Por favor escolha um itinerário para executar o motor de otimização.',
+      })
+      return
+    }
+
     executeOptimization(
       orders,
       stocks,
@@ -226,7 +278,7 @@ export function LoadRouterAndSimulatorPage() {
     )
     toast({
       title: 'Motor de Otimização Executado',
-      description: `5 cenários determinísticos gerados para o itinerário ${selectedItinerary} com data ${plannedDate}.`,
+      description: `Cenários determinísticos gerados para o itinerário ${selectedItinerary} com data ${plannedDate}.`,
     })
   }
 
@@ -296,13 +348,36 @@ export function LoadRouterAndSimulatorPage() {
     }
   }
 
-  // Itinerários únicos
-  const availableItineraries = Array.from(
-    new Set(orders.map((o) => o.itinerary_code || 'ITIN-SP-INTERIOR')),
-  )
-  if (!availableItineraries.includes('ITIN-SP-INTERIOR')) {
-    availableItineraries.push('ITIN-SP-INTERIOR')
+  // Separação de pedidos: Mapeados vs Sem Itinerário
+  const unmappedOrders = orders.filter((o) => !o.itinerary_code || !o.itinerary_code.trim())
+  const mappedOrders = orders.filter((o) => o.itinerary_code && o.itinerary_code.trim())
+
+  // Itinerários disponíveis na carteira atual (extraídos dos pedidos e com contagem)
+  const itineraryCountsMap: Record<string, number> = {}
+  mappedOrders.forEach((o) => {
+    const code = o.itinerary_code!.trim()
+    itineraryCountsMap[code] = (itineraryCountsMap[code] || 0) + 1
+  })
+
+  const availableItineraries = Object.keys(itineraryCountsMap).sort()
+
+  // Função auxiliar para rótulo amigável
+  const getItineraryLabel = (itinCode: string) => {
+    const meta = itinerariesMetadata[itinCode]
+    const count = itineraryCountsMap[itinCode] || 0
+    const countText = count === 1 ? '1 pedido' : `${count} pedidos`
+
+    if (meta) {
+      const cityOrRegion = meta.description || meta.region || meta.uf || ''
+      return `${itinCode} — ${cityOrRegion} (${countText})`
+    }
+    return `${itinCode} (${countText})`
   }
+
+  // Pedidos do itinerário atualmente selecionado
+  const currentItinOrders = selectedItinerary
+    ? orders.filter((o) => o.itinerary_code === selectedItinerary)
+    : []
 
   return (
     <div className="space-y-6 pb-16">
@@ -374,14 +449,26 @@ export function LoadRouterAndSimulatorPage() {
               }}
             >
               <SelectTrigger className="mt-1 h-9 bg-white dark:bg-slate-900">
-                <SelectValue placeholder="Selecione o itinerário" />
+                <SelectValue
+                  placeholder={
+                    availableItineraries.length === 0
+                      ? 'Nenhum itinerário disponível para a carteira atual.'
+                      : 'Selecione um itinerário'
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
-                {availableItineraries.map((itin) => (
-                  <SelectItem key={itin} value={itin}>
-                    {itin}
+                {availableItineraries.length === 0 ? (
+                  <SelectItem value="__none__" disabled>
+                    Nenhum itinerário disponível para a carteira atual.
                   </SelectItem>
-                ))}
+                ) : (
+                  availableItineraries.map((itin) => (
+                    <SelectItem key={itin} value={itin}>
+                      {getItineraryLabel(itin)}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -488,72 +575,101 @@ export function LoadRouterAndSimulatorPage() {
         </CardContent>
       </Card>
 
-      {/* RESUMO EXECUTIVO DA CARTEIRA & RESTRIÇÕES */}
-      {optimizerSummary && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <Card className="border-slate-200 dark:border-slate-800 p-3 bg-white dark:bg-slate-900">
-            <span className="text-[11px] font-medium text-slate-500 uppercase block">
-              Pedidos na Região
-            </span>
-            <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
-              {optimizerSummary.totalOrdersEvaluated}
-            </span>
-            <span className="text-[10px] text-slate-500 block">Itinerário {selectedItinerary}</span>
-          </Card>
+      {/* RESUMO EXECUTIVO DA CARTEIRA & RESTRIÇÕES COM DIAGNÓSTICO */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        <Card className="border-slate-200 dark:border-slate-800 p-3 bg-white dark:bg-slate-900">
+          <span className="text-[11px] font-medium text-slate-500 uppercase block">
+            Pedidos na Região
+          </span>
+          <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
+            {optimizerSummary
+              ? optimizerSummary.totalOrdersEvaluated
+              : selectedItinerary
+                ? currentItinOrders.length
+                : 0}
+          </span>
+          <span className="text-[10px] text-slate-500 block truncate">
+            {selectedItinerary ? `Itin ${selectedItinerary}` : 'Selecione itinerário'}
+          </span>
+        </Card>
 
-          <Card className="border-slate-200 dark:border-slate-800 p-3 bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200">
-            <span className="text-[11px] font-medium text-emerald-700 uppercase block">
-              Aptos p/ Expedição
-            </span>
-            <span className="text-xl font-bold text-emerald-800 dark:text-emerald-300">
-              {optimizerSummary.validOrdersCount}
-            </span>
-            <span className="text-[10px] text-emerald-600 block">
-              Data atendida (&ge; Desejada)
-            </span>
-          </Card>
+        <Card className="border-slate-200 dark:border-slate-800 p-3 bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200">
+          <span className="text-[11px] font-medium text-emerald-700 uppercase block">
+            Aptos p/ Expedição
+          </span>
+          <span className="text-xl font-bold text-emerald-800 dark:text-emerald-300">
+            {optimizerSummary ? optimizerSummary.validOrdersCount : 0}
+          </span>
+          <span className="text-[10px] text-emerald-600 block">Data atendida (&ge; Desejada)</span>
+        </Card>
 
-          <Card className="border-slate-200 dark:border-slate-800 p-3 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200">
-            <span className="text-[11px] font-medium text-blue-700 uppercase block">
-              Motoristas PORTA
-            </span>
-            <span className="text-xl font-bold text-blue-800 dark:text-blue-300">
-              {optimizerSummary.portaDriversAvailableCount}
-            </span>
-            <span className="text-[10px] text-blue-600 block">Presença física no pátio</span>
-          </Card>
+        <Card className="border-slate-200 dark:border-slate-800 p-3 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200">
+          <span className="text-[11px] font-medium text-blue-700 uppercase block">
+            Motoristas PORTA
+          </span>
+          <span className="text-xl font-bold text-blue-800 dark:text-blue-300">
+            {optimizerSummary ? optimizerSummary.portaDriversAvailableCount : 0}
+          </span>
+          <span className="text-[10px] text-blue-600 block">Presença física no pátio</span>
+        </Card>
 
-          <Card className="border-slate-200 dark:border-slate-800 p-3 bg-amber-50/50 dark:bg-amber-950/20 border-amber-200">
-            <span className="text-[11px] font-medium text-amber-700 uppercase block">
-              Data Futura Bloqueada
-            </span>
-            <span className="text-xl font-bold text-amber-800 dark:text-amber-300">
-              {optimizerSummary.blockedFutureDateCount}
-            </span>
-            <span className="text-[10px] text-amber-600 block">Anti-antecipação</span>
-          </Card>
+        <Card className="border-slate-200 dark:border-slate-800 p-3 bg-amber-50/50 dark:bg-amber-950/20 border-amber-200">
+          <span className="text-[11px] font-medium text-amber-700 uppercase block">
+            Data Futura Bloqueada
+          </span>
+          <span className="text-xl font-bold text-amber-800 dark:text-amber-300">
+            {optimizerSummary ? optimizerSummary.blockedFutureDateCount : 0}
+          </span>
+          <span className="text-[10px] text-amber-600 block">Anti-antecipação</span>
+        </Card>
 
-          <Card className="border-slate-200 dark:border-slate-800 p-3 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200">
-            <span className="text-[11px] font-medium text-rose-700 uppercase block">
-              Crédito Bloqueado
-            </span>
-            <span className="text-xl font-bold text-rose-800 dark:text-rose-300">
-              {optimizerSummary.blockedCreditCount}
-            </span>
-            <span className="text-[10px] text-rose-600 block">Isolados p/ reavaliação</span>
-          </Card>
+        <Card className="border-slate-200 dark:border-slate-800 p-3 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200">
+          <span className="text-[11px] font-medium text-rose-700 uppercase block">
+            Crédito Bloqueado
+          </span>
+          <span className="text-xl font-bold text-rose-800 dark:text-rose-300">
+            {optimizerSummary ? optimizerSummary.blockedCreditCount : 0}
+          </span>
+          <span className="text-[10px] text-rose-600 block">Isolados p/ reavaliação</span>
+        </Card>
 
-          <Card className="border-slate-200 dark:border-slate-800 p-3 bg-purple-50/50 dark:bg-purple-950/20 border-purple-200">
-            <span className="text-[11px] font-medium text-purple-700 uppercase block">
-              Estoque não DP34
+        <Card className="border-slate-200 dark:border-slate-800 p-3 bg-purple-50/50 dark:bg-purple-950/20 border-purple-200">
+          <span className="text-[11px] font-medium text-purple-700 uppercase block">
+            Estoque não DP34
+          </span>
+          <span className="text-xl font-bold text-purple-800 dark:text-purple-300">
+            {optimizerSummary ? optimizerSummary.blockedStockCount : 0}
+          </span>
+          <span className="text-[10px] text-purple-600 block">Outro depósito ou PCP</span>
+        </Card>
+
+        {/* Card de Diagnóstico: Sem Itinerário Mapeado */}
+        <Card
+          className={`border p-3 transition-all cursor-pointer ${
+            unmappedOrders.length > 0
+              ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-300 dark:border-slate-700 hover:border-slate-400'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+          }`}
+          onClick={() => setIsUnmappedModalOpen(true)}
+          title="Clique para ver pedidos sem itinerário cadastrado"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400 uppercase block">
+              Sem Itinerário
             </span>
-            <span className="text-xl font-bold text-purple-800 dark:text-purple-300">
-              {optimizerSummary.blockedStockCount}
-            </span>
-            <span className="text-[10px] text-purple-600 block">Outro depósito ou PCP</span>
-          </Card>
-        </div>
-      )}
+            <Badge
+              variant="outline"
+              className="text-[9px] px-1 py-0 h-4 bg-slate-200 dark:bg-slate-700"
+            >
+              Ver
+            </Badge>
+          </div>
+          <span className="text-xl font-bold text-slate-800 dark:text-slate-200">
+            {unmappedOrders.length}
+          </span>
+          <span className="text-[10px] text-slate-500 block">Pedidos não mapeados</span>
+        </Card>
+      </div>
 
       {/* ABAS DE NAVEGAÇÃO ENTRE CENÁRIOS E PAINEL SAÍDA IMEDIATA */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -790,16 +906,77 @@ export function LoadRouterAndSimulatorPage() {
         {/* ABA 2: 5 CENÁRIOS OTIMIZADOS (REGRA 11, 12, 21) */}
         {/* ========================================================================= */}
         <TabsContent value="all_scenarios" className="space-y-4">
-          {scenarios.length === 0 ? (
+          {!selectedItinerary ? (
             <Card className="p-12 text-center border-dashed">
-              <AlertTriangle className="h-12 w-12 text-slate-400 mx-auto mb-3" />
+              <MapPin className="h-12 w-12 text-indigo-400 mx-auto mb-3" />
               <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">
-                Dados insuficientes para gerar cenário
+                Selecione um Itinerário
               </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                Não existem pedidos elegíveis para o itinerário selecionado ({selectedItinerary}) na
-                data programada. Importe a carteira SAP ou selecione outro itinerário.
+                Escolha um itinerário SAP ativo acima para analisar os pedidos correspondentes e
+                gerar cenários determinísticos de carga.
               </p>
+            </Card>
+          ) : scenarios.length === 0 ? (
+            <Card className="p-8 text-center border-dashed space-y-4">
+              <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-1" />
+              <div>
+                <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">
+                  Nenhum cenário viável gerado para {selectedItinerary}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-lg mx-auto">
+                  Existem <strong>{currentItinOrders.length} pedido(s)</strong> no itinerário{' '}
+                  {selectedItinerary}, porém nenhum atende simultaneamente aos critérios de
+                  expedição na data programada ({plannedDate}).
+                </p>
+              </div>
+
+              {/* Detalhamento dos Bloqueios Conforme Item 8 */}
+              {optimizerSummary && (
+                <div className="max-w-md mx-auto bg-slate-50 dark:bg-slate-800/80 p-4 rounded-lg text-left text-xs space-y-2 border border-slate-200 dark:border-slate-700">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Diagnóstico Objetivo dos Bloqueios:
+                  </span>
+                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
+                    <span className="text-slate-600 dark:text-slate-400">
+                      • Total de pedidos avaliados:
+                    </span>
+                    <span className="font-bold">{optimizerSummary.totalOrdersEvaluated}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
+                    <span className="text-emerald-700 dark:text-emerald-400">
+                      • Aptos na data (&ge; Desejada):
+                    </span>
+                    <span className="font-bold text-emerald-700">
+                      {optimizerSummary.validOrdersCount}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
+                    <span className="text-amber-700 dark:text-amber-400">
+                      • Bloqueados por Data Futura:
+                    </span>
+                    <span className="font-bold text-amber-700">
+                      {optimizerSummary.blockedFutureDateCount}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
+                    <span className="text-rose-700 dark:text-rose-400">
+                      • Bloqueados por Crédito SAP:
+                    </span>
+                    <span className="font-bold text-rose-700">
+                      {optimizerSummary.blockedCreditCount}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-purple-700 dark:text-purple-400">
+                      • Bloqueados por Estoque não DP34:
+                    </span>
+                    <span className="font-bold text-purple-700">
+                      {optimizerSummary.blockedStockCount}
+                    </span>
+                  </div>
+                </div>
+              )}
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1097,11 +1274,15 @@ export function LoadRouterAndSimulatorPage() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-base font-bold">
-                    Carteira de Pedidos do Itinerário {selectedItinerary}
+                    {selectedItinerary
+                      ? `Carteira de Pedidos do Itinerário ${selectedItinerary}`
+                      : 'Carteira Completa de Pedidos'}
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Validação individual de Data Desejada, Estoque Oficial DP34 e Crédito
-                    Financeiro.
+                    Validação individual de Data Desejada, Estoque Oficial DP34 e Crédito Financeiro
+                    {selectedItinerary
+                      ? ` para os ${currentItinOrders.length} pedido(s) filtrados.`
+                      : ` (${orders.length} pedidos no total).`}
                   </CardDescription>
                 </div>
               </div>
@@ -1111,6 +1292,7 @@ export function LoadRouterAndSimulatorPage() {
                 <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 uppercase font-semibold border-b">
                   <tr>
                     <th className="py-3 px-3">Pedido / Item</th>
+                    <th className="py-3 px-3">Itinerário</th>
                     <th className="py-3 px-3">Cliente / Destino</th>
                     <th className="py-3 px-3">Material</th>
                     <th className="py-3 px-3 text-right">Peso (t)</th>
@@ -1123,14 +1305,16 @@ export function LoadRouterAndSimulatorPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {orders.length === 0 ? (
+                  {(selectedItinerary ? currentItinOrders : orders).length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="py-8 text-center text-slate-500">
-                        Nenhum pedido encontrado na carteira persistida.
+                      <td colSpan={11} className="py-8 text-center text-slate-500">
+                        {selectedItinerary
+                          ? `Nenhum pedido encontrado para o itinerário ${selectedItinerary}.`
+                          : 'Nenhum pedido encontrado na carteira.'}
                       </td>
                     </tr>
                   ) : (
-                    orders.map((ord) => {
+                    (selectedItinerary ? currentItinOrders : orders).map((ord) => {
                       const dateCheck = validateDesiredDate(ord.desired_date, plannedDate)
                       const stockCheck = validateDp34Stock(
                         ord.material || '',
@@ -1150,6 +1334,23 @@ export function LoadRouterAndSimulatorPage() {
                             <span className="text-[10px] text-slate-400 block">
                               Item {ord.item_number || '0010'}
                             </span>
+                          </td>
+                          <td className="py-3 px-3 font-mono">
+                            {ord.itinerary_code ? (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-slate-50 dark:bg-slate-800"
+                              >
+                                {ord.itinerary_code}
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-amber-50 text-amber-700 border-amber-300"
+                              >
+                                Não mapeado
+                              </Badge>
+                            )}
                           </td>
                           <td className="py-3 px-3">
                             <span className="font-medium text-slate-800 dark:text-slate-200 block truncate max-w-[180px]">
@@ -1613,6 +1814,68 @@ export function LoadRouterAndSimulatorPage() {
               }}
             >
               Salvar & Recalcular Cenários
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE DIAGNÓSTICO: PEDIDOS SEM ITINERÁRIO MAPEADO */}
+      <Dialog open={isUnmappedModalOpen} onOpenChange={setIsUnmappedModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Pedidos Sem Itinerário Mapeado ({unmappedOrders.length})
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Registros da carteira com o campo <code>itinerary_code</code> nulo ou em branco. Estes
+              pedidos não bloqueiam o Roteirizador e ficam isolados para saneamento.
+            </DialogDescription>
+          </DialogHeader>
+
+          {unmappedOrders.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-500">
+              <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
+              Todos os pedidos da carteira possuem itinerário SAP mapeado corretamente!
+            </div>
+          ) : (
+            <div className="space-y-3 py-2 text-xs">
+              <div className="border rounded divide-y overflow-hidden">
+                {unmappedOrders.map((ord) => (
+                  <div
+                    key={ord.id}
+                    className="p-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          {ord.order_number} (Item {ord.item_number || '0010'})
+                        </span>
+                        <Badge variant="outline" className="text-[10px] text-amber-700 bg-amber-50">
+                          {ord.destination_city || 'Sem cidade'}/{ord.uf || 'N/I'}
+                        </Badge>
+                      </div>
+                      <span className="text-[11px] text-slate-500 block">
+                        {ord.customer_name} • {ord.material} ({(ord.weight_kg / 1000).toFixed(1)}t)
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-mono text-slate-700 dark:text-slate-300 font-semibold block">
+                        R$ {(ord.total_value || 0).toLocaleString('pt-BR')}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        Data: {ord.desired_date || 'N/I'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsUnmappedModalOpen(false)}>
+              Fechar Diagnóstico
             </Button>
           </DialogFooter>
         </DialogContent>
