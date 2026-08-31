@@ -3550,19 +3550,105 @@ export const TmsService = {
   },
 
   /**
-   * Importação em lote transacional de pedidos validados ZSD35A V3 (EXCEL_QAS_ZSD35_V3)
-   * Alimenta a mesma carteira sem criar carteira paralela
+   * Consulta status de lote de importação ZSD35A no backend PocketBase
+   */
+  async getZsd35BatchStatus(batchId: string): Promise<any> {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/zsd35/batch-status/${encodeURIComponent(batchId)}`,
+        {
+          headers: {
+            Authorization: pb.authStore.token || '',
+          },
+        },
+      )
+      if (res.ok) {
+        return await res.json()
+      }
+      return null
+    } catch {
+      return null
+    }
+  },
+
+  /**
+   * Importação em lote transacional e assíncrona de pedidos validados ZSD35A V3 (EXCEL_QAS_ZSD35_V3)
+   * Dispara o endpoint server-side com transação, rollback em falhas e auditoria não-bloqueante.
+   * Em caso de indisponibilidade do endpoint, executa fallback determinístico local.
    */
   async importZsd35aOrdersBatch(
     report: import('@/domain/zsd35ImportEngine').Zsd35ImportValidationReport,
     userEmail: string,
     userName: string,
-  ): Promise<{ success: boolean; createdCount: number; updatedCount: number; message: string }> {
+    onProgressUpdate?: (step: string, pct: number) => void,
+  ): Promise<{
+    success: boolean
+    createdCount: number
+    updatedCount: number
+    persistedCount: number
+    batchId: string
+    auditWarning?: string | null
+    message: string
+  }> {
+    const batchId = report.batchId
+
+    // 1. Tenta executar via Hook Backend Transacional (Skip Cloud PocketBase)
+    try {
+      onProgressUpdate?.('Criando lote de homologação...', 20)
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/zsd35/import-confirm`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: pb.authStore.token || '',
+          },
+          body: JSON.stringify({
+            report,
+            user_email: userEmail,
+            user_name: userName,
+          }),
+        },
+      )
+
+      if (res.ok) {
+        const data = await res.json()
+        onProgressUpdate?.('Verificando persistência...', 90)
+        return {
+          success: true,
+          batchId: data.batch_id || batchId,
+          createdCount: data.created_count || 0,
+          updatedCount: data.updated_count || 0,
+          persistedCount: data.persisted_count || report.validCount,
+          auditWarning: data.audit_warning,
+          message: data.message || 'Importação ZSD35A V3 concluída com sucesso.',
+        }
+      }
+
+      const errJson = await res.json().catch(() => ({}))
+      if (res.status === 500 && errJson.step_failed === 'PERSISTINDO') {
+        throw new Error(
+          errJson.message || errJson.error || 'Falha na persistência transacional dos registros.',
+        )
+      }
+    } catch (apiErr: any) {
+      if (apiErr.message && apiErr.message.includes('transacional')) {
+        throw apiErr
+      }
+      console.warn(
+        'Backend hook import endpoint indisponível, executando fallback local cliente:',
+        apiErr,
+      )
+    }
+
+    // 2. Fallback Cliente Determinístico (caso o hook não responda)
     let createdCount = 0
     let updatedCount = 0
 
     try {
-      for (const order of report.validOrders) {
+      onProgressUpdate?.('Gravando registros na Carteira SAP...', 40)
+      for (let i = 0; i < report.validOrders.length; i++) {
+        const order = report.validOrders[i]
         const payload: Partial<SapSalesOrderEntity> = {
           order_number: order.order_number,
           item_number: order.item_number || '000010',
@@ -3627,8 +3713,14 @@ export const TmsService = {
         const res = await this.upsertSalesOrder(payload)
         if (res.isNew) createdCount++
         else updatedCount++
+
+        if (i % 50 === 0 && onProgressUpdate) {
+          const pct = Math.min(85, Math.round(40 + (i / report.validOrders.length) * 45))
+          onProgressUpdate(`Gravando registro ${i + 1} de ${report.validOrders.length}...`, pct)
+        }
       }
 
+      onProgressUpdate?.('Registrando auditoria e lote...', 88)
       // Salva histórico da importação
       await this.createSapImportRecord({
         batch_id: report.batchId,
@@ -3655,39 +3747,51 @@ export const TmsService = {
           layoutMessage: report.layoutMessage,
           summaryStatus: report.summaryStatus,
         },
-        status: report.rejectedRowsCount > 0 ? 'concluido_com_erros' : 'concluido',
+        status: report.warningCount > 0 ? 'CONCLUIDO_COM_ALERTAS' : 'CONCLUIDO',
       })
 
-      // Log de Auditoria
-      await this.logAudit({
-        user_name: userName || userEmail,
-        action_type: 'ZSD35A_EXCEL_IMPORT',
-        target_entity: 'sap_sales_orders',
-        target_id: report.batchId,
-        details: {
-          fileName: report.fileName,
-          totalRead: report.totalRowsRead,
-          createdCount,
-          updatedCount,
-          rejectedCount: report.rejectedRowsCount,
-          totalWeightTon: report.totalWeightTon,
-          origem_dado: 'EXCEL_QAS_ZSD35_V3',
-          layoutVersion: 'ZSD35A_V3_27_CAMPOS',
-        },
-      })
+      // Log de Auditoria não-bloqueante
+      let auditWarning: string | null = null
+      try {
+        await this.logAudit({
+          user_name: userName || userEmail,
+          action_type: 'ZSD35A_EXCEL_IMPORT',
+          target_entity: 'sap_sales_orders',
+          target_id: report.batchId,
+          details: {
+            fileName: report.fileName,
+            totalRead: report.totalRowsRead,
+            createdCount,
+            updatedCount,
+            rejectedCount: report.rejectedRowsCount,
+            totalWeightTon: report.totalWeightTon,
+            origem_dado: 'EXCEL_QAS_ZSD35_V3',
+            layoutVersion: 'ZSD35A_V3_27_CAMPOS',
+          },
+        })
+      } catch (audErr: any) {
+        auditWarning = audErr?.message || 'Falha ao registrar auditoria secundária'
+      }
+
+      onProgressUpdate?.('Concluído!', 100)
 
       return {
         success: true,
+        batchId: report.batchId,
         createdCount,
         updatedCount,
+        persistedCount: createdCount + updatedCount,
+        auditWarning,
         message: `Importação ZSD35A V3 concluída! ${createdCount} novos itens e ${updatedCount} atualizados na Carteira de Pedidos.`,
       }
     } catch (err: any) {
       console.error('Erro na importação em lote ZSD35A:', err)
       return {
         success: false,
+        batchId: report.batchId,
         createdCount,
         updatedCount,
+        persistedCount: 0,
         message: err.message || 'Erro durante a importação em lote ZSD35A.',
       }
     }

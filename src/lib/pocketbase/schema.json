@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-31T13:06:02.275Z",
+  "generatedAt": "2026-08-31T13:23:18.830Z",
   "collections": [
     {
       "name": "users",
@@ -851,13 +851,6 @@
           "system": false
         },
         {
-          "name": "status",
-          "type": "select",
-          "required": false,
-          "system": false,
-          "selectValues": ["concluido", "concluido_com_erros", "falha"]
-        },
-        {
           "name": "created",
           "type": "autodate",
           "required": false,
@@ -925,6 +918,42 @@
           "required": false,
           "system": false,
           "selectValues": ["SAP", "EXCEL_QAS", "EXCEL_QAS_ZSD35_V3"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "RECEBIDO",
+            "VALIDADO",
+            "PROCESSANDO",
+            "CONCLUIDO",
+            "CONCLUIDO_COM_ALERTAS",
+            "ERRO",
+            "CANCELADO",
+            "concluido",
+            "concluido_com_erros",
+            "falha"
+          ]
+        },
+        {
+          "name": "error_message",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "step_current",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "progress_pct",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE INDEX `idx_sap_imports_batch` ON `sap_imports` (batch_id)"]
@@ -1785,14 +1814,16 @@
         }
       ],
       "indexes": [
-        "CREATE UNIQUE INDEX idx_sales_order_number ON sap_sales_orders (order_number)",
         "CREATE INDEX idx_sales_order_itinerary ON sap_sales_orders (itinerary_code)",
         "CREATE INDEX idx_sales_order_status ON sap_sales_orders (status)",
         "CREATE INDEX `idx_sales_customer_code` ON `sap_sales_orders` (customer_code)",
         "CREATE INDEX `idx_sales_dates` ON `sap_sales_orders` (order_date, desired_date)",
         "CREATE INDEX `idx_sales_assigned_load` ON `sap_sales_orders` (assigned_load_id)",
         "CREATE INDEX `idx_sales_origem_dado` ON `sap_sales_orders` (origem_dado)",
-        "CREATE INDEX `idx_sales_import_batch` ON `sap_sales_orders` (import_batch_id)"
+        "CREATE INDEX `idx_sales_import_batch` ON `sap_sales_orders` (import_batch_id)",
+        "CREATE INDEX `idx_sales_order_num` ON `sap_sales_orders` (order_number)",
+        "CREATE INDEX `idx_sales_order_item` ON `sap_sales_orders` (order_number, item_number)",
+        "CREATE INDEX `idx_sales_tech_key` ON `sap_sales_orders` (technical_key)"
       ]
     },
     {
