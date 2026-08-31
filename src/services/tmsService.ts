@@ -3899,7 +3899,9 @@ export const TmsService = {
     }
   },
 
-  async resetQasHomologationData(userEmail = 'admin@ciafal.logistica'): Promise<{ success: boolean; deleted_count: number; message: string }> {
+  async resetQasHomologationData(
+    userEmail = 'admin@ciafal.logistica',
+  ): Promise<{ success: boolean; deleted_count: number; message: string }> {
     const res = await this.deleteExcelQasBatch(undefined, userEmail, 'Admin Master')
     return {
       success: res.success,
