@@ -70,18 +70,22 @@ export const IntegrationsMonitorPage: React.FC = () => {
   const [selectedEnvForTest, setSelectedEnvForTest] = useState<'DEV' | 'HOMOLOGACAO' | 'PRODUCAO'>(
     'DEV',
   )
+  const [walletSource, setWalletSource] = useState<'EXCEL_ZSD35A' | 'SAP_ECC'>('EXCEL_ZSD35A')
+  const [isUpdatingWalletSource, setIsUpdatingWalletSource] = useState(false)
 
   const loadData = async () => {
     try {
       setIsRefreshing(true)
-      const [mList, bList, lList] = await Promise.all([
+      const [mList, bList, lList, walletCfg] = await Promise.all([
         TmsService.getIntegrationHealthMetrics(),
         TmsService.getSapBlueprintMappings(),
         TmsService.getIntegrationLogs(50),
+        TmsService.getWalletSourceConfig(),
       ])
       setMetrics(mList)
       setBlueprint(bList)
       setLogs(lList)
+      setWalletSource(walletCfg.source)
       setLastCheck(new Date())
     } catch (err: any) {
       toast({
@@ -98,6 +102,34 @@ export const IntegrationsMonitorPage: React.FC = () => {
   useEffect(() => {
     loadData()
   }, [])
+
+  const handleSaveWalletSource = async (newSource: 'EXCEL_ZSD35A' | 'SAP_ECC') => {
+    setIsUpdatingWalletSource(true)
+    try {
+      const ok = await TmsService.setWalletSourceConfig(
+        newSource,
+        'admin@ciafal.logistica',
+        'Administrador Master CIAFAL',
+      )
+      if (ok) {
+        setWalletSource(newSource)
+        toast({
+          title: 'Fonte da Carteira Atualizada',
+          description: `Fonte ativa alterada para ${newSource === 'SAP_ECC' ? 'SAP ECC 6.0 (RFC/BAPI)' : 'Excel ZSD35A — QAS'} e persistida com sucesso.`,
+        })
+      } else {
+        throw new Error('Falha ao gravar parâmetro no backend.')
+      }
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao salvar fonte da carteira',
+        description: err?.message || 'Não foi possível atualizar o parâmetro no backend.',
+      })
+    } finally {
+      setIsUpdatingWalletSource(false)
+    }
+  }
 
   const handleTestSapConnection = async () => {
     setIsTestingSap(true)
@@ -421,6 +453,111 @@ export const IntegrationsMonitorPage: React.FC = () => {
 
         {/* TAB 2: AMBIENTES & TESTE SAP */}
         <TabsContent value="sap-env" className="space-y-4 mt-6">
+          {/* Card de Configuração de Fonte Ativa da Carteira (Persistido no Backend) */}
+          <Card className="border-slate-200 bg-white shadow-sm">
+            <CardHeader className="bg-sky-50/60 border-b border-sky-100 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      Fonte Ativa da Carteira de Pedidos
+                    </CardTitle>
+                    <Badge className="bg-[#005596] text-white text-[10px] font-bold">
+                      REPOSITÓRIO ÚNICO
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-xs text-slate-600">
+                    Define qual origem alimenta o <strong>Planejador de Cargas</strong>,
+                    Roteirizador e Mesa de Fretes. Persistida no backend (
+                    <code>system_parameters</code>).
+                  </CardDescription>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={
+                      walletSource === 'EXCEL_ZSD35A'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold text-xs px-2.5 py-1'
+                        : 'bg-sky-50 text-sky-700 border-sky-300 font-bold text-xs px-2.5 py-1'
+                    }
+                  >
+                    Ativo: {walletSource === 'EXCEL_ZSD35A' ? 'Excel ZSD35A — QAS' : 'SAP ECC 6.0'}
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-4 space-y-3 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div
+                  onClick={() => handleSaveWalletSource('EXCEL_ZSD35A')}
+                  className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                    walletSource === 'EXCEL_ZSD35A'
+                      ? 'border-emerald-500 bg-emerald-50/50 shadow-sm'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5 font-bold text-slate-900 text-sm">
+                        <CheckCircle2
+                          className={`w-4 h-4 ${
+                            walletSource === 'EXCEL_ZSD35A' ? 'text-emerald-600' : 'text-slate-300'
+                          }`}
+                        />
+                        <span>Excel ZSD35A — QAS (Padrão Homologação)</span>
+                      </div>
+                      <p className="text-slate-600 text-xs mt-1 leading-relaxed">
+                        Utiliza a última carga válida da planilha{' '}
+                        <code>ZSD35 Carga TMS v3.xlsx</code> como entrada oficial do SAP. Não
+                        realiza chamadas externas ao SAP ECC no Planejador.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => handleSaveWalletSource('SAP_ECC')}
+                  className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                    walletSource === 'SAP_ECC'
+                      ? 'border-[#005596] bg-sky-50/50 shadow-sm'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5 font-bold text-slate-900 text-sm">
+                        <CheckCircle2
+                          className={`w-4 h-4 ${
+                            walletSource === 'SAP_ECC' ? 'text-[#005596]' : 'text-slate-300'
+                          }`}
+                        />
+                        <span>SAP ECC (RFC/BAPI ZSD35_CARTEIRA_GET)</span>
+                      </div>
+                      <p className="text-slate-600 text-xs mt-1 leading-relaxed">
+                        Conexão online direta via RFC SAP para extração periódica da carteira aberta
+                        da transação standard ZSD35 / VT01N.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500">
+                <span>
+                  Chave no Backend: <code>ACTIVE_SALES_WALLET_SOURCE</code> ={' '}
+                  <strong>{walletSource}</strong>
+                </span>
+                {isUpdatingWalletSource && (
+                  <span className="text-[#005596] font-semibold animate-pulse">
+                    Gravando configuração no backend...
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="border-slate-200">
             <CardHeader className="bg-slate-50 border-b border-slate-200">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">

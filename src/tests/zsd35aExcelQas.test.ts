@@ -211,4 +211,36 @@ describe('ZSD35A V3 — Testes de Homologação e Persistência Transacional', (
     expect(sapProvider.status).toBe('IN_DEVELOPMENT')
     expect(sapProvider.isAvailable).toBe(false)
   })
+
+  it('Contrato Canônico do PedidoTMS e Unificação com sap_sales_orders', async () => {
+    // Configuração de fonte persistida
+    const config = await TmsService.getWalletSourceConfig()
+    expect(config.source).toBe('EXCEL_ZSD35A')
+
+    // getUnifiedSalesWallet deve apontar para o repositório canônico
+    const getSpy = vi.spyOn(TmsService, 'getSapSalesOrders').mockResolvedValue([
+      {
+        id: 'ord-1',
+        order_number: '9876543',
+        customer_code: 'CLI-01',
+        customer_name: 'METALURGICA CAMPINAS LTDA',
+        destination_city: 'Campinas',
+        uf: 'SP',
+        itinerary_code: 'SP002',
+        weight_kg: 28500,
+        total_value: 185000,
+        production_status: 'Pronto',
+        credit_status: 'Liberado',
+        origem_dado: 'EXCEL_ZSD35A',
+        wallet_provider: 'EXCEL_ZSD35A',
+      } as any,
+    ])
+
+    const wallet = await TmsService.getUnifiedSalesWallet()
+    expect(wallet.length).toBe(1)
+    expect(wallet[0].order_number).toBe('9876543')
+    expect(wallet[0].origem_dado).toBe('EXCEL_ZSD35A')
+
+    getSpy.mockRestore()
+  })
 })

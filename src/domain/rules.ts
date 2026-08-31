@@ -441,6 +441,13 @@ export interface SapSalesOrderEntity {
   technical_key?: string
 }
 
+/**
+ * PedidoTMS — Entidade canônica unificada de Pedido no ecossistema TMS CIAFAL.
+ * Alinhada à estrutura sap_sales_orders (repositório único), garantindo interoperabilidade
+ * transparente entre fontes (Excel ZSD35A e SAP ECC RFC) sem caminho paralelo.
+ */
+export type PedidoTMS = SapSalesOrderEntity
+
 // ----------------------------------------------------
 // CONTRATO ARQUITETURAL DE PROVIDERS DE CARTEIRA ÚNICA
 // ----------------------------------------------------

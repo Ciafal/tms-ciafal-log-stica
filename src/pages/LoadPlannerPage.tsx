@@ -50,10 +50,25 @@ export const LoadPlannerPage: React.FC = () => {
   const [itineraries, setItineraries] = useState<SapItineraryEntity[]>([])
   const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [walletMeta, setWalletMeta] = useState<{
+    source: 'EXCEL_ZSD35A' | 'SAP_ECC'
+    sourceName: string
+    lastBatchId: string
+    lastImportDate: string
+    totalItems: number
+    totalOrders: number
+  }>({
+    source: 'EXCEL_ZSD35A',
+    sourceName: 'Excel ZSD35A — QAS',
+    lastBatchId: 'LOTE-ZSD35-V3-MTHGVFNX',
+    lastImportDate: new Date().toISOString(),
+    totalItems: 396,
+    totalOrders: 221,
+  })
 
-  // Filters
+  // Filters — ALL por padrão para exibir todos os 396 itens/221 pedidos imediatamente
   const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split('T')[0])
-  const [filterItinerary, setFilterItinerary] = useState<string>('MG001A')
+  const [filterItinerary, setFilterItinerary] = useState<string>('ALL')
   const [filterClient, setFilterClient] = useState<string>('ALL')
   const [filterUf, setFilterUf] = useState<string>('ALL')
   const [filterLine, setFilterLine] = useState<string>('ALL')
@@ -98,21 +113,28 @@ export const LoadPlannerPage: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const [ordData, itinData, qData] = await Promise.all([
-        TmsService.getSapSalesOrders(),
+      const [ordData, itinData, qData, metaData] = await Promise.all([
+        TmsService.getUnifiedSalesWallet(),
         TmsService.getSapItineraries(),
         TmsService.getOperationalQueue(),
+        TmsService.getLatestWalletMetadata(),
       ])
       setOrders(ordData)
       setItineraries(itinData)
       setQueueEntries(qData)
-      if (itinData.length > 0 && !filterItinerary) {
-        setFilterItinerary(itinData[0].sap_code)
-      }
+      setWalletMeta(metaData)
+
+      toast({
+        title:
+          metaData.source === 'EXCEL_ZSD35A'
+            ? 'Carteira ZSD35A Carregada'
+            : 'Carteira SAP Sincronizada',
+        description: `${ordData.length} itens (${metaData.totalOrders} pedidos) disponíveis na carteira única.`,
+      })
     } catch (err: any) {
       toast({
         title: 'Erro ao carregar dados',
-        description: err?.message || 'Falha ao carregar carteira SAP.',
+        description: err?.message || 'Falha ao carregar carteira de pedidos.',
         variant: 'destructive',
       })
     } finally {
@@ -229,48 +251,109 @@ export const LoadPlannerPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <div className="space-y-0.5">
-          <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-black tracking-tight text-slate-900">
-              Planejador de Cargas
-            </h1>
-            <Badge className="bg-[#005596] text-white text-[10px] font-bold">CARTEIRA ÚNICA</Badge>
-            <Badge
-              variant="outline"
-              className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold"
-            >
-              Provider: Excel (ZSD35A)
-            </Badge>
+      {/* Header com Indicador Visual da Fonte da Carteira */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center flex-wrap gap-2">
+              <h1 className="text-xl font-black tracking-tight text-slate-900">
+                Planejador de Cargas
+              </h1>
+              <Badge className="bg-[#005596] text-white text-[10px] font-bold">
+                REPOSITÓRIO ÚNICO
+              </Badge>
+              <Badge
+                variant="outline"
+                className={`text-[10px] font-bold px-2 py-0.5 ${
+                  walletMeta.source === 'EXCEL_ZSD35A'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                    : 'bg-sky-50 text-sky-700 border-sky-300'
+                }`}
+              >
+                Fonte da Carteira: {walletMeta.sourceName}
+              </Badge>
+            </div>
+            <p className="text-xs text-slate-500">
+              Consome a carteira única normalizada de vendas (<strong>PedidoTMS</strong>),
+              integrando estoque DP34, limites de crédito, PCP, fila de veículos e motor
+              determinístico.
+            </p>
           </div>
-          <p className="text-xs text-slate-500">
-            Consome a carteira única de vendas (hoje via Excel ZSD35A, futuramente via SAP RFC
-            direto), cruzando com PCP, Fila de Veículos e Regras Determinísticas.
-          </p>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              onClick={handleRunAiPlanner}
+              disabled={isAiLoading}
+              size="sm"
+              className="bg-purple-700 hover:bg-purple-800 text-white text-xs h-8 font-bold"
+            >
+              <Sparkles className={`w-3.5 h-3.5 mr-1.5 ${isAiLoading ? 'animate-spin' : ''}`} />
+              {isAiLoading ? 'IA Analisando...' : 'AGENTE IA — PLANEJADOR'}
+            </Button>
+
+            <Button
+              onClick={fetchData}
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 font-semibold text-slate-700 border-slate-300 hover:bg-slate-50"
+              disabled={isLoading}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
+              {walletMeta.source === 'EXCEL_ZSD35A'
+                ? 'Atualizar Carteira / PCP'
+                : 'Sincronizar SAP/PCP'}
+            </Button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={handleRunAiPlanner}
-            disabled={isAiLoading}
-            size="sm"
-            className="bg-purple-700 hover:bg-purple-800 text-white text-xs h-8 font-bold"
-          >
-            <Sparkles className={`w-3.5 h-3.5 mr-1.5 ${isAiLoading ? 'animate-spin' : ''}`} />
-            {isAiLoading ? 'IA Analisando...' : 'AGENTE IA — PLANEJADOR'}
-          </Button>
+        {/* Indicador Visual Detalhado da Fonte Ativa */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-xs">
+          <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Fonte Ativa:
+            </span>
+            <span className="font-bold text-slate-800 truncate text-[11px]">
+              {walletMeta.sourceName}
+            </span>
+          </div>
 
-          <Button
-            onClick={fetchData}
-            variant="outline"
-            size="sm"
-            className="text-xs h-8"
-            disabled={isLoading}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-            Sincronizar SAP/PCP
-          </Button>
+          <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Última Carga:
+            </span>
+            <span className="font-mono text-slate-800 text-[11px]">
+              {walletMeta.lastImportDate
+                ? new Date(walletMeta.lastImportDate).toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '31/08/2026 16:42'}
+            </span>
+          </div>
+
+          <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Lote / Batch:
+            </span>
+            <span
+              className="font-mono text-slate-800 truncate text-[11px]"
+              title={walletMeta.lastBatchId}
+            >
+              {walletMeta.lastBatchId}
+            </span>
+          </div>
+
+          <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Total Carteira:
+            </span>
+            <span className="font-bold text-emerald-700 text-[11px]">
+              {orders.length} itens / {new Set(orders.map((o) => o.order_number)).size} pedidos
+            </span>
+          </div>
         </div>
       </div>
 
@@ -313,12 +396,13 @@ export const LoadPlannerPage: React.FC = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="text-xs">
+                  <SelectItem value="ALL">Todos os Itinerários ({orders.length} itens)</SelectItem>
                   {itineraries.map((it) => (
                     <SelectItem key={it.sap_code} value={it.sap_code}>
                       {it.sap_code} — {it.description}
                     </SelectItem>
                   ))}
-                </SelectContent>
+                </SelectContent>{' '}
               </Select>
             </div>
 
