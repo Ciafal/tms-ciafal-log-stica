@@ -299,70 +299,74 @@ export const DriverPerformanceManagementPage: React.FC = () => {
       </div>
 
       {/* Cards de Métricas Principais (Dashboard de Visão Geral) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3.5 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
-              <UserCheck className="w-3.5 h-3.5 text-[#005596]" /> Motoristas Ativos
+          <CardContent className="p-3.5 space-y-1.5 flex flex-col justify-between h-full">
+            <span className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 truncate">
+              <UserCheck className="w-3.5 h-3.5 text-[#005596] shrink-0" /> Motoristas Ativos
             </span>
-            <div className="text-2xl font-black text-slate-900">{totalDrivers}</div>
-            <span className="text-[10px] text-slate-500">Base homologada SAP</span>
+            <div className="text-2xl font-mono font-black text-slate-900">{totalDrivers}</div>
+            <span className="text-[10px] text-slate-500 truncate">Base homologada SAP</span>
           </CardContent>
         </Card>
 
         <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3.5 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
-              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" /> Score Médio
+          <CardContent className="p-3.5 space-y-1.5 flex flex-col justify-between h-full">
+            <span className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 truncate">
+              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" /> Score Médio
             </span>
-            <div className="text-2xl font-black text-slate-900">
+            <div className="text-2xl font-mono font-black text-slate-900">
               {avgScore}
-              <span className="text-xs text-slate-400">/100</span>
+              <span className="text-xs font-sans text-slate-400 ml-1">/ 100</span>
             </div>
-            <span className="text-[10px] text-emerald-600 font-bold">Faixa Muito Bom</span>
+            <span className="text-[10px] text-emerald-600 font-bold truncate">Faixa Muito Bom</span>
           </CardContent>
         </Card>
 
         <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3.5 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
-              <Award className="w-3.5 h-3.5 text-emerald-600" /> Preferenciais (⭐)
+          <CardContent className="p-3.5 space-y-1.5 flex flex-col justify-between h-full">
+            <span className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 truncate">
+              <Award className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Preferenciais (⭐)
             </span>
-            <div className="text-2xl font-black text-emerald-700">{preferentialCount}</div>
-            <span className="text-[10px] text-slate-500">Prioridade Mesa Fretes</span>
+            <div className="text-2xl font-mono font-black text-emerald-700">
+              {preferentialCount}
+            </div>
+            <span className="text-[10px] text-slate-500 truncate">Prioridade Mesa Fretes</span>
           </CardContent>
         </Card>
 
         <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3.5 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Em Observação (⚠️)
+          <CardContent className="p-3.5 space-y-1.5 flex flex-col justify-between h-full">
+            <span className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 truncate">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" /> Em Observação (⚠️)
             </span>
-            <div className="text-2xl font-black text-amber-700">{observationCount}</div>
-            <span className="text-[10px] text-slate-500">Acompanhamento Torre</span>
+            <div className="text-2xl font-mono font-black text-amber-700">{observationCount}</div>
+            <span className="text-[10px] text-slate-500 truncate">Acompanhamento Torre</span>
           </CardContent>
         </Card>
 
         <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3.5 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
-              <SmilePlus className="w-3.5 h-3.5 text-sky-600" /> NPS Motoristas
+          <CardContent className="p-3.5 space-y-1.5 flex flex-col justify-between h-full">
+            <span className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 truncate">
+              <SmilePlus className="w-3.5 h-3.5 text-sky-600 shrink-0" /> NPS Motoristas
             </span>
-            <div className="text-2xl font-black text-sky-700">+{npsData.npsScore}</div>
-            <span className="text-[10px] text-emerald-600 font-bold">Zona de Excelência</span>
+            <div className="text-2xl font-mono font-black text-sky-700">+{npsData.npsScore}</div>
+            <span className="text-[10px] text-emerald-600 font-bold truncate">
+              Zona de Excelência
+            </span>
           </CardContent>
         </Card>
 
         <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3.5 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
-              <Building2 className="w-3.5 h-3.5 text-indigo-600" /> Experiência CIAFAL
+          <CardContent className="p-3.5 space-y-1.5 flex flex-col justify-between h-full">
+            <span className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 truncate">
+              <Building2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" /> Experiência CIAFAL
             </span>
-            <div className="text-2xl font-black text-indigo-700">
+            <div className="text-2xl font-mono font-black text-indigo-700">
               {avgCiafalExperience}
-              <span className="text-xs text-slate-400">/100</span>
+              <span className="text-xs font-sans text-slate-400 ml-1">/ 100</span>
             </div>
-            <span className="text-[10px] text-slate-500">Avaliação de Mão Dupla</span>
+            <span className="text-[10px] text-slate-500 truncate">Avaliação de Mão Dupla</span>
           </CardContent>
         </Card>
       </div>

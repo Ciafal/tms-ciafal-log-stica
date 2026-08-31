@@ -298,7 +298,7 @@ export const LoadPlannerPage: React.FC = () => {
       {/* Filter Bar (11 Critérios de Filtro) */}
       <Card className="bg-white border-slate-200 shadow-sm">
         <CardContent className="p-3">
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
             {/* Itinerário */}
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase text-slate-500">

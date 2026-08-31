@@ -24,6 +24,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { KpiCard, IntegrationCard, SectionHeader } from '@/components/ui-custom'
 import { useAuth } from '@/contexts/AuthContext'
 import { TmsService } from '@/services/tmsService'
 import {
@@ -37,7 +38,7 @@ export const TmsDashboard: React.FC = () => {
   const { user } = useAuth()
   const [orders, setOrders] = useState<SapSalesOrderEntity[]>([])
   const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
-  const [opportunities, setOpportunities] = useState<ComplementOpportunityEntity[]>([])
+  const [opportunities, setOpportunities] = useState<OportunidadeComplementoCargaEntity[]>([])
   const [cargos, setCargos] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -125,306 +126,251 @@ export const TmsDashboard: React.FC = () => {
 
       {/* SEÇÃO 1: VISÃO HOJE */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-            <Calendar className="w-4 h-4 text-[#005596]" />
-            <span>Operação Hoje (Disponibilidade & Montagem)</span>
-          </h2>
-          <Badge variant="outline" className="text-xs text-slate-500">
-            {new Date().toLocaleDateString('pt-BR')}
-          </Badge>
-        </div>
+        <SectionHeader
+          title="Operação Hoje (Disponibilidade & Montagem)"
+          icon={Calendar}
+          iconColor="text-[#005596]"
+          badge={new Date().toLocaleDateString('pt-BR')}
+        />
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
           {/* Card 1: Motoristas PORTA */}
-          <Card className="bg-white border-sky-200 shadow-xs">
-            <CardContent className="p-3 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Motoristas PORTA
-              </span>
-              <strong className="text-2xl font-mono text-[#005596] font-black">
-                {portaDrivers.length}
-              </strong>
-              <div className="text-[10px] text-slate-500">Pátio CIAFAL</div>
-            </CardContent>
-          </Card>
+          <KpiCard
+            title="Motoristas PORTA"
+            value={portaDrivers.length}
+            description="Pátio CIAFAL"
+            variant="highlight"
+            status="Presente"
+            statusColor="blue"
+          />
 
           {/* Card 2: Motoristas FORA */}
-          <Card className="bg-white border-emerald-200 shadow-xs">
-            <CardContent className="p-3 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Motoristas FORA
-              </span>
-              <strong className="text-2xl font-mono text-emerald-600 font-black">
-                {foraDrivers.length}
-              </strong>
-              <div className="text-[10px] text-slate-500">Raio ≤ 60km</div>
-            </CardContent>
-          </Card>
+          <KpiCard
+            title="Motoristas FORA"
+            value={foraDrivers.length}
+            description="Raio ≤ 60 km"
+            variant="success"
+            status="Em raio"
+            statusColor="emerald"
+          />
 
           {/* Card 3: Capacidade Disponível */}
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Capacidade Hoje
-              </span>
-              <strong className="text-2xl font-mono text-slate-900 font-black">
-                {totalCapTodayKg > 0 ? `${Math.round(totalCapTodayKg / 1000)}t` : '0t'}
-              </strong>
-              <div className="text-[10px] text-slate-500">PORTA + FORA</div>
-            </CardContent>
-          </Card>
+          <KpiCard
+            title="Capacidade Hoje"
+            value={
+              totalCapTodayKg > 0
+                ? (totalCapTodayKg / 1000).toLocaleString('pt-BR', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 1,
+                  })
+                : '0'
+            }
+            unit="t"
+            description="PORTA + FORA"
+            variant="default"
+          />
 
           {/* Card 4: Pedidos Prontos SAP */}
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Pronto no PCP
-              </span>
-              <strong className="text-2xl font-mono text-sky-700 font-black">
-                {readyOrders.length}
-              </strong>
-              <div className="text-[10px] text-slate-500">Pedidos Liberados</div>
-            </CardContent>
-          </Card>
+          <KpiCard
+            title="Pronto no PCP"
+            value={readyOrders.length}
+            description="Pedidos Liberados"
+            variant="sky"
+            status="Liberados"
+            statusColor="sky"
+          />
 
           {/* Card 5: Cargas em Montagem */}
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Cargas em Montagem
-              </span>
-              <strong className="text-2xl font-mono text-slate-800 font-black">
-                {activeMontagemCargos}
-              </strong>
-              <div className="text-[10px] text-slate-500">Planejador Ativo</div>
-            </CardContent>
-          </Card>
+          <KpiCard
+            title="Cargas em Montagem"
+            value={activeMontagemCargos}
+            description="Planejador Ativo"
+            variant="default"
+          />
 
           {/* Card 6: Cargas Sem Veículo */}
-          <Card className="bg-white border-amber-200 shadow-xs">
-            <CardContent className="p-3 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-amber-700 block">
-                Sem Veículo
-              </span>
-              <strong className="text-2xl font-mono text-amber-600 font-black">
-                {cargosSemVeiculo}
-              </strong>
-              <div className="text-[10px] text-slate-500">Gaps Atendidos</div>
-            </CardContent>
-          </Card>
+          <KpiCard
+            title="Sem Veículo"
+            value={cargosSemVeiculo}
+            description="Aguardando Veículo"
+            variant="warning"
+            status={cargosSemVeiculo > 0 ? 'Atenção' : 'Normal'}
+            statusColor={cargosSemVeiculo > 0 ? 'amber' : 'emerald'}
+          />
 
           {/* Card 7: Complementos Possíveis */}
-          <Card className="bg-white border-purple-200 shadow-xs">
-            <CardContent className="p-3 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-purple-700 block">
-                Complementos CRM
-              </span>
-              <strong className="text-2xl font-mono text-purple-600 font-black">
-                {opportunities.length}
-              </strong>
-              <div className="text-[10px] text-slate-500">Oportunidades</div>
-            </CardContent>
-          </Card>
+          <KpiCard
+            title="Complementos CRM"
+            value={opportunities.length}
+            description="Oportunidades"
+            variant="purple"
+            status="Avisados"
+            statusColor="purple"
+          />
         </div>
       </div>
 
       {/* SEÇÃO 2: VISÃO AMANHÃ & FUTURO */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-            <TrendingUp className="w-4 h-4 text-purple-600" />
-            <span>Visão Futura (Programação D+1 e Capacidade Declarada)</span>
-          </h2>
-          <Link
-            to="/tms/programacao-futura"
-            className="text-xs text-[#005596] hover:underline font-semibold flex items-center gap-1"
-          >
-            Ver Matriz Completa <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
+        <SectionHeader
+          title="Visão Futura (Programação D+1 e Capacidade Declarada)"
+          icon={TrendingUp}
+          iconColor="text-purple-600"
+          action={
+            <Link
+              to="/tms/programacao-futura"
+              className="text-xs text-[#005596] hover:underline font-semibold flex items-center gap-1 shrink-0"
+            >
+              Ver Matriz Completa <ArrowRight className="w-3 h-3" />
+            </Link>
+          }
+        />
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Disponib. Programada
-              </span>
-              <strong className="text-2xl font-mono text-purple-700 font-black">
-                {progDrivers.length}
-              </strong>
-              <div className="text-[10px] text-slate-500">Veículos Futuros</div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          {/* Card 1: Disponibilidade Programada */}
+          <KpiCard
+            title="Disponibilidade Programada"
+            value={progDrivers.length}
+            description="Veículos Futuros"
+            variant="purple"
+          />
 
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Capacidade Futura
-              </span>
-              <strong className="text-2xl font-mono text-purple-900 font-black">
-                {totalCapTomorrowKg > 0 ? `${Math.round(totalCapTomorrowKg / 1000)}t` : '0t'}
-              </strong>
-              <div className="text-[10px] text-slate-500">Programados</div>
-            </CardContent>
-          </Card>
+          {/* Card 2: Capacidade Futura */}
+          <KpiCard
+            title="Capacidade Futura"
+            value={
+              totalCapTomorrowKg > 0
+                ? (totalCapTomorrowKg / 1000).toLocaleString('pt-BR', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 1,
+                  })
+                : '0'
+            }
+            unit="t"
+            description="Programados D+1"
+            variant="purple"
+          />
 
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Em Produção PCP
-              </span>
-              <strong className="text-2xl font-mono text-sky-700 font-black">
-                {inProdOrders.length}
-              </strong>
-              <div className="text-[10px] text-slate-500">Liberação Prevista</div>
-            </CardContent>
-          </Card>
+          {/* Card 3: Em Produção PCP */}
+          <KpiCard
+            title="Em Produção PCP"
+            value={inProdOrders.length}
+            description="Liberação Prevista"
+            variant="sky"
+          />
 
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Gaps Diagnosticados
-              </span>
-              <strong className="text-2xl font-mono text-emerald-600 font-black">
-                Equilibrado
-              </strong>
-              <div className="text-[10px] text-slate-500">Matriz Estável</div>
-            </CardContent>
-          </Card>
+          {/* Card 4: GAPS DIAGNOSTICADOS (Corrigido com texto e layout seguros) */}
+          <KpiCard
+            title="Gaps Diagnosticados"
+            value="Equilibrado"
+            description="Matriz Estável"
+            variant="success"
+            status="Normal"
+            statusColor="emerald"
+            tooltip="Balanço entre demanda SAP e oferta de veículos equilibrado no período."
+          />
 
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Itinerários com Demanda
-              </span>
-              <strong className="text-2xl font-mono text-slate-900 font-black">
-                {uniqueItinerariesWithDemand}
-              </strong>
-              <div className="text-[10px] text-slate-500">Rotas SAP</div>
-            </CardContent>
-          </Card>
+          {/* Card 5: Itinerários com Demanda */}
+          <KpiCard
+            title="Itinerários com Demanda"
+            value={uniqueItinerariesWithDemand}
+            description="Rotas Ativas SAP"
+            variant="default"
+          />
 
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Alertas Comerciais
-              </span>
-              <strong className="text-2xl font-mono text-purple-600 font-black">
-                {opportunities.length}
-              </strong>
-              <div className="text-[10px] text-slate-500">CRM 360° Notificado</div>
-            </CardContent>
-          </Card>
+          {/* Card 6: Alertas Comerciais */}
+          <KpiCard
+            title="Alertas Comerciais"
+            value={opportunities.length}
+            description="CRM 360° Notificado"
+            variant="purple"
+          />
         </div>
       </div>
 
       {/* SEÇÃO 3: STATUS DAS INTEGRAÇÕES CORPORATIVAS */}
       <div className="space-y-3">
-        <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-          <Activity className="w-4 h-4 text-emerald-600" />
-          <span>Monitor de Integrações & Sistemas Conectados</span>
-        </h2>
+        <SectionHeader
+          title="Monitor de Integrações & Sistemas Conectados"
+          icon={Activity}
+          iconColor="text-emerald-600"
+          action={
+            <Link
+              to="/tms/monitor-integracoes"
+              className="text-xs text-[#005596] hover:underline font-semibold flex items-center gap-1 shrink-0"
+            >
+              Ver Central de Integrações <ArrowRight className="w-3 h-3" />
+            </Link>
+          }
+        />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           {/* SAP ECC 6.0 */}
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-900">SAP ECC 6.0</span>
-                <Badge className="bg-[#005596] text-white text-[9px]">qRFC/RFC</Badge>
-              </div>
-              <p className="text-[10px] text-slate-500">
-                System of Record. Sincronização de TVROT e ZSD35.
-              </p>
-              <div className="text-[9px] text-emerald-600 font-bold flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> Base Sincronizada
-              </div>
-            </CardContent>
-          </Card>
+          <IntegrationCard
+            systemName="SAP ECC 6.0"
+            integrationType="qRFC / RFC"
+            typeBadgeColor="bg-[#005596] text-white"
+            description="System of Record oficial. Sincronização de TVROT e ZSD35."
+            status="Conectado"
+            statusLabel="Sincronizado"
+            statusDetails="TVROT / ZSD35"
+          />
 
           {/* PCP Robotizado */}
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-900">PCP Robotizado</span>
-                <Badge className="bg-blue-600 text-white text-[9px]">Preparado</Badge>
-              </div>
-              <p className="text-[10px] text-slate-500">
-                Data programada de produção e saldo pronto de materiais.
-              </p>
-              <div className="text-[9px] text-blue-600 font-bold flex items-center gap-1">
-                <Activity className="w-3 h-3" /> Integração Preparada
-              </div>
-            </CardContent>
-          </Card>
+          <IntegrationCard
+            systemName="PCP Robotizado"
+            integrationType="Preparado"
+            typeBadgeColor="bg-blue-600 text-white"
+            description="Data programada de produção e saldo pronto de materiais."
+            status="Preparado"
+            statusLabel="Preparado"
+            statusDetails="MB52 + PCP"
+          />
 
           {/* CRM 360° */}
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-900">CRM 360°</span>
-                <Badge className="bg-purple-600 text-white text-[9px]">Preparado</Badge>
-              </div>
-              <p className="text-[10px] text-slate-500">
-                Disparo de alertas de complementos de carga aos vendedores.
-              </p>
-              <div className="text-[9px] text-purple-600 font-bold flex items-center gap-1">
-                <Send className="w-3 h-3" /> Alertas Operacionais
-              </div>
-            </CardContent>
-          </Card>
+          <IntegrationCard
+            systemName="CRM 360°"
+            integrationType="Preparado"
+            typeBadgeColor="bg-purple-600 text-white"
+            description="Disparo de alertas de complementos de carga aos vendedores."
+            status="Preparado"
+            statusLabel="Alertas Ativos"
+            statusDetails="CRM Loop"
+          />
 
           {/* Telegram */}
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-900">Telegram Bot</span>
-                <Badge className="bg-sky-500 text-white text-[9px]">Mensageria</Badge>
-              </div>
-              <p className="text-[10px] text-slate-500">
-                Canal direto de avisos para motoristas cadastrados.
-              </p>
-              <div className="text-[9px] text-sky-600 font-bold flex items-center gap-1">
-                <MessageSquare className="w-3 h-3" /> Adapter Ativo
-              </div>
-            </CardContent>
-          </Card>
+          <IntegrationCard
+            systemName="Telegram Bot"
+            integrationType="Mensageria"
+            typeBadgeColor="bg-sky-500 text-white"
+            description="Canal direto de avisos para motoristas cadastrados."
+            status="Conectado"
+            statusLabel="Adapter Ativo"
+            statusDetails="Bot API"
+          />
 
           {/* WhatsApp */}
-          <Card className="bg-white border-slate-200 shadow-xs">
-            <CardContent className="p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-900">WhatsApp API</span>
-                <Badge className="bg-emerald-500 text-white text-[9px]">Mensageria</Badge>
-              </div>
-              <p className="text-[10px] text-slate-500">
-                Comunicação com motoristas e pré-cadastros via link público.
-              </p>
-              <div className="text-[9px] text-emerald-600 font-bold flex items-center gap-1">
-                <Phone className="w-3 h-3" /> Adapter Ativo
-              </div>
-            </CardContent>
-          </Card>
+          <IntegrationCard
+            systemName="WhatsApp API"
+            integrationType="Mensageria"
+            typeBadgeColor="bg-emerald-600 text-white"
+            description="Comunicação com motoristas e pré-cadastros via link público."
+            status="Conectado"
+            statusLabel="Adapter Ativo"
+            statusDetails="Link Público"
+          />
 
           {/* TARGET */}
-          <Card className="bg-white border-slate-200 shadow-xs opacity-75">
-            <CardContent className="p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-900">TARGET</span>
-                <Badge
-                  variant="outline"
-                  className="text-[9px] text-amber-700 border-amber-400 bg-amber-50"
-                >
-                  Em desenvolv.
-                </Badge>
-              </div>
-              <p className="text-[10px] text-slate-500">
-                Controle de pátio e agendamento de docas operacionais.
-              </p>
-              <div className="text-[9px] text-slate-400 font-semibold">Fase Posterior</div>
-            </CardContent>
-          </Card>
+          <IntegrationCard
+            systemName="TARGET"
+            integrationType="Em desenvolv."
+            typeBadgeColor="bg-amber-100 text-amber-800 border-amber-300 border"
+            description="Controle de pátio e agendamento de docas operacionais."
+            status="Atenção"
+            statusLabel="Em desenvolv."
+            statusDetails="Fase Posterior"
+            disabled
+          />
         </div>
       </div>
     </div>

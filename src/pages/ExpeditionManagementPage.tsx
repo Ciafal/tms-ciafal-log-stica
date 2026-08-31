@@ -232,94 +232,98 @@ export const ExpeditionManagementPage: React.FC = () => {
       </div>
 
       {/* CARDS CLICÁVEIS DE STATUS NO TOPO */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-8 gap-2.5">
         <div
           onClick={() => setStatusFilter('ALL')}
-          className={`cursor-pointer p-3 rounded-xl border transition shadow-sm ${
+          className={`cursor-pointer p-3 rounded-xl border transition shadow-sm flex flex-col justify-between min-h-[76px] ${
             statusFilter === 'ALL'
               ? 'bg-[#005596] text-white border-[#005596]'
               : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300'
           }`}
         >
-          <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-80 truncate">
             Total Programadas
           </p>
-          <div className="text-xl font-black mt-0.5">{metrics.total}</div>
+          <div className="text-xl font-mono font-black mt-0.5">{metrics.total}</div>
         </div>
 
         <div
           onClick={() => setStatusFilter('PATIO')}
-          className={`cursor-pointer p-3 rounded-xl border transition shadow-sm ${
+          className={`cursor-pointer p-3 rounded-xl border transition shadow-sm flex flex-col justify-between min-h-[76px] ${
             statusFilter === 'PATIO'
               ? 'bg-sky-600 text-white border-sky-600'
               : 'bg-sky-50 text-sky-900 border-sky-200 hover:border-sky-300'
           }`}
         >
-          <p className="text-[10px] font-bold uppercase tracking-wider">No Pátio</p>
-          <div className="text-xl font-black mt-0.5">{metrics.patio}</div>
+          <p className="text-[10px] font-bold uppercase tracking-wider truncate">No Pátio</p>
+          <div className="text-xl font-mono font-black mt-0.5">{metrics.patio}</div>
         </div>
 
         <div
           onClick={() => setStatusFilter('ESTOQUE')}
-          className={`cursor-pointer p-3 rounded-xl border transition shadow-sm ${
+          className={`cursor-pointer p-3 rounded-xl border transition shadow-sm flex flex-col justify-between min-h-[76px] ${
             statusFilter === 'ESTOQUE'
               ? 'bg-amber-600 text-white border-amber-600'
               : 'bg-amber-50 text-amber-900 border-amber-200 hover:border-amber-300'
           }`}
         >
-          <p className="text-[10px] font-bold uppercase tracking-wider">Aguard. Estoque</p>
-          <div className="text-xl font-black mt-0.5">{metrics.aguardandoEstoque}</div>
+          <p className="text-[10px] font-bold uppercase tracking-wider truncate">Aguard. Estoque</p>
+          <div className="text-xl font-mono font-black mt-0.5">{metrics.aguardandoEstoque}</div>
         </div>
 
         <div
           onClick={() => setStatusFilter('ESTOQUE')}
-          className="cursor-pointer p-3 rounded-xl border bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-300 shadow-sm"
+          className="cursor-pointer p-3 rounded-xl border bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-300 shadow-sm flex flex-col justify-between min-h-[76px]"
         >
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 truncate">
             Em Separação
           </p>
-          <div className="text-xl font-black mt-0.5">{metrics.emSeparacao}</div>
+          <div className="text-xl font-mono font-black mt-0.5">{metrics.emSeparacao}</div>
         </div>
 
         <div
           onClick={() => setStatusFilter('CARREGAMENTO')}
-          className={`cursor-pointer p-3 rounded-xl border transition shadow-sm ${
+          className={`cursor-pointer p-3 rounded-xl border transition shadow-sm flex flex-col justify-between min-h-[76px] ${
             statusFilter === 'CARREGAMENTO'
               ? 'bg-indigo-600 text-white border-indigo-600'
               : 'bg-indigo-50 text-indigo-900 border-indigo-200 hover:border-indigo-300'
           }`}
         >
-          <p className="text-[10px] font-bold uppercase tracking-wider">Em Carregamento</p>
-          <div className="text-xl font-black mt-0.5">{metrics.emCarregamento}</div>
+          <p className="text-[10px] font-bold uppercase tracking-wider truncate">Em Carregamento</p>
+          <div className="text-xl font-mono font-black mt-0.5">{metrics.emCarregamento}</div>
         </div>
 
         <div
           onClick={() => setStatusFilter('FATURAMENTO')}
-          className={`cursor-pointer p-3 rounded-xl border transition shadow-sm ${
+          className={`cursor-pointer p-3 rounded-xl border transition shadow-sm flex flex-col justify-between min-h-[76px] ${
             statusFilter === 'FATURAMENTO'
               ? 'bg-purple-600 text-white border-purple-600'
               : 'bg-purple-50 text-purple-900 border-purple-200 hover:border-purple-300'
           }`}
         >
-          <p className="text-[10px] font-bold uppercase tracking-wider">Aguard. Faturam.</p>
-          <div className="text-xl font-black mt-0.5">{metrics.faturamento}</div>
+          <p className="text-[10px] font-bold uppercase tracking-wider truncate">
+            Aguard. Faturam.
+          </p>
+          <div className="text-xl font-mono font-black mt-0.5">{metrics.faturamento}</div>
         </div>
 
-        <div className="p-3 rounded-xl border bg-emerald-50 border-emerald-200 text-emerald-900 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-wider">Liberadas</p>
-          <div className="text-xl font-black mt-0.5">{metrics.liberadas}</div>
+        <div className="p-3 rounded-xl border bg-emerald-50 border-emerald-200 text-emerald-900 shadow-sm flex flex-col justify-between min-h-[76px]">
+          <p className="text-[10px] font-bold uppercase tracking-wider truncate">Liberadas</p>
+          <div className="text-xl font-mono font-black mt-0.5">{metrics.liberadas}</div>
         </div>
 
         <div
           onClick={() => setStatusFilter('ATRASO')}
-          className={`cursor-pointer p-3 rounded-xl border transition shadow-sm ${
+          className={`cursor-pointer p-3 rounded-xl border transition shadow-sm flex flex-col justify-between min-h-[76px] ${
             statusFilter === 'ATRASO'
               ? 'bg-rose-600 text-white border-rose-600 animate-pulse'
               : 'bg-rose-50 text-rose-900 border-rose-200 hover:border-rose-300'
           }`}
         >
-          <p className="text-[10px] font-bold uppercase tracking-wider">Risco Atraso</p>
-          <div className="text-xl font-black mt-0.5 text-rose-700">{metrics.criticasAtraso}</div>
+          <p className="text-[10px] font-bold uppercase tracking-wider truncate">Risco Atraso</p>
+          <div className="text-xl font-mono font-black mt-0.5 text-rose-700">
+            {metrics.criticasAtraso}
+          </div>
         </div>
       </div>
 

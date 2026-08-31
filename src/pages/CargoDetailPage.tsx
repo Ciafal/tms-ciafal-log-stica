@@ -127,7 +127,7 @@ export default function CargoDetailPage() {
         printJobStatus: 'Pendente',
         printJobId: '',
         printedAt: undefined,
-        documentDeliveryStatus: 'Pendente',
+        documentDeliveryStatus: 'Aguardando_Impressao',
         deliveredAt: undefined,
         isReleasedForLoading: found.status === 'Liberada para carregamento',
         releasedAt: found.status === 'Liberada para carregamento' ? found.updated : undefined,

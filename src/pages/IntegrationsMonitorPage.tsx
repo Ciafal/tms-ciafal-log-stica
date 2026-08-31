@@ -296,21 +296,20 @@ export const IntegrationsMonitorPage: React.FC = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl bg-slate-100 p-1 rounded-lg">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full max-w-2xl bg-slate-100 p-1 rounded-lg h-auto gap-1">
           <TabsTrigger value="hub" className="text-xs font-semibold">
-            1. Central de Homologação
+            Sistemas ({metrics.length})
           </TabsTrigger>
           <TabsTrigger value="sap-env" className="text-xs font-semibold">
-            2. Ambientes & Teste SAP
+            SAP ECC 6.0
           </TabsTrigger>
           <TabsTrigger value="blueprint" className="text-xs font-semibold">
-            3. Blueprint SAP/TMS (12 Colunas)
+            Blueprint ({blueprint.length})
           </TabsTrigger>
           <TabsTrigger value="logs" className="text-xs font-semibold">
-            4. Fila & Logs Rastreáveis
+            Logs & Filas
           </TabsTrigger>
         </TabsList>
-
         {/* TAB 1: CENTRAL DE HOMOLOGAÇÃO */}
         <TabsContent value="hub" className="space-y-6 mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

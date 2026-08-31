@@ -180,25 +180,29 @@ export const FredControlTowerPage: React.FC = () => {
       </div>
 
       {/* 8 Cards de KPIs Operacionais */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-        <Card className="p-3 border-slate-200 bg-white">
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Em Viagem</div>
-          <div className="text-xl font-black text-[#005596] mt-0.5">{inRouteCount}</div>
-          <div className="text-[9px] text-slate-400">veículos ativos</div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-8 gap-3">
+        <Card className="p-3 border-slate-200 bg-white flex flex-col justify-between min-h-[76px]">
+          <div className="text-[10px] font-bold text-slate-500 uppercase truncate">Em Viagem</div>
+          <div className="text-xl font-mono font-black text-[#005596] mt-0.5">{inRouteCount}</div>
+          <div className="text-[9px] text-slate-400 truncate">veículos ativos</div>
         </Card>
 
-        <Card className="p-3 border-slate-200 bg-white">
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Entregas Previstas</div>
-          <div className="text-xl font-black text-slate-900 mt-0.5">{totalDeliveriesToday}</div>
-          <div className="text-[9px] text-slate-400">paradas hoje</div>
+        <Card className="p-3 border-slate-200 bg-white flex flex-col justify-between min-h-[76px]">
+          <div className="text-[10px] font-bold text-slate-500 uppercase truncate">
+            Entregas Previstas
+          </div>
+          <div className="text-xl font-mono font-black text-slate-900 mt-0.5">
+            {totalDeliveriesToday}
+          </div>
+          <div className="text-[9px] text-slate-400 truncate">paradas hoje</div>
         </Card>
 
-        <Card className="p-3 border-slate-200 bg-white">
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Realizadas</div>
-          <div className="text-xl font-black text-emerald-600 mt-0.5">
+        <Card className="p-3 border-slate-200 bg-white flex flex-col justify-between min-h-[76px]">
+          <div className="text-[10px] font-bold text-slate-500 uppercase truncate">Realizadas</div>
+          <div className="text-xl font-mono font-black text-emerald-600 mt-0.5">
             {completedDeliveriesToday}
           </div>
-          <div className="text-[9px] text-emerald-600 font-semibold">
+          <div className="text-[9px] text-emerald-600 font-semibold truncate">
             {totalDeliveriesToday > 0
               ? Math.round((completedDeliveriesToday / totalDeliveriesToday) * 100)
               : 0}
@@ -206,34 +210,42 @@ export const FredControlTowerPage: React.FC = () => {
           </div>
         </Card>
 
-        <Card className="p-3 border-slate-200 bg-white">
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Em Risco</div>
-          <div className="text-xl font-black text-amber-600 mt-0.5">{atRiskCount}</div>
-          <div className="text-[9px] text-amber-600 font-semibold">+10 a 30m</div>
+        <Card className="p-3 border-slate-200 bg-white flex flex-col justify-between min-h-[76px]">
+          <div className="text-[10px] font-bold text-slate-500 uppercase truncate">Em Risco</div>
+          <div className="text-xl font-mono font-black text-amber-600 mt-0.5">{atRiskCount}</div>
+          <div className="text-[9px] text-amber-600 font-semibold truncate">+10 a 30 min</div>
         </Card>
 
-        <Card className="p-3 border-slate-200 bg-white">
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Atrasados</div>
-          <div className="text-xl font-black text-rose-600 mt-0.5">{delayedCount}</div>
-          <div className="text-[9px] text-rose-600 font-semibold">&gt; 30m / janela</div>
+        <Card className="p-3 border-slate-200 bg-white flex flex-col justify-between min-h-[76px]">
+          <div className="text-[10px] font-bold text-slate-500 uppercase truncate">Atrasados</div>
+          <div className="text-xl font-mono font-black text-rose-600 mt-0.5">{delayedCount}</div>
+          <div className="text-[9px] text-rose-600 font-semibold truncate">
+            &gt; 30 min / janela
+          </div>
         </Card>
 
-        <Card className="p-3 border-slate-200 bg-white">
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Intercorrências</div>
-          <div className="text-xl font-black text-purple-600 mt-0.5">{activeOccurrencesCount}</div>
-          <div className="text-[9px] text-purple-600 font-semibold">em tratamento</div>
+        <Card className="p-3 border-slate-200 bg-white flex flex-col justify-between min-h-[76px]">
+          <div className="text-[10px] font-bold text-slate-500 uppercase truncate">
+            Intercorrências
+          </div>
+          <div className="text-xl font-mono font-black text-purple-600 mt-0.5">
+            {activeOccurrencesCount}
+          </div>
+          <div className="text-[9px] text-purple-600 font-semibold truncate">em tratamento</div>
         </Card>
 
-        <Card className="p-3 border-slate-200 bg-white">
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Sinal GPS Antigo</div>
-          <div className="text-xl font-black text-slate-700 mt-0.5">{staleGpsCount}</div>
-          <div className="text-[9px] text-slate-400">&gt; 30 min s/ sinal</div>
+        <Card className="p-3 border-slate-200 bg-white flex flex-col justify-between min-h-[76px]">
+          <div className="text-[10px] font-bold text-slate-500 uppercase truncate">
+            Sinal GPS Antigo
+          </div>
+          <div className="text-xl font-mono font-black text-slate-700 mt-0.5">{staleGpsCount}</div>
+          <div className="text-[9px] text-slate-400 truncate">&gt; 30 min s/ sinal</div>
         </Card>
 
-        <Card className="p-3 border-slate-200 bg-white">
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Atuação IA</div>
-          <div className="text-xl font-black text-sky-600 mt-0.5">88%</div>
-          <div className="text-[9px] text-sky-600 font-semibold">Fred autônomo</div>
+        <Card className="p-3 border-slate-200 bg-white flex flex-col justify-between min-h-[76px]">
+          <div className="text-[10px] font-bold text-slate-500 uppercase truncate">Atuação IA</div>
+          <div className="text-xl font-mono font-black text-sky-600 mt-0.5">88%</div>
+          <div className="text-[9px] text-sky-600 font-semibold truncate">Fred autônomo</div>
         </Card>
       </div>
 

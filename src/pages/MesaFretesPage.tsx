@@ -778,81 +778,85 @@ export const MesaFretesPage: React.FC = () => {
         </div>
 
         {/* INDICATORS HEADER (METRICS CARDS) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
           <Card className="border-slate-200 bg-white shadow-sm hover:shadow transition">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <CardContent className="p-4 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 truncate">
                   Cargas Prontas
                 </p>
-                <div className="text-2xl font-black text-slate-800 mt-0.5">{offers.length}</div>
-                <p className="text-[10px] text-slate-500">Planejadas pelo IA</p>
+                <div className="text-2xl font-mono font-black text-slate-800 mt-0.5">
+                  {offers.length}
+                </div>
+                <p className="text-[10px] text-slate-500 truncate">Planejadas pelo IA</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[#005596]">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[#005596] shrink-0">
                 <Layers className="w-5 h-5" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-sky-200 bg-sky-50/50 shadow-sm hover:shadow transition">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-sky-800">
+            <CardContent className="p-4 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-sky-800 truncate">
                   Em Negociação Carlão
                 </p>
-                <div className="text-2xl font-black text-[#005596] mt-0.5 flex items-center gap-1.5">
+                <div className="text-2xl font-mono font-black text-[#005596] mt-0.5 flex items-center gap-1.5">
                   {negotiations.filter((n) => n.status === 'EM_NEGOCIACAO').length}
                 </div>
-                <p className="text-[10px] text-sky-700">Rodadas ativas</p>
+                <p className="text-[10px] text-sky-700 truncate">Rodadas ativas</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-[#005596] text-white flex items-center justify-center shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-[#005596] text-white flex items-center justify-center shadow-sm shrink-0">
                 <Bot className="w-5 h-5" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-amber-200 bg-amber-50/40 shadow-sm hover:shadow transition">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-900">
+            <CardContent className="p-4 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-900 truncate">
                   Autonomia do Carlão
                 </p>
-                <div className="text-2xl font-black text-amber-700 mt-0.5">82,4 %</div>
-                <p className="text-[10px] text-amber-700">Sem intervenção humana</p>
+                <div className="text-2xl font-mono font-black text-amber-700 mt-0.5">82,4 %</div>
+                <p className="text-[10px] text-amber-700 truncate">Sem intervenção humana</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm shrink-0">
                 <Sparkles className="w-5 h-5" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-emerald-200 bg-emerald-50/40 shadow-sm hover:shadow transition">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+            <CardContent className="p-4 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 truncate">
                   Contratadas Hoje
                 </p>
-                <div className="text-2xl font-black text-emerald-700 mt-0.5">
+                <div className="text-2xl font-mono font-black text-emerald-700 mt-0.5">
                   {negotiations.filter((n) => n.status === 'CONTRATADO').length + 3}
                 </div>
-                <p className="text-[10px] text-emerald-600">Com Transporte SAP</p>
+                <p className="text-[10px] text-emerald-600 truncate">Com Transporte SAP</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm shrink-0">
                 <CheckCircle2 className="w-5 h-5" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200 bg-white shadow-sm hover:shadow transition col-span-2 sm:col-span-1">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          <Card className="border-slate-200 bg-white shadow-sm hover:shadow transition col-span-1 sm:col-span-2 md:col-span-1">
+            <CardContent className="p-4 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 truncate">
                   Tempo Médio Fechamento
                 </p>
-                <div className="text-2xl font-black text-slate-800 mt-0.5">14 min 48 s</div>
-                <p className="text-[10px] text-slate-500">Agilidade Carlão</p>
+                <div className="text-2xl font-mono font-black text-slate-800 mt-0.5">
+                  14 min 48 s
+                </div>
+                <p className="text-[10px] text-slate-500 truncate">Agilidade Carlão</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[#005596]">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[#005596] shrink-0">
                 <Clock className="w-5 h-5" />
               </div>
             </CardContent>

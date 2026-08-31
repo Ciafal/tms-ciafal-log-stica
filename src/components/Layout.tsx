@@ -450,10 +450,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               </div>
             </Link>
 
-            <div className="hidden lg:flex items-center space-x-2 pl-4 border-l border-white/20">
-              <Badge className="bg-white/15 text-white text-[10px] font-bold px-2.5 py-0.5 border-0">
-                DISPONIBILIDADE → PLANEJAMENTO → MESA DE FRETES → EXECUÇÃO
-              </Badge>
+            <div className="hidden xl:flex items-center gap-1 pl-4 border-l border-white/20 text-xs">
+              <div className="flex items-center gap-1.5 bg-white/15 text-white text-[10px] font-bold px-3 py-1 rounded-full border border-white/20">
+                <span className="text-emerald-300">1. Disponibilidade</span>
+                <span className="text-white/40">→</span>
+                <span className="text-sky-200">2. Planejamento</span>
+                <span className="text-white/40">→</span>
+                <span className="text-amber-200">3. Mesa de Fretes</span>
+                <span className="text-white/40">→</span>
+                <span className="text-white">4. Execução</span>
+              </div>
             </div>
           </div>
 
@@ -565,22 +571,22 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </header>
 
       {/* Main Container */}
-      <div className="max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 py-5 flex-1 w-full flex flex-col md:flex-row gap-5">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 py-5 flex-1 w-full flex flex-col md:flex-row gap-5 min-w-0">
         {/* Left Sidebar Navigation - Collapsible CIAFAL Menu */}
         <aside
-          className={`w-full md:w-72 flex-shrink-0 ${mobileMenuOpen ? 'block' : 'hidden md:block'}`}
+          className={`w-full md:w-72 md:shrink-0 ${mobileMenuOpen ? 'block' : 'hidden md:block'}`}
         >
-          <nav className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-sm space-y-2 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto">
+          <nav className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-sm space-y-2 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain">
             {/* Sidebar Branding Box */}
             <div className="p-3 bg-sky-50 rounded-lg border border-sky-200 text-slate-900 flex items-center space-x-3 shadow-none">
-              <div className="bg-white p-1 rounded-lg border border-slate-200">
+              <div className="bg-white p-1 rounded-lg border border-slate-200 shrink-0">
                 <img src={ciafalLogo} alt="CIAFAL" className="h-6 w-auto object-contain" />
               </div>
-              <div>
-                <div className="text-xs font-black text-[#005596] leading-tight">
+              <div className="min-w-0">
+                <div className="text-xs font-black text-[#005596] leading-tight truncate">
                   MESA DE FRETES
                 </div>
-                <div className="text-[9px] text-slate-500 font-bold uppercase">
+                <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider truncate">
                   Motor Determinístico
                 </div>
               </div>
@@ -595,15 +601,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
-              <div className="flex items-center space-x-2.5">
+              <div className="flex items-center space-x-2.5 min-w-0">
                 <LayoutDashboard
-                  className={`w-4 h-4 ${
+                  className={`w-4 h-4 shrink-0 ${
                     location.pathname === '/tms/dashboard' || location.pathname === '/'
                       ? 'text-white'
                       : 'text-[#005596]'
                   }`}
                 />
-                <span>HOME: Dashboard TMS</span>
+                <span className="truncate">HOME: Dashboard TMS</span>
               </div>
             </Link>
 
@@ -624,19 +630,19 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
                     }`}
                   >
-                    <div className="flex items-center space-x-2">
-                      <Icon className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{group.title}</span>
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <Icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{group.title}</span>
                     </div>
                     {isOpen ? (
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
                     ) : (
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
                     )}
                   </button>
 
                   {isOpen && (
-                    <div className="mt-1 space-y-0.5 pl-2">
+                    <div className="mt-1 space-y-0.5 pl-1.5">
                       {group.items
                         .filter((item) => item.show !== false)
                         .map((item) => {
@@ -645,19 +651,21 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                             <Link
                               key={item.path}
                               to={item.path}
-                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
+                              className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
                                 isActive
                                   ? 'bg-[#005596] text-white shadow-sm font-semibold'
                                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                               }`}
                             >
-                              <span className="truncate">{item.title}</span>
+                              <span className="truncate flex-1 min-w-0" title={item.title}>
+                                {item.title}
+                              </span>
 
-                              <div className="flex items-center space-x-1">
+                              <div className="flex items-center space-x-1 shrink-0">
                                 {item.inDev && (
                                   <Badge
                                     variant="outline"
-                                    className={`text-[8px] px-1 py-0 ${
+                                    className={`text-[8px] px-1.5 py-0 border shrink-0 ${
                                       isActive
                                         ? 'border-white/40 text-white bg-white/10'
                                         : 'border-amber-400 text-amber-700 bg-amber-50'
@@ -669,7 +677,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
                                 {item.badge && (
                                   <Badge
-                                    className={`text-[8px] px-1.5 py-0 font-bold ${
+                                    className={`text-[8px] px-1.5 py-0 font-bold shrink-0 border-0 ${
                                       isActive
                                         ? 'bg-white/20 text-white'
                                         : item.badgeColor
@@ -698,31 +706,31 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               <Link
                 to="/tms/fila-publica"
                 target="_blank"
-                className="flex items-center justify-between px-2 py-1 rounded text-slate-600 hover:bg-slate-50 hover:text-emerald-700"
+                className="flex items-center justify-between px-2 py-1.5 rounded text-slate-600 hover:bg-slate-50 hover:text-emerald-700 transition-colors"
               >
-                <span className="flex items-center gap-1.5">
-                  <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
-                  Link Fila (/tms/fila-publica)
+                <span className="flex items-center gap-1.5 truncate">
+                  <Smartphone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span className="truncate">Link Fila (/tms/fila-publica)</span>
                 </span>
-                <ExternalLink className="w-3 h-3 text-slate-400" />
+                <ExternalLink className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
               </Link>
               <Link
                 to="/totem"
                 target="_blank"
-                className="flex items-center justify-between px-2 py-1 rounded text-slate-600 hover:bg-slate-50 hover:text-[#005596]"
+                className="flex items-center justify-between px-2 py-1.5 rounded text-slate-600 hover:bg-slate-50 hover:text-[#005596] transition-colors"
               >
-                <span className="flex items-center gap-1.5">
-                  <Building className="w-3.5 h-3.5 text-[#005596]" />
-                  Totem Portaria (/totem)
+                <span className="flex items-center gap-1.5 truncate">
+                  <Building className="w-3.5 h-3.5 text-[#005596] shrink-0" />
+                  <span className="truncate">Totem Portaria (/totem)</span>
                 </span>
-                <ExternalLink className="w-3 h-3 text-slate-400" />
+                <ExternalLink className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
               </Link>
             </div>
           </nav>
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 min-w-0">{children}</main>
+        <main className="flex-1 min-w-0 overflow-x-hidden">{children}</main>
       </div>
 
       {/* Footer */}

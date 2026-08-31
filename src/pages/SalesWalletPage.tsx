@@ -924,68 +924,73 @@ export const SalesWalletPage: React.FC = () => {
       )}
 
       {/* KPI Cards & Indicadores Cruzados */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Card className="bg-white border-slate-200 shadow-xs">
-          <CardContent className="p-3">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">
+          <CardContent className="p-3 space-y-1 flex flex-col justify-between h-full">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block truncate">
               Itens em Carteira
             </span>
-            <div className="text-lg font-black font-mono text-slate-900">{metrics.totalOrders}</div>
+            <div className="text-xl font-black font-mono text-slate-900">{metrics.totalOrders}</div>
           </CardContent>
         </Card>
 
         <Card className="bg-white border-slate-200 shadow-xs">
-          <CardContent className="p-3">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">
+          <CardContent className="p-3 space-y-1 flex flex-col justify-between h-full">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block truncate">
               Volume Total (Qtde Real)
             </span>
-            <div className="text-lg font-black font-mono text-sky-700">
-              {metrics.totalWeightTons} t
+            <div className="text-xl font-black font-mono text-sky-700">
+              {metrics.totalWeightTons}{' '}
+              <span className="text-xs font-sans font-semibold text-slate-500">t</span>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-white border-slate-200 shadow-xs">
-          <CardContent className="p-3">
-            <span className="text-[10px] uppercase font-bold text-emerald-600 block">
+          <CardContent className="p-3 space-y-1 flex flex-col justify-between h-full">
+            <span className="text-[10px] uppercase font-bold text-emerald-600 block truncate">
               ✓ Estoque Atual (DP34)
             </span>
-            <div className="text-lg font-black font-mono text-emerald-700">
+            <div className="text-xl font-black font-mono text-emerald-700">
               {metrics.estoqueAtualCount}{' '}
-              <span className="text-xs font-normal text-slate-400">pedidos</span>
+              <span className="text-xs font-normal text-slate-400 font-sans">pedidos</span>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-white border-slate-200 shadow-xs">
-          <CardContent className="p-3">
-            <span className="text-[10px] uppercase font-bold text-sky-600 block">
+          <CardContent className="p-3 space-y-1 flex flex-col justify-between h-full">
+            <span className="text-[10px] uppercase font-bold text-sky-600 block truncate">
               ⚙ Produção Futura (PCP)
             </span>
-            <div className="text-lg font-black font-mono text-sky-700">
+            <div className="text-xl font-black font-mono text-sky-700">
               {metrics.producaoFuturaCount}{' '}
-              <span className="text-xs font-normal text-slate-400">pedidos</span>
+              <span className="text-xs font-normal text-slate-400 font-sans">pedidos</span>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-white border-slate-200 shadow-xs">
-          <CardContent className="p-3">
-            <span className="text-[10px] uppercase font-bold text-amber-500 block">
+          <CardContent className="p-3 space-y-1 flex flex-col justify-between h-full">
+            <span className="text-[10px] uppercase font-bold text-amber-500 block truncate">
               ⚠ Sem Previsão Estoque
             </span>
-            <div className="text-lg font-black font-mono text-amber-600">
-              {metrics.semPrevisaoCount}
+            <div className="text-xl font-black font-mono text-amber-600">
+              {metrics.semPrevisaoCount}{' '}
+              <span className="text-xs font-normal text-slate-400 font-sans">pedidos</span>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-white border-slate-200 shadow-xs">
-          <CardContent className="p-3">
-            <span className="text-[10px] uppercase font-bold text-slate-500 block">
+          <CardContent className="p-3 space-y-1 flex flex-col justify-between h-full">
+            <span className="text-[10px] uppercase font-bold text-slate-500 block truncate">
               Total Frete Previsto
             </span>
-            <div className="text-lg font-black font-mono text-slate-800">
+            <div
+              className="text-lg font-black font-mono text-slate-800 truncate"
+              title={`R$ ${metrics.totalFrete.toLocaleString('pt-BR')}`}
+            >
               R$ {metrics.totalFrete.toLocaleString('pt-BR')}
             </div>
           </CardContent>

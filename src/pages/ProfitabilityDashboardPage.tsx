@@ -369,83 +369,101 @@ export const ProfitabilityDashboardPage: React.FC = () => {
       </Card>
 
       {/* KPI Cards — Previsto x Realizado */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {' '}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Card className="bg-white border-slate-200 shadow-sm">
-          <CardContent className="p-3">
-            <div className="text-[10px] font-bold uppercase text-slate-500">
+          <CardContent className="p-3 space-y-1 flex flex-col justify-between h-full">
+            <div className="text-[10px] font-bold uppercase text-slate-500 truncate">
               Receita Total Frete
             </div>
-            <div className="text-base font-black text-slate-900 font-mono mt-0.5">
+            <div
+              className="text-base font-black text-slate-900 font-mono mt-0.5 truncate"
+              title={`R$ ${agg.totalReceitaFrete.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+            >
               R$ {agg.totalReceitaFrete.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
-            <div className="text-[10px] text-slate-400 mt-1">Tabela Comercial Base SP</div>
+            <div className="text-[10px] text-slate-400 truncate">Tabela Comercial Base SP</div>
           </CardContent>
         </Card>
         <Card className="bg-white border-slate-200 shadow-sm">
-          <CardContent className="p-3">
-            <div className="text-[10px] font-bold uppercase text-slate-500">
+          <CardContent className="p-3 space-y-1 flex flex-col justify-between h-full">
+            <div className="text-[10px] font-bold uppercase text-slate-500 truncate">
               Frete Pago Motoristas
             </div>
-            <div className="text-base font-black text-slate-800 font-mono mt-0.5">
+            <div
+              className="text-base font-black text-slate-800 font-mono mt-0.5 truncate"
+              title={`R$ ${agg.totalFretePago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+            >
               R$ {agg.totalFretePago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
-            <div className="text-[10px] text-slate-400 mt-1">Fechamento Mesa de Fretes</div>
+            <div className="text-[10px] text-slate-400 truncate">Fechamento Mesa de Fretes</div>
           </CardContent>
         </Card>
         <Card className="bg-white border-slate-200 shadow-sm">
-          <CardContent className="p-3">
-            <div className="text-[10px] font-bold uppercase text-slate-500">Resultado Previsto</div>
-            <div className="text-base font-black text-blue-700 font-mono mt-0.5">
+          <CardContent className="p-3 space-y-1 flex flex-col justify-between h-full">
+            <div className="text-[10px] font-bold uppercase text-slate-500 truncate">
+              Resultado Previsto
+            </div>
+            <div
+              className="text-base font-black text-blue-700 font-mono mt-0.5 truncate"
+              title={`R$ ${agg.totalResultadoPrevisto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+            >
               R$ {agg.totalResultadoPrevisto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
-            <div className="text-[10px] text-blue-500 mt-1">Pré-contratação</div>
+            <div className="text-[10px] text-blue-500 truncate">Pré-contratação</div>
           </CardContent>
         </Card>
         <Card className="bg-white border-slate-200 shadow-sm">
-          <CardContent className="p-3">
-            <div className="text-[10px] font-bold uppercase text-slate-500">
+          <CardContent className="p-3 space-y-1 flex flex-col justify-between h-full">
+            <div className="text-[10px] font-bold uppercase text-slate-500 truncate">
               Resultado Realizado
             </div>
             <div
-              className={`text-base font-black font-mono mt-0.5 ${
+              className={`text-base font-black font-mono mt-0.5 truncate ${
                 agg.totalResultadoRealizado >= 0 ? 'text-emerald-700' : 'text-rose-700'
               }`}
+              title={`R$ ${agg.totalResultadoRealizado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
             >
               R$ {agg.totalResultadoRealizado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
-            <div className="text-[10px] text-slate-400 mt-1">
+            <div className="text-[10px] text-slate-400 truncate">
               Margem: {agg.margemMediaPct.toFixed(1)}%
             </div>
           </CardContent>
         </Card>
         <Card className="bg-white border-slate-200 shadow-sm">
-          <CardContent className="p-3">
-            <div className="text-[10px] font-bold uppercase text-slate-500">Desvio Global</div>
+          <CardContent className="p-3 space-y-1 flex flex-col justify-between h-full">
+            <div className="text-[10px] font-bold uppercase text-slate-500 truncate">
+              Desvio Global
+            </div>
             <div
-              className={`text-base font-black font-mono mt-0.5 flex items-center gap-1 ${
+              className={`text-base font-black font-mono mt-0.5 flex items-center gap-1 truncate ${
                 agg.totalDesvio >= 0 ? 'text-emerald-600' : 'text-rose-600'
               }`}
+              title={`R$ ${agg.totalDesvio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
             >
               {agg.totalDesvio >= 0 ? (
-                <TrendingUp className="w-4 h-4" />
+                <TrendingUp className="w-4 h-4 shrink-0" />
               ) : (
-                <TrendingDown className="w-4 h-4" />
+                <TrendingDown className="w-4 h-4 shrink-0" />
               )}
-              R$ {agg.totalDesvio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              <span className="truncate">
+                R$ {agg.totalDesvio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
             </div>
-            <div className="text-[10px] text-slate-400 mt-1">
+            <div className="text-[10px] text-slate-400 truncate">
               {agg.totalDesvio >= 0 ? 'Favorável à CIAFAL' : 'Desfavorável / Custo Acima'}
             </div>
           </CardContent>
         </Card>
         <Card className="bg-white border-slate-200 shadow-sm">
-          <CardContent className="p-3">
-            <div className="text-[10px] font-bold uppercase text-slate-500">Acurácia Previsão</div>
-            <div className="text-base font-black text-purple-700 font-mono mt-0.5">
+          <CardContent className="p-3 space-y-1 flex flex-col justify-between h-full">
+            <div className="text-[10px] font-bold uppercase text-slate-500 truncate">
+              Acurácia Previsão
+            </div>
+            <div className="text-base font-black text-purple-700 font-mono mt-0.5 truncate">
               {agg.acuraciaPrevisaoFretePct.toFixed(1)}%
             </div>
-            <div className="text-[10px] text-purple-500 mt-1">
+            <div className="text-[10px] text-purple-500 truncate">
               Erro médio: R$ {agg.erroMedioReais.toFixed(2)}
             </div>
           </CardContent>

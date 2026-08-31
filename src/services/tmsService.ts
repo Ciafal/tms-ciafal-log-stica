@@ -3874,6 +3874,40 @@ export const TmsService = {
   },
 
   // 5. Tabelas Comerciais & Mapeamento ZSD35
+  async getFredTransports(filter?: string): Promise<any[]> {
+    try {
+      return await pb.collection('fred_transports').getFullList({
+        filter: filter || '',
+        sort: '-updated',
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async getExpeditionTracking(filter?: string): Promise<any[]> {
+    return this.getExpeditionTrackings(filter)
+  },
+
+  async getImportBatches(): Promise<any[]> {
+    try {
+      return await pb.collection('sap_imports').getFullList({
+        sort: '-created',
+      })
+    } catch {
+      return []
+    }
+  },
+
+  async resetQasHomologationData(userEmail = 'admin@ciafal.logistica'): Promise<{ success: boolean; deleted_count: number; message: string }> {
+    const res = await this.deleteExcelQasBatch(undefined, userEmail, 'Admin Master')
+    return {
+      success: res.success,
+      deleted_count: res.deletedCount,
+      message: res.message,
+    }
+  },
+
   async getCommercialFreightTables(): Promise<any[]> {
     try {
       return await pb.collection('commercial_freight_tables').getFullList({

@@ -617,36 +617,36 @@ export const QueueDashboard: React.FC = () => {
 
       {/* Main Tabs (PORTA, FORA, PROGRAMADOS, PRÉ-CADASTROS, MATRIZ FUTURA) */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
-        <TabsList className="bg-slate-200/80 p-1 rounded-xl grid grid-cols-2 sm:grid-cols-5 h-auto gap-1">
+        <TabsList className="bg-slate-200/80 p-1 rounded-xl grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 h-auto gap-1">
           <TabsTrigger
             value="PORTA"
-            className="text-xs font-bold data-[state=active]:bg-[#005596] data-[state=active]:text-white py-2"
+            className="text-xs font-bold data-[state=active]:bg-[#005596] data-[state=active]:text-white py-2 min-w-0"
           >
-            🏢 PORTA ({portaEntries.length})
+            <span className="truncate">🏢 PORTA ({portaEntries.length})</span>
           </TabsTrigger>
           <TabsTrigger
             value="FORA"
-            className="text-xs font-bold data-[state=active]:bg-emerald-600 data-[state=active]:text-white py-2"
+            className="text-xs font-bold data-[state=active]:bg-emerald-600 data-[state=active]:text-white py-2 min-w-0"
           >
-            📍 FORA ≤60km ({foraEntries.length})
+            <span className="truncate">📍 FORA ≤ 60 km ({foraEntries.length})</span>
           </TabsTrigger>
           <TabsTrigger
             value="PROGRAMADOS"
-            className="text-xs font-bold data-[state=active]:bg-purple-600 data-[state=active]:text-white py-2"
+            className="text-xs font-bold data-[state=active]:bg-purple-600 data-[state=active]:text-white py-2 min-w-0"
           >
-            📅 PROGRAMADOS ({programadosEntries.length})
+            <span className="truncate">📅 PROGRAMADOS ({programadosEntries.length})</span>
           </TabsTrigger>
           <TabsTrigger
             value="PREREG"
-            className="text-xs font-bold data-[state=active]:bg-amber-600 data-[state=active]:text-white py-2"
+            className="text-xs font-bold data-[state=active]:bg-amber-600 data-[state=active]:text-white py-2 min-w-0"
           >
-            📝 PRÉ-CADASTROS ({pendingPreRegs.length})
+            <span className="truncate">📝 PRÉ-CADASTROS ({pendingPreRegs.length})</span>
           </TabsTrigger>
           <TabsTrigger
             value="MATRIZ"
-            className="text-xs font-bold data-[state=active]:bg-slate-800 data-[state=active]:text-white py-2 col-span-2 sm:col-span-1"
+            className="text-xs font-bold data-[state=active]:bg-slate-800 data-[state=active]:text-white py-2 col-span-2 sm:col-span-1 min-w-0"
           >
-            📊 MATRIZ FUTURA
+            <span className="truncate">📊 MATRIZ FUTURA</span>
           </TabsTrigger>
         </TabsList>
 
