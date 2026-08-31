@@ -583,21 +583,19 @@ export const Zsd35ImportPage: React.FC = () => {
         <div className="space-y-0.5">
           <div className="flex items-center space-x-2 flex-wrap">
             <h1 className="text-xl font-black tracking-tight text-slate-900">
-              Importação da Carteira ZSD35A (.xlsx / .csv)
+              Ingestão de Carteira — Provider Excel (ZSD35A)
             </h1>
-            <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-              ESTRUTURA OFICIAL — 27 CAMPOS
-            </Badge>
+            <Badge className="bg-[#005596] text-white text-[10px] font-bold">CARTEIRA ÚNICA</Badge>
             <Badge
               variant="outline"
               className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold"
             >
-              Excel / QAS
+              Provider Ativo: Excel (ZSD35A)
             </Badge>
           </div>
           <p className="text-xs text-slate-500">
-            Carga ZSD35A para homologação QAS. Alimenta a mesma Carteira de Pedidos SAP ZSD35A e o
-            Planejador de Cargas, com persistência no banco e auditoria de lote.
+            Carregamento e ingestão de pedidos na Carteira Única através do provider Excel (espelho
+            ZSD35A). Alimenta diretamente o Planejador de Cargas, Roteirizador e Mesa de Fretes.
           </p>
         </div>
 
@@ -701,7 +699,7 @@ export const Zsd35ImportPage: React.FC = () => {
                   className="h-7 text-xs bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-100"
                 >
                   <TableIcon className="w-3 h-3 mr-1" />
-                  Ver na Carteira SAP
+                  Ver na Carteira Única
                 </Button>
               </Link>
               <Button
@@ -1123,7 +1121,7 @@ export const Zsd35ImportPage: React.FC = () => {
                           ) : (
                             <>
                               <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                              Confirmar Importação ZSD35A
+                              Confirmar Carga na Carteira Única
                             </>
                           )}
                         </Button>
@@ -1570,10 +1568,11 @@ export const Zsd35ImportPage: React.FC = () => {
               </div>
               <div>
                 <DialogTitle className="text-base font-bold text-slate-900">
-                  Importação ZSD35A V3 Concluída com Sucesso!
+                  Carga da Carteira Única Concluída com Sucesso!
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500">
-                  Registros persistidos e integrados à Carteira de Pedidos SAP.
+                  Registros persistidos e integrados à Carteira Única de Vendas (Provider Excel
+                  ZSD35A).
                 </DialogDescription>
               </div>
             </div>

@@ -425,8 +425,9 @@ export interface SapSalesOrderEntity {
   balance_quantity_kg?: number
   created?: string
   updated?: string
-  // Campos ZSD35A & Origem do Dado (QAS Excel / SAP Online)
-  origem_dado?: 'SAP' | 'EXCEL_QAS' | 'EXCEL_QAS_ZSD35_V3' | 'EXCEL_QAS_ZSD35A_V3'
+  // Campos ZSD35A & Origem do Dado / Provider da Carteira (QAS Excel / SAP Online)
+  origem_dado?: 'SAP' | 'EXCEL_QAS' | 'EXCEL_QAS_ZSD35_V3' | 'EXCEL_QAS_ZSD35A_V3' | 'EXCEL_ZSD35A'
+  wallet_provider?: 'EXCEL_ZSD35A' | 'SAP_ECC' | 'SAP_S4' | 'MANUAL'
   import_batch_id?: string
   source_file?: string
   imported_by_user?: string
@@ -438,6 +439,71 @@ export interface SapSalesOrderEntity {
   storage_location?: string
   route_code?: string
   technical_key?: string
+}
+
+// ----------------------------------------------------
+// CONTRATO ARQUITETURAL DE PROVIDERS DE CARTEIRA ÚNICA
+// ----------------------------------------------------
+export type SalesWalletProviderType = 'EXCEL_ZSD35A' | 'SAP_ECC' | 'SAP_S4' | 'MANUAL'
+
+export interface SalesWalletProviderInfo {
+  id: SalesWalletProviderType
+  name: string
+  shortLabel: string
+  description: string
+  status: 'ACTIVE' | 'IN_DEVELOPMENT' | 'PLANNED'
+  badgeLabel: string
+  badgeVariant: 'default' | 'secondary' | 'outline' | 'destructive'
+  isAvailable: boolean
+  syncMethod: 'EXCEL_INGESTION' | 'RFC_BAPI' | 'REST_ODATA' | 'INTERNAL'
+}
+
+export const SALES_WALLET_PROVIDERS: Record<SalesWalletProviderType, SalesWalletProviderInfo> = {
+  EXCEL_ZSD35A: {
+    id: 'EXCEL_ZSD35A',
+    name: 'Excel (ZSD35A / QAS)',
+    shortLabel: 'Excel (ZSD35A)',
+    description:
+      'Ingestão e carregamento de pedidos via arquivo Excel/CSV espelho da transação ZSD35A.',
+    status: 'ACTIVE',
+    badgeLabel: 'Ativo / Em Operação',
+    badgeVariant: 'default',
+    isAvailable: true,
+    syncMethod: 'EXCEL_INGESTION',
+  },
+  SAP_ECC: {
+    id: 'SAP_ECC',
+    name: 'SAP ECC 6.0 (RFC/BAPI)',
+    shortLabel: 'SAP ECC (RFC)',
+    description: 'Conexão direta RFC/BAPI com transação SAP ZSD35/VT01N em tempo real.',
+    status: 'IN_DEVELOPMENT',
+    badgeLabel: 'Em desenvolvimento',
+    badgeVariant: 'outline',
+    isAvailable: false,
+    syncMethod: 'RFC_BAPI',
+  },
+  SAP_S4: {
+    id: 'SAP_S4',
+    name: 'SAP S/4HANA (OData/REST)',
+    shortLabel: 'SAP S/4HANA',
+    description: 'Integração OData V4 / REST com SAP S/4HANA Cloud & On-Premise.',
+    status: 'PLANNED',
+    badgeLabel: 'Futuro / Planejado',
+    badgeVariant: 'outline',
+    isAvailable: false,
+    syncMethod: 'REST_ODATA',
+  },
+  MANUAL: {
+    id: 'MANUAL',
+    name: 'Digitação Manual TMS',
+    shortLabel: 'Manual',
+    description: 'Entrada manual para contingência operacional restrita.',
+    status: 'PLANNED',
+    badgeLabel: 'Contingência',
+    badgeVariant: 'outline',
+    isAvailable: false,
+    syncMethod: 'INTERNAL',
+  },
 }
 
 export interface OportunidadeComplementoCargaEntity {

@@ -236,13 +236,17 @@ export const LoadPlannerPage: React.FC = () => {
             <h1 className="text-xl font-black tracking-tight text-slate-900">
               Planejador de Cargas
             </h1>
-            <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-              NÚCLEO OPERACIONAL
+            <Badge className="bg-[#005596] text-white text-[10px] font-bold">CARTEIRA ÚNICA</Badge>
+            <Badge
+              variant="outline"
+              className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold"
+            >
+              Provider: Excel (ZSD35A)
             </Badge>
           </div>
           <p className="text-xs text-slate-500">
-            Cruza Demanda (ZSD35), Produção (PCP), Logística (Fila/Disponibilidade) e Regras
-            Determinísticas de Montagem.
+            Consome a carteira única de vendas (hoje via Excel ZSD35A, futuramente via SAP RFC
+            direto), cruzando com PCP, Fila de Veículos e Regras Determinísticas.
           </p>
         </div>
 
@@ -420,7 +424,7 @@ export const LoadPlannerPage: React.FC = () => {
                 </Badge>
               </div>
               <CardDescription className="text-[11px]">
-                Carteira de vendas SAP e ZSD35A pronta para montagem de carga.
+                Carteira única de vendas pronta para montagem de carga.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3 space-y-2 flex-1 overflow-y-auto max-h-[600px]">
@@ -440,22 +444,24 @@ export const LoadPlannerPage: React.FC = () => {
                           <strong className="text-slate-900 font-mono text-xs">
                             {order.order_number}
                           </strong>
-                          {order.origem_dado === 'EXCEL_QAS_ZSD35A_V3' ? (
+                          {order.origem_dado === 'EXCEL_QAS_ZSD35A_V3' ||
+                          order.origem_dado === 'EXCEL_QAS' ||
+                          order.origem_dado === 'EXCEL_QAS_ZSD35_V3' ||
+                          order.origem_dado === 'EXCEL_ZSD35A' ? (
                             <Badge
                               variant="outline"
-                              className="text-[8px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200 font-mono font-bold"
+                              className="text-[8px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200 font-mono font-semibold"
                             >
-                              EXCEL_QAS_ZSD35A_V3
+                              Excel ZSD35A
                             </Badge>
-                          ) : order.origem_dado === 'EXCEL_QAS' ||
-                            order.origem_dado === 'EXCEL_QAS_ZSD35_V3' ? (
+                          ) : (
                             <Badge
                               variant="outline"
-                              className="text-[8px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200 font-mono"
+                              className="text-[8px] px-1 py-0 bg-sky-50 text-sky-700 border-sky-200 font-mono font-semibold"
                             >
-                              EXCEL_QAS_ZSD35A_V3
+                              SAP RFC
                             </Badge>
-                          ) : null}
+                          )}
                         </div>
                         <div className="text-slate-700 font-semibold">{order.customer_name}</div>
                         <div className="text-[10px] text-slate-500">

@@ -20,6 +20,7 @@ import {
   sanitizeCellValue,
   parseNumberSafely,
 } from '@/domain/zsd35ImportEngine'
+import { SALES_WALLET_PROVIDERS } from '@/domain/rules'
 import { TmsService } from '@/services/tmsService'
 
 describe('ZSD35A V3 — Testes de Homologação e Persistência Transacional', () => {
@@ -195,5 +196,19 @@ describe('ZSD35A V3 — Testes de Homologação e Persistência Transacional', (
     expect(ZSD35A_V3_OFFICIAL_FIELDS).toContain('Compromisso especial')
     expect(ZSD35A_V3_OFFICIAL_FIELDS).toContain('Itinerário')
     expect(ZSD35A_V3_OFFICIAL_FIELDS).toContain('Estoque Total')
+  })
+
+  it('Arquitetura de Carteira Única e Providers Plugáveis', () => {
+    // Valida que os providers estão tipados e que Excel ZSD35A está ativo e SAP ECC está pronto para extensão
+    const excelProvider = SALES_WALLET_PROVIDERS['EXCEL_ZSD35A']
+    const sapProvider = SALES_WALLET_PROVIDERS['SAP_ECC']
+
+    expect(excelProvider).toBeDefined()
+    expect(excelProvider.status).toBe('ACTIVE')
+    expect(excelProvider.isAvailable).toBe(true)
+
+    expect(sapProvider).toBeDefined()
+    expect(sapProvider.status).toBe('IN_DEVELOPMENT')
+    expect(sapProvider.isAvailable).toBe(false)
   })
 })

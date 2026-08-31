@@ -765,7 +765,9 @@ export const TmsService = {
     }
   },
   // ----------------------------------------------------
-  // SAP SALES ORDERS (CARTEIRA ZSD35) & LOAD PLANNING
+  // CARTEIRA ÚNICA DE PEDIDOS (ORDER BOOK) & PROVIDERS
+  // Ingestão unificada para Planejador, Roteirizador e Mesa de Fretes.
+  // Provider ativo hoje: EXCEL (ZSD35A). Provider futuro: SAP (RFC/OData).
   // ----------------------------------------------------
   async getSapSalesOrders(): Promise<SapSalesOrderEntity[]> {
     try {
@@ -773,9 +775,16 @@ export const TmsService = {
         sort: 'order_number',
       })
     } catch (err) {
-      console.error('Failed to fetch sales orders:', err)
+      console.error('Failed to fetch sales orders from unified wallet:', err)
       return []
     }
+  },
+
+  /**
+   * Alias de contrato limpo para Carteira Única de Pedidos
+   */
+  async getUnifiedSalesWallet(): Promise<SapSalesOrderEntity[]> {
+    return this.getSapSalesOrders()
   },
 
   // ----------------------------------------------------

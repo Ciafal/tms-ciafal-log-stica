@@ -392,12 +392,19 @@ export function LoadRouterAndSimulatorPage() {
               variant="outline"
               className="bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold"
             >
-              Sprint 5 Homologada
+              Carteira Única
+            </Badge>
+            <Badge
+              variant="outline"
+              className="bg-sky-50 text-sky-700 border-sky-200 text-xs font-semibold"
+            >
+              Provider Ativo: Excel (ZSD35A)
             </Badge>
           </div>
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-            Motor determinístico CIAFAL: Ocupação Máxima • Saída Imediata (DP34 + Crédito + PORTA) •
-            Pedidos Atrasados • Menor Custo
+            Alimentado pela <strong>Carteira Única de Pedidos</strong>. Motor determinístico CIAFAL:
+            Ocupação Máxima • Saída Imediata (DP34 + Crédito + PORTA) • Pedidos Atrasados • Menor
+            Custo.
           </p>
         </div>
 

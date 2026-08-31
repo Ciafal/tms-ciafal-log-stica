@@ -23,6 +23,7 @@ import {
   Trash2,
   History,
   Info,
+  Database,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { Card, CardContent } from '@/components/ui/card'
@@ -52,6 +53,8 @@ import {
   SapSalesOrderEntity,
   SapItineraryEntity,
   calculateOrderPriorityScore,
+  SALES_WALLET_PROVIDERS,
+  SalesWalletProviderType,
 } from '@/domain/rules'
 import {
   processZsd35Rows,
@@ -173,6 +176,9 @@ export const SalesWalletPage: React.FC = () => {
   const [orders, setOrders] = useState<SapSalesOrderEntity[]>([])
   const [itineraries, setItineraries] = useState<SapItineraryEntity[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // Provider de Ingestão Ativo na Carteira
+  const [activeProvider, setActiveProvider] = useState<SalesWalletProviderType>('EXCEL_ZSD35A')
 
   // Filtros
   const [search, setSearch] = useState('')
@@ -829,26 +835,24 @@ export const SalesWalletPage: React.FC = () => {
       {/* Header com Identidade CIAFAL Pantone 2945 e Sequência Obrigatória de Botões */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center flex-wrap gap-2">
             <h1 className="text-xl font-black tracking-tight text-slate-900">
-              Carteira de Pedidos SAP (ZSD35A)
+              Carteira Única de Vendas
             </h1>
             <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-              ESTRUTURA OFICIAL 40 CAMPOS
+              FONTE ÚNICA OPERACIONAL
             </Badge>
-            {metrics.excelQasCount > 0 && (
-              <Badge
-                variant="outline"
-                className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold flex items-center gap-1"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
-                EXCEL QAS ({metrics.excelQasCount})
-              </Badge>
-            )}
+            <Badge
+              variant="outline"
+              className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-bold flex items-center gap-1"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Provider Ativo: {SALES_WALLET_PROVIDERS[activeProvider].shortLabel}
+            </Badge>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Espelho da transação SAP ZSD35A da CIAFAL. Fonte unificada para o Planejador de Cargas,
-            Roteirizador e Mesa de Fretes.
+            Fonte única de dados para o Planejador de Cargas, Roteirizador e Mesa de Fretes. Hoje
+            alimentada pelo Provider Excel (ZSD35A).
           </p>
         </div>
 
@@ -859,7 +863,7 @@ export const SalesWalletPage: React.FC = () => {
             className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-8 shadow-xs font-semibold"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />
-            Importar ZSD35A — Excel
+            Carregar Carteira (Excel ZSD35A)
             <Badge className="ml-1.5 bg-amber-400/30 text-amber-100 text-[9px] px-1 py-0 font-normal">
               QAS
             </Badge>
@@ -883,7 +887,7 @@ export const SalesWalletPage: React.FC = () => {
             disabled={isLoading}
           >
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-            Atualizar SAP / ZSD35A
+            Sincronizar Carteira
           </Button>
 
           <Button
@@ -891,11 +895,67 @@ export const SalesWalletPage: React.FC = () => {
             variant="ghost"
             size="sm"
             className="text-xs h-8 text-slate-600 hover:text-slate-900"
-            title="Histórico de Importações QAS"
+            title="Histórico de Cargas do Provider"
           >
             <History className="w-3.5 h-3.5 mr-1 text-slate-500" />
-            Histórico
+            Histórico de Cargas
           </Button>
+        </div>
+      </div>
+
+      {/* SELETOR ARQUITETURAL DE PROVIDERS / FONTE DA CARTEIRA */}
+      <div className="bg-gradient-to-r from-sky-50 via-slate-50 to-indigo-50/40 p-3 rounded-xl border border-sky-200/80 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#005596] flex items-center gap-1.5">
+                <Database className="w-3.5 h-3.5" />
+                Arquitetura de Ingestão da Carteira
+              </span>
+              <Badge className="bg-slate-900 text-white text-[9px] font-mono">
+                Padrão Provider Plugável
+              </Badge>
+            </div>
+            <p className="text-[11px] text-slate-600">
+              A carteira de vendas é única. O <strong>Planejador</strong>, o{' '}
+              <strong>Roteirizador</strong> e a <strong>Mesa de Fretes</strong> consomem esta mesma
+              base, sem distinção se os pedidos vieram do Excel ou da RFC online do SAP.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs">
+            <label className="text-[10px] font-bold uppercase text-slate-500">
+              Fonte / Provider:
+            </label>
+            <Select
+              value={activeProvider}
+              onValueChange={(val: SalesWalletProviderType) => {
+                if (val !== 'EXCEL_ZSD35A') {
+                  toast({
+                    title: `Provider ${SALES_WALLET_PROVIDERS[val].name}`,
+                    description:
+                      'Provider em homologação técnica. O Planejador e Roteirizador estão 100% desacoplados e preparados para conectar assim que a RFC estiver liberada.',
+                  })
+                }
+                setActiveProvider(val)
+              }}
+            >
+              <SelectTrigger className="h-7 text-xs min-w-[200px] font-semibold bg-slate-50 border-slate-300">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="text-xs">
+                <SelectItem value="EXCEL_ZSD35A" className="font-medium">
+                  🟢 Excel (ZSD35A / QAS) — Ativo
+                </SelectItem>
+                <SelectItem value="SAP_ECC" className="font-medium text-slate-600">
+                  ⚙ SAP ECC 6.0 (RFC) — Em desenvolvimento
+                </SelectItem>
+                <SelectItem value="SAP_S4" className="font-medium text-slate-400">
+                  🔮 SAP S/4HANA (OData) — Futuro
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -1150,10 +1210,10 @@ export const SalesWalletPage: React.FC = () => {
         <div className="p-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <span className="text-xs font-bold text-slate-800">
-              Visualização da Carteira ZSD35A ({filteredOrders.length} registros)
+              Visualização da Carteira Única ({filteredOrders.length} pedidos)
             </span>
             <Badge variant="outline" className="text-[10px] font-mono bg-white text-slate-700">
-              Ordem das Colunas: Transação SAP ZSD35A CIAFAL
+              Provider: {SALES_WALLET_PROVIDERS[activeProvider].name}
             </Badge>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
@@ -1264,31 +1324,26 @@ export const SalesWalletPage: React.FC = () => {
                       key={order.id || `${order.order_number}-${idx}`}
                       className="hover:bg-sky-50/50 transition-colors"
                     >
-                      {/* 0. Origem do Dado */}
+                      {/* 0. Origem do Dado / Provider */}
                       <td className="p-2.5 text-center">
-                        {order.origem_dado === 'EXCEL_QAS_ZSD35A_V3' ? (
+                        {order.origem_dado === 'EXCEL_QAS_ZSD35A_V3' ||
+                        order.origem_dado === 'EXCEL_QAS' ||
+                        order.origem_dado === 'EXCEL_QAS_ZSD35_V3' ||
+                        order.origem_dado === 'EXCEL_ZSD35A' ? (
                           <Badge
                             variant="outline"
                             className="text-[9px] font-mono px-1 py-0 bg-purple-50 text-purple-700 border-purple-200 font-bold"
-                            title="Massa de Homologação Oficial ZSD35A V3"
+                            title="Ingerido via Provider Excel (ZSD35A)"
                           >
-                            EXCEL_QAS_ZSD35A_V3
-                          </Badge>
-                        ) : order.origem_dado === 'EXCEL_QAS' ||
-                          order.origem_dado === 'EXCEL_QAS_ZSD35_V3' ? (
-                          <Badge
-                            variant="outline"
-                            className="text-[9px] font-mono px-1 py-0 bg-purple-50 text-purple-700 border-purple-200 font-bold"
-                            title="Massa de Homologação via Excel QAS"
-                          >
-                            EXCEL_QAS_ZSD35A_V3
+                            EXCEL (ZSD35A)
                           </Badge>
                         ) : (
                           <Badge
                             variant="outline"
-                            className="text-[9px] font-mono px-1 py-0 bg-slate-100 text-slate-700 border-slate-200"
+                            className="text-[9px] font-mono px-1 py-0 bg-sky-50 text-sky-700 border-sky-200 font-bold"
+                            title="Ingerido via Provider SAP RFC"
                           >
-                            SAP
+                            SAP (RFC)
                           </Badge>
                         )}
                       </td>
@@ -1789,8 +1844,9 @@ export const SalesWalletPage: React.FC = () => {
               ) : (
                 <>
                   <FileCheck className="w-3.5 h-3.5 mr-1.5" />
-                  Confirmar Importação ZSD35A ({validationReport?.validOrders.length || 0}{' '}
-                  registros)
+                  Confirmar Carga na Carteira Única ({validationReport?.validOrders.length ||
+                    0}{' '}
+                  pedidos)
                 </>
               )}
             </Button>
