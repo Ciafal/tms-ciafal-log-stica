@@ -319,8 +319,143 @@ export interface OptimizedScenario {
   suggestedAction?: string
 }
 
-export interface OptimizerEngineInput {
+export interface ItinerarySuggestion {
+  suggestedCode: string
+  confidence: number // 0 a 100
+  reason: string
+  source: 'SAP_EXACT' | 'UF_CITY_MATCH' | 'SIMILAR_CUSTOMER' | 'GEOGRAPHIC_INFERENCE'
+  humanValidationRequired: boolean
+}
+
+export type OrderRoutingStatus =
+  | 'ROTEIRIZADO_IMEDIATO'
+  | 'ROTEIRIZADO_PROPOSTA'
+  | 'PROGRAMACAO_FUTURA'
+  | 'AGUARDANDO_ESTOQUE'
+  | 'AGUARDANDO_CREDITO'
+  | 'AGUARDANDO_DATA_DESEJADA'
+  | 'SEM_ITINERARIO_CADASTRADO'
+  | 'RESTRICAO_LOGISTICA'
+  | 'INCOMPATIVEL_VEICULO'
+  | 'AGUARDANDO_COMPLEMENTO'
+  | 'EXCECAO_CADASTRAL'
+
+export interface OrderReconciliationItem {
+  orderId: string
+  orderNumber: string
+  itemNumber?: string
+  customerName: string
+  customerCode: string
+  destinationCity: string
+  uf: string
+  itineraryCode?: string
+  suggestedItinerary?: ItinerarySuggestion
+  weightKg: number
+  totalValue: number
+  desiredDate?: string
+  status: OrderRoutingStatus
+  statusLabel: string
+  statusDetail: string
+  assignedCargoId?: string
+  assignedScenarioType?: string
+  isAssignedToCargo: boolean
+  reasons: string[]
+}
+
+export interface WalletReconciliationSummary {
+  totalWalletOrders: number
+  totalWalletWeightKg: number
+  totalWalletValue: number
+  routedOrdersCount: number
+  routedWeightKg: number
+  futureOrdersCount: number
+  futureWeightKg: number
+  blockedStockCount: number
+  blockedCreditCount: number
+  blockedDateCount: number
+  unmappedItineraryCount: number
+  waitingComplementCount: number
+  exceptionCount: number
+  reconciliationDiff: number // DEVE SER 0: totalWalletOrders - (routed + future + blockedStock + blockedCredit + blockedDate + unmapped + waitingComplement + exception)
+  items: OrderReconciliationItem[]
+}
+
+export interface ProposedCargoEntity {
+  id: string
+  cargoNumber: string
   itineraryCode: string
+  itineraryDescription?: string
+  uf?: string
+  region?: string
+  isSuggestedItinerary: boolean
+  suggestedItineraryInfo?: ItinerarySuggestion
+  plannedExpeditionDate: string
+  vehicleType: string
+  vehicleCapacityKg: number
+  totalWeightKg: number
+  occupancyPct: number
+  occupancyBand: 'EXCELENTE' | 'BOA' | 'ATENCAO' | 'BAIXA'
+  occupancyAlert?: string
+  readinessStatus: OperationalReadinessStatus
+  readinessLabel:
+    | 'SAÍDA IMEDIATA'
+    | 'PROGRAMAÇÃO FUTURA'
+    | 'AGUARDANDO COMPLEMENTO'
+    | 'BLOQUEADA / EXCEÇÃO'
+  orders: SapSalesOrderEntity[]
+  customersCount: number
+  ordersCount: number
+  dischargesCount: number
+  hasPortaDriver: boolean
+  eligiblePortaDriversCount: number
+  eligiblePortaDriverNames: string[]
+  distanceKm: number
+  durationMinutes: number
+  tollsValue: number
+  anttFloorValue: number
+  estimatedCost: number
+  costPerTon: number
+  costPerTonKm: number
+  costPerCustomer: number
+  scoreBreakdown: OptimizationScoreBreakdown
+  priorityRanking: number
+  whyProposed: string
+  reasons: string[]
+  suggestedAction?: string
+}
+
+export interface GlobalOptimizerResult {
+  allProposedCargos: ProposedCargoEntity[]
+  immediateExitCargos: ProposedCargoEntity[]
+  futureProgrammingCargos: ProposedCargoEntity[]
+  complementCargos: ProposedCargoEntity[]
+  exceptionOrders: OrderReconciliationItem[]
+  discoveredItineraries: Array<{
+    code: string
+    description: string
+    region?: string
+    uf?: string
+    ordersCount: number
+    totalWeightKg: number
+    cargosCount: number
+  }>
+  kpis: {
+    totalProposedCargos: number
+    readyForImmediateExitCount: number
+    waitingComplementCount: number
+    futureProgrammingCount: number
+    totalPlannedWeightKg: number
+    avgOccupancyPct: number
+    attendedOrdersCount: number
+    pendingOrdersCount: number
+    totalWalletOrdersCount: number
+    totalPortaDriversCount: number
+  }
+  reconciliation: WalletReconciliationSummary
+}
+
+export interface OptimizerEngineInput {
+  itineraryCode?: string // Se vazio ou "ALL", otimiza todos os itinerários
   plannedDate: string
   orders: SapSalesOrderEntity[]
   stocks: SapStockCurrentEntity[]
@@ -330,6 +465,7 @@ export interface OptimizerEngineInput {
   vehicleType: string
   weights?: OptimizationWeights
   occupancyBands?: OccupancyBandConfig
+  itinerariesMetadata?: Record<string, { description: string; region?: string; uf?: string }>
 }
 
 /**
@@ -341,6 +477,864 @@ export interface OptimizerEngineInput {
  * 4. Menor Custo por Tonelada
  * 5. Melhor Equilíbrio (Equilibrado)
  * + Cenário Opcional: Produção Futura PCP
+ */
+/**
+ * Motor de Inferência / Sugestão Inteligente de Itinerário
+ * Utilizado quando o pedido da ZSD35A não possui itinerário SAP preenchido.
+ */
+export function inferItineraryForOrder(
+  order: SapSalesOrderEntity,
+  allOrdersWithItinerary: SapSalesOrderEntity[],
+  itinerariesMetadata: Record<string, { description: string; region?: string; uf?: string }> = {},
+): ItinerarySuggestion {
+  const uf = (order.uf || '').trim().toUpperCase()
+  const city = (order.destination_city || '').trim().toUpperCase()
+  const customerCode = (order.customer_code || '').trim()
+
+  // 1. Buscar se o mesmo cliente já teve entregas no mesmo itinerário
+  if (customerCode) {
+    const sameCustomerOrder = allOrdersWithItinerary.find(
+      (o) =>
+        o.customer_code === customerCode &&
+        o.itinerary_code &&
+        o.itinerary_code.trim().length > 0 &&
+        o.id !== order.id,
+    )
+    if (sameCustomerOrder && sameCustomerOrder.itinerary_code) {
+      const code = sameCustomerOrder.itinerary_code.trim()
+      return {
+        suggestedCode: code,
+        confidence: 90,
+        reason: `Histórico do cliente ${order.customer_name || customerCode} com entregas frequentes em ${code}.`,
+        source: 'SIMILAR_CUSTOMER',
+        humanValidationRequired: true,
+      }
+    }
+  }
+
+  // 2. Buscar correspondência exata por Cidade + UF em pedidos existentes
+  if (city && uf) {
+    const sameCityOrder = allOrdersWithItinerary.find(
+      (o) =>
+        (o.destination_city || '').trim().toUpperCase() === city &&
+        (o.uf || '').trim().toUpperCase() === uf &&
+        o.itinerary_code &&
+        o.itinerary_code.trim().length > 0,
+    )
+    if (sameCityOrder && sameCityOrder.itinerary_code) {
+      const code = sameCityOrder.itinerary_code.trim()
+      return {
+        suggestedCode: code,
+        confidence: 85,
+        reason: `Mesmo município (${order.destination_city}/${uf}) de pedidos consolidados na rota ${code}.`,
+        source: 'UF_CITY_MATCH',
+        humanValidationRequired: true,
+      }
+    }
+  }
+
+  // 3. Buscar nos metadados cadastrais de sap_itineraries por UF e Cidade/Descrição
+  const itinEntries = Object.entries(itinerariesMetadata)
+  if (city) {
+    const matchingMeta = itinEntries.find(
+      ([, meta]) =>
+        meta.description?.toUpperCase().includes(city) || meta.region?.toUpperCase().includes(city),
+    )
+    if (matchingMeta) {
+      return {
+        suggestedCode: matchingMeta[0],
+        confidence: 80,
+        reason: `Descrição do itinerário SAP (${matchingMeta[1].description}) contempla a cidade ${order.destination_city}.`,
+        source: 'GEOGRAPHIC_INFERENCE',
+        humanValidationRequired: true,
+      }
+    }
+  }
+
+  // 4. Buscar por UF principal
+  if (uf) {
+    const ufItin = itinEntries.find(
+      ([code, meta]) => meta.uf?.toUpperCase() === uf || code.startsWith(uf),
+    )
+    if (ufItin) {
+      return {
+        suggestedCode: ufItin[0],
+        confidence: 65,
+        reason: `Itinerário padrão para o estado de ${uf} (${ufItin[1].description || ufItin[0]}).`,
+        source: 'GEOGRAPHIC_INFERENCE',
+        humanValidationRequired: true,
+      }
+    }
+    // Fallback por prefixo de UF nos códigos (ex: SP001A, MG001A, RJ001A, etc.)
+    const codeWithPrefix = allOrdersWithItinerary.find((o) =>
+      o.itinerary_code?.toUpperCase().startsWith(uf),
+    )
+    if (codeWithPrefix && codeWithPrefix.itinerary_code) {
+      return {
+        suggestedCode: codeWithPrefix.itinerary_code.trim(),
+        confidence: 60,
+        reason: `Agrupamento geográfico por UF (${uf}) no itinerário ativo ${codeWithPrefix.itinerary_code}.`,
+        source: 'GEOGRAPHIC_INFERENCE',
+        humanValidationRequired: true,
+      }
+    }
+  }
+
+  return {
+    suggestedCode: 'ITIN-GERAL',
+    confidence: 30,
+    reason:
+      'Itinerário a determinar: sem correspondência exata de UF/Município. Exige validação humana.',
+    source: 'GEOGRAPHIC_INFERENCE',
+    humanValidationRequired: true,
+  }
+}
+
+/**
+ * MOTOR GLOBAL DE PROPOSTAS AUTOMÁTICAS DE CARGA (SPRINT CORREÇÃO FUNCIONAL PRIORITÁRIA)
+ * Lê toda a Carteira Única (ZSD35A) -> Identifica todos os itinerários ->
+ * Avalia elegibilidade -> Otimiza multicritério -> Propondo todas as cargas automaticamente.
+ */
+export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOptimizerResult {
+  const {
+    itineraryCode,
+    plannedDate,
+    orders = [],
+    stocks = [],
+    pcpOrders = [],
+    queueEntries = [],
+    vehicleCapacityKg = 28000,
+    vehicleType = 'Carreta 5 Eixos',
+    weights = DEFAULT_OPTIMIZATION_WEIGHTS,
+    occupancyBands = DEFAULT_OCCUPANCY_BANDS,
+    itinerariesMetadata = {},
+  } = input
+
+  const mappedOrdersWithItin = orders.filter(
+    (o) => o.itinerary_code && o.itinerary_code.trim().length > 0,
+  )
+
+  // 1. Identificar todos os itinerários presentes na carteira
+  const discoveredItinerariesMap: Record<
+    string,
+    {
+      code: string
+      orders: SapSalesOrderEntity[]
+      isSuggestedGroup?: boolean
+      suggestionInfo?: ItinerarySuggestion
+    }
+  > = {}
+
+  orders.forEach((ord) => {
+    let itin = (ord.itinerary_code || '').trim()
+    let isSuggested = false
+    let suggestion: ItinerarySuggestion | undefined
+
+    if (!itin) {
+      suggestion = inferItineraryForOrder(ord, mappedOrdersWithItin, itinerariesMetadata)
+      itin = suggestion.suggestedCode
+      isSuggested = true
+    }
+
+    if (!discoveredItinerariesMap[itin]) {
+      discoveredItinerariesMap[itin] = {
+        code: itin,
+        orders: [],
+        isSuggestedGroup: isSuggested,
+        suggestionInfo: suggestion,
+      }
+    }
+    discoveredItinerariesMap[itin].orders.push(ord)
+  })
+
+  // Se o usuário filtrou um itinerário específico, foca nele, caso contrário processa todos
+  const targetItinCodes =
+    itineraryCode && itineraryCode !== 'ALL' && itineraryCode !== '__ALL__' && itineraryCode !== ''
+      ? [itineraryCode]
+      : Object.keys(discoveredItinerariesMap).sort()
+
+  const allProposedCargos: ProposedCargoEntity[] = []
+  const assignedOrderIds = new Set<string>()
+  const orderRoutingStatusMap = new Map<
+    string,
+    {
+      status: OrderRoutingStatus
+      label: string
+      detail: string
+      assignedCargoId?: string
+      assignedScenarioType?: string
+      reasons: string[]
+    }
+  >()
+
+  let cargoIndexCounter = 1
+
+  // Base de cálculo de eixos
+  let axles = 5
+  if (vehicleType.toLowerCase().includes('toco')) axles = 2
+  else if (vehicleType.toLowerCase().includes('truck')) axles = 3
+  else if (
+    vehicleType.toLowerCase().includes('bitrem') ||
+    vehicleType.toLowerCase().includes('7 eixos')
+  )
+    axles = 7
+  else if (vehicleType.toLowerCase().includes('6 eixos')) axles = 6
+
+  // 2. Para cada itinerário identificado, gerar propostas automáticas
+  targetItinCodes.forEach((itin) => {
+    const itinData = discoveredItinerariesMap[itin]
+    if (!itinData) return
+
+    const itinOrders = itinData.orders
+    const meta = (itinerariesMetadata && itinerariesMetadata[itin]) || {
+      description: itin,
+      region: '',
+      uf: 'SP',
+    }
+    const itinDescription =
+      meta.description ||
+      meta.region ||
+      (itinData.isSuggestedGroup ? 'Itinerário Sugerido TMS' : itin)
+    const itinUf = meta.uf || (itin.length >= 2 ? itin.substring(0, 2) : 'SP')
+    const itinRegion = meta.region || itinDescription
+
+    // Motoristas PORTA compatíveis com este itinerário
+    const portaDrivers = queueEntries.filter(
+      (q) =>
+        q.type === 'PORTA' &&
+        q.status === 'disponivel' &&
+        (!q.preferred_itinerary || q.preferred_itinerary === itin),
+    )
+
+    // Avaliação detalhada de cada pedido do itinerário
+    const evaluatedItinOrders = itinOrders.map((ord) => {
+      const dateCheck = validateDesiredDate(ord.desired_date, plannedDate)
+      const dp34Check = validateDp34Stock(ord.material || '', ord.weight_kg, stocks, pcpOrders)
+      const creditCheck = classifyCredit(ord)
+
+      return {
+        order: ord,
+        dateCheck,
+        dp34Check,
+        creditCheck,
+      }
+    })
+
+    // Separar pedidos elegíveis (respeitam a data de expedição planejada)
+    const eligibleOrders = evaluatedItinOrders.filter((e) => e.dateCheck.isValid)
+    const futureDateOrders = evaluatedItinOrders.filter((e) => !e.dateCheck.isValid)
+
+    // Marcar inicialmente pedidos com bloqueio de data
+    futureDateOrders.forEach((item) => {
+      orderRoutingStatusMap.set(item.order.id, {
+        status: 'AGUARDANDO_DATA_DESEJADA',
+        label: 'Aguardando Data Desejada',
+        detail: `Data desejada (${item.order.desired_date?.split('T')[0] || 'N/I'}) é posterior à data prevista (${plannedDate}). Anti-antecipação ativa.`,
+        reasons: ['Anti-antecipação: Data desejada futura.'],
+      })
+    })
+
+    // Função interna para construir uma proposta de carga completa
+    const buildCargoProposal = (
+      cargoOrders: SapSalesOrderEntity[],
+      proposalType: 'IMMEDIATE' | 'MAX_OCC' | 'OVERDUE' | 'BALANCED' | 'FUTURE_PCP' | 'COMPLEMENT',
+      customWhyProposed?: string,
+    ): ProposedCargoEntity => {
+      const totalWeightKg = cargoOrders.reduce((sum, o) => sum + (o.weight_kg || 0), 0)
+      const occupancyPct = Math.min(
+        100,
+        Math.round((totalWeightKg / Math.max(1, vehicleCapacityKg)) * 1000) / 10,
+      )
+      const occBand = classifyOccupancyBand(occupancyPct, occupancyBands)
+
+      const uniqueCustomers = Array.from(new Set(cargoOrders.map((s) => s.customer_code)))
+      const customersCount = uniqueCustomers.length
+      const ordersCount = cargoOrders.length
+      const dischargesCount = Math.max(
+        customersCount,
+        cargoOrders.reduce((sum, o) => sum + (o.discharges_count || 1), 0),
+      )
+
+      // Atrasos
+      let totalOverdueDays = 0
+      let maxOverdueDays = 0
+      let overdueCount = 0
+      cargoOrders.forEach((o) => {
+        const chk = validateDesiredDate(o.desired_date, plannedDate)
+        if (chk.isOverdue) {
+          totalOverdueDays += chk.overdueDays
+          overdueCount++
+          if (chk.overdueDays > maxOverdueDays) maxOverdueDays = chk.overdueDays
+        }
+      })
+      const avgOverdueDays = overdueCount > 0 ? Math.round(totalOverdueDays / overdueCount) : 0
+
+      // Estoque DP34
+      let dp34AvailableSum = 0
+      let dp34MissingSum = 0
+      let isDp34FullyStocked = true
+      cargoOrders.forEach((o) => {
+        const st = validateDp34Stock(o.material || '', o.weight_kg, stocks, pcpOrders)
+        if (st.isDp34Available) {
+          dp34AvailableSum += o.weight_kg
+        } else {
+          isDp34FullyStocked = false
+          dp34MissingSum += o.weight_kg - st.dp34AvailableKg
+        }
+      })
+
+      // Crédito
+      let blockedCreditValue = 0
+      let hasApprovalNeeded = false
+      let hasBlocked = false
+      cargoOrders.forEach((o) => {
+        const cr = classifyCredit(o)
+        if (cr.classification === 'BLOQUEADO') {
+          hasBlocked = true
+          blockedCreditValue += o.total_value || 0
+        } else if (cr.classification === 'LIBERADO_COM_APROVACAO') {
+          hasApprovalNeeded = true
+        }
+      })
+
+      let creditClassification: CreditClassification = 'LIBERADO'
+      if (hasBlocked) creditClassification = 'BLOQUEADO'
+      else if (hasApprovalNeeded) creditClassification = 'LIBERADO_COM_APROVACAO'
+
+      // Distância, ANTT e Pedágio
+      const baseDistance = 380
+      const extraStopsDist = Math.max(0, customersCount - 1) * 18
+      const distanceKm = baseDistance + extraStopsDist
+      const durationMinutes = Math.round((distanceKm / 65) * 60)
+
+      const antt = anttService.calculateFloorPrice({
+        distanceKm,
+        vehicleType,
+        axlesCount: axles,
+      })
+
+      const tollsCount = Math.max(1, Math.floor(distanceKm / 55))
+      const tollsValue = Math.round(tollsCount * (4.2 * axles) * 100) / 100
+      const estimatedCost = antt.floorValue + tollsValue
+      const costPerTon =
+        totalWeightKg > 0 ? Math.round((estimatedCost / (totalWeightKg / 1000)) * 100) / 100 : 0
+      const costPerTonKm =
+        totalWeightKg > 0 && distanceKm > 0
+          ? Math.round((estimatedCost / ((totalWeightKg / 1000) * distanceKm)) * 1000) / 1000
+          : 0
+      const costPerCustomer =
+        customersCount > 0
+          ? Math.round((estimatedCost / customersCount) * 100) / 100
+          : estimatedCost
+
+      // Motoristas PORTA
+      const eligiblePortaDrivers = portaDrivers.filter((p) => {
+        if (!p.vehicle_capacity_kg_cached) return true
+        return p.vehicle_capacity_kg_cached >= totalWeightKg * 0.95
+      })
+      const hasPortaDriver = eligiblePortaDrivers.length > 0
+
+      // Score Explícito
+      const occupancyScore = Math.min(40, (occupancyPct / 100) * weights.weightOccupancy)
+      const overdueScore = Math.min(
+        25,
+        Math.min(20, maxOverdueDays * 3) + (overdueCount > 0 ? 5 : 0),
+      )
+      const portaDriverScore = hasPortaDriver ? weights.weightPortaDriver : 0
+      const routeEfficiencyScore = Math.max(0, 10 - Math.max(0, customersCount - 2) * 3)
+      const tollImpactScore = Math.max(0, 15 - Math.round(tollsValue / 50))
+      const stockConfidenceScore = isDp34FullyStocked ? 10 : 0
+      const creditConfidenceScore =
+        creditClassification === 'LIBERADO'
+          ? 10
+          : creditClassification === 'LIBERADO_COM_APROVACAO'
+            ? 5
+            : 0
+
+      const rawTotal =
+        occupancyScore +
+        overdueScore +
+        portaDriverScore +
+        routeEfficiencyScore +
+        stockConfidenceScore +
+        creditConfidenceScore
+
+      const totalScore = Math.min(100, Math.max(10, Math.round(rawTotal)))
+
+      // Determinar Status de Prontidão e Rótulo
+      let readinessStatus: OperationalReadinessStatus = 'PRONTA_PARA_OFERTA'
+      let readinessLabel: ProposedCargoEntity['readinessLabel'] = 'SAÍDA IMEDIATA'
+      const reasons: string[] = []
+
+      if (totalWeightKg > vehicleCapacityKg) {
+        readinessStatus = 'BLOQUEADA'
+        readinessLabel = 'BLOQUEADA / EXCEÇÃO'
+        reasons.push(
+          `Excesso de peso: ${(totalWeightKg / 1000).toFixed(1)}t excede a capacidade (${(vehicleCapacityKg / 1000).toFixed(1)}t).`,
+        )
+      }
+
+      if (creditClassification === 'BLOQUEADO') {
+        readinessStatus = 'BLOQUEADA'
+        readinessLabel = 'BLOQUEADA / EXCEÇÃO'
+        reasons.push(
+          `Contém pedido(s) com Crédito Bloqueado (Total: R$ ${blockedCreditValue.toLocaleString('pt-BR')}).`,
+        )
+      }
+
+      if (!isDp34FullyStocked) {
+        if (readinessStatus !== 'BLOQUEADA') {
+          readinessStatus = 'PLANEJAMENTO_FUTURO'
+          readinessLabel = 'PROGRAMAÇÃO FUTURA'
+        }
+        reasons.push(
+          `Estoque DP34 insuficiente (faltam ${(dp34MissingSum / 1000).toFixed(1)}t em outros depósitos ou PCP).`,
+        )
+      }
+
+      if (
+        isDp34FullyStocked &&
+        creditClassification === 'LIBERADO' &&
+        totalWeightKg <= vehicleCapacityKg
+      ) {
+        if (occupancyPct < 80) {
+          readinessLabel = 'AGUARDANDO COMPLEMENTO'
+          reasons.push(
+            `Ocupação de ${occupancyPct}% abaixo de 80%. Recomenda-se complemento de carga.`,
+          )
+        } else {
+          readinessStatus = 'PRONTA_SAIDA_IMEDIATA'
+          readinessLabel = 'SAÍDA IMEDIATA'
+          reasons.push(
+            '100% Apta para SAÍDA IMEDIATA: Estoque DP34 + Crédito liberado + Ocupação excelente/boa.',
+          )
+        }
+      }
+
+      // Explicabilidade: "Por que o TMS propôs esta carga?"
+      let whyProposed = customWhyProposed
+      if (!whyProposed) {
+        const overdueText =
+          overdueCount > 0 ? `contempla ${overdueCount} pedido(s) atrasado(s), ` : ''
+        const portaText = hasPortaDriver ? `possui motorista PORTA disponível no pátio, ` : ''
+        const stockText = isDp34FullyStocked
+          ? '100% dos materiais confirmados no DP34'
+          : 'com produção programada PCP'
+        const creditText =
+          creditClassification === 'LIBERADO'
+            ? 'todos os clientes com crédito liberado'
+            : 'crédito sob análise com aprovação'
+        whyProposed = `Carga priorizada automaticamente pelo TMS: ${overdueText}aproveita ${occupancyPct}% de ocupação (${(totalWeightKg / 1000).toFixed(1)}t), ${portaText}${stockText} e ${creditText}.`
+      }
+
+      const explanation = `Score ${totalScore}/100: Ocupação ${occupancyPct}% (+${occupancyScore.toFixed(0)}), Atrasos +${overdueScore}, Motorista PORTA +${portaDriverScore}, Eficiência +${routeEfficiencyScore}, Estoque DP34 +${stockConfidenceScore}, Crédito +${creditConfidenceScore}.`
+
+      let suggestedAction = ''
+      if (readinessLabel === 'SAÍDA IMEDIATA') {
+        suggestedAction = 'Aprovar carga e encaminhar para Leilão/Mesa de Fretes.'
+      } else if (readinessLabel === 'AGUARDANDO COMPLEMENTO') {
+        suggestedAction = 'Buscar pedidos complementares para atingir 95% de ocupação.'
+      } else if (readinessLabel === 'PROGRAMAÇÃO FUTURA') {
+        suggestedAction = 'Acompanhar liberação de estoque DP34 / PCP.'
+      } else {
+        suggestedAction = 'Revisar bloqueios de crédito ou excesso de peso.'
+      }
+
+      const cargoId = `CARGA-${itin}-${String(cargoIndexCounter++).padStart(3, '0')}`
+
+      return {
+        id: cargoId,
+        cargoNumber: cargoId,
+        itineraryCode: itin,
+        itineraryDescription: itinDescription,
+        uf: itinUf,
+        region: itinRegion,
+        isSuggestedItinerary: Boolean(itinData.isSuggestedGroup),
+        suggestedItineraryInfo: itinData.suggestionInfo,
+        plannedExpeditionDate: plannedDate,
+        vehicleType,
+        vehicleCapacityKg,
+        totalWeightKg,
+        occupancyPct,
+        occupancyBand: occBand.band,
+        occupancyAlert: occBand.alert,
+        readinessStatus,
+        readinessLabel,
+        orders: cargoOrders,
+        customersCount,
+        ordersCount,
+        dischargesCount,
+        hasPortaDriver,
+        eligiblePortaDriversCount: eligiblePortaDrivers.length,
+        eligiblePortaDriverNames: eligiblePortaDrivers.map(
+          (d) => d.driver_name_cached || 'Motorista PORTA',
+        ),
+        distanceKm,
+        durationMinutes,
+        tollsValue,
+        anttFloorValue: antt.floorValue,
+        estimatedCost,
+        costPerTon,
+        costPerTonKm,
+        costPerCustomer,
+        scoreBreakdown: {
+          totalScore,
+          occupancyScore,
+          overdueScore,
+          portaDriverScore,
+          routeEfficiencyScore,
+          tollImpactScore,
+          economicResultScore: 10,
+          stockConfidenceScore,
+          creditConfidenceScore,
+          explanation,
+        },
+        priorityRanking: 0,
+        whyProposed,
+        reasons,
+        suggestedAction,
+      }
+    }
+
+    // ALGORITMO DE AGRUPAMENTO E MONTAGEM DE CARGAS DETERMINÍSTICO:
+    // Passo A: Agrupar pedidos totalmente aptos (DP34 + Crédito Liberado) em cargas completas
+    const readyItems = eligibleOrders.filter(
+      (e) => e.dp34Check.isDp34Available && e.creditCheck.classification === 'LIBERADO',
+    )
+
+    // Ordenar prioritariamente por pedidos atrasados e peso
+    const sortedReady = [...readyItems].sort((a, b) => {
+      if (b.dateCheck.isOverdue && !a.dateCheck.isOverdue) return 1
+      if (!b.dateCheck.isOverdue && a.dateCheck.isOverdue) return -1
+      if (b.dateCheck.overdueDays !== a.dateCheck.overdueDays) {
+        return b.dateCheck.overdueDays - a.dateCheck.overdueDays
+      }
+      return (b.order.weight_kg || 0) - (a.order.weight_kg || 0)
+    })
+
+    // Montar cargas com capacidade do veículo (Bin-packing First-Fit Decreasing)
+    const currentBatches: SapSalesOrderEntity[][] = []
+    let currentBatch: SapSalesOrderEntity[] = []
+    let currentWeight = 0
+
+    sortedReady.forEach((item) => {
+      const ordWeight = item.order.weight_kg || 0
+      if (currentWeight + ordWeight <= vehicleCapacityKg) {
+        currentBatch.push(item.order)
+        currentWeight += ordWeight
+      } else {
+        if (currentBatch.length > 0) {
+          currentBatches.push(currentBatch)
+        }
+        currentBatch = [item.order]
+        currentWeight = ordWeight
+      }
+    })
+    if (currentBatch.length > 0) {
+      currentBatches.push(currentBatch)
+    }
+
+    currentBatches.forEach((batch) => {
+      const prop = buildCargoProposal(batch, 'IMMEDIATE')
+      allProposedCargos.push(prop)
+      batch.forEach((o) => {
+        assignedOrderIds.add(o.id)
+        orderRoutingStatusMap.set(o.id, {
+          status: prop.occupancyPct >= 80 ? 'ROTEIRIZADO_IMEDIATO' : 'AGUARDANDO_COMPLEMENTO',
+          label:
+            prop.occupancyPct >= 80 ? 'Roteirizado (Saída Imediata)' : 'Aguardando Complemento',
+          detail: `Alocado na proposta ${prop.cargoNumber} (${prop.occupancyPct}% ocupação).`,
+          assignedCargoId: prop.cargoNumber,
+          reasons: prop.reasons,
+        })
+      })
+    })
+
+    // Passo B: Pedidos com crédito a aprovar ou estoque PCP/outro depósito não contemplados
+    const remainingEligible = eligibleOrders.filter((e) => !assignedOrderIds.has(e.order.id))
+    if (remainingEligible.length > 0) {
+      // Tentar formar cargas de Programação Futura ou Complemento
+      let futureBatch: SapSalesOrderEntity[] = []
+      let futureWeight = 0
+
+      remainingEligible.forEach((item) => {
+        const ordWeight = item.order.weight_kg || 0
+        if (futureWeight + ordWeight <= vehicleCapacityKg) {
+          futureBatch.push(item.order)
+          futureWeight += ordWeight
+        } else {
+          if (futureBatch.length > 0) {
+            const fProp = buildCargoProposal(
+              futureBatch,
+              'FUTURE_PCP',
+              `Carga sugerida para programação futura: aguarda saldo DP34/PCP ou liberação de crédito.`,
+            )
+            allProposedCargos.push(fProp)
+            futureBatch.forEach((o) => {
+              assignedOrderIds.add(o.id)
+              orderRoutingStatusMap.set(o.id, {
+                status: 'PROGRAMACAO_FUTURA',
+                label: 'Programação Futura',
+                detail: `Alocado na proposta futura ${fProp.cargoNumber}.`,
+                assignedCargoId: fProp.cargoNumber,
+                reasons: fProp.reasons,
+              })
+            })
+          }
+          futureBatch = [item.order]
+          futureWeight = ordWeight
+        }
+      })
+
+      if (futureBatch.length > 0) {
+        const fProp = buildCargoProposal(
+          futureBatch,
+          'FUTURE_PCP',
+          `Carga sugerida para programação futura: aguarda saldo DP34/PCP ou liberação de crédito.`,
+        )
+        allProposedCargos.push(fProp)
+        futureBatch.forEach((o) => {
+          assignedOrderIds.add(o.id)
+          orderRoutingStatusMap.set(o.id, {
+            status: 'PROGRAMACAO_FUTURA',
+            label: 'Programação Futura',
+            detail: `Alocado na proposta futura ${fProp.cargoNumber}.`,
+            assignedCargoId: fProp.cargoNumber,
+            reasons: fProp.reasons,
+          })
+        })
+      }
+    }
+  })
+
+  // 3. Atribuir ranking às cargas propostas ordenadas por Score e Aptidão
+  allProposedCargos.sort((a, b) => {
+    // Prioridade 1: SAÍDA IMEDIATA
+    if (a.readinessLabel === 'SAÍDA IMEDIATA' && b.readinessLabel !== 'SAÍDA IMEDIATA') return -1
+    if (a.readinessLabel !== 'SAÍDA IMEDIATA' && b.readinessLabel === 'SAÍDA IMEDIATA') return 1
+    // Prioridade 2: Score multicritério total
+    return b.scoreBreakdown.totalScore - a.scoreBreakdown.totalScore
+  })
+
+  allProposedCargos.forEach((cargo, index) => {
+    cargo.priorityRanking = index + 1
+  })
+
+  // 4. Reconciliação Total da Carteira Única (RECONCILIAÇÃO MATEMÁTICA DE 100% DOS PEDIDOS)
+  const reconciliationItems: OrderReconciliationItem[] = orders.map((ord) => {
+    const routingInfo = orderRoutingStatusMap.get(ord.id)
+    const itin = (ord.itinerary_code || '').trim()
+    const suggestion = !itin
+      ? inferItineraryForOrder(ord, mappedOrdersWithItin, itinerariesMetadata)
+      : undefined
+
+    let status: OrderRoutingStatus = 'EXCECAO_CADASTRAL'
+    let statusLabel = 'Exceção Cadastral'
+    let statusDetail = 'Não classificado em nenhuma carga.'
+    let assignedCargoId: string | undefined = undefined
+    let reasons: string[] = []
+
+    if (routingInfo) {
+      status = routingInfo.status
+      statusLabel = routingInfo.label
+      statusDetail = routingInfo.detail
+      assignedCargoId = routingInfo.assignedCargoId
+      reasons = routingInfo.reasons
+    } else {
+      const dateCheck = validateDesiredDate(ord.desired_date, plannedDate)
+      const dp34Check = validateDp34Stock(ord.material || '', ord.weight_kg, stocks, pcpOrders)
+      const creditCheck = classifyCredit(ord)
+
+      if (!dateCheck.isValid) {
+        status = 'AGUARDANDO_DATA_DESEJADA'
+        statusLabel = 'Aguardando Data Desejada'
+        statusDetail = `Data desejada (${ord.desired_date?.split('T')[0] || 'N/I'}) posterior a ${plannedDate}.`
+        reasons.push('Anti-antecipação: Data futura')
+      } else if (creditCheck.classification === 'BLOQUEADO') {
+        status = 'AGUARDANDO_CREDITO'
+        statusLabel = 'Crédito Bloqueado'
+        statusDetail = 'Pedido com crédito bloqueado pelo financeiro SAP.'
+        reasons.push('Crédito Bloqueado no SAP')
+      } else if (!dp34Check.isDp34Available) {
+        status = 'AGUARDANDO_ESTOQUE'
+        statusLabel = 'Aguardando Saldo DP34'
+        statusDetail = dp34Check.statusMessage
+        reasons.push('Estoque DP34 não disponível')
+      } else if (!itin) {
+        status = 'SEM_ITINERARIO_CADASTRADO'
+        statusLabel = 'Sem Itinerário SAP'
+        statusDetail = `Sugerido pelo TMS: ${suggestion?.suggestedCode} (${suggestion?.reason}). Exige validação humana.`
+        reasons.push('Itinerário não cadastrado no SAP')
+      }
+    }
+
+    return {
+      orderId: ord.id,
+      orderNumber: ord.order_number,
+      itemNumber: ord.item_number,
+      customerName: ord.customer_name,
+      customerCode: ord.customer_code,
+      destinationCity: ord.destination_city || 'N/I',
+      uf: ord.uf || 'SP',
+      itineraryCode: ord.itinerary_code,
+      suggestedItinerary: suggestion,
+      weightKg: ord.weight_kg || 0,
+      totalValue: ord.total_value || 0,
+      desiredDate: ord.desired_date,
+      status,
+      statusLabel,
+      statusDetail,
+      assignedCargoId,
+      isAssignedToCargo: Boolean(assignedCargoId),
+      reasons,
+    }
+  })
+
+  // Agrupamentos por Abas
+  const immediateExitCargos = allProposedCargos.filter((c) => c.readinessLabel === 'SAÍDA IMEDIATA')
+  const futureProgrammingCargos = allProposedCargos.filter(
+    (c) => c.readinessLabel === 'PROGRAMAÇÃO FUTURA',
+  )
+  const complementCargos = allProposedCargos.filter(
+    (c) => c.readinessLabel === 'AGUARDANDO COMPLEMENTO',
+  )
+  const exceptionOrders = reconciliationItems.filter((item) => !item.isAssignedToCargo)
+
+  // Descoberta e contagem de itinerários para exibição nos filtros
+  const discoveredItineraries = Object.entries(discoveredItinerariesMap)
+    .map(([code, data]) => {
+      const meta = (itinerariesMetadata && itinerariesMetadata[code]) || {
+        description: code,
+        region: '',
+        uf: 'SP',
+      }
+      const totalWeight = data.orders.reduce((sum, o) => sum + (o.weight_kg || 0), 0)
+      const cargosForItin = allProposedCargos.filter((c) => c.itineraryCode === code).length
+      return {
+        code,
+        description:
+          meta.description ||
+          meta.region ||
+          (data.isSuggestedGroup ? 'Itinerário Sugerido TMS' : code),
+        region: meta.region,
+        uf: meta.uf,
+        ordersCount: data.orders.length,
+        totalWeightKg: totalWeight,
+        cargosCount: cargosForItin,
+      }
+    })
+    .sort((a, b) => b.ordersCount - a.ordersCount)
+
+  // Resumo de Reconciliação
+  const totalWalletOrders = orders.length
+  const totalWalletWeightKg = orders.reduce((sum, o) => sum + (o.weight_kg || 0), 0)
+  const totalWalletValue = orders.reduce((sum, o) => sum + (o.total_value || 0), 0)
+
+  const routedOrdersCount = reconciliationItems.filter(
+    (i) => i.status === 'ROTEIRIZADO_IMEDIATO' || i.status === 'ROTEIRIZADO_PROPOSTA',
+  ).length
+  const routedWeightKg = reconciliationItems
+    .filter((i) => i.status === 'ROTEIRIZADO_IMEDIATO' || i.status === 'ROTEIRIZADO_PROPOSTA')
+    .reduce((sum, i) => sum + i.weightKg, 0)
+
+  const futureOrdersCount = reconciliationItems.filter(
+    (i) => i.status === 'PROGRAMACAO_FUTURA',
+  ).length
+  const futureWeightKg = reconciliationItems
+    .filter((i) => i.status === 'PROGRAMACAO_FUTURA')
+    .reduce((sum, i) => sum + i.weightKg, 0)
+
+  const blockedStockCount = reconciliationItems.filter(
+    (i) => i.status === 'AGUARDANDO_ESTOQUE',
+  ).length
+  const blockedCreditCount = reconciliationItems.filter(
+    (i) => i.status === 'AGUARDANDO_CREDITO',
+  ).length
+  const blockedDateCount = reconciliationItems.filter(
+    (i) => i.status === 'AGUARDANDO_DATA_DESEJADA',
+  ).length
+  const unmappedItineraryCount = reconciliationItems.filter(
+    (i) => i.status === 'SEM_ITINERARIO_CADASTRADO',
+  ).length
+  const waitingComplementCount = reconciliationItems.filter(
+    (i) => i.status === 'AGUARDANDO_COMPLEMENTO',
+  ).length
+  const exceptionCount = reconciliationItems.filter(
+    (i) =>
+      i.status === 'RESTRICAO_LOGISTICA' ||
+      i.status === 'INCOMPATIVEL_VEICULO' ||
+      i.status === 'EXCECAO_CADASTRAL',
+  ).length
+
+  const sumClassified =
+    routedOrdersCount +
+    futureOrdersCount +
+    blockedStockCount +
+    blockedCreditCount +
+    blockedDateCount +
+    unmappedItineraryCount +
+    waitingComplementCount +
+    exceptionCount
+
+  const reconciliationDiff = totalWalletOrders - sumClassified
+
+  const totalPlannedWeight = allProposedCargos.reduce((sum, c) => sum + c.totalWeightKg, 0)
+  const avgOccupancy =
+    allProposedCargos.length > 0
+      ? Math.round(
+          (allProposedCargos.reduce((sum, c) => sum + c.occupancyPct, 0) /
+            allProposedCargos.length) *
+            10,
+        ) / 10
+      : 0
+
+  const attendedOrdersCount = assignedOrderIds.size
+  const pendingOrdersCount = totalWalletOrders - attendedOrdersCount
+
+  return {
+    allProposedCargos,
+    immediateExitCargos,
+    futureProgrammingCargos,
+    complementCargos,
+    exceptionOrders,
+    discoveredItineraries,
+    kpis: {
+      totalProposedCargos: allProposedCargos.length,
+      readyForImmediateExitCount: immediateExitCargos.length,
+      waitingComplementCount: complementCargos.length,
+      futureProgrammingCount: futureProgrammingCargos.length,
+      totalPlannedWeightKg: totalPlannedWeight,
+      avgOccupancyPct: avgOccupancy,
+      attendedOrdersCount,
+      pendingOrdersCount,
+      totalWalletOrdersCount: totalWalletOrders,
+      totalPortaDriversCount: queueEntries.filter(
+        (q) => q.type === 'PORTA' && q.status === 'disponivel',
+      ).length,
+    },
+    reconciliation: {
+      totalWalletOrders,
+      totalWalletWeightKg,
+      totalWalletValue,
+      routedOrdersCount,
+      routedWeightKg,
+      futureOrdersCount,
+      futureWeightKg,
+      blockedStockCount,
+      blockedCreditCount,
+      blockedDateCount,
+      unmappedItineraryCount,
+      waitingComplementCount,
+      exceptionCount,
+      reconciliationDiff,
+      items: reconciliationItems,
+    },
+  }
+}
+
+/**
+ * Motor Determinístico de Otimização Multicritério da CIAFAL (Sprint 5 - Cenários de um itinerário específico)
+ * Preservado integralmente para compatibilidade com testes e análises aprofundadas de itinerário.
  */
 export function runCiafalOptimizer(input: OptimizerEngineInput): {
   scenarios: OptimizedScenario[]
@@ -355,7 +1349,7 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
   }
 } {
   const {
-    itineraryCode,
+    itineraryCode = '',
     plannedDate,
     orders,
     stocks,
@@ -367,8 +1361,11 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
     occupancyBands = DEFAULT_OCCUPANCY_BANDS,
   } = input
 
-  // 1. Filtrar pedidos do itinerário
-  const itinOrders = orders.filter((o) => o.itinerary_code === itineraryCode)
+  // 1. Filtrar pedidos do itinerário (se "ALL" ou vazio, pega todos com itinerário ou o primeiro)
+  const itinOrders =
+    itineraryCode && itineraryCode !== 'ALL' && itineraryCode !== '__ALL__'
+      ? orders.filter((o) => o.itinerary_code === itineraryCode)
+      : orders
 
   // 2. Motoristas PORTA disponíveis e compatíveis
   const portaDrivers = queueEntries.filter(
@@ -698,13 +1695,12 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
     scenarios.push(
       buildScenarioMetrics(
         maxOccOrders,
-        'scenario_b_max_occupancy',
+        'max_occupancy',
         'Cenário B — Ocupação Máxima',
         'Maximiza o aproveitamento da capacidade volumétrica e de peso do veículo até o teto regulatório.',
       ),
     )
   }
-
   // CENÁRIO C: Pedidos Atrasados (Prioriza clientes com maior tempo de carteira/atraso)
   const sortedByOverdue = [...validForExpedition].sort((a, b) => {
     const diffA = b.dateCheck.overdueDays - a.dateCheck.overdueDays

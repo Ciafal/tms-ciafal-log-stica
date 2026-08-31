@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Sparkles,
   Truck,
@@ -27,6 +27,15 @@ import {
   FileText,
   Printer,
   FileCheck,
+  CheckCircle,
+  HelpCircle,
+  BarChart3,
+  ListOrdered,
+  AlertCircle,
+  Send,
+  Edit,
+  Eye,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { tmsService } from '../services/tmsService'
 import {
@@ -37,7 +46,11 @@ import {
   VehicleEntity,
 } from '../domain/rules'
 import {
+  runGlobalCiafalOptimizer,
   runCiafalOptimizer,
+  GlobalOptimizerResult,
+  ProposedCargoEntity,
+  OrderReconciliationItem,
   OptimizedScenario,
   validateDesiredDate,
   validateDp34Stock,
@@ -82,7 +95,7 @@ export function LoadRouterAndSimulatorPage() {
   const { toast } = useToast()
   const navigate = useNavigate()
 
-  // Estados principais
+  // Dados mestres da Carteira e Pátio
   const [orders, setOrders] = useState<SapSalesOrderEntity[]>([])
   const [stocks, setStocks] = useState<SapStockCurrentEntity[]>([])
   const [pcpOrders, setPcpOrders] = useState<PcpProductionOrderEntity[]>([])
@@ -92,34 +105,81 @@ export function LoadRouterAndSimulatorPage() {
     Record<string, { description: string; region?: string; uf?: string }>
   >({})
   const [loading, setLoading] = useState(true)
+  const [optimizing, setOptimizing] = useState(false)
+  const [optimizationStep, setOptimizationStep] = useState<string>('')
 
-  // Filtros da Simulação
-  const [selectedItinerary, setSelectedItinerary] = useState<string>('')
+  // Filtros / Parâmetros da Simulação (Padrão: TODOS)
+  const [selectedItineraryFilter, setSelectedItineraryFilter] = useState<string>('ALL')
   const [plannedDate, setPlannedDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [selectedVehicleType, setSelectedVehicleType] = useState<string>('Carreta 5 Eixos')
   const [vehicleCapacityKg, setVehicleCapacityKg] = useState<number>(28000)
-  const [isUnmappedModalOpen, setIsUnmappedModalOpen] = useState(false)
 
-  // Cenários gerados
-  const [scenarios, setScenarios] = useState<OptimizedScenario[]>([])
-  const [immediateCargos, setImmediateCargos] = useState<OptimizedScenario[]>([])
-  const [selectedScenario, setSelectedScenario] = useState<OptimizedScenario | null>(null)
-  const [optimizerSummary, setOptimizerSummary] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<string>('immediate_exit')
+  // Resultado do Motor Global de Otimização
+  const [globalResult, setGlobalResult] = useState<GlobalOptimizerResult | null>(null)
+  const [activeTab, setActiveTab] = useState<string>('proposed_cargos')
 
-  // Modais
+  // Modais de Detalhamento e Ações
+  const [selectedCargoDetail, setSelectedCargoDetail] = useState<ProposedCargoEntity | null>(null)
+  const [selectedCargoForApproval, setSelectedCargoForApproval] =
+    useState<ProposedCargoEntity | null>(null)
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
+  const [isApprovedSuccessOpen, setIsApprovedSuccessOpen] = useState(false)
+  const [generatedCargoResult, setGeneratedCargoResult] = useState<any>(null)
+
   const [isStockConfirmModalOpen, setIsStockConfirmModalOpen] = useState(false)
   const [selectedOrderForStock, setSelectedOrderForStock] = useState<SapSalesOrderEntity | null>(
     null,
   )
-  const [isPcpDetailOpen, setIsPcpDetailOpen] = useState(false)
-  const [isApprovedSuccessOpen, setIsApprovedSuccessOpen] = useState(false)
-  const [generatedCargoResult, setGeneratedCargoResult] = useState<any>(null)
   const [isWeightsModalOpen, setIsWeightsModalOpen] = useState(false)
   const [weights, setWeights] = useState(DEFAULT_OPTIMIZATION_WEIGHTS)
 
-  // Carregar dados iniciais
+  const [filterSearchQuery, setFilterSearchQuery] = useState<string>('')
+
+  // Executar Otimização Multicritério com feedback de etapas
+  const runOptimization = (
+    currentOrders = orders,
+    currentStocks = stocks,
+    currentPcp = pcpOrders,
+    currentQueue = queueEntries,
+    itinFilter = selectedItineraryFilter,
+    date = plannedDate,
+    capKg = vehicleCapacityKg,
+    vType = selectedVehicleType,
+    meta = itinerariesMetadata,
+  ) => {
+    setOptimizing(true)
+    setOptimizationStep('Lendo Carteira Única & Normalizando...')
+
+    // Simulação visual ultra rápida das etapas reais do motor determinístico
+    setTimeout(() => {
+      setOptimizationStep('Avaliando elegibilidade, estoque DP34 & crédito...')
+    }, 120)
+
+    setTimeout(() => {
+      setOptimizationStep('Agrupando por itinerários e combinando capacidades...')
+    }, 240)
+
+    setTimeout(() => {
+      const result = runGlobalCiafalOptimizer({
+        itineraryCode: itinFilter,
+        plannedDate: date,
+        orders: currentOrders,
+        stocks: currentStocks,
+        pcpOrders: currentPcp,
+        queueEntries: currentQueue,
+        vehicleCapacityKg: capKg,
+        vehicleType: vType,
+        weights,
+        itinerariesMetadata: meta,
+      })
+
+      setGlobalResult(result)
+      setOptimizing(false)
+      setOptimizationStep('')
+    }, 380)
+  }
+
+  // Carregar dados iniciais e disparar motor automaticamente
   const loadData = async () => {
     setLoading(true)
     try {
@@ -139,7 +199,6 @@ export function LoadRouterAndSimulatorPage() {
       const realVehicles = vList || []
       const realItineraries = itinList || []
 
-      // Monta dicionário de metadados dos itinerários ativos/cadastrados
       const itinMetaMap: Record<string, { description: string; region?: string; uf?: string }> = {}
       realItineraries.forEach((it) => {
         if (it.sap_code) {
@@ -158,46 +217,21 @@ export function LoadRouterAndSimulatorPage() {
       setQueueEntries(realQueue)
       setVehicles(realVehicles)
 
-      // Extrair itinerários reais com pedidos válidos na carteira
-      const activeItinsInWallet = Array.from(
-        new Set(
-          realOrders
-            .map((o) => o.itinerary_code?.trim())
-            .filter((code): code is string => Boolean(code)),
-        ),
-      ).sort()
-
-      // Lógica de estado inicial do Roteirizador:
-      // - Se 1 único itinerário na carteira -> seleciona automaticamente
-      // - Se múltiplos itinerários -> string vazia (placeholder "Selecione um itinerário")
-      // - Se 0 itinerários -> string vazia
-      let initialItin = ''
-      if (activeItinsInWallet.length === 1) {
-        initialItin = activeItinsInWallet[0]
-      }
-      setSelectedItinerary(initialItin)
-
-      // Se houver um itinerário único selecionado automaticamente, executa otimização
-      if (initialItin) {
-        executeOptimization(
-          realOrders,
-          realStocks,
-          realPcp,
-          realQueue,
-          initialItin,
-          plannedDate,
-          vehicleCapacityKg,
-          selectedVehicleType,
-        )
-      } else {
-        setScenarios([])
-        setImmediateCargos([])
-        setSelectedScenario(null)
-        setOptimizerSummary(null)
-      }
+      // DISPARO AUTOMÁTICO NA ENTRADA: Lê toda a carteira e propõe as cargas imediatamente!
+      runOptimization(
+        realOrders,
+        realStocks,
+        realPcp,
+        realQueue,
+        'ALL',
+        plannedDate,
+        vehicleCapacityKg,
+        selectedVehicleType,
+        itinMetaMap,
+      )
     } catch (err: any) {
       toast({
-        title: 'Aviso ao carregar dados',
+        title: 'Aviso ao carregar carteira',
         description: 'Dados carregados em modo de contingência local.',
       })
     } finally {
@@ -209,182 +243,119 @@ export function LoadRouterAndSimulatorPage() {
     loadData()
   }, [])
 
-  // Disparar motor de otimização
-  const executeOptimization = (
-    currentOrders = orders,
-    currentStocks = stocks,
-    currentPcp = pcpOrders,
-    currentQueue = queueEntries,
-    itin = selectedItinerary,
-    date = plannedDate,
-    capKg = vehicleCapacityKg,
-    vType = selectedVehicleType,
+  // Mudança manual nos filtros
+  const handleFilterChange = (
+    newItin = selectedItineraryFilter,
+    newDate = plannedDate,
+    newVehicle = selectedVehicleType,
+    newCap = vehicleCapacityKg,
   ) => {
-    if (!itin) {
-      setScenarios([])
-      setImmediateCargos([])
-      setSelectedScenario(null)
-      setOptimizerSummary(null)
-      return
-    }
-
-    const result = runCiafalOptimizer({
-      itineraryCode: itin,
-      plannedDate: date,
-      orders: currentOrders,
-      stocks: currentStocks,
-      pcpOrders: currentPcp,
-      queueEntries: currentQueue,
-      vehicleCapacityKg: capKg,
-      vehicleType: vType,
-      weights,
-    })
-
-    setScenarios(result.scenarios)
-    setImmediateCargos(result.immediateExitCargos)
-    setOptimizerSummary(result.summary)
-
-    // Selecionar cenário padrão
-    if (result.immediateExitCargos.length > 0) {
-      setSelectedScenario(result.immediateExitCargos[0])
-      setActiveTab('immediate_exit')
-    } else if (result.scenarios.length > 0) {
-      setSelectedScenario(result.scenarios[0])
-    } else {
-      setSelectedScenario(null)
-    }
-  }
-
-  // Mudança de parâmetros
-  const handleRunOptimizerClick = () => {
-    if (!selectedItinerary) {
-      toast({
-        variant: 'destructive',
-        title: 'Selecione um Itinerário',
-        description: 'Por favor escolha um itinerário para executar o motor de otimização.',
-      })
-      return
-    }
-
-    executeOptimization(
+    runOptimization(
       orders,
       stocks,
       pcpOrders,
       queueEntries,
-      selectedItinerary,
-      plannedDate,
-      vehicleCapacityKg,
-      selectedVehicleType,
+      newItin,
+      newDate,
+      newCap,
+      newVehicle,
+      itinerariesMetadata,
     )
-    toast({
-      title: 'Motor de Otimização Executado',
-      description: `Cenários determinísticos gerados para o itinerário ${selectedItinerary} com data ${plannedDate}.`,
-    })
   }
 
-  // Aprovação e Geração de Carga
-  const handleApproveScenario = async () => {
-    if (!selectedScenario) return
+  // Aprovação formal da carga proposta pelo usuário -> Criação no TMS e auditoria
+  const handleApproveCargo = async () => {
+    if (!selectedCargoForApproval) return
 
-    // Revalidação prévia obrigatória
-    if (selectedScenario.readinessStatus === 'BLOQUEADA') {
+    if (selectedCargoForApproval.readinessStatus === 'BLOQUEADA') {
       toast({
         variant: 'destructive',
         title: 'Carga Bloqueada para Aprovação',
-        description:
-          'Existem restrições impeditivas de crédito ou excesso de peso que bloqueiam a geração da carga.',
+        description: 'Existem restrições impeditivas de crédito ou peso que impedem a aprovação.',
       })
       return
     }
 
     try {
-      // 1. Criar a carga no TMS Service
       const newCargo = await tmsService.createCargo({
-        scenario_name: selectedScenario.title,
-        itinerary_code: selectedScenario.itineraryCode,
-        planned_date: selectedScenario.plannedExpeditionDate,
-        vehicle_type: selectedScenario.vehicleType,
-        vehicle_capacity_kg: selectedScenario.vehicleCapacityKg,
-        total_weight_kg: selectedScenario.totalWeightKg,
-        occupancy_pct: selectedScenario.occupancyPct,
-        order_count: selectedScenario.ordersCount,
-        orders_payload: selectedScenario.orders,
-        estimated_cost: selectedScenario.estimatedCost,
-        antt_floor_value: selectedScenario.anttFloorValue,
-        toll_value: selectedScenario.tollsValue,
+        scenario_name: `Carga ${selectedCargoForApproval.cargoNumber} (${selectedCargoForApproval.itineraryCode})`,
+        itinerary_code: selectedCargoForApproval.itineraryCode,
+        planned_date: selectedCargoForApproval.plannedExpeditionDate,
+        vehicle_type: selectedCargoForApproval.vehicleType,
+        vehicle_capacity_kg: selectedCargoForApproval.vehicleCapacityKg,
+        total_weight_kg: selectedCargoForApproval.totalWeightKg,
+        occupancy_pct: selectedCargoForApproval.occupancyPct,
+        order_count: selectedCargoForApproval.ordersCount,
+        orders_payload: selectedCargoForApproval.orders,
+        estimated_cost: selectedCargoForApproval.estimatedCost,
+        antt_floor_value: selectedCargoForApproval.anttFloorValue,
+        toll_value: selectedCargoForApproval.tollsValue,
         status: 'Pronta para oferta',
-        source_scenario_score: selectedScenario.scoreBreakdown.totalScore,
+        source_scenario_score: selectedCargoForApproval.scoreBreakdown.totalScore,
       })
 
-      // 2. Registrar Auditoria Formal
       await tmsService.logAudit({
         user_name: user?.email || 'operador@ciafal.com.br',
-        action_type: 'APROVAR_CENARIO_GERAR_CARGA',
+        action_type: 'APROVAR_CARGA_PROPOSTA_TMS',
         target_entity: 'cargo',
         target_id: newCargo.id,
         details: {
-          scenario_id: selectedScenario.id,
-          scenario_type: selectedScenario.scenarioType,
-          total_score: selectedScenario.scoreBreakdown.totalScore,
-          score_breakdown: selectedScenario.scoreBreakdown,
-          orders_count: selectedScenario.ordersCount,
-          total_weight_kg: selectedScenario.totalWeightKg,
-          occupancy_pct: selectedScenario.occupancyPct,
-          dp34_stocked: selectedScenario.isDp34FullyStocked,
-          has_porta_driver: selectedScenario.hasPortaDriver,
-          itinerary: selectedScenario.itineraryCode,
+          cargo_number: selectedCargoForApproval.cargoNumber,
+          itinerary: selectedCargoForApproval.itineraryCode,
+          is_suggested_itinerary: selectedCargoForApproval.isSuggestedItinerary,
+          orders_count: selectedCargoForApproval.ordersCount,
+          total_weight_kg: selectedCargoForApproval.totalWeightKg,
+          occupancy_pct: selectedCargoForApproval.occupancyPct,
+          estimated_cost: selectedCargoForApproval.estimatedCost,
+          antt_floor: selectedCargoForApproval.anttFloorValue,
+          readiness_label: selectedCargoForApproval.readinessLabel,
         },
       })
 
       setGeneratedCargoResult(newCargo)
       setIsConfirmModalOpen(false)
       setIsApprovedSuccessOpen(true)
+      toast({
+        title: 'Carga Aprovada com Sucesso!',
+        description: `A proposta ${selectedCargoForApproval.cargoNumber} foi oficializada e está disponível no Planejador e Mesa de Fretes.`,
+      })
     } catch (err: any) {
       toast({
         variant: 'destructive',
         title: 'Erro ao aprovar carga',
-        description: err?.message || 'Falha ao gravar registro no banco.',
+        description: err?.message || 'Falha ao gravar registro no banco de dados.',
       })
     }
   }
 
-  // Separação de pedidos: Mapeados vs Sem Itinerário
-  const unmappedOrders = orders.filter((o) => !o.itinerary_code || !o.itinerary_code.trim())
-  const mappedOrders = orders.filter((o) => o.itinerary_code && o.itinerary_code.trim())
+  // Itinerários identificados para o select
+  const availableItineraries = globalResult?.discoveredItineraries || []
 
-  // Itinerários disponíveis na carteira atual (extraídos dos pedidos e com contagem)
-  const itineraryCountsMap: Record<string, number> = {}
-  mappedOrders.forEach((o) => {
-    const code = o.itinerary_code!.trim()
-    itineraryCountsMap[code] = (itineraryCountsMap[code] || 0) + 1
-  })
-
-  const availableItineraries = Object.keys(itineraryCountsMap).sort()
-
-  // Função auxiliar para rótulo amigável
-  const getItineraryLabel = (itinCode: string) => {
-    const meta = itinerariesMetadata[itinCode]
-    const count = itineraryCountsMap[itinCode] || 0
-    const countText = count === 1 ? '1 pedido' : `${count} pedidos`
-
-    if (meta) {
-      const cityOrRegion = meta.description || meta.region || meta.uf || ''
-      return `${itinCode} — ${cityOrRegion} (${countText})`
-    }
-    return `${itinCode} (${countText})`
-  }
-
-  // Pedidos do itinerário atualmente selecionado
-  const currentItinOrders = selectedItinerary
-    ? orders.filter((o) => o.itinerary_code === selectedItinerary)
-    : []
+  // Cargas filtradas por busca textual
+  const filteredProposedCargos = useMemo(() => {
+    if (!globalResult) return []
+    if (!filterSearchQuery.trim()) return globalResult.allProposedCargos
+    const query = filterSearchQuery.toLowerCase()
+    return globalResult.allProposedCargos.filter(
+      (c) =>
+        c.cargoNumber.toLowerCase().includes(query) ||
+        c.itineraryCode.toLowerCase().includes(query) ||
+        (c.itineraryDescription && c.itineraryDescription.toLowerCase().includes(query)) ||
+        c.orders.some(
+          (o) =>
+            o.order_number.toLowerCase().includes(query) ||
+            o.customer_name.toLowerCase().includes(query) ||
+            (o.destination_city && o.destination_city.toLowerCase().includes(query)),
+        ),
+    )
+  }, [globalResult, filterSearchQuery])
 
   return (
     <div className="space-y-6 pb-16">
       {/* HEADER PRINCIPAL */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
               Roteirizador & Simulador de Cargas Multicritério
             </h1>
@@ -392,19 +363,19 @@ export function LoadRouterAndSimulatorPage() {
               variant="outline"
               className="bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold"
             >
-              Carteira Única
+              Propostas Automáticas
             </Badge>
             <Badge
               variant="outline"
               className="bg-sky-50 text-sky-700 border-sky-200 text-xs font-semibold"
             >
-              Provider Ativo: Excel (ZSD35A)
+              Fonte: Carteira ZSD35A ({orders.length} pedidos)
             </Badge>
           </div>
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-            Alimentado pela <strong>Carteira Única de Pedidos</strong>. Motor determinístico CIAFAL:
-            Ocupação Máxima • Saída Imediata (DP34 + Crédito + PORTA) • Pedidos Atrasados • Menor
-            Custo.
+            <strong>O TMS analisa a carteira e entrega as melhores cargas para sua decisão.</strong>{' '}
+            Motor determinístico CIAFAL: Ocupação Máxima • Saída Imediata (DP34 + Crédito + PORTA) •
+            Pedidos Atrasados • Menor Custo.
           </p>
         </div>
 
@@ -423,59 +394,63 @@ export function LoadRouterAndSimulatorPage() {
             variant="default"
             size="sm"
             className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm"
-            onClick={handleRunOptimizerClick}
+            disabled={optimizing}
+            onClick={() => {
+              runOptimization()
+              toast({
+                title: 'Otimização Recalculada',
+                description:
+                  'Motor determinístico executou a reavaliação de toda a Carteira Única.',
+              })
+            }}
           >
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin-hover" />
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${optimizing ? 'animate-spin' : ''}`} />
             Reotimizar Cargas
           </Button>
         </div>
       </div>
 
-      {/* PAINEL DE CONTROLE DE PARÂMETROS DA SIMULAÇÃO */}
+      {/* BANNER DE PROCESSAMENTO DO MOTOR */}
+      {optimizing && (
+        <div className="bg-indigo-50 border border-indigo-200 text-indigo-900 p-3 rounded-lg flex items-center justify-between text-xs animate-pulse">
+          <div className="flex items-center gap-2 font-medium">
+            <RefreshCw className="h-4 w-4 animate-spin text-indigo-600" />
+            <span>Otimizando carteira... {optimizationStep}</span>
+          </div>
+          <span className="text-[11px] text-indigo-700 font-mono">
+            Motor Determinístico + Validação Logística
+          </span>
+        </div>
+      )}
+
+      {/* PAINEL DE CONTROLE DE FILTROS & PARÂMETROS DE SIMULAÇÃO */}
       <Card className="border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
         <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5 text-indigo-600" />
-              Itinerário / Região SAP
+              Filtrar por Itinerário / Região SAP
             </Label>
             <Select
-              value={selectedItinerary}
+              value={selectedItineraryFilter}
               onValueChange={(val) => {
-                setSelectedItinerary(val)
-                executeOptimization(
-                  orders,
-                  stocks,
-                  pcpOrders,
-                  queueEntries,
-                  val,
-                  plannedDate,
-                  vehicleCapacityKg,
-                  selectedVehicleType,
-                )
+                setSelectedItineraryFilter(val)
+                handleFilterChange(val, plannedDate, selectedVehicleType, vehicleCapacityKg)
               }}
             >
               <SelectTrigger className="mt-1 h-9 bg-white dark:bg-slate-900">
-                <SelectValue
-                  placeholder={
-                    availableItineraries.length === 0
-                      ? 'Nenhum itinerário disponível para a carteira atual.'
-                      : 'Selecione um itinerário'
-                  }
-                />
+                <SelectValue placeholder="Todos os Itinerários (Padrão)" />
               </SelectTrigger>
               <SelectContent>
-                {availableItineraries.length === 0 ? (
-                  <SelectItem value="__none__" disabled>
-                    Nenhum itinerário disponível para a carteira atual.
+                <SelectItem value="ALL">
+                  ✨ Todos os Itinerários ({availableItineraries.length} identificados)
+                </SelectItem>
+                {availableItineraries.map((itin) => (
+                  <SelectItem key={itin.code} value={itin.code}>
+                    {itin.code} — {itin.description} ({itin.ordersCount} ped •{' '}
+                    {(itin.totalWeightKg / 1000).toFixed(1)}t)
                   </SelectItem>
-                ) : (
-                  availableItineraries.map((itin) => (
-                    <SelectItem key={itin} value={itin}>
-                      {getItineraryLabel(itin)}
-                    </SelectItem>
-                  ))
-                )}
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -490,15 +465,11 @@ export function LoadRouterAndSimulatorPage() {
               value={plannedDate}
               onChange={(e) => {
                 setPlannedDate(e.target.value)
-                executeOptimization(
-                  orders,
-                  stocks,
-                  pcpOrders,
-                  queueEntries,
-                  selectedItinerary,
+                handleFilterChange(
+                  selectedItineraryFilter,
                   e.target.value,
-                  vehicleCapacityKg,
                   selectedVehicleType,
+                  vehicleCapacityKg,
                 )
               }}
               className="mt-1 h-9 bg-white dark:bg-slate-900"
@@ -523,16 +494,7 @@ export function LoadRouterAndSimulatorPage() {
                 else if (val.includes('Bitrem') || val.includes('7 Eixos')) cap = 37000
                 else if (val.includes('6 Eixos')) cap = 32000
                 setVehicleCapacityKg(cap)
-                executeOptimization(
-                  orders,
-                  stocks,
-                  pcpOrders,
-                  queueEntries,
-                  selectedItinerary,
-                  plannedDate,
-                  cap,
-                  val,
-                )
+                handleFilterChange(selectedItineraryFilter, plannedDate, val, cap)
               }}
             >
               <SelectTrigger className="mt-1 h-9 bg-white dark:bg-slate-900">
@@ -561,16 +523,7 @@ export function LoadRouterAndSimulatorPage() {
                 onChange={(e) => {
                   const cap = Number(e.target.value) || 28000
                   setVehicleCapacityKg(cap)
-                  executeOptimization(
-                    orders,
-                    stocks,
-                    pcpOrders,
-                    queueEntries,
-                    selectedItinerary,
-                    plannedDate,
-                    cap,
-                    selectedVehicleType,
-                  )
+                  handleFilterChange(selectedItineraryFilter, plannedDate, selectedVehicleType, cap)
                 }}
                 className="h-9 bg-white dark:bg-slate-900"
               />
@@ -582,324 +535,316 @@ export function LoadRouterAndSimulatorPage() {
         </CardContent>
       </Card>
 
-      {/* RESUMO EXECUTIVO DA CARTEIRA & RESTRIÇÕES COM DIAGNÓSTICO */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-        <Card className="border-slate-200 dark:border-slate-800 p-3 bg-white dark:bg-slate-900">
-          <span className="text-[11px] font-medium text-slate-500 uppercase block">
-            Pedidos na Região
-          </span>
-          <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
-            {optimizerSummary
-              ? optimizerSummary.totalOrdersEvaluated
-              : selectedItinerary
-                ? currentItinOrders.length
-                : 0}
-          </span>
-          <span className="text-[10px] text-slate-500 block truncate">
-            {selectedItinerary ? `Itin ${selectedItinerary}` : 'Selecione itinerário'}
-          </span>
-        </Card>
-
-        <Card className="border-slate-200 dark:border-slate-800 p-3 bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200">
-          <span className="text-[11px] font-medium text-emerald-700 uppercase block">
-            Aptos p/ Expedição
-          </span>
-          <span className="text-xl font-bold text-emerald-800 dark:text-emerald-300">
-            {optimizerSummary ? optimizerSummary.validOrdersCount : 0}
-          </span>
-          <span className="text-[10px] text-emerald-600 block">Data atendida (&ge; Desejada)</span>
-        </Card>
-
-        <Card className="border-slate-200 dark:border-slate-800 p-3 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200">
-          <span className="text-[11px] font-medium text-blue-700 uppercase block">
-            Motoristas PORTA
-          </span>
-          <span className="text-xl font-bold text-blue-800 dark:text-blue-300">
-            {optimizerSummary ? optimizerSummary.portaDriversAvailableCount : 0}
-          </span>
-          <span className="text-[10px] text-blue-600 block">Presença física no pátio</span>
-        </Card>
-
-        <Card className="border-slate-200 dark:border-slate-800 p-3 bg-amber-50/50 dark:bg-amber-950/20 border-amber-200">
-          <span className="text-[11px] font-medium text-amber-700 uppercase block">
-            Data Futura Bloqueada
-          </span>
-          <span className="text-xl font-bold text-amber-800 dark:text-amber-300">
-            {optimizerSummary ? optimizerSummary.blockedFutureDateCount : 0}
-          </span>
-          <span className="text-[10px] text-amber-600 block">Anti-antecipação</span>
-        </Card>
-
-        <Card className="border-slate-200 dark:border-slate-800 p-3 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200">
-          <span className="text-[11px] font-medium text-rose-700 uppercase block">
-            Crédito Bloqueado
-          </span>
-          <span className="text-xl font-bold text-rose-800 dark:text-rose-300">
-            {optimizerSummary ? optimizerSummary.blockedCreditCount : 0}
-          </span>
-          <span className="text-[10px] text-rose-600 block">Isolados p/ reavaliação</span>
-        </Card>
-
-        <Card className="border-slate-200 dark:border-slate-800 p-3 bg-purple-50/50 dark:bg-purple-950/20 border-purple-200">
-          <span className="text-[11px] font-medium text-purple-700 uppercase block">
-            Estoque não DP34
-          </span>
-          <span className="text-xl font-bold text-purple-800 dark:text-purple-300">
-            {optimizerSummary ? optimizerSummary.blockedStockCount : 0}
-          </span>
-          <span className="text-[10px] text-purple-600 block">Outro depósito ou PCP</span>
-        </Card>
-
-        {/* Card de Diagnóstico: Sem Itinerário Mapeado */}
-        <Card
-          className={`border p-3 transition-all cursor-pointer ${
-            unmappedOrders.length > 0
-              ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-300 dark:border-slate-700 hover:border-slate-400'
-              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-          }`}
-          onClick={() => setIsUnmappedModalOpen(true)}
-          title="Clique para ver pedidos sem itinerário cadastrado"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400 uppercase block">
-              Sem Itinerário
+      {/* BLOCO PRINCIPAL: CARDS EXECUTIVOS DAS CARGAS PROPOSTAS PELO TMS */}
+      {globalResult && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          <Card className="border-indigo-200 bg-indigo-50/50 dark:bg-indigo-950/20 p-3">
+            <span className="text-[10px] font-semibold text-indigo-700 uppercase block">
+              Cargas Propostas
             </span>
-            <Badge
-              variant="outline"
-              className="text-[9px] px-1 py-0 h-4 bg-slate-200 dark:bg-slate-700"
-            >
-              Ver
-            </Badge>
-          </div>
-          <span className="text-xl font-bold text-slate-800 dark:text-slate-200">
-            {unmappedOrders.length}
-          </span>
-          <span className="text-[10px] text-slate-500 block">Pedidos não mapeados</span>
-        </Card>
-      </div>
+            <span className="text-2xl font-black text-indigo-900 dark:text-indigo-200">
+              {globalResult.kpis.totalProposedCargos}
+            </span>
+            <span className="text-[10px] text-indigo-600 block">Calculadas pelo TMS</span>
+          </Card>
 
-      {/* ABAS DE NAVEGAÇÃO ENTRE CENÁRIOS E PAINEL SAÍDA IMEDIATA */}
+          <Card className="border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 p-3">
+            <span className="text-[10px] font-semibold text-emerald-700 uppercase block">
+              Saída Imediata
+            </span>
+            <span className="text-2xl font-black text-emerald-900 dark:text-emerald-200">
+              {globalResult.kpis.readyForImmediateExitCount}
+            </span>
+            <span className="text-[10px] text-emerald-600 block">DP34 + Crédito OK</span>
+          </Card>
+
+          <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-3">
+            <span className="text-[10px] font-semibold text-blue-700 uppercase block">
+              Ton. Roteirizadas
+            </span>
+            <span className="text-2xl font-black text-blue-900 dark:text-blue-200">
+              {(globalResult.kpis.totalPlannedWeightKg / 1000).toFixed(1)}t
+            </span>
+            <span className="text-[10px] text-blue-600 block">Peso em propostas</span>
+          </Card>
+
+          <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 p-3">
+            <span className="text-[10px] font-semibold text-purple-700 uppercase block">
+              Ocupação Média
+            </span>
+            <span className="text-2xl font-black text-purple-900 dark:text-purple-200">
+              {globalResult.kpis.avgOccupancyPct}%
+            </span>
+            <span className="text-[10px] text-purple-600 block">Aproveitamento</span>
+          </Card>
+
+          <Card className="border-emerald-200 bg-emerald-50/30 p-3">
+            <span className="text-[10px] font-semibold text-emerald-700 uppercase block">
+              Pedidos Atendidos
+            </span>
+            <span className="text-2xl font-black text-emerald-900 dark:text-emerald-200">
+              {globalResult.kpis.attendedOrdersCount}
+            </span>
+            <span className="text-[10px] text-emerald-600 block">Em cargas sugeridas</span>
+          </Card>
+
+          <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+            <span className="text-[10px] font-semibold text-amber-700 uppercase block">
+              Aguard. Complemento
+            </span>
+            <span className="text-2xl font-black text-amber-900 dark:text-amber-200">
+              {globalResult.kpis.waitingComplementCount}
+            </span>
+            <span className="text-[10px] text-amber-600 block">&lt; 80% ocupação</span>
+          </Card>
+
+          <Card className="border-slate-200 bg-slate-50 dark:bg-slate-900 p-3">
+            <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase block">
+              Prog. Futura (PCP)
+            </span>
+            <span className="text-2xl font-black text-slate-900 dark:text-slate-100">
+              {globalResult.kpis.futureProgrammingCount}
+            </span>
+            <span className="text-[10px] text-slate-500 block">Previsão de produção</span>
+          </Card>
+
+          <Card className="border-rose-200 bg-rose-50/50 dark:bg-rose-950/20 p-3">
+            <span className="text-[10px] font-semibold text-rose-700 uppercase block">
+              Exceções / Pendentes
+            </span>
+            <span className="text-2xl font-black text-rose-900 dark:text-rose-200">
+              {globalResult.kpis.pendingOrdersCount}
+            </span>
+            <span className="text-[10px] text-rose-600 block">Crédito / Data / Saldo</span>
+          </Card>
+        </div>
+      )}
+
+      {/* ABAS OPERACIONAIS */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full h-auto p-1 bg-slate-100 dark:bg-slate-800">
-          <TabsTrigger
-            value="immediate_exit"
-            className="py-2.5 text-xs font-semibold flex items-center gap-1.5"
-          >
-            <Sparkles className="h-4 w-4 text-emerald-600" />
-            <span>SAÍDA IMEDIATA ({immediateCargos.length})</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="all_scenarios"
-            className="py-2.5 text-xs font-semibold flex items-center gap-1.5"
-          >
-            <Layers className="h-4 w-4 text-indigo-600" />
-            <span>5 Cenários Otimizados</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="comparison_table"
-            className="py-2.5 text-xs font-semibold flex items-center gap-1.5"
-          >
-            <Sliders className="h-4 w-4 text-blue-600" />
-            <span>Matriz Comparativa</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="orders_wallet"
-            className="py-2.5 text-xs font-semibold flex items-center gap-1.5"
-          >
-            <Package className="h-4 w-4 text-amber-600" />
-            <span>Carteira & Bloqueios ({orders.length})</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ========================================================================= */}
-        {/* ABA 1: PAINEL SAÍDA IMEDIATA (REGRA 16, 17, 19, 20) */}
-        {/* ========================================================================= */}
-        <TabsContent value="immediate_exit" className="space-y-4">
-          <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-300 dark:border-emerald-800 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <Badge className="bg-emerald-600 text-white font-bold px-2 py-0.5">
-                  PRIORIDADE MÁXIMA DE EXPEDIÇÃO
-                </Badge>
-                <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
-                  Cargas 100% Aptas para Execução Agora
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-3xl">
-                Cargas com estoque físico no <strong>Depósito DP34</strong>, crédito financeiro
-                liberado, sem antecipação de data e com <strong>motoristas do grupo PORTA</strong>{' '}
-                disponíveis no pátio para contratação rápida na Mesa de Fretes.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              className="bg-emerald-700 hover:bg-emerald-800 text-white font-medium shadow-sm whitespace-nowrap"
-              onClick={() => {
-                if (immediateCargos.length > 0) {
-                  setSelectedScenario(immediateCargos[0])
-                  setIsConfirmModalOpen(true)
-                }
-              }}
-              disabled={immediateCargos.length === 0}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-5 w-full sm:w-auto h-auto bg-transparent p-0">
+            <TabsTrigger
+              value="proposed_cargos"
+              className="py-2 text-xs font-semibold flex items-center gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900"
             >
-              <CheckCircle2 className="h-4 w-4 mr-1.5" />
-              Aprovar Melhor Carga Imediata
-            </Button>
-          </div>
+              <Sparkles className="h-4 w-4 text-indigo-600" />
+              <span>Cargas Propostas ({globalResult?.allProposedCargos.length || 0})</span>
+            </TabsTrigger>
 
-          {immediateCargos.length === 0 ? (
-            <Card className="p-8 text-center border-dashed">
+            <TabsTrigger
+              value="immediate_exit"
+              className="py-2 text-xs font-semibold flex items-center gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900"
+            >
+              <CheckCircle className="h-4 w-4 text-emerald-600" />
+              <span>Saída Imediata ({globalResult?.immediateExitCargos.length || 0})</span>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="future_programming"
+              className="py-2 text-xs font-semibold flex items-center gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900"
+            >
+              <Clock className="h-4 w-4 text-blue-600" />
+              <span>Prog. Futura ({globalResult?.futureProgrammingCargos.length || 0})</span>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="complement_cargos"
+              className="py-2 text-xs font-semibold flex items-center gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900"
+            >
+              <Layers className="h-4 w-4 text-amber-600" />
+              <span>Complementos ({globalResult?.complementCargos.length || 0})</span>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="reconciliation_wallet"
+              className="py-2 text-xs font-semibold flex items-center gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900"
+            >
+              <FileCheck className="h-4 w-4 text-rose-600" />
+              <span>Reconciliação 100% ({orders.length})</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="flex items-center gap-2 px-2">
+            <Search className="h-3.5 w-3.5 text-slate-400" />
+            <Input
+              type="text"
+              placeholder="Buscar por carga, cliente, cidade..."
+              value={filterSearchQuery}
+              onChange={(e) => setFilterSearchQuery(e.target.value)}
+              className="h-8 text-xs w-48 sm:w-64 bg-white dark:bg-slate-900"
+            />
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* ABA 1: TODAS AS CARGAS PROPOSTAS PELO TMS (RANKING E DETALHES) */}
+        {/* ========================================================================= */}
+        <TabsContent value="proposed_cargos" className="space-y-4">
+          {filteredProposedCargos.length === 0 ? (
+            <Card className="p-10 text-center border-dashed">
               <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-2" />
               <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">
-                Nenhuma carga classificada para Saída Imediata no momento
+                {orders.length === 0
+                  ? 'Não existem pedidos na Carteira Única para roteirização.'
+                  : 'Nenhuma carga proposta encontrada com os filtros selecionados.'}
               </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                Para atingir Saída Imediata é necessário que todos os pedidos tenham saldo
-                confirmado no DP34, crédito aprovado e motoristas PORTA elegíveis.
+                {orders.length === 0
+                  ? 'Carregue um arquivo ZSD35A ou atualize a integração SAP.'
+                  : 'Experimente selecionar "Todos os Itinerários" ou ajustar a data prevista.'}
               </p>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {immediateCargos.map((scen, idx) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredProposedCargos.map((cargo) => (
                 <Card
-                  key={scen.id}
-                  className={`border transition-all ${
-                    selectedScenario?.id === scen.id
-                      ? 'ring-2 ring-emerald-500 border-emerald-400 bg-white dark:bg-slate-900'
-                      : 'border-slate-200 dark:border-slate-800 hover:border-emerald-300 bg-white dark:bg-slate-900'
+                  key={cargo.id}
+                  className={`border flex flex-col justify-between transition-all hover:shadow-md ${
+                    cargo.readinessLabel === 'SAÍDA IMEDIATA'
+                      ? 'border-emerald-300 dark:border-emerald-800 bg-white dark:bg-slate-900'
+                      : cargo.readinessLabel === 'AGUARDANDO COMPLEMENTO'
+                        ? 'border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-900'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
                   }`}
-                  onClick={() => setSelectedScenario(scen)}
                 >
-                  <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant="outline"
-                            className="bg-emerald-50 text-emerald-800 border-emerald-300 font-bold"
-                          >
-                            #{idx + 1} — Score {scen.scoreBreakdown.totalScore}/100
-                          </Badge>
-                          <Badge className="bg-blue-600 text-white text-[10px]">
-                            {scen.eligiblePortaDriversCount} Motoristas PORTA
-                          </Badge>
-                        </div>
-                        <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100 mt-1.5">
-                          {scen.title}
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-500">
-                          {scen.description}
-                        </CardDescription>
-                      </div>
+                  <div>
+                    <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                            <Badge
+                              variant="outline"
+                              className="font-mono text-[10px] font-bold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
+                            >
+                              Rank #{cargo.priorityRanking}
+                            </Badge>
 
-                      <div className="text-right">
-                        <span className="text-xs font-semibold text-slate-500 block">Ocupação</span>
-                        <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
-                          {scen.occupancyPct}%
-                        </span>
-                      </div>
-                    </div>
-                  </CardHeader>
+                            <Badge
+                              variant="outline"
+                              className={
+                                cargo.readinessLabel === 'SAÍDA IMEDIATA'
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold text-[10px]'
+                                  : cargo.readinessLabel === 'AGUARDANDO COMPLEMENTO'
+                                    ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold text-[10px]'
+                                    : 'bg-blue-50 text-blue-800 border-blue-300 font-bold text-[10px]'
+                              }
+                            >
+                              {cargo.readinessLabel}
+                            </Badge>
 
-                  <CardContent className="p-4 space-y-3">
-                    {/* Linha de Indicadores Operacionais */}
-                    <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-md text-xs">
-                      <div>
-                        <span className="text-slate-500 block text-[10px]">Peso Total</span>
-                        <span className="font-bold text-slate-800 dark:text-slate-200">
-                          {(scen.totalWeightKg / 1000).toFixed(1)}t /{' '}
-                          {(scen.vehicleCapacityKg / 1000).toFixed(1)}t
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block text-[10px]">Pedidos / Clientes</span>
-                        <span className="font-bold text-slate-800 dark:text-slate-200">
-                          {scen.ordersCount} pedidos ({scen.customersCount} cli)
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block text-[10px]">Custo / Piso ANTT</span>
-                        <span className="font-bold text-slate-800 dark:text-slate-200">
-                          R$ {scen.estimatedCost.toLocaleString('pt-BR')} (R$ {scen.costPerTon}/t)
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Explicabilidade do Score */}
-                    <div className="text-xs bg-indigo-50/60 dark:bg-indigo-950/30 p-2.5 rounded border border-indigo-100 dark:border-indigo-900 text-slate-700 dark:text-slate-300">
-                      <span className="font-semibold text-indigo-900 dark:text-indigo-300 flex items-center gap-1 mb-1">
-                        <TrendingUp className="h-3.5 w-3.5 text-indigo-600" />
-                        Composição Transparente do Score:
-                      </span>
-                      <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
-                        {scen.scoreBreakdown.explanation}
-                      </p>
-                    </div>
-
-                    {/* Status de Estoque e Crédito */}
-                    <div className="flex flex-wrap items-center gap-2 text-xs pt-1">
-                      <div className="flex items-center gap-1 text-emerald-700 font-medium">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        <span>Estoque DP34 100% Confirmado</span>
-                      </div>
-                      <span className="text-slate-300">•</span>
-                      <div className="flex items-center gap-1 text-emerald-700 font-medium">
-                        <ShieldCheck className="h-3.5 w-3.5" />
-                        <span>Crédito Financeiro Liberado</span>
-                      </div>
-                      <span className="text-slate-300">•</span>
-                      <div className="flex items-center gap-1 text-blue-700 font-medium">
-                        <Users className="h-3.5 w-3.5" />
-                        <span>Motorista PORTA no Pátio</span>
-                      </div>
-                    </div>
-
-                    {/* Lista rápida de pedidos incluídos */}
-                    <div className="border-t border-slate-100 dark:border-slate-800 pt-2">
-                      <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                        Pedidos Alocados nesta Carga:
-                      </span>
-                      <div className="space-y-1">
-                        {scen.orders.map((ord) => (
-                          <div
-                            key={ord.id}
-                            className="flex items-center justify-between text-xs py-1 px-2 bg-slate-50 dark:bg-slate-800 rounded text-slate-600 dark:text-slate-300"
-                          >
-                            <span className="font-medium truncate max-w-[200px]">
-                              {ord.order_number} — {ord.customer_name} (
-                              {ord.destination_city || 'São Paulo'}/{ord.uf || 'SP'})
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold">
-                                {(ord.weight_kg / 1000).toFixed(1)}t
-                              </span>
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] bg-white dark:bg-slate-900"
-                              >
-                                {ord.material}
+                            {cargo.isSuggestedItinerary && (
+                              <Badge className="bg-purple-600 text-white text-[9px]">
+                                Itinerário Sugerido TMS
                               </Badge>
-                            </div>
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
 
-                  <CardFooter className="pt-0 pb-3 px-4 flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800">
-                    <span className="text-[11px] text-slate-500 italic">
-                      {scen.suggestedAction || 'Pronta para despacho'}
-                    </span>
+                          <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
+                            {cargo.cargoNumber} • {cargo.itineraryCode}
+                          </CardTitle>
+                          <CardDescription className="text-xs text-slate-500 line-clamp-1">
+                            {cargo.itineraryDescription} ({cargo.uf})
+                          </CardDescription>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-[10px] font-semibold text-slate-400 uppercase block">
+                            Ocupação
+                          </span>
+                          <span
+                            className={`text-xl font-black ${
+                              cargo.occupancyPct >= 95
+                                ? 'text-emerald-600'
+                                : cargo.occupancyPct >= 80
+                                  ? 'text-blue-600'
+                                  : 'text-amber-600'
+                            }`}
+                          >
+                            {cargo.occupancyPct}%
+                          </span>
+                        </div>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="p-4 space-y-3">
+                      {/* Linha de Indicadores da Carga */}
+                      <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-md text-xs">
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">Peso / Cap.</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {(cargo.totalWeightKg / 1000).toFixed(1)}t /{' '}
+                            {(cargo.vehicleCapacityKg / 1000).toFixed(1)}t
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">
+                            Pedidos / Clientes
+                          </span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {cargo.ordersCount} ped ({cargo.customersCount} cli)
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">Descargas</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {cargo.dischargesCount} entregas
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Explicabilidade do TMS: "Por que o TMS propôs esta carga?" */}
+                      <div className="text-xs bg-indigo-50/70 dark:bg-indigo-950/30 p-2.5 rounded border border-indigo-100 dark:border-indigo-900 text-slate-700 dark:text-slate-300">
+                        <span className="font-semibold text-indigo-900 dark:text-indigo-300 flex items-center gap-1 mb-0.5">
+                          <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
+                          Por que o TMS propôs esta carga?
+                        </span>
+                        <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
+                          {cargo.whyProposed}
+                        </p>
+                      </div>
+
+                      {/* Veículo & Custo ANTT */}
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100 dark:border-slate-800">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Veículo Sugerido</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {cargo.vehicleType}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">
+                            Frete ANTT + Pedágio
+                          </span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            R$ {cargo.estimatedCost.toLocaleString('pt-BR')} (R$ {cargo.costPerTon}
+                            /t)
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </div>
+
+                  <CardFooter className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 bg-slate-50/50 dark:bg-slate-900/50">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-8"
+                      onClick={() => setSelectedCargoDetail(cargo)}
+                    >
+                      <Eye className="h-3.5 w-3.5 mr-1" />
+                      Ver Pedidos ({cargo.ordersCount})
+                    </Button>
+
                     <Button
                       size="sm"
                       className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedScenario(scen)
+                      onClick={() => {
+                        setSelectedCargoForApproval(cargo)
                         setIsConfirmModalOpen(true)
                       }}
                     >
-                      Aprovar & Gerar Carga
+                      Aprovar Carga
                       <ChevronRight className="h-3.5 w-3.5 ml-1" />
                     </Button>
                   </CardFooter>
@@ -910,419 +855,440 @@ export function LoadRouterAndSimulatorPage() {
         </TabsContent>
 
         {/* ========================================================================= */}
-        {/* ABA 2: 5 CENÁRIOS OTIMIZADOS (REGRA 11, 12, 21) */}
+        {/* ABA 2: SAÍDA IMEDIATA (100% APTAS: DP34 + CRÉDITO + DATA) */}
         {/* ========================================================================= */}
-        <TabsContent value="all_scenarios" className="space-y-4">
-          {!selectedItinerary ? (
-            <Card className="p-12 text-center border-dashed">
-              <MapPin className="h-12 w-12 text-indigo-400 mx-auto mb-3" />
-              <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">
-                Selecione um Itinerário
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                Escolha um itinerário SAP ativo acima para analisar os pedidos correspondentes e
-                gerar cenários determinísticos de carga.
-              </p>
-            </Card>
-          ) : scenarios.length === 0 ? (
-            <Card className="p-8 text-center border-dashed space-y-4">
-              <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-1" />
-              <div>
-                <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">
-                  Nenhum cenário viável gerado para {selectedItinerary}
-                </h3>
-                <p className="text-xs text-slate-500 mt-1 max-w-lg mx-auto">
-                  Existem <strong>{currentItinOrders.length} pedido(s)</strong> no itinerário{' '}
-                  {selectedItinerary}, porém nenhum atende simultaneamente aos critérios de
-                  expedição na data programada ({plannedDate}).
-                </p>
+        <TabsContent value="immediate_exit" className="space-y-4">
+          <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-300 dark:border-emerald-800 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-emerald-600 text-white font-bold px-2 py-0.5">
+                  SAÍDA IMEDIATA HOMOLOGADA
+                </Badge>
+                <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+                  Prontas para Expedição Imediata
+                </span>
               </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-3xl">
+                Cargas com estoque físico no <strong>Depósito DP34</strong>, crédito financeiro
+                liberado, sem restrições de data e ocupação alta (&ge; 80%).
+              </p>
+            </div>
+          </div>
 
-              {/* Detalhamento dos Bloqueios Conforme Item 8 */}
-              {optimizerSummary && (
-                <div className="max-w-md mx-auto bg-slate-50 dark:bg-slate-800/80 p-4 rounded-lg text-left text-xs space-y-2 border border-slate-200 dark:border-slate-700">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Diagnóstico Objetivo dos Bloqueios:
-                  </span>
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
-                    <span className="text-slate-600 dark:text-slate-400">
-                      • Total de pedidos avaliados:
-                    </span>
-                    <span className="font-bold">{optimizerSummary.totalOrdersEvaluated}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
-                    <span className="text-emerald-700 dark:text-emerald-400">
-                      • Aptos na data (&ge; Desejada):
-                    </span>
-                    <span className="font-bold text-emerald-700">
-                      {optimizerSummary.validOrdersCount}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
-                    <span className="text-amber-700 dark:text-amber-400">
-                      • Bloqueados por Data Futura:
-                    </span>
-                    <span className="font-bold text-amber-700">
-                      {optimizerSummary.blockedFutureDateCount}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {globalResult?.immediateExitCargos.map((cargo) => (
+              <Card key={cargo.id} className="border-emerald-300 shadow-sm">
+                <CardHeader className="pb-3 border-b">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <Badge className="bg-emerald-600 text-white text-[10px] mb-1">
+                        100% Apta
+                      </Badge>
+                      <CardTitle className="text-base font-bold">
+                        {cargo.cargoNumber} • {cargo.itineraryCode}
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        {cargo.itineraryDescription} ({cargo.uf})
+                      </CardDescription>
+                    </div>
+                    <span className="text-xl font-black text-emerald-600">
+                      {cargo.occupancyPct}%
                     </span>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
-                    <span className="text-rose-700 dark:text-rose-400">
-                      • Bloqueados por Crédito SAP:
-                    </span>
-                    <span className="font-bold text-rose-700">
-                      {optimizerSummary.blockedCreditCount}
+                </CardHeader>
+                <CardContent className="p-4 space-y-2 text-xs">
+                  <div className="flex justify-between py-1 border-b">
+                    <span className="text-slate-500">Peso Total:</span>
+                    <span className="font-bold">{(cargo.totalWeightKg / 1000).toFixed(1)}t</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b">
+                    <span className="text-slate-500">Pedidos / Clientes:</span>
+                    <span className="font-bold">
+                      {cargo.ordersCount} ped / {cargo.customersCount} cli
                     </span>
                   </div>
                   <div className="flex justify-between py-1">
-                    <span className="text-purple-700 dark:text-purple-400">
-                      • Bloqueados por Estoque não DP34:
-                    </span>
-                    <span className="font-bold text-purple-700">
-                      {optimizerSummary.blockedStockCount}
+                    <span className="text-slate-500">Frete ANTT Estimado:</span>
+                    <span className="font-bold">
+                      R$ {cargo.estimatedCost.toLocaleString('pt-BR')}
                     </span>
                   </div>
-                </div>
-              )}
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {scenarios.map((scen) => (
-                <Card
-                  key={scen.id}
-                  className={`flex flex-col justify-between transition-all cursor-pointer ${
-                    selectedScenario?.id === scen.id
-                      ? 'ring-2 ring-indigo-500 border-indigo-400 bg-white dark:bg-slate-900 shadow-md'
-                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-white dark:bg-slate-900'
-                  }`}
-                  onClick={() => setSelectedScenario(scen)}
-                >
-                  <div>
-                    <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <Badge
-                          variant="outline"
-                          className={
-                            scen.readinessStatus === 'PRONTA_SAIDA_IMEDIATA'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold'
-                              : scen.readinessStatus === 'PRONTA_PARA_OFERTA'
-                                ? 'bg-blue-50 text-blue-800 border-blue-300 font-bold'
-                                : scen.readinessStatus === 'PLANEJAMENTO_FUTURO'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold'
-                                  : 'bg-rose-50 text-rose-800 border-rose-300 font-bold'
-                          }
-                        >
-                          {scen.readinessStatus === 'PRONTA_SAIDA_IMEDIATA'
-                            ? 'SAÍDA IMEDIATA'
-                            : scen.readinessStatus === 'PRONTA_PARA_OFERTA'
-                              ? 'PRONTA P/ OFERTA'
-                              : scen.readinessStatus === 'PLANEJAMENTO_FUTURO'
-                                ? 'PLANEJAMENTO FUTURO'
-                                : 'BLOQUEADA'}
-                        </Badge>
-
-                        <div className="text-right">
-                          <span className="text-[10px] text-slate-400 uppercase font-semibold">
-                            Score
-                          </span>
-                          <span className="text-base font-black text-indigo-700 dark:text-indigo-400 block">
-                            {scen.scoreBreakdown.totalScore}/100
-                          </span>
-                        </div>
-                      </div>
-
-                      <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
-                        {scen.title}
-                      </CardTitle>
-                      <CardDescription className="text-xs text-slate-500 line-clamp-2">
-                        {scen.description}
-                      </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="p-4 space-y-3">
-                      {/* Ocupação e Peso */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-600 dark:text-slate-400">
-                          Ocupação do Veículo
-                        </span>
-                        <span className="text-lg font-black text-slate-900 dark:text-slate-100">
-                          {scen.occupancyPct}% ({(scen.totalWeightKg / 1000).toFixed(1)}t)
-                        </span>
-                      </div>
-
-                      <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full ${
-                            scen.occupancyPct >= 95
-                              ? 'bg-emerald-500'
-                              : scen.occupancyPct >= 90
-                                ? 'bg-blue-500'
-                                : scen.occupancyPct >= 80
-                                  ? 'bg-amber-500'
-                                  : 'bg-rose-500'
-                          }`}
-                          style={{ width: `${Math.min(100, scen.occupancyPct)}%` }}
-                        />
-                      </div>
-
-                      {scen.occupancyAlert && (
-                        <div className="text-[11px] text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200 flex items-center gap-1">
-                          <AlertTriangle className="h-3 w-3 shrink-0" />
-                          <span>{scen.occupancyAlert}</span>
-                        </div>
-                      )}
-
-                      {/* Métricas chave */}
-                      <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100 dark:border-slate-800">
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Frete Estimado</span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
-                            R$ {scen.estimatedCost.toLocaleString('pt-BR')}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">
-                            Custo por Tonelada
-                          </span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
-                            R$ {scen.costPerTon}/t
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">
-                            Pedidos / Clientes
-                          </span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
-                            {scen.ordersCount} / {scen.customersCount}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Motoristas PORTA</span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
-                            {scen.eligiblePortaDriversCount > 0 ? (
-                              <span className="text-blue-600 font-bold">
-                                {scen.eligiblePortaDriversCount} no pátio
-                              </span>
-                            ) : (
-                              <span className="text-slate-400">0 na porta</span>
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </div>
-
-                  <CardFooter className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-8 w-full"
-                      onClick={() => {
-                        setSelectedScenario(scen)
-                        setIsConfirmModalOpen(true)
-                      }}
-                      disabled={scen.readinessStatus === 'BLOQUEADA'}
-                    >
-                      {scen.readinessStatus === 'BLOQUEADA'
-                        ? 'Carga Bloqueada'
-                        : 'Aprovar este Cenário'}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          )}
+                </CardContent>
+                <CardFooter className="p-3 border-t flex justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8"
+                    onClick={() => setSelectedCargoDetail(cargo)}
+                  >
+                    Ver Detalhes
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
+                    onClick={() => {
+                      setSelectedCargoForApproval(cargo)
+                      setIsConfirmModalOpen(true)
+                    }}
+                  >
+                    Aprovar Agora
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
 
         {/* ========================================================================= */}
-        {/* ABA 3: TABELA COMPARATIVA (REGRA 22) */}
+        {/* ABA 3: PROGRAMAÇÃO FUTURA (PCP / ESTOQUE PREVISTO) */}
         {/* ========================================================================= */}
-        <TabsContent value="comparison_table" className="space-y-4">
-          <Card className="border-slate-200 dark:border-slate-800 overflow-hidden">
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="text-base font-bold">
-                Matriz Comparativa de Cenários de Planejamento (Sprint 5)
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Comparação multicritério determinística para apoio à tomada de decisão logística.
-              </CardDescription>
-            </CardHeader>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 uppercase font-semibold border-b">
-                  <tr>
-                    <th className="py-3 px-3">Cenário</th>
-                    <th className="py-3 px-3">Status Prontidão</th>
-                    <th className="py-3 px-3 text-right">Peso (t)</th>
-                    <th className="py-3 px-3 text-right">Ocupação %</th>
-                    <th className="py-3 px-3 text-center">Pedidos</th>
-                    <th className="py-3 px-3 text-center">Clientes</th>
-                    <th className="py-3 px-3 text-center">PORTA</th>
-                    <th className="py-3 px-3 text-right">Custo / t</th>
-                    <th className="py-3 px-3 text-right">Piso ANTT</th>
-                    <th className="py-3 px-3 text-center">Estoque DP34</th>
-                    <th className="py-3 px-3 text-center">Crédito</th>
-                    <th className="py-3 px-3 text-right">Score Final</th>
-                    <th className="py-3 px-3 text-center">Ação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {scenarios.length === 0 ? (
+        <TabsContent value="future_programming" className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-900">
+            <span className="font-bold text-sm block mb-1">
+              Cargas em Programação Futura (PCP Robotizado & Outros Depósitos)
+            </span>
+            Propostas de cargas calculadas para atendimento de pedidos que dependem de produção
+            futura no PCP ou transferência entre depósitos para o DP34.
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {globalResult?.futureProgrammingCargos.map((cargo) => (
+              <Card key={cargo.id} className="border-blue-200">
+                <CardHeader className="pb-3 border-b">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <Badge className="bg-blue-600 text-white text-[10px] mb-1">
+                        PCP / Futura
+                      </Badge>
+                      <CardTitle className="text-base font-bold">
+                        {cargo.cargoNumber} • {cargo.itineraryCode}
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        {cargo.itineraryDescription}
+                      </CardDescription>
+                    </div>
+                    <span className="text-xl font-bold text-blue-700">{cargo.occupancyPct}%</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 space-y-2 text-xs">
+                  <div className="flex justify-between py-1 border-b">
+                    <span className="text-slate-500">Peso Total:</span>
+                    <span className="font-bold">{(cargo.totalWeightKg / 1000).toFixed(1)}t</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-slate-500">Pedidos:</span>
+                    <span className="font-bold">{cargo.ordersCount} pedidos</span>
+                  </div>
+                </CardContent>
+                <CardFooter className="p-3 border-t flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8"
+                    onClick={() => setSelectedCargoDetail(cargo)}
+                  >
+                    Ver Composição
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* ========================================================================= */}
+        {/* ABA 4: COMPLEMENTO DE CARGAS (ABAIXO DE 80%) */}
+        {/* ========================================================================= */}
+        <TabsContent value="complement_cargos" className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-xs text-amber-900">
+            <span className="font-bold text-sm block mb-1">
+              Cargas com Oportunidade de Complemento (&lt; 80% de Ocupação)
+            </span>
+            Estas cargas possuem saldo de capacidade disponível para inclusão de novos pedidos ou
+            transferência entre itinerários próximos.
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {globalResult?.complementCargos.map((cargo) => (
+              <Card key={cargo.id} className="border-amber-200">
+                <CardHeader className="pb-3 border-b">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <Badge className="bg-amber-600 text-white text-[10px] mb-1">
+                        Complementar
+                      </Badge>
+                      <CardTitle className="text-base font-bold">
+                        {cargo.cargoNumber} • {cargo.itineraryCode}
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        {cargo.itineraryDescription}
+                      </CardDescription>
+                    </div>
+                    <span className="text-xl font-bold text-amber-700">{cargo.occupancyPct}%</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 space-y-2 text-xs">
+                  <div className="flex justify-between py-1 border-b">
+                    <span className="text-slate-500">Peso Atual / Capacidade:</span>
+                    <span className="font-bold">
+                      {(cargo.totalWeightKg / 1000).toFixed(1)}t /{' '}
+                      {(cargo.vehicleCapacityKg / 1000).toFixed(1)}t
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 text-amber-800 font-semibold">
+                    <span>Espaço Livre:</span>
+                    <span>
+                      {((cargo.vehicleCapacityKg - cargo.totalWeightKg) / 1000).toFixed(1)}t
+                    </span>
+                  </div>
+                </CardContent>
+                <CardFooter className="p-3 border-t flex justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8"
+                    onClick={() => setSelectedCargoDetail(cargo)}
+                  >
+                    Ver Detalhes
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-amber-600 hover:bg-amber-700 text-white text-xs h-8"
+                    onClick={() => navigate('/tms/complemento-cargas')}
+                  >
+                    Buscar Complemento
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* ========================================================================= */}
+        {/* ABA 5: RECONCILIAÇÃO MATEMÁTICA 100% DA CARTEIRA ÚNICA (NENHUM PEDIDO SOME) */}
+        {/* ========================================================================= */}
+        <TabsContent value="reconciliation_wallet" className="space-y-4">
+          {globalResult && (
+            <Card className="border-slate-200 dark:border-slate-800">
+              <CardHeader className="pb-3 border-b">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <FileCheck className="h-4 w-4 text-emerald-600" />
+                      Reconciliação Matemática da Carteira Única (ZSD35A)
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Auditoria de integridade operacional: Total da Carteira = Cargas Propostas +
+                      Futuras + Bloqueios + Exceções. Diferença obrigatória: <strong>0</strong>.
+                    </CardDescription>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={`font-mono text-xs px-2.5 py-1 ${
+                      globalResult.reconciliation.reconciliationDiff === 0
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                        : 'bg-rose-50 text-rose-700 border-rose-300'
+                    }`}
+                  >
+                    Diferença: {globalResult.reconciliation.reconciliationDiff} pedidos (100%
+                    Reconciliado)
+                  </Badge>
+                </div>
+              </CardHeader>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 uppercase font-semibold border-b">
                     <tr>
-                      <td colSpan={13} className="py-8 text-center text-slate-500">
-                        Nenhum cenário gerado para os parâmetros atuais.
-                      </td>
+                      <th className="py-3 px-3">Pedido / Item</th>
+                      <th className="py-3 px-3">Cliente / Destino</th>
+                      <th className="py-3 px-3">Itinerário SAP</th>
+                      <th className="py-3 px-3 text-right">Peso (t)</th>
+                      <th className="py-3 px-3 text-right">Valor Total</th>
+                      <th className="py-3 px-3">Data Desejada</th>
+                      <th className="py-3 px-3">Situação no TMS</th>
+                      <th className="py-3 px-3">Carga Proposta</th>
+                      <th className="py-3 px-3">Diagnóstico / Motivo</th>
                     </tr>
-                  ) : (
-                    scenarios.map((scen) => (
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {globalResult.reconciliation.items.map((item) => (
                       <tr
-                        key={scen.id}
-                        className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${
-                          selectedScenario?.id === scen.id
-                            ? 'bg-indigo-50/40 dark:bg-indigo-950/20'
-                            : ''
-                        }`}
+                        key={item.orderId}
+                        className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
                       >
                         <td className="py-3 px-3 font-semibold text-slate-900 dark:text-slate-100">
-                          {scen.title}
+                          {item.orderNumber}
+                          <span className="text-[10px] text-slate-400 block">
+                            Item {item.itemNumber || '0010'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="font-medium text-slate-800 dark:text-slate-200 block truncate max-w-[180px]">
+                            {item.customerName}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {item.destinationCity}/{item.uf}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-mono">
+                          {item.itineraryCode ? (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] bg-slate-50 dark:bg-slate-800"
+                            >
+                              {item.itineraryCode}
+                            </Badge>
+                          ) : (
+                            <div className="space-y-0.5">
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-purple-50 text-purple-700 border-purple-300"
+                              >
+                                TMS: {item.suggestedItinerary?.suggestedCode}
+                              </Badge>
+                              <span className="text-[9px] text-slate-400 block">Sugerido</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-bold">
+                          {(item.weightKg / 1000).toFixed(1)}t
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono">
+                          R$ {item.totalValue.toLocaleString('pt-BR')}
+                        </td>
+                        <td className="py-3 px-3 font-mono">
+                          {item.desiredDate?.split('T')[0] || 'N/I'}
                         </td>
                         <td className="py-3 px-3">
                           <Badge
                             variant="outline"
-                            className={
-                              scen.readinessStatus === 'PRONTA_SAIDA_IMEDIATA'
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px]'
-                                : scen.readinessStatus === 'PRONTA_PARA_OFERTA'
-                                  ? 'bg-blue-50 text-blue-800 border-blue-300 text-[10px]'
-                                  : scen.readinessStatus === 'PLANEJAMENTO_FUTURO'
-                                    ? 'bg-amber-50 text-amber-800 border-amber-300 text-[10px]'
-                                    : 'bg-rose-50 text-rose-800 border-rose-300 text-[10px]'
-                            }
+                            className={`text-[10px] ${
+                              item.status === 'ROTEIRIZADO_IMEDIATO'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold'
+                                : item.status === 'AGUARDANDO_COMPLEMENTO'
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold'
+                                  : item.status === 'PROGRAMACAO_FUTURA'
+                                    ? 'bg-blue-50 text-blue-800 border-blue-300 font-bold'
+                                    : 'bg-rose-50 text-rose-800 border-rose-300 font-bold'
+                            }`}
                           >
-                            {scen.readinessStatus}
+                            {item.statusLabel}
                           </Badge>
                         </td>
-                        <td className="py-3 px-3 text-right font-mono">
-                          {(scen.totalWeightKg / 1000).toFixed(1)}t
+                        <td className="py-3 px-3 font-mono font-bold text-indigo-700 dark:text-indigo-400">
+                          {item.assignedCargoId || '—'}
                         </td>
-                        <td className="py-3 px-3 text-right font-bold text-slate-800 dark:text-slate-200">
-                          {scen.occupancyPct}%
-                        </td>
-                        <td className="py-3 px-3 text-center">{scen.ordersCount}</td>
-                        <td className="py-3 px-3 text-center">{scen.customersCount}</td>
-                        <td className="py-3 px-3 text-center">
-                          {scen.eligiblePortaDriversCount > 0 ? (
-                            <Badge className="bg-blue-600 text-white text-[10px]">
-                              {scen.eligiblePortaDriversCount} Sim
-                            </Badge>
-                          ) : (
-                            <span className="text-slate-400">Não</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-right font-mono">R$ {scen.costPerTon}</td>
-                        <td className="py-3 px-3 text-right font-mono">
-                          R$ {scen.anttFloorValue.toLocaleString('pt-BR')}
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          {scen.isDp34FullyStocked ? (
-                            <span className="text-emerald-600 font-semibold">100% DP34</span>
-                          ) : (
-                            <span className="text-amber-600 font-semibold">
-                              Faltam {(scen.dp34StockMissingKg / 1000).toFixed(1)}t
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          <Badge
-                            variant="outline"
-                            className={
-                              scen.creditClassification === 'LIBERADO'
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                : scen.creditClassification === 'LIBERADO_COM_APROVACAO'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-300'
-                                  : 'bg-rose-50 text-rose-800 border-rose-300'
-                            }
-                          >
-                            {scen.creditClassification}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-3 text-right font-bold text-indigo-700 dark:text-indigo-400 text-sm">
-                          {scen.scoreBreakdown.totalScore}/100
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-xs h-7 text-indigo-600 hover:text-indigo-800"
-                            onClick={() => {
-                              setSelectedScenario(scen)
-                              setIsConfirmModalOpen(true)
-                            }}
-                            disabled={scen.readinessStatus === 'BLOQUEADA'}
-                          >
-                            Aprovar
-                          </Button>
+                        <td className="py-3 px-3 text-[11px] text-slate-600 dark:text-slate-400 max-w-xs truncate">
+                          {item.statusDetail}
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
         </TabsContent>
+      </Tabs>
 
-        {/* ========================================================================= */}
-        {/* ABA 4: CARTEIRA DE PEDIDOS & ANÁLISE DE RESTRIÇÕES (REGRAS 2, 4, 5, 6, 9) */}
-        {/* ========================================================================= */}
-        <TabsContent value="orders_wallet" className="space-y-4">
-          <Card className="border-slate-200 dark:border-slate-800">
-            <CardHeader className="pb-3 border-b">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+      {/* MODAL DE DETALHAMENTO DA CARGA PROPOSTA */}
+      <Dialog
+        open={Boolean(selectedCargoDetail)}
+        onOpenChange={(open) => !open && setSelectedCargoDetail(null)}
+      >
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          {selectedCargoDetail && (
+            <div className="space-y-4">
+              <DialogHeader>
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                      <Truck className="h-5 w-5 text-indigo-600" />
+                      Detalhamento da Proposta {selectedCargoDetail.cargoNumber}
+                    </DialogTitle>
+                    <DialogDescription className="text-xs">
+                      Itinerário {selectedCargoDetail.itineraryCode} —{' '}
+                      {selectedCargoDetail.itineraryDescription} ({selectedCargoDetail.uf})
+                    </DialogDescription>
+                  </div>
+                  <Badge
+                    className={
+                      selectedCargoDetail.readinessLabel === 'SAÍDA IMEDIATA'
+                        ? 'bg-emerald-600 text-white'
+                        : selectedCargoDetail.readinessLabel === 'AGUARDANDO COMPLEMENTO'
+                          ? 'bg-amber-600 text-white'
+                          : 'bg-blue-600 text-white'
+                    }
+                  >
+                    {selectedCargoDetail.readinessLabel}
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              {/* Indicadores do Cabeçalho */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 dark:bg-slate-800/70 p-3 rounded-lg border text-xs">
                 <div>
-                  <CardTitle className="text-base font-bold">
-                    {selectedItinerary
-                      ? `Carteira de Pedidos do Itinerário ${selectedItinerary}`
-                      : 'Carteira Completa de Pedidos'}
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Validação individual de Data Desejada, Estoque Oficial DP34 e Crédito Financeiro
-                    {selectedItinerary
-                      ? ` para os ${currentItinOrders.length} pedido(s) filtrados.`
-                      : ` (${orders.length} pedidos no total).`}
-                  </CardDescription>
+                  <span className="text-slate-400 block text-[10px]">Veículo & Capacidade</span>
+                  <span className="font-bold">
+                    {selectedCargoDetail.vehicleType} (
+                    {(selectedCargoDetail.vehicleCapacityKg / 1000).toFixed(1)}t)
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Peso & Ocupação</span>
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                    {(selectedCargoDetail.totalWeightKg / 1000).toFixed(1)}t (
+                    {selectedCargoDetail.occupancyPct}%)
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">
+                    Frete Estimado / Piso ANTT
+                  </span>
+                  <span className="font-bold">
+                    R$ {selectedCargoDetail.estimatedCost.toLocaleString('pt-BR')} (R${' '}
+                    {selectedCargoDetail.costPerTon}/t)
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Entregas & Clientes</span>
+                  <span className="font-bold">
+                    {selectedCargoDetail.ordersCount} pedidos ({selectedCargoDetail.customersCount}{' '}
+                    clientes)
+                  </span>
                 </div>
               </div>
-            </CardHeader>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 uppercase font-semibold border-b">
-                  <tr>
-                    <th className="py-3 px-3">Pedido / Item</th>
-                    <th className="py-3 px-3">Itinerário</th>
-                    <th className="py-3 px-3">Cliente / Destino</th>
-                    <th className="py-3 px-3">Material</th>
-                    <th className="py-3 px-3 text-right">Peso (t)</th>
-                    <th className="py-3 px-3 text-right">Valor Pedido</th>
-                    <th className="py-3 px-3">Data Desejada</th>
-                    <th className="py-3 px-3">Regra Data</th>
-                    <th className="py-3 px-3">Estoque DP34</th>
-                    <th className="py-3 px-3">Crédito SAP</th>
-                    <th className="py-3 px-3 text-center">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {(selectedItinerary ? currentItinOrders : orders).length === 0 ? (
+
+              {/* Explicabilidade da Proposta */}
+              <div className="bg-indigo-50 dark:bg-indigo-950/30 p-3 rounded-md border border-indigo-200 text-xs text-indigo-900 dark:text-indigo-200 space-y-1">
+                <span className="font-bold flex items-center gap-1.5">
+                  <HelpCircle className="h-4 w-4 text-indigo-600" />
+                  Avaliação Multicritério do Motor Determinístico:
+                </span>
+                <p className="text-[11px] leading-relaxed text-slate-700 dark:text-slate-300">
+                  {selectedCargoDetail.whyProposed}
+                </p>
+                <div className="pt-1 text-[10px] text-slate-500 font-mono">
+                  {selectedCargoDetail.scoreBreakdown.explanation}
+                </div>
+              </div>
+
+              {/* Tabela de Pedidos da Carga */}
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase font-semibold border-b">
                     <tr>
-                      <td colSpan={11} className="py-8 text-center text-slate-500">
-                        {selectedItinerary
-                          ? `Nenhum pedido encontrado para o itinerário ${selectedItinerary}.`
-                          : 'Nenhum pedido encontrado na carteira.'}
-                      </td>
+                      <th className="py-2.5 px-3">Pedido</th>
+                      <th className="py-2.5 px-3">Cliente</th>
+                      <th className="py-2.5 px-3">Cidade/UF</th>
+                      <th className="py-2.5 px-3">Material</th>
+                      <th className="py-2.5 px-3 text-right">Peso (t)</th>
+                      <th className="py-2.5 px-3">Data Desejada</th>
+                      <th className="py-2.5 px-3">Estoque DP34</th>
+                      <th className="py-2.5 px-3">Crédito SAP</th>
                     </tr>
-                  ) : (
-                    (selectedItinerary ? currentItinOrders : orders).map((ord) => {
-                      const dateCheck = validateDesiredDate(ord.desired_date, plannedDate)
+                  </thead>
+                  <tbody className="divide-y">
+                    {selectedCargoDetail.orders.map((ord) => {
                       const stockCheck = validateDp34Stock(
                         ord.material || '',
                         ord.weight_kg,
@@ -1332,216 +1298,150 @@ export function LoadRouterAndSimulatorPage() {
                       const creditCheck = classifyCredit(ord)
 
                       return (
-                        <tr
-                          key={ord.id}
-                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
-                        >
-                          <td className="py-3 px-3 font-semibold text-slate-900 dark:text-slate-100">
-                            {ord.order_number}
-                            <span className="text-[10px] text-slate-400 block">
-                              Item {ord.item_number || '0010'}
-                            </span>
+                        <tr key={ord.id}>
+                          <td className="py-2.5 px-3 font-semibold">{ord.order_number}</td>
+                          <td className="py-2.5 px-3 truncate max-w-[150px]">
+                            {ord.customer_name}
                           </td>
-                          <td className="py-3 px-3 font-mono">
-                            {ord.itinerary_code ? (
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] bg-slate-50 dark:bg-slate-800"
-                              >
-                                {ord.itinerary_code}
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] bg-amber-50 text-amber-700 border-amber-300"
-                              >
-                                Não mapeado
-                              </Badge>
-                            )}
+                          <td className="py-2.5 px-3">
+                            {ord.destination_city || 'N/I'}/{ord.uf || 'SP'}
                           </td>
-                          <td className="py-3 px-3">
-                            <span className="font-medium text-slate-800 dark:text-slate-200 block truncate max-w-[180px]">
-                              {ord.customer_name}
-                            </span>
-                            <span className="text-[10px] text-slate-500">
-                              {ord.destination_city || 'São Paulo'}/{ord.uf || 'SP'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-3">
-                            <span className="font-medium block">{ord.material}</span>
-                            <span className="text-[10px] text-slate-500 truncate max-w-[150px] block">
-                              {ord.material_description}
-                            </span>
-                          </td>
-                          <td className="py-3 px-3 text-right font-mono font-bold">
+                          <td className="py-2.5 px-3">{ord.material}</td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold">
                             {(ord.weight_kg / 1000).toFixed(1)}t
                           </td>
-                          <td className="py-3 px-3 text-right font-mono">
-                            R$ {(ord.total_value || 0).toLocaleString('pt-BR')}
+                          <td className="py-2.5 px-3 font-mono">
+                            {ord.desired_date?.split('T')[0] || 'N/I'}
                           </td>
-                          <td className="py-3 px-3 font-mono">{ord.desired_date || 'N/I'}</td>
-                          <td className="py-3 px-3">
-                            {!dateCheck.isValid ? (
-                              <Badge
-                                variant="outline"
-                                className="bg-rose-50 text-rose-800 border-rose-300 text-[10px]"
-                              >
-                                ANTECIPAÇÃO PROIBIDA
-                              </Badge>
-                            ) : dateCheck.isOverdue ? (
-                              <Badge
-                                variant="outline"
-                                className="bg-amber-50 text-amber-800 border-amber-300 text-[10px]"
-                              >
-                                ATRASADO ({dateCheck.overdueDays}d)
-                              </Badge>
-                            ) : (
+                          <td className="py-2.5 px-3">
+                            {stockCheck.isDp34Available ? (
                               <Badge
                                 variant="outline"
                                 className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px]"
                               >
-                                DATA OK
+                                DP34 OK
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="bg-amber-50 text-amber-800 border-amber-300 text-[10px]"
+                              >
+                                PCP / Outro Dep.
                               </Badge>
                             )}
                           </td>
-                          <td className="py-3 px-3">
-                            {stockCheck.isDp34Available ? (
-                              <div className="flex items-center gap-1 text-emerald-700 text-[11px] font-semibold">
-                                <Check className="h-3.5 w-3.5 text-emerald-600" />
-                                <span>
-                                  DP34 Disp. ({(stockCheck.dp34AvailableKg / 1000).toFixed(1)}t)
-                                </span>
-                              </div>
-                            ) : (
-                              <div className="space-y-0.5">
-                                <span className="text-amber-700 text-[11px] font-semibold block">
-                                  DP34 Insuficiente
-                                </span>
-                                {stockCheck.otherDepositsKg > 0 && (
-                                  <span className="text-[10px] text-slate-500 block">
-                                    Outros Dep.: {(stockCheck.otherDepositsKg / 1000).toFixed(1)}t
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-3 px-3">
+                          <td className="py-2.5 px-3">
                             <Badge
                               variant="outline"
                               className={
                                 creditCheck.classification === 'LIBERADO'
                                   ? 'bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px]'
-                                  : creditCheck.classification === 'LIBERADO_COM_APROVACAO'
-                                    ? 'bg-amber-50 text-amber-800 border-amber-300 text-[10px]'
-                                    : 'bg-rose-50 text-rose-800 border-rose-300 text-[10px]'
+                                  : 'bg-amber-50 text-amber-800 border-amber-300 text-[10px]'
                               }
                             >
                               {creditCheck.classification}
                             </Badge>
                           </td>
-                          <td className="py-3 px-3 text-center">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-[10px] h-6 px-2"
-                              onClick={() => {
-                                setSelectedOrderForStock(ord)
-                                setIsStockConfirmModalOpen(true)
-                              }}
-                            >
-                              Conferir Saldo
-                            </Button>
-                          </td>
                         </tr>
                       )
-                    })
-                  )}
-                </tbody>{' '}
-              </table>
-            </div>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-      {/* MODAL DE CONFIRMAÇÃO E APROVAÇÃO DO CENÁRIO (REGRA 28) */}
+              <DialogFooter className="flex items-center justify-between gap-2 pt-2 border-t">
+                <Button variant="outline" size="sm" onClick={() => setSelectedCargoDetail(null)}>
+                  Fechar
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                    onClick={() => {
+                      const cargo = selectedCargoDetail
+                      setSelectedCargoDetail(null)
+                      setSelectedCargoForApproval(cargo)
+                      setIsConfirmModalOpen(true)
+                    }}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                    Aprovar Esta Carga
+                  </Button>
+                </div>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE CONFIRMAÇÃO DE APROVAÇÃO DA CARGA */}
       <Dialog open={isConfirmModalOpen} onOpenChange={setIsConfirmModalOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              Aprovar Cenário e Gerar Carga Oficial no TMS
+              Aprovar Carga Proposta pelo TMS
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Revalidação operacional formal antes de encaminhar para a Mesa de Fretes e
-              contratação.
+              Ao aprovar, a carga será enviada para o <strong>Planejador de Cargas</strong> e para a{' '}
+              <strong>Mesa de Fretes</strong> para leilão/oferta aos motoristas. O transporte SAP
+              será gerado somente após o aceite do motorista.
             </DialogDescription>
           </DialogHeader>
 
-          {selectedScenario && (
+          {selectedCargoForApproval && (
             <div className="space-y-4 py-2 text-xs">
-              <div className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-lg border border-slate-200 dark:border-slate-700 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-lg border grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Cenário</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {selectedScenario.title}
-                  </span>
+                  <span className="text-slate-400 block text-[10px]">Carga</span>
+                  <span className="font-bold">{selectedCargoForApproval.cargoNumber}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Itinerário</span>
+                  <span className="font-bold">{selectedCargoForApproval.itineraryCode}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px]">Peso / Ocupação</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {(selectedScenario.totalWeightKg / 1000).toFixed(1)}t (
-                    {selectedScenario.occupancyPct}%)
+                  <span className="font-bold">
+                    {(selectedCargoForApproval.totalWeightKg / 1000).toFixed(1)}t (
+                    {selectedCargoForApproval.occupancyPct}%)
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Piso ANTT Oficial</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">
-                    R$ {selectedScenario.anttFloorValue.toLocaleString('pt-BR')}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px]">Motoristas PORTA</span>
-                  <span className="font-bold text-blue-600">
-                    {selectedScenario.eligiblePortaDriversCount} elegíveis
+                  <span className="text-slate-400 block text-[10px]">Piso Mínimo ANTT</span>
+                  <span className="font-bold text-emerald-700">
+                    R$ {selectedCargoForApproval.anttFloorValue.toLocaleString('pt-BR')}
                   </span>
                 </div>
               </div>
 
-              {/* Checklist de Revalidação */}
+              {/* Checklist de Revalidação CIAFAL */}
               <div className="space-y-2 border rounded p-3 bg-white dark:bg-slate-900">
                 <span className="font-semibold text-slate-800 dark:text-slate-200 block mb-1">
-                  Checklist de Revalidação CIAFAL:
+                  Validações Operacionais Realizadas:
                 </span>
 
                 <div className="flex items-center gap-2 text-emerald-700">
                   <Check className="h-4 w-4 text-emerald-600" />
                   <span>
-                    Data de Expedição ({selectedScenario.plannedExpeditionDate}) &ge; Data Desejada
-                    de todos os pedidos incluídos.
+                    Data Prevista ({selectedCargoForApproval.plannedExpeditionDate}) atende à regra
+                    de anti-antecipação (data_expedicao &ge; data_desejada).
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-emerald-700">
                   <Check className="h-4 w-4 text-emerald-600" />
                   <span>
-                    Estoque 100% conferido no <strong>Depósito DP34</strong> (
-                    {selectedScenario.dp34StockAvailableKg / 1000}t alocadas).
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 text-emerald-700">
-                  <Check className="h-4 w-4 text-emerald-600" />
-                  <span>
-                    Crédito Financeiro validado por valor monetário para todos os clientes (
-                    {selectedScenario.customersCount} clientes).
+                    Ocupação volumétrica e de peso ({selectedCargoForApproval.occupancyPct}%) dentro
+                    dos limites operacionais do veículo ({selectedCargoForApproval.vehicleType}).
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-blue-700">
                   <Info className="h-4 w-4 text-blue-600" />
                   <span>
-                    Próximo passo: A carga será enviada para a <strong>Mesa de Fretes</strong> para
-                    leilão e contratação de motorista.
+                    Destino: A carga será disponibilizada para contratação na{' '}
+                    <strong>Mesa de Fretes</strong>.
                   </span>
                 </div>
               </div>
@@ -1555,15 +1455,15 @@ export function LoadRouterAndSimulatorPage() {
             <Button
               size="sm"
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-              onClick={handleApproveScenario}
+              onClick={handleApproveCargo}
             >
-              Confirmar Aprovação & Abrir Oferta
+              Confirmar Aprovação & Abrir na Mesa de Fretes
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* MODAL DE SUCESSO PÓS-APROVAÇÃO (FLUXO PARA MESA DE FRETES) */}
+      {/* MODAL DE SUCESSO PÓS-APROVAÇÃO */}
       <Dialog open={isApprovedSuccessOpen} onOpenChange={setIsApprovedSuccessOpen}>
         <DialogContent className="max-w-md text-center">
           <div className="py-4">
@@ -1572,7 +1472,7 @@ export function LoadRouterAndSimulatorPage() {
               Carga Aprovada com Sucesso!
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-600 dark:text-slate-400 mt-2">
-              A carga foi gerada no TMS e está pronta para contratação na Mesa de Fretes.
+              A carga foi registrada no TMS e está pronta para negociação na Mesa de Fretes.
             </DialogDescription>
 
             {generatedCargoResult && (
@@ -1589,12 +1489,6 @@ export function LoadRouterAndSimulatorPage() {
                   <span className="text-slate-500">Peso Total:</span>
                   <span className="font-bold">
                     {(generatedCargoResult.total_weight_kg / 1000).toFixed(1)}t
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Piso Mínimo ANTT:</span>
-                  <span className="font-bold text-emerald-700">
-                    R$ {generatedCargoResult.antt_floor_value?.toLocaleString('pt-BR')}
                   </span>
                 </div>
               </div>
@@ -1617,119 +1511,20 @@ export function LoadRouterAndSimulatorPage() {
                 className="w-full"
                 onClick={() => setIsApprovedSuccessOpen(false)}
               >
-                Permanecer no Simulador
+                Permanecer no Roteirizador
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* MODAL DE CONFIRMAÇÃO DE ESTOQUE DP34 / PCP (REGRA 8) */}
-      <Dialog open={isStockConfirmModalOpen} onOpenChange={setIsStockConfirmModalOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold">
-              <Package className="h-4 w-4 text-indigo-600" />
-              Solicitar Confirmação de Estoque DP34
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Conferência física e verificação de transferências ou produção PCP.
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedOrderForStock && (
-            <div className="space-y-3 py-2 text-xs">
-              <div className="bg-slate-50 dark:bg-slate-800 p-2.5 rounded border space-y-1">
-                <div>
-                  <span className="text-slate-400 text-[10px]">Material:</span>
-                  <span className="font-bold block">
-                    {selectedOrderForStock.material} — {selectedOrderForStock.material_description}
-                  </span>
-                </div>
-                <div className="flex justify-between pt-1">
-                  <span>Necessidade do Pedido:</span>
-                  <span className="font-bold">
-                    {(selectedOrderForStock.weight_kg / 1000).toFixed(1)}t
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="font-semibold block">Posição Atual nos Depósitos CIAFAL:</span>
-                <div className="border rounded divide-y text-[11px]">
-                  <div className="flex justify-between p-2 bg-emerald-50/50 dark:bg-emerald-950/20">
-                    <span className="font-semibold text-emerald-800">
-                      Depósito Oficial DP34 (Expedição):
-                    </span>
-                    <span className="font-bold font-mono">
-                      {(stocks.find(
-                        (s) =>
-                          s.material_code === selectedOrderForStock.material &&
-                          s.storage_location?.includes('DP34'),
-                      )?.weight_kg || 0) / 1000}
-                      t
-                    </span>
-                  </div>
-                  <div className="flex justify-between p-2">
-                    <span>Depósito DP01 (Laminação):</span>
-                    <span className="font-mono">
-                      {(stocks.find(
-                        (s) =>
-                          s.material_code === selectedOrderForStock.material &&
-                          s.storage_location === 'DP01',
-                      )?.weight_kg || 0) / 1000}
-                      t
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded border border-amber-200 text-amber-800 dark:text-amber-300 text-[11px]">
-                <span className="font-semibold block mb-0.5">Regra Operacional DP34:</span>
-                Materiais em outros depósitos requerem transferência formal para o DP34 antes de
-                liberar a carga para saída imediata.
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="flex justify-between">
-            <Button variant="outline" size="sm" onClick={() => setIsStockConfirmModalOpen(false)}>
-              Fechar
-            </Button>
-            <Button
-              size="sm"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              onClick={async () => {
-                await tmsService.logAudit({
-                  user_name: user?.email || 'operador@ciafal.com.br',
-                  action_type: 'SOLICITAR_CONFIRMACAO_ESTOQUE_DP34',
-                  target_entity: 'stock',
-                  target_id: selectedOrderForStock?.material || '',
-                  details: {
-                    order_number: selectedOrderForStock?.order_number,
-                    weight_kg: selectedOrderForStock?.weight_kg,
-                  },
-                })
-                toast({
-                  title: 'Confirmação de Estoque Solicitada',
-                  description: `Notificação enviada para a equipe de Logística Interna / Pátio DP34.`,
-                })
-                setIsStockConfirmModalOpen(false)
-              }}
-            >
-              Confirmar Solicitação de Estoque
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* MODAL DE PESOS E FAIXAS DE OCUPAÇÃO (REGRA 12, 14) */}
+      {/* MODAL DE PESOS E FAIXAS DE OCUPAÇÃO */}
       <Dialog open={isWeightsModalOpen} onOpenChange={setIsWeightsModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-bold">
               <Sliders className="h-4 w-4 text-indigo-600" />
-              Pesos da Função Objetivo & Faixas de Ocupação
+              Pesos da Otimização & Faixas de Ocupação
             </DialogTitle>
             <DialogDescription className="text-xs">
               Ajuste determinístico dos critérios de pontuação do simulador CIAFAL.
@@ -1738,10 +1533,6 @@ export function LoadRouterAndSimulatorPage() {
 
           <div className="space-y-4 py-2 text-xs">
             <div className="space-y-3">
-              <span className="font-semibold block text-slate-800 dark:text-slate-200">
-                Pesos da Função Objetivo (0 a 100):
-              </span>
-
               <div>
                 <div className="flex justify-between mb-1">
                   <span>Peso Ocupação do Veículo:</span>
@@ -1792,9 +1583,7 @@ export function LoadRouterAndSimulatorPage() {
             </div>
 
             <div className="border-t pt-3 space-y-1">
-              <span className="font-semibold block text-slate-800 dark:text-slate-200">
-                Faixas de Ocupação Homologadas:
-              </span>
+              <span className="font-semibold block">Faixas Homologadas:</span>
               <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <div className="p-2 bg-emerald-50 rounded border border-emerald-200 text-emerald-800 font-medium">
                   Excelente: &ge; 95%
@@ -1803,10 +1592,10 @@ export function LoadRouterAndSimulatorPage() {
                   Boa: 90% a 94.9%
                 </div>
                 <div className="p-2 bg-amber-50 rounded border border-amber-200 text-amber-800 font-medium">
-                  Atenção: 80% a 89.9%
+                  Avaliar: 80% a 89.9%
                 </div>
                 <div className="p-2 bg-rose-50 rounded border border-rose-200 text-rose-800 font-medium">
-                  Baixa: &lt; 80% (Alerta)
+                  Complementar: &lt; 80%
                 </div>
               </div>
             </div>
@@ -1817,72 +1606,10 @@ export function LoadRouterAndSimulatorPage() {
               className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs w-full"
               onClick={() => {
                 setIsWeightsModalOpen(false)
-                handleRunOptimizerClick()
+                runOptimization()
               }}
             >
-              Salvar & Recalcular Cenários
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* MODAL DE DIAGNÓSTICO: PEDIDOS SEM ITINERÁRIO MAPEADO */}
-      <Dialog open={isUnmappedModalOpen} onOpenChange={setIsUnmappedModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold">
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
-              Pedidos Sem Itinerário Mapeado ({unmappedOrders.length})
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Registros da carteira com o campo <code>itinerary_code</code> nulo ou em branco. Estes
-              pedidos não bloqueiam o Roteirizador e ficam isolados para saneamento.
-            </DialogDescription>
-          </DialogHeader>
-
-          {unmappedOrders.length === 0 ? (
-            <div className="py-8 text-center text-xs text-slate-500">
-              <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
-              Todos os pedidos da carteira possuem itinerário SAP mapeado corretamente!
-            </div>
-          ) : (
-            <div className="space-y-3 py-2 text-xs">
-              <div className="border rounded divide-y overflow-hidden">
-                {unmappedOrders.map((ord) => (
-                  <div
-                    key={ord.id}
-                    className="p-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-800 dark:text-slate-200">
-                          {ord.order_number} (Item {ord.item_number || '0010'})
-                        </span>
-                        <Badge variant="outline" className="text-[10px] text-amber-700 bg-amber-50">
-                          {ord.destination_city || 'Sem cidade'}/{ord.uf || 'N/I'}
-                        </Badge>
-                      </div>
-                      <span className="text-[11px] text-slate-500 block">
-                        {ord.customer_name} • {ord.material} ({(ord.weight_kg / 1000).toFixed(1)}t)
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-mono text-slate-700 dark:text-slate-300 font-semibold block">
-                        R$ {(ord.total_value || 0).toLocaleString('pt-BR')}
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        Data: {ord.desired_date || 'N/I'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setIsUnmappedModalOpen(false)}>
-              Fechar Diagnóstico
+              Salvar & Recalcular Propostas
             </Button>
           </DialogFooter>
         </DialogContent>
