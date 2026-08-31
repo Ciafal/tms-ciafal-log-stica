@@ -171,10 +171,10 @@ export const LoadPlannerPage: React.FC = () => {
 
   // Rule Engine Evaluation (Motor Determinístico)
   const assemblyEvaluation = useMemo(() => {
-    const fakeVehicle: VehicleEntity | null = selectedQueueVehicle
+    const candidateVehicle: VehicleEntity | null = selectedQueueVehicle
       ? {
           id: selectedQueueVehicle.id,
-          plate: selectedQueueVehicle.vehicle_plate_cached || 'PLA-0000',
+          plate: selectedQueueVehicle.vehicle_plate_cached || 'SEM PLACA',
           type: selectedQueueVehicle.vehicle_type_cached || 'Carreta LS',
           capacity_kg: selectedQueueVehicle.vehicle_capacity_kg_cached || 0,
         }
@@ -182,7 +182,7 @@ export const LoadPlannerPage: React.FC = () => {
 
     return avaliar_montagem_carga({
       orders: selectedOrders,
-      vehicle: fakeVehicle,
+      vehicle: candidateVehicle,
       targetItineraryCode: filterItinerary,
     })
   }, [selectedOrders, selectedQueueVehicle, filterItinerary])
@@ -440,14 +440,22 @@ export const LoadPlannerPage: React.FC = () => {
                           <strong className="text-slate-900 font-mono text-xs">
                             {order.order_number}
                           </strong>
-                          {order.origem_dado === 'EXCEL_QAS' && (
+                          {order.origem_dado === 'EXCEL_QAS_ZSD35A_V3' ? (
                             <Badge
                               variant="outline"
-                              className="text-[8px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200"
+                              className="text-[8px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200 font-mono font-bold"
                             >
-                              QAS
+                              EXCEL_QAS_ZSD35A_V3
                             </Badge>
-                          )}
+                          ) : order.origem_dado === 'EXCEL_QAS' ||
+                            order.origem_dado === 'EXCEL_QAS_ZSD35_V3' ? (
+                            <Badge
+                              variant="outline"
+                              className="text-[8px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200 font-mono"
+                            >
+                              EXCEL_QAS_ZSD35A_V3
+                            </Badge>
+                          ) : null}
                         </div>
                         <div className="text-slate-700 font-semibold">{order.customer_name}</div>
                         <div className="text-[10px] text-slate-500">
@@ -732,29 +740,35 @@ export const LoadPlannerPage: React.FC = () => {
                   </span>
                   <Badge className="bg-[#005596] text-white text-[9px]">{portaList.length}</Badge>
                 </div>
-                {portaList.map((v) => (
-                  <div
-                    key={v.id}
-                    onClick={() => setSelectedQueueVehicle(v)}
-                    className={`p-2 rounded border cursor-pointer transition text-xs space-y-1 ${
-                      selectedQueueVehicle?.id === v.id
-                        ? 'border-[#005596] bg-sky-50 shadow-xs'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="flex justify-between font-bold">
-                      <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
-                      <span className="text-slate-500 font-mono">
-                        {v.vehicle_capacity_kg_cached && v.vehicle_capacity_kg_cached > 0
-                          ? `${(v.vehicle_capacity_kg_cached / 1000).toFixed(1)} t`
-                          : 'Cap. N/I'}
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-slate-600 truncate">
-                      {v.driver_name_cached} • {v.vehicle_type_cached}
-                    </div>
+                {portaList.length === 0 ? (
+                  <div className="text-[10px] text-slate-400 italic py-1">
+                    Nenhum motorista disponível na PORTA
                   </div>
-                ))}
+                ) : (
+                  portaList.map((v) => (
+                    <div
+                      key={v.id}
+                      onClick={() => setSelectedQueueVehicle(v)}
+                      className={`p-2 rounded border cursor-pointer transition text-xs space-y-1 ${
+                        selectedQueueVehicle?.id === v.id
+                          ? 'border-[#005596] bg-sky-50 shadow-xs'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex justify-between font-bold">
+                        <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
+                        <span className="text-slate-500 font-mono">
+                          {v.vehicle_capacity_kg_cached && v.vehicle_capacity_kg_cached > 0
+                            ? `${(v.vehicle_capacity_kg_cached / 1000).toFixed(1)} t`
+                            : 'Cap. N/I'}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-600 truncate">
+                        {v.driver_name_cached} • {v.vehicle_type_cached}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               {/* Grupo FORA */}
@@ -765,29 +779,35 @@ export const LoadPlannerPage: React.FC = () => {
                   </span>
                   <Badge className="bg-emerald-600 text-white text-[9px]">{foraList.length}</Badge>
                 </div>
-                {foraList.map((v) => (
-                  <div
-                    key={v.id}
-                    onClick={() => setSelectedQueueVehicle(v)}
-                    className={`p-2 rounded border cursor-pointer transition text-xs space-y-1 ${
-                      selectedQueueVehicle?.id === v.id
-                        ? 'border-emerald-600 bg-emerald-50 shadow-xs'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="flex justify-between font-bold">
-                      <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
-                      <span className="text-slate-500 font-mono">
-                        {v.vehicle_capacity_kg_cached && v.vehicle_capacity_kg_cached > 0
-                          ? `${(v.vehicle_capacity_kg_cached / 1000).toFixed(1)} t`
-                          : 'Cap. N/I'}
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-slate-600 truncate">
-                      {v.driver_name_cached} ({v.distance_km} km)
-                    </div>
+                {foraList.length === 0 ? (
+                  <div className="text-[10px] text-slate-400 italic py-1">
+                    Nenhum motorista próximo no raio configurado
                   </div>
-                ))}
+                ) : (
+                  foraList.map((v) => (
+                    <div
+                      key={v.id}
+                      onClick={() => setSelectedQueueVehicle(v)}
+                      className={`p-2 rounded border cursor-pointer transition text-xs space-y-1 ${
+                        selectedQueueVehicle?.id === v.id
+                          ? 'border-emerald-600 bg-emerald-50 shadow-xs'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex justify-between font-bold">
+                        <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
+                        <span className="text-slate-500 font-mono">
+                          {v.vehicle_capacity_kg_cached && v.vehicle_capacity_kg_cached > 0
+                            ? `${(v.vehicle_capacity_kg_cached / 1000).toFixed(1)} t`
+                            : 'Cap. N/I'}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-600 truncate">
+                        {v.driver_name_cached} ({v.distance_km} km)
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               {/* Grupo PROGRAMADOS */}
@@ -798,27 +818,33 @@ export const LoadPlannerPage: React.FC = () => {
                   </span>
                   <Badge className="bg-purple-600 text-white text-[9px]">{progList.length}</Badge>
                 </div>
-                {progList.map((v) => (
-                  <div
-                    key={v.id}
-                    className="p-2 rounded border border-purple-100 bg-purple-50/50 text-xs space-y-1 opacity-80"
-                  >
-                    <div className="flex justify-between font-bold">
-                      <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
-                      <span className="text-purple-700 font-mono text-[10px]">
-                        Previsto:{' '}
-                        {v.scheduled_arrival_date
-                          ? new Date(v.scheduled_arrival_date + 'T12:00:00').toLocaleDateString(
-                              'pt-BR',
-                            )
-                          : '---'}
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-slate-600 truncate">
-                      {v.driver_name_cached} (Capacidade Futura)
-                    </div>
+                {progList.length === 0 ? (
+                  <div className="text-[10px] text-slate-400 italic py-1">
+                    Nenhum motorista programado para datas futuras
                   </div>
-                ))}
+                ) : (
+                  progList.map((v) => (
+                    <div
+                      key={v.id}
+                      className="p-2 rounded border border-purple-100 bg-purple-50/50 text-xs space-y-1 opacity-80"
+                    >
+                      <div className="flex justify-between font-bold">
+                        <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
+                        <span className="text-purple-700 font-mono text-[10px]">
+                          Previsto:{' '}
+                          {v.scheduled_arrival_date
+                            ? new Date(v.scheduled_arrival_date + 'T12:00:00').toLocaleDateString(
+                                'pt-BR',
+                              )
+                            : '---'}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-600 truncate">
+                        {v.driver_name_cached} (Capacidade Futura)
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>

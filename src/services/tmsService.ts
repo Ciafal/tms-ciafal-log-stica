@@ -3572,7 +3572,7 @@ export const TmsService = {
   },
 
   /**
-   * Importação em lote transacional e assíncrona de pedidos validados ZSD35A V3 (EXCEL_QAS_ZSD35_V3)
+   * Importação em lote transacional e assíncrona de pedidos validados ZSD35A V3 (EXCEL_QAS_ZSD35A_V3)
    * Dispara o endpoint server-side com transação, rollback em falhas e auditoria não-bloqueante.
    * Em caso de indisponibilidade do endpoint, executa fallback determinístico local.
    */
@@ -3670,7 +3670,7 @@ export const TmsService = {
           required_vehicle_type: order.required_vehicle_type || 'Carreta / Bitrem',
           order_date: order.order_date,
           desired_date: order.desired_date,
-          origem_dado: 'EXCEL_QAS_ZSD35_V3',
+          origem_dado: 'EXCEL_QAS_ZSD35A_V3',
           import_batch_id: report.batchId,
           source_file: report.fileName,
           imported_by_user: userName || userEmail,
@@ -3726,7 +3726,7 @@ export const TmsService = {
         batch_id: report.batchId,
         file_name: report.fileName,
         imported_by: `${userName} (${userEmail})`,
-        origem_dado: 'EXCEL_QAS_ZSD35_V3',
+        origem_dado: 'EXCEL_QAS_ZSD35A_V3',
         template_version: 'ZSD35A_V3_27_CAMPOS',
         total_read: report.totalRowsRead,
         valid_count: report.validCount,
@@ -3765,7 +3765,7 @@ export const TmsService = {
             updatedCount,
             rejectedCount: report.rejectedRowsCount,
             totalWeightTon: report.totalWeightTon,
-            origem_dado: 'EXCEL_QAS_ZSD35_V3',
+            origem_dado: 'EXCEL_QAS_ZSD35A_V3',
             layoutVersion: 'ZSD35A_V3_27_CAMPOS',
           },
         })
@@ -3799,7 +3799,7 @@ export const TmsService = {
 
   /**
    * REGRA DE SEGURANÇA MANDATÓRIA:
-   * Exclusão restrita a registros com origem_dado = 'EXCEL_QAS' ou 'EXCEL_QAS_ZSD35_V3' (massa de homologação).
+   * Exclusão restrita a registros com origem_dado = 'EXCEL_QAS', 'EXCEL_QAS_ZSD35_V3' ou 'EXCEL_QAS_ZSD35A_V3' (massa de homologação).
    * Registros oficiais 'SAP' NUNCA podem ser apagados por esta rotina.
    */
   async deleteExcelQasBatch(
@@ -3809,7 +3809,8 @@ export const TmsService = {
   ): Promise<{ success: boolean; deletedCount: number; message: string }> {
     try {
       // Busca registros de homologação EXCEL_QAS / EXCEL_QAS_ZSD35_V3
-      let filter = '(origem_dado = "EXCEL_QAS" || origem_dado = "EXCEL_QAS_ZSD35_V3")'
+      let filter =
+        '(origem_dado = "EXCEL_QAS" || origem_dado = "EXCEL_QAS_ZSD35_V3" || origem_dado = "EXCEL_QAS_ZSD35A_V3")'
       if (batchId) {
         filter += ` && import_batch_id = "${batchId}"`
       }
@@ -3821,7 +3822,11 @@ export const TmsService = {
       let deletedCount = 0
       for (const rec of recordsToDelete) {
         // Validação adicional de proteção
-        if (rec.origem_dado === 'EXCEL_QAS' || rec.origem_dado === 'EXCEL_QAS_ZSD35_V3') {
+        if (
+          rec.origem_dado === 'EXCEL_QAS' ||
+          rec.origem_dado === 'EXCEL_QAS_ZSD35_V3' ||
+          rec.origem_dado === 'EXCEL_QAS_ZSD35A_V3'
+        ) {
           await pb.collection('sap_sales_orders').delete(rec.id)
           deletedCount++
         }

@@ -496,45 +496,54 @@ export const FreightIntelligencePage: React.FC = () => {
 
         {/* TAB: ROTAS */}
         <TabsContent value="rotas" className="space-y-4 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {sampleRoutes.map((r) => (
-              <Card
-                key={r.itineraryCode}
-                className="border border-slate-200 bg-white shadow-sm p-4 space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <Badge className="bg-[#005596] text-white font-mono text-xs">
-                    {r.itineraryCode}
-                  </Badge>
-                  <span className="font-bold text-xs text-slate-700">{r.region}</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs pt-1 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                  <div>
-                    Frete Médio: <strong>R$ {r.freteMedio.toLocaleString('pt-BR')}</strong>
-                  </div>
-                  <div>
-                    Pedágio: <strong>R$ {r.pedagioMedio.toLocaleString('pt-BR')}</strong>
-                  </div>
-                  <div>
-                    Custo/km: <strong>R$ {r.custoKm.toFixed(2)}/km</strong>
-                  </div>
-                  <div>
-                    Custo/ton: <strong>R$ {r.custoTon.toFixed(2)}/t</strong>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <span className="text-slate-500">Taxa de Aceite:</span>
-                  <Badge
-                    className={`${r.taxaAceitePct < 55 ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'} font-bold text-[10px]`}
+          {savingsRecords.length === 0 ? (
+            <Card className="p-10 text-center border-dashed">
+              <BarChart3 className="h-10 w-10 text-slate-400 mx-auto mb-2" />
+              <h4 className="text-sm font-bold text-slate-800">
+                Nenhum dado consolidado de rotas no período
+              </h4>
+              <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+                Os indicadores médios por rota (custo/km, frete médio, taxa de aceite) serão
+                calculados a partir das viagens reais finalizadas.
+              </p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {Array.from(new Set(savingsRecords.map((s) => s.itinerary_code))).map((itin) => {
+                const itinRecords = savingsRecords.filter((s) => s.itinerary_code === itin)
+                const totalFreight = itinRecords.reduce(
+                  (acc, r) => acc + (r.total_negotiated_cost || 0),
+                  0,
+                )
+                const avgFreight = itinRecords.length > 0 ? totalFreight / itinRecords.length : 0
+                return (
+                  <Card
+                    key={itin}
+                    className="border border-slate-200 bg-white shadow-sm p-4 space-y-3"
                   >
-                    {r.taxaAceitePct}%
-                  </Badge>
-                </div>
-              </Card>
-            ))}
-          </div>
+                    <div className="flex items-center justify-between">
+                      <Badge className="bg-[#005596] text-white font-mono text-xs">{itin}</Badge>
+                      <span className="font-bold text-xs text-slate-700">
+                        {itinRecords[0]?.region || 'Região'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                      <div>
+                        Viagens: <strong>{itinRecords.length}</strong>
+                      </div>
+                      <div>
+                        Frete Médio:{' '}
+                        <strong>
+                          R$ {avgFreight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </strong>
+                      </div>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </TabsContent>
 
         {/* TAB: ANOMALIAS */}

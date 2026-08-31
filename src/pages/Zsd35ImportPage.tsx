@@ -452,7 +452,7 @@ export const Zsd35ImportPage: React.FC = () => {
           total_weight_ton: report.totalWeightTon,
           created: new Date().toISOString(),
           imported_by: user?.name || user?.email,
-          origem_dado: 'EXCEL_QAS_ZSD35_V3',
+          origem_dado: 'EXCEL_QAS_ZSD35A_V3',
           status: report.warningCount > 0 ? 'CONCLUIDO_COM_ALERTAS' : 'CONCLUIDO',
         })
 
@@ -664,7 +664,7 @@ export const Zsd35ImportPage: React.FC = () => {
                     variant="outline"
                     className="bg-white text-emerald-800 border-emerald-300 text-[9px]"
                   >
-                    {lastImportedBatch.origem_dado || 'EXCEL_QAS_ZSD35_V3'}
+                    {lastImportedBatch.origem_dado || 'EXCEL_QAS_ZSD35A_V3'}
                   </Badge>
                 </div>
                 <div className="text-xs text-emerald-800 mt-0.5 flex items-center gap-3 flex-wrap">
@@ -1511,7 +1511,7 @@ export const Zsd35ImportPage: React.FC = () => {
                             variant="outline"
                             className="text-[9px] bg-purple-50 text-purple-700 border-purple-200"
                           >
-                            {item.origem_dado || 'EXCEL_QAS_ZSD35_V3'}
+                            {item.origem_dado || 'EXCEL_QAS_ZSD35A_V3'}
                           </Badge>
                         </td>
                         <td className="p-3 text-center">

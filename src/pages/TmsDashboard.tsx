@@ -35,32 +35,33 @@ import { Link } from 'react-router-dom'
 
 export const TmsDashboard: React.FC = () => {
   const { user } = useAuth()
-  const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
   const [orders, setOrders] = useState<SapSalesOrderEntity[]>([])
-  const [opportunities, setOpportunities] = useState<OportunidadeComplementoCargaEntity[]>([])
+  const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
+  const [opportunities, setOpportunities] = useState<ComplementOpportunityEntity[]>([])
+  const [cargos, setCargos] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const fetchData = async () => {
-      setIsLoading(true)
       try {
-        const [q, ords, opps] = await Promise.all([
-          TmsService.getOperationalQueue(),
+        const [ordersData, queueData, oppsData, cargosData] = await Promise.all([
           TmsService.getSapSalesOrders(),
+          TmsService.getOperationalQueue(),
           TmsService.getComplementOpportunities(),
+          TmsService.getCargos(),
         ])
-        setQueueEntries(q)
-        setOrders(ords)
-        setOpportunities(opps)
+        setOrders(ordersData || [])
+        setQueueEntries(queueData || [])
+        setOpportunities(oppsData || [])
+        setCargos(cargosData || [])
       } catch (err) {
-        console.error('Error loading dashboard data:', err)
+        console.error('Error fetching dashboard data:', err)
       } finally {
         setIsLoading(false)
       }
     }
     fetchData()
   }, [])
-
   const portaDrivers = queueEntries.filter(
     (q) => q.type === 'PORTA' && !['removido', 'bloqueado'].includes(q.status),
   )
@@ -82,6 +83,15 @@ export const TmsDashboard: React.FC = () => {
 
   const readyOrders = orders.filter((o) => o.production_status === 'Pronto')
   const inProdOrders = orders.filter((o) => o.production_status === 'Em Produção')
+  const uniqueItinerariesWithDemand = Array.from(
+    new Set(orders.map((o) => o.itinerary_code).filter(Boolean)),
+  ).length
+  const activeMontagemCargos = cargos.filter(
+    (c) => c.status === 'Em simulação' || c.status === 'Planejada',
+  ).length
+  const cargosSemVeiculo = cargos.filter(
+    (c) => !c.vehicle_plate || c.vehicle_plate === 'Aguardando alocação',
+  ).length
 
   return (
     <div className="space-y-6">
@@ -184,7 +194,9 @@ export const TmsDashboard: React.FC = () => {
               <span className="text-[10px] uppercase font-bold text-slate-400 block">
                 Cargas em Montagem
               </span>
-              <strong className="text-2xl font-mono text-slate-800 font-black">1</strong>
+              <strong className="text-2xl font-mono text-slate-800 font-black">
+                {activeMontagemCargos}
+              </strong>
               <div className="text-[10px] text-slate-500">Planejador Ativo</div>
             </CardContent>
           </Card>
@@ -195,7 +207,9 @@ export const TmsDashboard: React.FC = () => {
               <span className="text-[10px] uppercase font-bold text-amber-700 block">
                 Sem Veículo
               </span>
-              <strong className="text-2xl font-mono text-amber-600 font-black">0</strong>
+              <strong className="text-2xl font-mono text-amber-600 font-black">
+                {cargosSemVeiculo}
+              </strong>
               <div className="text-[10px] text-slate-500">Gaps Atendidos</div>
             </CardContent>
           </Card>
@@ -284,7 +298,9 @@ export const TmsDashboard: React.FC = () => {
               <span className="text-[10px] uppercase font-bold text-slate-400 block">
                 Itinerários com Demanda
               </span>
-              <strong className="text-2xl font-mono text-slate-900 font-black">4</strong>
+              <strong className="text-2xl font-mono text-slate-900 font-black">
+                {uniqueItinerariesWithDemand}
+              </strong>
               <div className="text-[10px] text-slate-500">Rotas SAP</div>
             </CardContent>
           </Card>
@@ -294,7 +310,9 @@ export const TmsDashboard: React.FC = () => {
               <span className="text-[10px] uppercase font-bold text-slate-400 block">
                 Alertas Comerciais
               </span>
-              <strong className="text-2xl font-mono text-purple-600 font-black">1</strong>
+              <strong className="text-2xl font-mono text-purple-600 font-black">
+                {opportunities.length}
+              </strong>
               <div className="text-[10px] text-slate-500">CRM 360° Notificado</div>
             </CardContent>
           </Card>

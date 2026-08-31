@@ -121,7 +121,7 @@ describe('ZSD35A V3 — Testes de Homologação e Persistência Transacional', (
     expect(report.ignoredRowsCount).toBe(1) // 1 subtotal descartado
     expect(report.uniqueOrdersCount).toBe(1) // 1 pedido SAP (doc 9876543) com 2 itens
     expect(report.totalWeightTon).toBe(43.5)
-    expect(report.origem_dado).toBe('EXCEL_QAS_ZSD35_V3')
+    expect(report.origem_dado).toBe('EXCEL_QAS_ZSD35A_V3')
     expect(report.layoutVersion).toBe('ZSD35A_V3_27_CAMPOS')
   })
 

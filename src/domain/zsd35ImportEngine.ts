@@ -80,7 +80,7 @@ export interface Zsd35ValidatedOrder {
   order_number: string
   item_number: string
   technical_key: string // Identificador técnico por linha: batchId_linha
-  origem_dado: 'SAP' | 'EXCEL_QAS' | 'EXCEL_QAS_ZSD35_V3'
+  origem_dado: 'SAP' | 'EXCEL_QAS' | 'EXCEL_QAS_ZSD35_V3' | 'EXCEL_QAS_ZSD35A_V3'
   customer_code: string
   customer_name: string
   destination_city: string
@@ -172,7 +172,7 @@ export interface Zsd35ImportValidationReport {
   updatedCount: number
   summaryStatus: 'VALIDO' | 'VALIDO_COM_AVISOS' | 'INVALIDO'
   technicalKeysSeen: string[]
-  origem_dado: 'EXCEL_QAS_ZSD35_V3' | 'EXCEL_QAS'
+  origem_dado: 'EXCEL_QAS_ZSD35A_V3' | 'EXCEL_QAS_ZSD35_V3' | 'EXCEL_QAS'
 }
 
 /**
@@ -545,7 +545,7 @@ export function processZsd35Rows(
       updatedCount: 0,
       summaryStatus: 'INVALIDO',
       technicalKeysSeen: [],
-      origem_dado: 'EXCEL_QAS_ZSD35_V3',
+      origem_dado: 'EXCEL_QAS_ZSD35A_V3',
     }
   }
 
@@ -894,7 +894,7 @@ export function processZsd35Rows(
       order_number: orderNumber,
       item_number: itemNumber,
       technical_key: technicalKey,
-      origem_dado: 'EXCEL_QAS_ZSD35_V3',
+      origem_dado: 'EXCEL_QAS_ZSD35A_V3',
       customer_code: customerCode,
       customer_name: customerName,
       destination_city: city,

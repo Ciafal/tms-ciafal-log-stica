@@ -32,76 +32,72 @@ export const WmsLoadingMapPage: React.FC = () => {
   const { user } = useAuth()
   const { toast } = useToast()
 
-  const [selectedCargoId, setSelectedCargoId] = useState<string>('CARGA-SP001-0891')
+  const [cargos, setCargos] = useState<any[]>([])
+  const [selectedCargoId, setSelectedCargoId] = useState<string>('')
   const [loadingLayout, setLoadingLayout] = useState<WmsVehicleLoadingLayout | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-
-  // Simulação de Pedidos da Carga para Montagem do Mapa
-  const sampleCargoOrders = [
-    {
-      id: 'ORD-901',
-      order_number: 'PED-45001',
-      customer_code: 'CLI-00101',
-      customer_name: 'ESTRUTURAS METALICAS MINAS LTDA',
-      destination_city: 'Contagem',
-      uf: 'MG',
-      material: 'L2-PERFIL-PESADO-W200',
-      material_description: 'Perfil Pesado Estrutural W200x52 (L2)',
-      weight_kg: 14200,
-      plant: 'SDPL',
-      storage_location: 'DS11',
-      wms_address: 'DS11-BLOCO-C-P01',
-      distance_km: 540,
-      is_perfil_pesado_l2: true,
-    },
-    {
-      id: 'ORD-902',
-      order_number: 'PED-45002',
-      customer_code: 'CLI-00102',
-      customer_name: 'METALURGICA BETIM S.A.',
-      destination_city: 'Betim',
-      uf: 'MG',
-      material: 'SDPL-CHAPA-CORTE-ESP',
-      material_description: 'Chapa Grossa Cortada Sidercentro',
-      weight_kg: 9800,
-      plant: 'SDPL',
-      storage_location: 'DS11',
-      wms_address: 'DS11-BLOCO-A-P04',
-      distance_km: 520,
-    },
-    {
-      id: 'ORD-903',
-      order_number: 'PED-45003',
-      customer_code: 'CLI-00103',
-      customer_name: 'DISTRIBUIDORA VALE DO ACO',
-      destination_city: 'Pouso Alegre',
-      uf: 'MG',
-      material: 'DP34-BARRA-REDONDA-38',
-      material_description: 'Barra Redonda Trefilada 3/8"',
-      weight_kg: 7200,
-      plant: 'SDPL',
-      storage_location: 'DP34',
-      wms_address: 'DP34-RUA-02-NIVEL-1',
-      distance_km: 210,
-    },
-  ]
-
-  const buildLayout = () => {
-    const layout = generateWmsLoadingMap({
-      cargoId: selectedCargoId,
-      vehiclePlate: 'ABC-1D23',
-      vehicleType: 'Carreta LS 32t Aberta (Grade Baixa)',
-      itineraryCode: 'MG001A',
-      capacityKg: 32000,
-      orders: sampleCargoOrders,
-      wmsConfigured: false, // Marca explicitamente como AGUARDANDO CONFIGURAÇÃO
-    })
-    setLoadingLayout(layout)
-  }
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    buildLayout()
-  }, [selectedCargoId])
+    const loadCargos = async () => {
+      setLoading(true)
+      try {
+        const list = await TmsService.getCargos()
+        setCargos(list || [])
+        if (list && list.length > 0) {
+          setSelectedCargoId(list[0].id)
+        }
+      } catch (err: any) {
+        toast({
+          title: 'Aviso WMS',
+          description: 'Aguardando sincronização de cargas.',
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadCargos()
+  }, [])
+
+  useEffect(() => {
+    if (!selectedCargoId) {
+      setLoadingLayout(null)
+      return
+    }
+    const cargo = cargos.find((c) => c.id === selectedCargoId)
+    if (!cargo) {
+      setLoadingLayout(null)
+      return
+    }
+
+    const payloadOrders = Array.isArray(cargo.orders_payload) ? cargo.orders_payload : []
+    const mappedOrders = payloadOrders.map((o: any, idx: number) => ({
+      id: o.id || `ORD-${idx + 1}`,
+      order_number: o.order_number || `PED-${idx + 1}`,
+      customer_code: o.customer_code || 'CLI-001',
+      customer_name: o.customer_name || 'Cliente',
+      destination_city: o.destination_city || 'Destino',
+      uf: o.uf || 'SP',
+      material: o.material || 'Material Aço',
+      material_description: o.material_description || o.material || 'Material Laminado',
+      weight_kg: o.weight_kg || 10000,
+      plant: '1000',
+      storage_location: 'DP34',
+      wms_address: 'DP34-DOCA-01',
+      distance_km: 150,
+    }))
+
+    const layout = generateWmsLoadingMap({
+      cargoId: cargo.id,
+      vehiclePlate: cargo.vehicle_plate || 'SEM PLACA',
+      vehicleType: cargo.vehicle_type || 'Carreta Padrão',
+      itineraryCode: cargo.itinerary_code || 'ITIN-GERAL',
+      capacityKg: cargo.vehicle_capacity_kg || 28000,
+      orders: mappedOrders,
+      wmsConfigured: false,
+    })
+    setLoadingLayout(layout)
+  }, [selectedCargoId, cargos])
 
   const handleSaveApproval = async () => {
     if (!loadingLayout) return
@@ -157,6 +153,21 @@ export const WmsLoadingMapPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {cargos.length > 0 && (
+            <Select value={selectedCargoId} onValueChange={setSelectedCargoId}>
+              <SelectTrigger className="w-[180px] h-8 text-xs">
+                <SelectValue placeholder="Selecione a carga" />
+              </SelectTrigger>
+              <SelectContent>
+                {cargos.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.id} — {c.scenario_name || c.itinerary_code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
           <Badge
             variant="outline"
             className="text-[10px] border-amber-400 text-amber-800 bg-amber-50 font-mono"
@@ -165,7 +176,7 @@ export const WmsLoadingMapPage: React.FC = () => {
           </Badge>
           <Button
             onClick={handleSaveApproval}
-            disabled={isSaving}
+            disabled={isSaving || !loadingLayout}
             size="sm"
             className="bg-[#005596] text-white text-xs h-8"
           >
@@ -175,7 +186,18 @@ export const WmsLoadingMapPage: React.FC = () => {
         </div>
       </div>
 
-      {loadingLayout && (
+      {!loadingLayout ? (
+        <Card className="p-12 text-center border-dashed">
+          <Box className="h-10 w-10 text-slate-400 mx-auto mb-2" />
+          <h3 className="text-sm font-bold text-slate-800">
+            Nenhuma carga operacional selecionada para montagem de mapa WMS
+          </h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+            Gere ou aprove uma carga no Planejador/Roteirizador para visualizar a sequência de
+            carregamento físico e docas de expedição.
+          </p>
+        </Card>
+      ) : (
         <>
           {/* Card Resumo do Veículo e Status */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">

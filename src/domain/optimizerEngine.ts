@@ -671,16 +671,16 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
       wImmediate += item.order.weight_kg
     }
   }
-  scenarios.push(
-    buildScenarioMetrics(
-      immediateOrders.length > 0
-        ? immediateOrders
-        : validForExpedition.slice(0, 2).map((e) => e.order),
-      'scenario_a_immediate',
-      'Cenário A — Saída Imediata',
-      'Foca exclusivamente em pedidos com estoque DP34 confirmado, crédito aprovado e motoristas na PORTA prontos para carregamento.',
-    ),
-  )
+  if (immediateOrders.length > 0) {
+    scenarios.push(
+      buildScenarioMetrics(
+        immediateOrders,
+        'scenario_a_immediate',
+        'Cenário A — Saída Imediata',
+        'Foca exclusivamente em pedidos com estoque DP34 confirmado, crédito aprovado e motoristas na PORTA prontos para carregamento.',
+      ),
+    )
+  }
 
   // CENÁRIO B: Ocupação Máxima (Maximiza capacidade volumétrica/peso)
   const maxOccOrders: SapSalesOrderEntity[] = []
@@ -694,14 +694,16 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
       wMaxOcc += item.order.weight_kg
     }
   }
-  scenarios.push(
-    buildScenarioMetrics(
-      maxOccOrders,
-      'scenario_b_max_occupancy',
-      'Cenário B — Ocupação Máxima',
-      'Maximiza o aproveitamento da capacidade volumétrica e de peso do veículo até o teto regulatório.',
-    ),
-  )
+  if (maxOccOrders.length > 0) {
+    scenarios.push(
+      buildScenarioMetrics(
+        maxOccOrders,
+        'scenario_b_max_occupancy',
+        'Cenário B — Ocupação Máxima',
+        'Maximiza o aproveitamento da capacidade volumétrica e de peso do veículo até o teto regulatório.',
+      ),
+    )
+  }
 
   // CENÁRIO C: Pedidos Atrasados (Prioriza clientes com maior tempo de carteira/atraso)
   const sortedByOverdue = [...validForExpedition].sort((a, b) => {
@@ -717,14 +719,16 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
       wOverdue += item.order.weight_kg
     }
   }
-  scenarios.push(
-    buildScenarioMetrics(
-      overdueOrders,
-      'scenario_c_overdue',
-      'Cenário C — Pedidos Atrasados',
-      'Prioriza o atendimento a clientes com pedidos que ultrapassaram a data desejada.',
-    ),
-  )
+  if (overdueOrders.length > 0) {
+    scenarios.push(
+      buildScenarioMetrics(
+        overdueOrders,
+        'scenario_c_overdue',
+        'Cenário C — Pedidos Atrasados',
+        'Prioriza o atendimento a clientes com pedidos que ultrapassaram a data desejada.',
+      ),
+    )
+  }
 
   // CENÁRIO D: Melhor Resultado Econômico (Maximiza margem líquida prevista)
   const sortedByRevenue = [...validForExpedition].sort(
@@ -738,25 +742,29 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
       wProfit += item.order.weight_kg
     }
   }
-  scenarios.push(
-    buildScenarioMetrics(
-      profitOrders,
-      'scenario_d_best_profit',
-      'Cenário D — Melhor Resultado Econômico',
-      'Maximiza a margem líquida prevista e o valor faturado da carga combinando clientes de alta rentabilidade.',
-    ),
-  )
+  if (profitOrders.length > 0) {
+    scenarios.push(
+      buildScenarioMetrics(
+        profitOrders,
+        'scenario_d_best_profit',
+        'Cenário D — Melhor Resultado Econômico',
+        'Maximiza a margem líquida prevista e o valor faturado da carga combinando clientes de alta rentabilidade.',
+      ),
+    )
+  }
 
   // CENÁRIO E: Menor Custo Logístico (Agrupamento com menor km e menor pedágio)
   const compactGroup = [...validForExpedition].slice(0, 3).map((e) => e.order)
-  scenarios.push(
-    buildScenarioMetrics(
-      compactGroup,
-      'scenario_e_lowest_cost',
-      'Cenário E — Menor Custo Logístico',
-      'Minimiza paradas intermediárias, custos adicionais de pedágio e desvio de rota.',
-    ),
-  )
+  if (compactGroup.length > 0) {
+    scenarios.push(
+      buildScenarioMetrics(
+        compactGroup,
+        'scenario_e_lowest_cost',
+        'Cenário E — Menor Custo Logístico',
+        'Minimiza paradas intermediárias, custos adicionais de pedágio e desvio de rota.',
+      ),
+    )
+  }
 
   // CENÁRIO F: Melhor Equilíbrio Geral (Otimização balanceada multicritério)
   const balancedOrders: SapSalesOrderEntity[] = []
@@ -778,14 +786,16 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
       }
     }
   }
-  scenarios.push(
-    buildScenarioMetrics(
-      balancedOrders,
-      'scenario_f_balanced',
-      'Cenário F — Melhor Equilíbrio Geral',
-      'Ponto de equilíbrio ótimo entre ocupação elevada, atendimento a atrasados e baixo custo operacional.',
-    ),
-  )
+  if (balancedOrders.length > 0) {
+    scenarios.push(
+      buildScenarioMetrics(
+        balancedOrders,
+        'scenario_f_balanced',
+        'Cenário F — Melhor Equilíbrio Geral',
+        'Ponto de equilíbrio ótimo entre ocupação elevada, atendimento a atrasados e baixo custo operacional.',
+      ),
+    )
+  }
 
   // Painel de Saída Imediata (cargas com status PRONTA_SAIDA_IMEDIATA ordenadas por score)
   const immediateExitCargos = scenarios

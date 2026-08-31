@@ -20,6 +20,7 @@ import { SystemParametersPage } from '@/pages/SystemParametersPage'
 import { UsersRolesPage } from '@/pages/UsersRolesPage'
 import { TmsDashboard } from '@/pages/TmsDashboard'
 import { IntegrationsMonitorPage } from '@/pages/IntegrationsMonitorPage'
+import { DiagnosticsAndQasAdminPage } from '@/pages/DiagnosticsAndQasAdminPage'
 import { LoadPlannerPage } from '@/pages/LoadPlannerPage'
 import { LoadRouterAndSimulatorPage } from '@/pages/LoadRouterAndSimulatorPage'
 import { StockAndProductionPage } from '@/pages/StockAndProductionPage'
@@ -660,6 +661,22 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <IntegrationsMonitorPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/diagnostico"
+            element={
+              <Layout>
+                <DiagnosticsAndQasAdminPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/admin-qas"
+            element={
+              <Layout>
+                <DiagnosticsAndQasAdminPage />
               </Layout>
             }
           />

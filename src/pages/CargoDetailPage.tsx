@@ -94,94 +94,50 @@ export default function CargoDetailPage() {
       setPrinters(prtList as PrinterDeviceEntity[])
       const found = allCargos.find((c: any) => c.id === id)
 
-      // Se encontrou no banco ou monta estrutura 360° robusta
+      if (!found) {
+        setCargo(null)
+        setLoading(false)
+        return
+      }
+
       const defaultDetail: CargoDetailedView = {
-        cargoId: id || 'CARGO-7701',
-        itineraryCode: found?.itinerary_code || 'ITIN-SP-INTERIOR',
-        status: (found?.status as any) || 'Contratada',
-        plannedDate: found?.planned_date || new Date().toISOString().split('T')[0],
-        vehicleType: found?.vehicle_type || 'Carreta 5 Eixos',
-        vehiclePlate: found?.vehicle_plate || 'ABC-1D23',
-        vehicleCapacityKg: found?.vehicle_capacity_kg || 28000,
-        totalWeightKg: found?.total_weight_kg || 27200,
-        occupancyPct: found?.occupancy_pct || 97.1,
-        ordersCount: found?.order_count || 2,
-        customersCount: 2,
-        driverId: found?.driver_id || 'drv-01',
-        driverName: found?.driver_name || 'Carlos Alberto Silva (PORTA)',
-        driverPhone: '(11) 98765-4321',
-        driverDocument: '321.654.987-00',
-        isPortaDriver: true,
-        contractedFreightValue: found?.estimated_cost || 4350.0,
-        anttFloorValue: found?.antt_floor_value || 3890.0,
-        sapTransportNumber: found?.sap_transport_number || 'OT-2025-481902',
-        sapTransportStatus: found?.sap_transport_number ? 'Criado' : 'Pendente',
-        sapOrderCreatedAt: found?.sap_transport_number ? new Date().toISOString() : undefined,
-        printJobStatus: 'Impresso',
-        printJobId: 'job-7701-01',
-        printedAt: new Date().toISOString(),
-        documentDeliveryStatus: 'Entregue_Motorista',
-        deliveredAt: new Date().toISOString(),
-        isReleasedForLoading: true,
-        releasedAt: new Date().toISOString(),
+        cargoId: found.id,
+        itineraryCode: found.itinerary_code || 'NÃO DEFINIDO',
+        status: (found.status as any) || 'Pronta para oferta',
+        plannedDate: found.planned_date || new Date().toISOString().split('T')[0],
+        vehicleType: found.vehicle_type || 'Carreta Padrão',
+        vehiclePlate: found.vehicle_plate || 'Aguardando alocação',
+        vehicleCapacityKg: found.vehicle_capacity_kg || 28000,
+        totalWeightKg: found.total_weight_kg || 0,
+        occupancyPct: found.occupancy_pct || 0,
+        ordersCount:
+          found.order_count ||
+          (Array.isArray(found.orders_payload) ? found.orders_payload.length : 0),
+        customersCount: 1,
+        driverId: found.driver_id || '',
+        driverName: found.driver_name || 'Aguardando contratação',
+        driverPhone: found.driver_phone || '',
+        driverDocument: '',
+        isPortaDriver: Boolean(found.is_porta_driver),
+        contractedFreightValue: found.estimated_cost || 0,
+        anttFloorValue: found.antt_floor_value || 0,
+        sapTransportNumber: found.sap_transport_number || '',
+        sapTransportStatus: found.sap_transport_number ? 'Criado' : 'Pendente',
+        sapOrderCreatedAt: found.sap_transport_number ? found.updated : undefined,
+        printJobStatus: 'Pendente',
+        printJobId: '',
+        printedAt: undefined,
+        documentDeliveryStatus: 'Pendente',
+        deliveredAt: undefined,
+        isReleasedForLoading: found.status === 'Liberada para carregamento',
+        releasedAt: found.status === 'Liberada para carregamento' ? found.updated : undefined,
         timeline: [
           {
             step: 'SCENARIO_CREATED',
-            title: 'Cenário 1 — Ocupação Máxima',
-            description: 'Otimizador determinístico calculou ocupação de 97.1% e sugeriu alocação.',
-            timestamp: new Date(Date.now() - 3600000 * 4).toLocaleTimeString('pt-BR'),
-            operator: 'Algoritmo TMS CIAFAL',
-            status: 'DONE',
-          },
-          {
-            step: 'SCENARIO_APPROVED',
-            title: 'Cenário Aprovado pelo Planejador',
-            description: 'Validação de data desejada e estoque DP34 conferidos com sucesso.',
-            timestamp: new Date(Date.now() - 3600000 * 3).toLocaleTimeString('pt-BR'),
-            operator: 'planejador@ciafal.com.br',
-            status: 'DONE',
-          },
-          {
-            step: 'DRIVER_CONTRACTED',
-            title: 'Motorista Contratado na Mesa de Fretes',
-            description: 'Motorista PORTA selecionado na Fila com valor homologado.',
-            timestamp: new Date(Date.now() - 3600000 * 2).toLocaleTimeString('pt-BR'),
-            operator: 'operador@ciafal.com.br',
-            status: 'DONE',
-            referenceCode: 'Carlos Alberto Silva',
-          },
-          {
-            step: 'SAP_ORDER_CREATED',
-            title: 'Ordem de Transporte SAP Confirmada',
-            description: 'Número oficial gerado pelo SAP Gateway (RFC RFC_TRANSPORT_CREATE).',
-            timestamp: new Date(Date.now() - 3600000 * 1).toLocaleTimeString('pt-BR'),
-            operator: 'SAP ECC Integration',
-            status: 'DONE',
-            referenceCode: 'OT-2025-481902',
-          },
-          {
-            step: 'PRINT_COMPLETED',
-            title: 'Documento Físico Impresso',
-            description: 'Impressão concluída na impressora PRT-EXP-DP34-01.',
-            timestamp: new Date(Date.now() - 1800000).toLocaleTimeString('pt-BR'),
-            operator: 'operador@ciafal.com.br',
-            status: 'DONE',
-            referenceCode: 'PRT-EXP-DP34-01',
-          },
-          {
-            step: 'DOCUMENT_DELIVERED',
-            title: 'Ordem Entregue ao Motorista',
-            description: 'Documento assinado entregue ao condutor na portaria.',
-            timestamp: new Date().toLocaleTimeString('pt-BR'),
-            operator: 'portaria@ciafal.com.br',
-            status: 'DONE',
-          },
-          {
-            step: 'RELEASED_FOR_LOADING',
-            title: 'Liberada para Carregamento',
-            description: 'Todos os requisitos atendidos. Veículo apto a entrar na baia.',
-            timestamp: new Date().toLocaleTimeString('pt-BR'),
-            operator: 'Sistema TMS',
+            title: found.scenario_name || 'Carga Criada no Planejador',
+            description: `Carga TMS gerada a partir da base operacional. Peso: ${(found.total_weight_kg / 1000).toFixed(1)}t.`,
+            timestamp: new Date(found.created || Date.now()).toLocaleTimeString('pt-BR'),
+            operator: 'Sistema TMS CIAFAL',
             status: 'DONE',
           },
         ],
@@ -333,10 +289,27 @@ export default function CargoDetailPage() {
     }
   }
 
-  if (loading || !cargo) {
+  if (loading) {
     return (
       <div className="p-8 text-center text-xs text-slate-500">
         Carregando visão 360° da carga...
+      </div>
+    )
+  }
+
+  if (!cargo) {
+    return (
+      <div className="p-12 text-center border rounded-lg max-w-lg mx-auto my-12 space-y-3">
+        <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto" />
+        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+          Carga não encontrada
+        </h2>
+        <p className="text-xs text-slate-500">
+          A carga informada não existe na base operacional ou foi cancelada/redefinida.
+        </p>
+        <Button size="sm" onClick={() => navigate('/tms/planejador')}>
+          Voltar ao Planejador
+        </Button>
       </div>
     )
   }

@@ -184,7 +184,7 @@ export const SalesWalletPage: React.FC = () => {
   const [filterWalletTime, setFilterWalletTime] = useState('ALL')
   const [filterOverdue, setFilterOverdue] = useState('ALL')
   const [filterOrigem, setFilterOrigem] = useState<
-    'ALL' | 'SAP' | 'EXCEL_QAS' | 'EXCEL_QAS_ZSD35_V3'
+    'ALL' | 'SAP' | 'EXCEL_QAS' | 'EXCEL_QAS_ZSD35_V3' | 'EXCEL_QAS_ZSD35A_V3'
   >('ALL')
 
   // Stock & Credit Request Modals
@@ -373,7 +373,9 @@ export const SalesWalletPage: React.FC = () => {
       if (filterOrigem !== 'ALL') {
         if (
           filterOrigem === 'EXCEL_QAS' &&
-          (o.origem_dado === 'EXCEL_QAS' || o.origem_dado === 'EXCEL_QAS_ZSD35_V3')
+          (o.origem_dado === 'EXCEL_QAS' ||
+            o.origem_dado === 'EXCEL_QAS_ZSD35_V3' ||
+            o.origem_dado === 'EXCEL_QAS_ZSD35A_V3')
         ) {
           // match both
         } else if (o.origem_dado !== filterOrigem) {
@@ -429,7 +431,10 @@ export const SalesWalletPage: React.FC = () => {
       (o) => o.stockIntersectionType === 'SEM_PREVISAO',
     ).length
     const excelQasCount = filteredOrders.filter(
-      (o) => o.origem_dado === 'EXCEL_QAS' || o.origem_dado === 'EXCEL_QAS_ZSD35_V3',
+      (o) =>
+        o.origem_dado === 'EXCEL_QAS' ||
+        o.origem_dado === 'EXCEL_QAS_ZSD35_V3' ||
+        o.origem_dado === 'EXCEL_QAS_ZSD35A_V3',
     ).length
 
     return {
@@ -1256,14 +1261,22 @@ export const SalesWalletPage: React.FC = () => {
                     >
                       {/* 0. Origem do Dado */}
                       <td className="p-2.5 text-center">
-                        {order.origem_dado === 'EXCEL_QAS' ||
-                        order.origem_dado === 'EXCEL_QAS_ZSD35_V3' ? (
+                        {order.origem_dado === 'EXCEL_QAS_ZSD35A_V3' ? (
                           <Badge
                             variant="outline"
                             className="text-[9px] font-mono px-1 py-0 bg-purple-50 text-purple-700 border-purple-200 font-bold"
-                            title="Massa de Homologação via Excel QAS (ZSD35A V3)"
+                            title="Massa de Homologação Oficial ZSD35A V3"
                           >
-                            EXCEL V3
+                            EXCEL_QAS_ZSD35A_V3
+                          </Badge>
+                        ) : order.origem_dado === 'EXCEL_QAS' ||
+                          order.origem_dado === 'EXCEL_QAS_ZSD35_V3' ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] font-mono px-1 py-0 bg-purple-50 text-purple-700 border-purple-200 font-bold"
+                            title="Massa de Homologação via Excel QAS"
+                          >
+                            EXCEL_QAS_ZSD35A_V3
                           </Badge>
                         ) : (
                           <Badge
@@ -1807,7 +1820,8 @@ export const SalesWalletPage: React.FC = () => {
             </div>
             <DialogDescription className="text-xs">
               Registro auditável dos lotes de importação executados. Somente registros com
-              origem_dado = 'EXCEL_QAS' ou 'EXCEL_QAS_ZSD35_V3' podem ser excluídos por esta função.
+              origem_dado = 'EXCEL_QAS', 'EXCEL_QAS_ZSD35_V3' ou 'EXCEL_QAS_ZSD35A_V3' podem ser
+              excluídos por esta função.
             </DialogDescription>
           </DialogHeader>
 

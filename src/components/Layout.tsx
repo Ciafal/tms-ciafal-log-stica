@@ -364,6 +364,20 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: true,
         },
         {
+          title: 'Diagnóstico & Lotes QAS',
+          path: '/tms/diagnostico',
+          badge: 'Saúde',
+          badgeColor: 'bg-emerald-600',
+          show: true,
+        },
+        {
+          title: 'Administração QAS (Reset)',
+          path: '/tms/admin-qas',
+          badge: 'Master',
+          badgeColor: 'bg-rose-600',
+          show: role === 'admin_master' || permissions.canManageSystemParameters,
+        },
+        {
           title: 'Regras de Negociação & Autonomia',
           path: '/tms/regras-autonomia',
           badge: 'Nível 1',

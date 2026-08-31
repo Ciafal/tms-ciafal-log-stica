@@ -72,7 +72,7 @@ routerAdd('POST', '/backend/v1/zsd35/import-confirm', (e) => {
       batchRecord.set('batch_id', batchId)
       batchRecord.set('file_name', fileName)
       batchRecord.set('imported_by', userName + ' (' + userEmail + ')')
-      batchRecord.set('origem_dado', 'EXCEL_QAS_ZSD35_V3')
+      batchRecord.set('origem_dado', 'EXCEL_QAS_ZSD35A_V3')
       batchRecord.set('template_version', 'ZSD35A_V3_27_CAMPOS')
       batchRecord.set('total_read', totalRead)
       batchRecord.set('valid_count', validCount)
@@ -185,7 +185,7 @@ routerAdd('POST', '/backend/v1/zsd35/import-confirm', (e) => {
             'desired_date',
             order.desired_date || order.order_date || new Date().toISOString().slice(0, 10),
           )
-          rec.set('origem_dado', 'EXCEL_QAS_ZSD35_V3')
+          rec.set('origem_dado', 'EXCEL_QAS_ZSD35A_V3')
           rec.set('import_batch_id', batchId)
           rec.set('source_file', fileName)
           rec.set('imported_by_user', userName || userEmail)
@@ -288,7 +288,7 @@ routerAdd('POST', '/backend/v1/zsd35/import-confirm', (e) => {
         rejectedCount: rejectedCount,
         totalWeightTon: totalWeightTon,
         uniqueOrdersCount: report.uniqueOrdersCount || 0,
-        origem_dado: 'EXCEL_QAS_ZSD35_V3',
+        origem_dado: 'EXCEL_QAS_ZSD35A_V3',
       })
       $app.save(auditRec)
     } catch (audErr) {

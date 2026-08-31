@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-31T13:45:52.846Z",
+  "generatedAt": "2026-08-31T13:54:12.409Z",
   "collections": [
     {
       "name": "users",
@@ -917,7 +917,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["SAP", "EXCEL_QAS", "EXCEL_QAS_ZSD35_V3"]
+          "selectValues": ["SAP", "EXCEL_QAS", "EXCEL_QAS_ZSD35_V3", "EXCEL_QAS_ZSD35A_V3"]
         },
         {
           "name": "status",
@@ -1810,7 +1810,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["SAP", "EXCEL_QAS", "EXCEL_QAS_ZSD35_V3"]
+          "selectValues": ["SAP", "EXCEL_QAS", "EXCEL_QAS_ZSD35_V3", "EXCEL_QAS_ZSD35A_V3"]
         }
       ],
       "indexes": [

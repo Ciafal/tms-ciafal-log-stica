@@ -127,204 +127,37 @@ export function LoadRouterAndSimulatorPage() {
         tmsService.getVehicles(),
       ])
 
-      // Fallback robusto se mock / banco inicial estiver vazio
-      const safeOrders: SapSalesOrderEntity[] =
-        ordList && ordList.length > 0
-          ? ordList
-          : [
-              {
-                id: 'ord-101',
-                order_number: 'PED-45001',
-                item_number: '0010',
-                customer_code: 'CLI-AÇO-PAULISTA',
-                customer_name: 'Aço Paulista Distribuidora LTDA',
-                destination_city: 'Campinas',
-                uf: 'SP',
-                production_status: 'Pronto',
-                itinerary_code: 'ITIN-SP-INTERIOR',
-                material: 'BARRA CHATA 1/2X1/8',
-                material_description: 'Barra Chata Laminada 1/2 x 1/8',
-                weight_kg: 14500,
-                total_value: 87500,
-                desired_date: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0], // Atrasado 2 dias
-                status: 'disponivel',
-                credit_status: 'Liberado',
-              },
-              {
-                id: 'ord-102',
-                order_number: 'PED-45002',
-                item_number: '0010',
-                customer_code: 'CLI-METALURGICA-VALE',
-                customer_name: 'Metalúrgica Vale do Paraíba S/A',
-                destination_city: 'São José dos Campos',
-                uf: 'SP',
-                production_status: 'Pronto',
-                itinerary_code: 'ITIN-SP-INTERIOR',
-                material: 'CANTONEIRA 2X3/16',
-                material_description: 'Cantoneira Abas Iguais 2 x 3/16',
-                weight_kg: 12700,
-                total_value: 74200,
-                desired_date: new Date(Date.now() - 1 * 86400000).toISOString().split('T')[0], // Atrasado 1 dia
-                status: 'disponivel',
-                credit_status: 'Liberado',
-              },
-              {
-                id: 'ord-103',
-                order_number: 'PED-45003',
-                item_number: '0010',
-                customer_code: 'CLI-ESTRUTURAS-MOGI',
-                customer_name: 'Estruturas Metálicas Mogi EIRELI',
-                destination_city: 'Mogi Mirim',
-                uf: 'SP',
-                production_status: 'Pronto',
-                itinerary_code: 'ITIN-SP-INTERIOR',
-                material: 'PERFIL TEE 1.1/2X1/8',
-                material_description: 'Perfil T Laminado 1.1/2 x 1/8',
-                weight_kg: 9200,
-                total_value: 52000,
-                desired_date: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0], // Futuro (+3 dias)
-                status: 'disponivel',
-                credit_status: 'Liberado',
-              },
-              {
-                id: 'ord-104',
-                order_number: 'PED-45004',
-                item_number: '0010',
-                customer_code: 'CLI-TREFILADOS-SOROCABA',
-                customer_name: 'Trefilados Sorocaba Comércio de Aço',
-                destination_city: 'Sorocaba',
-                uf: 'SP',
-                production_status: 'Pronto',
-                itinerary_code: 'ITIN-SP-INTERIOR',
-                material: 'BARRA CHATA 1/2X1/8',
-                material_description: 'Barra Chata Laminada 1/2 x 1/8',
-                weight_kg: 8500,
-                total_value: 49000,
-                desired_date: new Date().toISOString().split('T')[0],
-                status: 'disponivel',
-                credit_status: 'Bloqueado', // Bloqueado Financeiro
-              },
-              {
-                id: 'ord-105',
-                order_number: 'PED-45005',
-                item_number: '0010',
-                customer_code: 'CLI-INDUSTRIA-LIMEIRA',
-                customer_name: 'Indústria Metal Mecânica Limeira',
-                destination_city: 'Limeira',
-                uf: 'SP',
-                production_status: 'Pronto',
-                itinerary_code: 'ITIN-SP-INTERIOR',
-                material: 'VERGALHAO CA50 10MM',
-                material_description: 'Vergalhão CA-50 10.0mm em Barras',
-                weight_kg: 13500,
-                total_value: 79000,
-                desired_date: new Date().toISOString().split('T')[0],
-                status: 'disponivel',
-                credit_status: 'Em Análise', // Requer aprovação
-              },
-            ]
+      const realOrders = ordList || []
+      const realStocks = stList || []
+      const realPcp = pcpList || []
+      const realQueue = qList || []
+      const realVehicles = vList || []
 
-      const safeStocks: SapStockCurrentEntity[] =
-        stList && stList.length > 0
-          ? stList
-          : [
-              {
-                id: 'stk-1',
-                material_code: 'BARRA CHATA 1/2X1/8',
-                material_description: 'Barra Chata Laminada 1/2 x 1/8',
-                plant: '1000',
-                storage_location: 'DP34',
-                available_qty: 32,
-                weight_kg: 32000,
-                unit: 'TO',
-                status: 'Disponivel',
-                last_sync: new Date().toISOString(),
-              },
-              {
-                id: 'stk-2',
-                material_code: 'CANTONEIRA 2X3/16',
-                material_description: 'Cantoneira Abas Iguais 2 x 3/16',
-                plant: '1000',
-                storage_location: 'DP34',
-                available_qty: 24,
-                weight_kg: 24000,
-                unit: 'TO',
-                status: 'Disponivel',
-                last_sync: new Date().toISOString(),
-              },
-              {
-                id: 'stk-3',
-                material_code: 'PERFIL TEE 1.1/2X1/8',
-                material_description: 'Perfil T Laminado 1.1/2 x 1/8',
-                plant: '1000',
-                storage_location: 'DP01', // Outro depósito (Laminação)
-                available_qty: 18,
-                weight_kg: 18000,
-                unit: 'TO',
-                status: 'Disponivel',
-                last_sync: new Date().toISOString(),
-              },
-              {
-                id: 'stk-4',
-                material_code: 'VERGALHAO CA50 10MM',
-                material_description: 'Vergalhão CA-50 10.0mm em Barras',
-                plant: '1000',
-                storage_location: 'DP34',
-                available_qty: 20,
-                weight_kg: 20000,
-                unit: 'TO',
-                status: 'Disponivel',
-                last_sync: new Date().toISOString(),
-              },
-            ]
+      setOrders(realOrders)
+      setStocks(realStocks)
+      setPcpOrders(realPcp)
+      setQueueEntries(realQueue)
+      setVehicles(realVehicles)
 
-      const safeQueue: QueueEntryEntity[] =
-        qList && qList.length > 0
-          ? qList
-          : [
-              {
-                id: 'q-1',
-                driver_id: 'drv-01',
-                driver_name_cached: 'Carlos Alberto Silva (PORTA)',
-                driver_phone_cached: '(11) 98765-4321',
-                type: 'PORTA',
-                status: 'disponivel',
-                position: 1,
-                preferred_itinerary: 'ITIN-SP-INTERIOR',
-                vehicle_capacity_kg_cached: 28000,
-                vehicle_plate_cached: 'ABC-1D23',
-                vehicle_type_cached: 'Carreta 5 Eixos',
-                checkin_time: new Date().toISOString(),
-              },
-              {
-                id: 'q-2',
-                driver_id: 'drv-02',
-                driver_name_cached: 'Marcos Roberto Santos (PORTA)',
-                driver_phone_cached: '(11) 97777-8888',
-                type: 'PORTA',
-                status: 'disponivel',
-                position: 2,
-                preferred_itinerary: 'ITIN-SP-INTERIOR',
-                vehicle_capacity_kg_cached: 32000,
-                vehicle_plate_cached: 'XYZ-9F88',
-                vehicle_type_cached: 'Carreta 6 Eixos',
-                checkin_time: new Date().toISOString(),
-              },
-            ]
+      // Identifica itinerário inicial a partir da carteira real se houver
+      let initialItin = selectedItinerary
+      if (realOrders.length > 0) {
+        const orderItins = Array.from(
+          new Set(realOrders.map((o) => o.itinerary_code).filter(Boolean)),
+        )
+        if (orderItins.length > 0 && !orderItins.includes(selectedItinerary)) {
+          initialItin = orderItins[0]
+          setSelectedItinerary(initialItin)
+        }
+      }
 
-      setOrders(safeOrders)
-      setStocks(safeStocks)
-      setPcpOrders(pcpList || [])
-      setQueueEntries(safeQueue)
-      setVehicles(vList || [])
-
-      // Executar otimização determinística inicial
+      // Executar otimização determinística inicial com dados 100% reais
       executeOptimization(
-        safeOrders,
-        safeStocks,
-        pcpList || [],
-        safeQueue,
-        selectedItinerary,
+        realOrders,
+        realStocks,
+        realPcp,
+        realQueue,
+        initialItin,
         plannedDate,
         vehicleCapacityKg,
         selectedVehicleType,
@@ -957,147 +790,164 @@ export function LoadRouterAndSimulatorPage() {
         {/* ABA 2: 5 CENÁRIOS OTIMIZADOS (REGRA 11, 12, 21) */}
         {/* ========================================================================= */}
         <TabsContent value="all_scenarios" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {scenarios.map((scen) => (
-              <Card
-                key={scen.id}
-                className={`flex flex-col justify-between transition-all cursor-pointer ${
-                  selectedScenario?.id === scen.id
-                    ? 'ring-2 ring-indigo-500 border-indigo-400 bg-white dark:bg-slate-900 shadow-md'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-white dark:bg-slate-900'
-                }`}
-                onClick={() => setSelectedScenario(scen)}
-              >
-                <div>
-                  <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <Badge
-                        variant="outline"
-                        className={
-                          scen.readinessStatus === 'PRONTA_SAIDA_IMEDIATA'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold'
+          {scenarios.length === 0 ? (
+            <Card className="p-12 text-center border-dashed">
+              <AlertTriangle className="h-12 w-12 text-slate-400 mx-auto mb-3" />
+              <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">
+                Dados insuficientes para gerar cenário
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                Não existem pedidos elegíveis para o itinerário selecionado ({selectedItinerary}) na
+                data programada. Importe a carteira SAP ou selecione outro itinerário.
+              </p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {scenarios.map((scen) => (
+                <Card
+                  key={scen.id}
+                  className={`flex flex-col justify-between transition-all cursor-pointer ${
+                    selectedScenario?.id === scen.id
+                      ? 'ring-2 ring-indigo-500 border-indigo-400 bg-white dark:bg-slate-900 shadow-md'
+                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-white dark:bg-slate-900'
+                  }`}
+                  onClick={() => setSelectedScenario(scen)}
+                >
+                  <div>
+                    <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <Badge
+                          variant="outline"
+                          className={
+                            scen.readinessStatus === 'PRONTA_SAIDA_IMEDIATA'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold'
+                              : scen.readinessStatus === 'PRONTA_PARA_OFERTA'
+                                ? 'bg-blue-50 text-blue-800 border-blue-300 font-bold'
+                                : scen.readinessStatus === 'PLANEJAMENTO_FUTURO'
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold'
+                                  : 'bg-rose-50 text-rose-800 border-rose-300 font-bold'
+                          }
+                        >
+                          {scen.readinessStatus === 'PRONTA_SAIDA_IMEDIATA'
+                            ? 'SAÍDA IMEDIATA'
                             : scen.readinessStatus === 'PRONTA_PARA_OFERTA'
-                              ? 'bg-blue-50 text-blue-800 border-blue-300 font-bold'
+                              ? 'PRONTA P/ OFERTA'
                               : scen.readinessStatus === 'PLANEJAMENTO_FUTURO'
-                                ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold'
-                                : 'bg-rose-50 text-rose-800 border-rose-300 font-bold'
-                        }
-                      >
-                        {scen.readinessStatus === 'PRONTA_SAIDA_IMEDIATA'
-                          ? 'SAÍDA IMEDIATA'
-                          : scen.readinessStatus === 'PRONTA_PARA_OFERTA'
-                            ? 'PRONTA P/ OFERTA'
-                            : scen.readinessStatus === 'PLANEJAMENTO_FUTURO'
-                              ? 'PLANEJAMENTO FUTURO'
-                              : 'BLOQUEADA'}
-                      </Badge>
+                                ? 'PLANEJAMENTO FUTURO'
+                                : 'BLOQUEADA'}
+                        </Badge>
 
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-400 uppercase font-semibold">
-                          Score
-                        </span>
-                        <span className="text-base font-black text-indigo-700 dark:text-indigo-400 block">
-                          {scen.scoreBreakdown.totalScore}/100
-                        </span>
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                            Score
+                          </span>
+                          <span className="text-base font-black text-indigo-700 dark:text-indigo-400 block">
+                            {scen.scoreBreakdown.totalScore}/100
+                          </span>
+                        </div>
                       </div>
-                    </div>
 
-                    <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
-                      {scen.title}
-                    </CardTitle>
-                    <CardDescription className="text-xs text-slate-500 line-clamp-2">
-                      {scen.description}
-                    </CardDescription>
-                  </CardHeader>
+                      <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
+                        {scen.title}
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-500 line-clamp-2">
+                        {scen.description}
+                      </CardDescription>
+                    </CardHeader>
 
-                  <CardContent className="p-4 space-y-3">
-                    {/* Ocupação e Peso */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-600 dark:text-slate-400">
-                        Ocupação do Veículo
-                      </span>
-                      <span className="text-lg font-black text-slate-900 dark:text-slate-100">
-                        {scen.occupancyPct}% ({(scen.totalWeightKg / 1000).toFixed(1)}t)
-                      </span>
-                    </div>
-
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${
-                          scen.occupancyPct >= 95
-                            ? 'bg-emerald-500'
-                            : scen.occupancyPct >= 90
-                              ? 'bg-blue-500'
-                              : scen.occupancyPct >= 80
-                                ? 'bg-amber-500'
-                                : 'bg-rose-500'
-                        }`}
-                        style={{ width: `${Math.min(100, scen.occupancyPct)}%` }}
-                      />
-                    </div>
-
-                    {scen.occupancyAlert && (
-                      <div className="text-[11px] text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200 flex items-center gap-1">
-                        <AlertTriangle className="h-3 w-3 shrink-0" />
-                        <span>{scen.occupancyAlert}</span>
-                      </div>
-                    )}
-
-                    {/* Métricas chave */}
-                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100 dark:border-slate-800">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Frete Estimado</span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          R$ {scen.estimatedCost.toLocaleString('pt-BR')}
+                    <CardContent className="p-4 space-y-3">
+                      {/* Ocupação e Peso */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-600 dark:text-slate-400">
+                          Ocupação do Veículo
+                        </span>
+                        <span className="text-lg font-black text-slate-900 dark:text-slate-100">
+                          {scen.occupancyPct}% ({(scen.totalWeightKg / 1000).toFixed(1)}t)
                         </span>
                       </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Custo por Tonelada</span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          R$ {scen.costPerTon}/t
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Pedidos / Clientes</span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {scen.ordersCount} / {scen.customersCount}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Motoristas PORTA</span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {scen.eligiblePortaDriversCount > 0 ? (
-                            <span className="text-blue-600 font-bold">
-                              {scen.eligiblePortaDriversCount} no pátio
-                            </span>
-                          ) : (
-                            <span className="text-slate-400">0 na porta</span>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </div>
 
-                <CardFooter className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-8 w-full"
-                    onClick={() => {
-                      setSelectedScenario(scen)
-                      setIsConfirmModalOpen(true)
-                    }}
-                    disabled={scen.readinessStatus === 'BLOQUEADA'}
-                  >
-                    {scen.readinessStatus === 'BLOQUEADA'
-                      ? 'Carga Bloqueada'
-                      : 'Aprovar este Cenário'}
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${
+                            scen.occupancyPct >= 95
+                              ? 'bg-emerald-500'
+                              : scen.occupancyPct >= 90
+                                ? 'bg-blue-500'
+                                : scen.occupancyPct >= 80
+                                  ? 'bg-amber-500'
+                                  : 'bg-rose-500'
+                          }`}
+                          style={{ width: `${Math.min(100, scen.occupancyPct)}%` }}
+                        />
+                      </div>
+
+                      {scen.occupancyAlert && (
+                        <div className="text-[11px] text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3 shrink-0" />
+                          <span>{scen.occupancyAlert}</span>
+                        </div>
+                      )}
+
+                      {/* Métricas chave */}
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100 dark:border-slate-800">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Frete Estimado</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            R$ {scen.estimatedCost.toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">
+                            Custo por Tonelada
+                          </span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            R$ {scen.costPerTon}/t
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">
+                            Pedidos / Clientes
+                          </span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {scen.ordersCount} / {scen.customersCount}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Motoristas PORTA</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {scen.eligiblePortaDriversCount > 0 ? (
+                              <span className="text-blue-600 font-bold">
+                                {scen.eligiblePortaDriversCount} no pátio
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">0 na porta</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </div>
+
+                  <CardFooter className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-8 w-full"
+                      onClick={() => {
+                        setSelectedScenario(scen)
+                        setIsConfirmModalOpen(true)
+                      }}
+                      disabled={scen.readinessStatus === 'BLOQUEADA'}
+                    >
+                      {scen.readinessStatus === 'BLOQUEADA'
+                        ? 'Carga Bloqueada'
+                        : 'Aprovar este Cenário'}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* ========================================================================= */}
@@ -1133,97 +983,105 @@ export function LoadRouterAndSimulatorPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {scenarios.map((scen) => (
-                    <tr
-                      key={scen.id}
-                      className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${
-                        selectedScenario?.id === scen.id
-                          ? 'bg-indigo-50/40 dark:bg-indigo-950/20'
-                          : ''
-                      }`}
-                    >
-                      <td className="py-3 px-3 font-semibold text-slate-900 dark:text-slate-100">
-                        {scen.title}
-                      </td>
-                      <td className="py-3 px-3">
-                        <Badge
-                          variant="outline"
-                          className={
-                            scen.readinessStatus === 'PRONTA_SAIDA_IMEDIATA'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px]'
-                              : scen.readinessStatus === 'PRONTA_PARA_OFERTA'
-                                ? 'bg-blue-50 text-blue-800 border-blue-300 text-[10px]'
-                                : scen.readinessStatus === 'PLANEJAMENTO_FUTURO'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-300 text-[10px]'
-                                  : 'bg-rose-50 text-rose-800 border-rose-300 text-[10px]'
-                          }
-                        >
-                          {scen.readinessStatus}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-3 text-right font-mono">
-                        {(scen.totalWeightKg / 1000).toFixed(1)}t
-                      </td>
-                      <td className="py-3 px-3 text-right font-bold text-slate-800 dark:text-slate-200">
-                        {scen.occupancyPct}%
-                      </td>
-                      <td className="py-3 px-3 text-center">{scen.ordersCount}</td>
-                      <td className="py-3 px-3 text-center">{scen.customersCount}</td>
-                      <td className="py-3 px-3 text-center">
-                        {scen.eligiblePortaDriversCount > 0 ? (
-                          <Badge className="bg-blue-600 text-white text-[10px]">
-                            {scen.eligiblePortaDriversCount} Sim
-                          </Badge>
-                        ) : (
-                          <span className="text-slate-400">Não</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 text-right font-mono">R$ {scen.costPerTon}</td>
-                      <td className="py-3 px-3 text-right font-mono">
-                        R$ {scen.anttFloorValue.toLocaleString('pt-BR')}
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        {scen.isDp34FullyStocked ? (
-                          <span className="text-emerald-600 font-semibold">100% DP34</span>
-                        ) : (
-                          <span className="text-amber-600 font-semibold">
-                            Faltam {(scen.dp34StockMissingKg / 1000).toFixed(1)}t
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        <Badge
-                          variant="outline"
-                          className={
-                            scen.creditClassification === 'LIBERADO'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                              : scen.creditClassification === 'LIBERADO_COM_APROVACAO'
-                                ? 'bg-amber-50 text-amber-800 border-amber-300'
-                                : 'bg-rose-50 text-rose-800 border-rose-300'
-                          }
-                        >
-                          {scen.creditClassification}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-3 text-right font-bold text-indigo-700 dark:text-indigo-400 text-sm">
-                        {scen.scoreBreakdown.totalScore}/100
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-xs h-7 text-indigo-600 hover:text-indigo-800"
-                          onClick={() => {
-                            setSelectedScenario(scen)
-                            setIsConfirmModalOpen(true)
-                          }}
-                          disabled={scen.readinessStatus === 'BLOQUEADA'}
-                        >
-                          Aprovar
-                        </Button>
+                  {scenarios.length === 0 ? (
+                    <tr>
+                      <td colSpan={13} className="py-8 text-center text-slate-500">
+                        Nenhum cenário gerado para os parâmetros atuais.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    scenarios.map((scen) => (
+                      <tr
+                        key={scen.id}
+                        className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${
+                          selectedScenario?.id === scen.id
+                            ? 'bg-indigo-50/40 dark:bg-indigo-950/20'
+                            : ''
+                        }`}
+                      >
+                        <td className="py-3 px-3 font-semibold text-slate-900 dark:text-slate-100">
+                          {scen.title}
+                        </td>
+                        <td className="py-3 px-3">
+                          <Badge
+                            variant="outline"
+                            className={
+                              scen.readinessStatus === 'PRONTA_SAIDA_IMEDIATA'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px]'
+                                : scen.readinessStatus === 'PRONTA_PARA_OFERTA'
+                                  ? 'bg-blue-50 text-blue-800 border-blue-300 text-[10px]'
+                                  : scen.readinessStatus === 'PLANEJAMENTO_FUTURO'
+                                    ? 'bg-amber-50 text-amber-800 border-amber-300 text-[10px]'
+                                    : 'bg-rose-50 text-rose-800 border-rose-300 text-[10px]'
+                            }
+                          >
+                            {scen.readinessStatus}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono">
+                          {(scen.totalWeightKg / 1000).toFixed(1)}t
+                        </td>
+                        <td className="py-3 px-3 text-right font-bold text-slate-800 dark:text-slate-200">
+                          {scen.occupancyPct}%
+                        </td>
+                        <td className="py-3 px-3 text-center">{scen.ordersCount}</td>
+                        <td className="py-3 px-3 text-center">{scen.customersCount}</td>
+                        <td className="py-3 px-3 text-center">
+                          {scen.eligiblePortaDriversCount > 0 ? (
+                            <Badge className="bg-blue-600 text-white text-[10px]">
+                              {scen.eligiblePortaDriversCount} Sim
+                            </Badge>
+                          ) : (
+                            <span className="text-slate-400">Não</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono">R$ {scen.costPerTon}</td>
+                        <td className="py-3 px-3 text-right font-mono">
+                          R$ {scen.anttFloorValue.toLocaleString('pt-BR')}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          {scen.isDp34FullyStocked ? (
+                            <span className="text-emerald-600 font-semibold">100% DP34</span>
+                          ) : (
+                            <span className="text-amber-600 font-semibold">
+                              Faltam {(scen.dp34StockMissingKg / 1000).toFixed(1)}t
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <Badge
+                            variant="outline"
+                            className={
+                              scen.creditClassification === 'LIBERADO'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                : scen.creditClassification === 'LIBERADO_COM_APROVACAO'
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                  : 'bg-rose-50 text-rose-800 border-rose-300'
+                            }
+                          >
+                            {scen.creditClassification}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-3 text-right font-bold text-indigo-700 dark:text-indigo-400 text-sm">
+                          {scen.scoreBreakdown.totalScore}/100
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs h-7 text-indigo-600 hover:text-indigo-800"
+                            onClick={() => {
+                              setSelectedScenario(scen)
+                              setIsConfirmModalOpen(true)
+                            }}
+                            disabled={scen.readinessStatus === 'BLOQUEADA'}
+                          >
+                            Aprovar
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1265,121 +1123,132 @@ export function LoadRouterAndSimulatorPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {orders.map((ord) => {
-                    const dateCheck = validateDesiredDate(ord.desired_date, plannedDate)
-                    const stockCheck = validateDp34Stock(
-                      ord.material || '',
-                      ord.weight_kg,
-                      stocks,
-                      pcpOrders,
-                    )
-                    const creditCheck = classifyCredit(ord)
+                  {orders.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="py-8 text-center text-slate-500">
+                        Nenhum pedido encontrado na carteira persistida.
+                      </td>
+                    </tr>
+                  ) : (
+                    orders.map((ord) => {
+                      const dateCheck = validateDesiredDate(ord.desired_date, plannedDate)
+                      const stockCheck = validateDp34Stock(
+                        ord.material || '',
+                        ord.weight_kg,
+                        stocks,
+                        pcpOrders,
+                      )
+                      const creditCheck = classifyCredit(ord)
 
-                    return (
-                      <tr key={ord.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                        <td className="py-3 px-3 font-semibold text-slate-900 dark:text-slate-100">
-                          {ord.order_number}
-                          <span className="text-[10px] text-slate-400 block">
-                            Item {ord.item_number || '0010'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className="font-medium text-slate-800 dark:text-slate-200 block truncate max-w-[180px]">
-                            {ord.customer_name}
-                          </span>
-                          <span className="text-[10px] text-slate-500">
-                            {ord.destination_city || 'São Paulo'}/{ord.uf || 'SP'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className="font-medium block">{ord.material}</span>
-                          <span className="text-[10px] text-slate-500 truncate max-w-[150px] block">
-                            {ord.material_description}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-right font-mono font-bold">
-                          {(ord.weight_kg / 1000).toFixed(1)}t
-                        </td>
-                        <td className="py-3 px-3 text-right font-mono">
-                          R$ {(ord.total_value || 0).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="py-3 px-3 font-mono">{ord.desired_date || 'N/I'}</td>
-                        <td className="py-3 px-3">
-                          {!dateCheck.isValid ? (
-                            <Badge
-                              variant="outline"
-                              className="bg-rose-50 text-rose-800 border-rose-300 text-[10px]"
-                            >
-                              ANTECIPAÇÃO PROIBIDA
-                            </Badge>
-                          ) : dateCheck.isOverdue ? (
-                            <Badge
-                              variant="outline"
-                              className="bg-amber-50 text-amber-800 border-amber-300 text-[10px]"
-                            >
-                              ATRASADO ({dateCheck.overdueDays}d)
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px]"
-                            >
-                              DATA OK
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="py-3 px-3">
-                          {stockCheck.isDp34Available ? (
-                            <div className="flex items-center gap-1 text-emerald-700 text-[11px] font-semibold">
-                              <Check className="h-3.5 w-3.5 text-emerald-600" />
-                              <span>
-                                DP34 Disp. ({(stockCheck.dp34AvailableKg / 1000).toFixed(1)}t)
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="space-y-0.5">
-                              <span className="text-amber-700 text-[11px] font-semibold block">
-                                DP34 Insuficiente
-                              </span>
-                              {stockCheck.otherDepositsKg > 0 && (
-                                <span className="text-[10px] text-slate-500 block">
-                                  Outros Dep.: {(stockCheck.otherDepositsKg / 1000).toFixed(1)}t
+                      return (
+                        <tr
+                          key={ord.id}
+                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                        >
+                          <td className="py-3 px-3 font-semibold text-slate-900 dark:text-slate-100">
+                            {ord.order_number}
+                            <span className="text-[10px] text-slate-400 block">
+                              Item {ord.item_number || '0010'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="font-medium text-slate-800 dark:text-slate-200 block truncate max-w-[180px]">
+                              {ord.customer_name}
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              {ord.destination_city || 'São Paulo'}/{ord.uf || 'SP'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="font-medium block">{ord.material}</span>
+                            <span className="text-[10px] text-slate-500 truncate max-w-[150px] block">
+                              {ord.material_description}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono font-bold">
+                            {(ord.weight_kg / 1000).toFixed(1)}t
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono">
+                            R$ {(ord.total_value || 0).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="py-3 px-3 font-mono">{ord.desired_date || 'N/I'}</td>
+                          <td className="py-3 px-3">
+                            {!dateCheck.isValid ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-rose-50 text-rose-800 border-rose-300 text-[10px]"
+                              >
+                                ANTECIPAÇÃO PROIBIDA
+                              </Badge>
+                            ) : dateCheck.isOverdue ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-amber-50 text-amber-800 border-amber-300 text-[10px]"
+                              >
+                                ATRASADO ({dateCheck.overdueDays}d)
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px]"
+                              >
+                                DATA OK
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="py-3 px-3">
+                            {stockCheck.isDp34Available ? (
+                              <div className="flex items-center gap-1 text-emerald-700 text-[11px] font-semibold">
+                                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                <span>
+                                  DP34 Disp. ({(stockCheck.dp34AvailableKg / 1000).toFixed(1)}t)
                                 </span>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-3 px-3">
-                          <Badge
-                            variant="outline"
-                            className={
-                              creditCheck.classification === 'LIBERADO'
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px]'
-                                : creditCheck.classification === 'LIBERADO_COM_APROVACAO'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-300 text-[10px]'
-                                  : 'bg-rose-50 text-rose-800 border-rose-300 text-[10px]'
-                            }
-                          >
-                            {creditCheck.classification}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-[10px] h-6 px-2"
-                            onClick={() => {
-                              setSelectedOrderForStock(ord)
-                              setIsStockConfirmModalOpen(true)
-                            }}
-                          >
-                            Conferir Saldo
-                          </Button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
+                              </div>
+                            ) : (
+                              <div className="space-y-0.5">
+                                <span className="text-amber-700 text-[11px] font-semibold block">
+                                  DP34 Insuficiente
+                                </span>
+                                {stockCheck.otherDepositsKg > 0 && (
+                                  <span className="text-[10px] text-slate-500 block">
+                                    Outros Dep.: {(stockCheck.otherDepositsKg / 1000).toFixed(1)}t
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3 px-3">
+                            <Badge
+                              variant="outline"
+                              className={
+                                creditCheck.classification === 'LIBERADO'
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px]'
+                                  : creditCheck.classification === 'LIBERADO_COM_APROVACAO'
+                                    ? 'bg-amber-50 text-amber-800 border-amber-300 text-[10px]'
+                                    : 'bg-rose-50 text-rose-800 border-rose-300 text-[10px]'
+                              }
+                            >
+                              {creditCheck.classification}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-[10px] h-6 px-2"
+                              onClick={() => {
+                                setSelectedOrderForStock(ord)
+                                setIsStockConfirmModalOpen(true)
+                              }}
+                            >
+                              Conferir Saldo
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>{' '}
               </table>
             </div>
           </Card>
