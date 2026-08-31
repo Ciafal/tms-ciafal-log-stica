@@ -23,7 +23,6 @@ import { ZSD35_OFFICIAL_FIELDS } from '@/domain/zsd35ImportEngine'
 const DEFAULT_SAP_COLUMN_MAP: Record<string, string> = {
   'Q.Dias': 'Q.Dias',
   Gerar: 'Gerar',
-  Status: 'Status',
   Inco: 'Inco',
   'Documento de vendas': 'Documento de vendas',
   Região: 'Região',
@@ -53,8 +52,7 @@ const DEFAULT_SAP_COLUMN_MAP: Record<string, string> = {
 
 const FIELD_DESCRIPTIONS: Record<string, string> = {
   'Q.Dias': 'Dias de permanência do pedido na carteira desde a colocação',
-  Gerar: 'Indicador de geração / liberação de remessa',
-  Status: 'Status geral do documento no SAP',
+  Gerar: 'Indicador de geração / liberação de remessa (ex: não, sim)',
   Inco: 'Incoterms comercial (CIF, FOB, etc.)',
   'Documento de vendas': 'Número da Ordem de Vendas SAP (VBELN) - Chave Primária',
   Região: 'UF de destino da mercadoria (SP, MG, AL, BA, CE, etc.)',
@@ -67,7 +65,7 @@ const FIELD_DESCRIPTIONS: Record<string, string> = {
   'Recebedor Merc': 'Razão social ou código do cliente destinatário',
   'Limite de Crédito': 'Limite de crédito atual do cliente ou saldo financeiro',
   'Emissor da ordem': 'Código do cliente comprador (KUNNR)',
-  'Compromisso especial': 'Condição especial de entrega ou compromisso contratual',
+  'Compromisso especial': 'Condição especial de entrega ou compromisso (aceita negativos)',
   'Condição de Pagament': 'Prazo e condição de pagamento comercial',
   'Motivo Estoque': 'Status de disponibilidade física no WMS/PCP',
   'Qtde.Estoque': 'Quantidade física encontrada em estoque',
@@ -122,7 +120,7 @@ export const Zsd35MappingAdminPage: React.FC = () => {
     setMappings({ ...DEFAULT_SAP_COLUMN_MAP })
     toast({
       title: 'Mapeamento Restaurado',
-      description: 'Todos os 28 campos foram restaurados para a nomenclatura padrão do SAP ZSD35.',
+      description: 'Todos os 27 campos foram restaurados para a nomenclatura padrão da ZSD35A V3.',
     })
   }
 
@@ -186,15 +184,14 @@ export const Zsd35MappingAdminPage: React.FC = () => {
               Administração — Mapeamento de Colunas ZSD35
             </h1>
             <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-              SPRINT 6 / ITEM 4
+              ESTRUTURA OFICIAL — 27 CAMPOS
             </Badge>
           </div>
           <p className="text-xs text-slate-500">
-            Configure a correspondência entre os cabeçalhos da planilha Excel/CSV exportada do SAP e
-            os 28 campos oficiais do TMS CIAFAL.
+            Configure o de-para dos cabeçalhos do Excel/CSV para os 27 campos canônicos da planilha
+            operacional ZSD35A V3 da CIAFAL.
           </p>
         </div>
-
         <div className="flex items-center gap-2">
           <Button
             onClick={handleResetToDefault}
@@ -249,9 +246,9 @@ export const Zsd35MappingAdminPage: React.FC = () => {
       <Card className="bg-white border-slate-200 shadow-sm">
         <CardHeader className="p-4 border-b border-slate-100 bg-slate-50/50">
           <CardTitle className="text-sm font-bold text-slate-900 flex items-center justify-between">
-            <span>Correspondência dos 28 Campos do Relatório ZSD35</span>
+            <span>Correspondência dos 27 Campos da Planilha ZSD35A V3</span>
             <Badge variant="outline" className="text-xs font-mono">
-              28 / 28 Campos Mapeados
+              27 / 27 Campos Mapeados
             </Badge>
           </CardTitle>
           <CardDescription className="text-xs">

@@ -426,7 +426,7 @@ export interface SapSalesOrderEntity {
   created?: string
   updated?: string
   // Campos ZSD35A & Origem do Dado (QAS Excel / SAP Online)
-  origem_dado?: 'SAP' | 'EXCEL_QAS'
+  origem_dado?: 'SAP' | 'EXCEL_QAS' | 'EXCEL_QAS_ZSD35_V3'
   import_batch_id?: string
   source_file?: string
   imported_by_user?: string

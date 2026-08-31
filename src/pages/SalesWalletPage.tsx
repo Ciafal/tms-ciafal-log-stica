@@ -183,7 +183,9 @@ export const SalesWalletPage: React.FC = () => {
   const [filterStockIntersection, setFilterStockIntersection] = useState('ALL')
   const [filterWalletTime, setFilterWalletTime] = useState('ALL')
   const [filterOverdue, setFilterOverdue] = useState('ALL')
-  const [filterOrigem, setFilterOrigem] = useState<'ALL' | 'SAP' | 'EXCEL_QAS'>('ALL')
+  const [filterOrigem, setFilterOrigem] = useState<
+    'ALL' | 'SAP' | 'EXCEL_QAS' | 'EXCEL_QAS_ZSD35_V3'
+  >('ALL')
 
   // Stock & Credit Request Modals
   const [stockModalOrder, setStockModalOrder] = useState<SapSalesOrderEntity | null>(null)
@@ -368,7 +370,16 @@ export const SalesWalletPage: React.FC = () => {
           (o.itinerary_code && o.itinerary_code.toLowerCase().includes(q))
         if (!match) return false
       }
-      if (filterOrigem !== 'ALL' && o.origem_dado !== filterOrigem) return false
+      if (filterOrigem !== 'ALL') {
+        if (
+          filterOrigem === 'EXCEL_QAS' &&
+          (o.origem_dado === 'EXCEL_QAS' || o.origem_dado === 'EXCEL_QAS_ZSD35_V3')
+        ) {
+          // match both
+        } else if (o.origem_dado !== filterOrigem) {
+          return false
+        }
+      }
       if (filterItinerary !== 'ALL' && o.itinerary_code !== filterItinerary) return false
       if (filterUf !== 'ALL' && o.uf !== filterUf) return false
       if (filterCredit !== 'ALL' && o.credit_status !== filterCredit) return false
@@ -417,7 +428,9 @@ export const SalesWalletPage: React.FC = () => {
     const semPrevisaoCount = filteredOrders.filter(
       (o) => o.stockIntersectionType === 'SEM_PREVISAO',
     ).length
-    const excelQasCount = filteredOrders.filter((o) => o.origem_dado === 'EXCEL_QAS').length
+    const excelQasCount = filteredOrders.filter(
+      (o) => o.origem_dado === 'EXCEL_QAS' || o.origem_dado === 'EXCEL_QAS_ZSD35_V3',
+    ).length
 
     return {
       totalOrders,
@@ -1243,13 +1256,14 @@ export const SalesWalletPage: React.FC = () => {
                     >
                       {/* 0. Origem do Dado */}
                       <td className="p-2.5 text-center">
-                        {order.origem_dado === 'EXCEL_QAS' ? (
+                        {order.origem_dado === 'EXCEL_QAS' ||
+                        order.origem_dado === 'EXCEL_QAS_ZSD35_V3' ? (
                           <Badge
                             variant="outline"
-                            className="text-[9px] font-mono px-1 py-0 bg-purple-50 text-purple-700 border-purple-200"
-                            title="Massa de Homologação via Excel QAS"
+                            className="text-[9px] font-mono px-1 py-0 bg-purple-50 text-purple-700 border-purple-200 font-bold"
+                            title="Massa de Homologação via Excel QAS (ZSD35A V3)"
                           >
-                            EXCEL
+                            EXCEL V3
                           </Badge>
                         ) : (
                           <Badge
@@ -1457,7 +1471,8 @@ export const SalesWalletPage: React.FC = () => {
                     Template Padrão ZSD35A
                   </span>
                   <p className="text-[11px] text-slate-500">
-                    Baixe o arquivo padrão oficial contendo os 40 campos da transação SAP ECC.
+                    Baixe o layout padrão oficial ZSD35A V3 contendo os 27 campos da planilha
+                    operacional.
                   </p>
                 </div>
                 <Button
@@ -1792,7 +1807,7 @@ export const SalesWalletPage: React.FC = () => {
             </div>
             <DialogDescription className="text-xs">
               Registro auditável dos lotes de importação executados. Somente registros com
-              origem_dado = 'EXCEL_QAS' podem ser excluídos por esta função.
+              origem_dado = 'EXCEL_QAS' ou 'EXCEL_QAS_ZSD35_V3' podem ser excluídos por esta função.
             </DialogDescription>
           </DialogHeader>
 

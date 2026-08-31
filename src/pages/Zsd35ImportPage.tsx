@@ -32,9 +32,10 @@ import {
   processZsd35Rows,
   parseZsd35CsvText,
   downloadZsd35aTemplateFile,
+  downloadZsd35aExampleFile,
   Zsd35ImportValidationReport,
   Zsd35ValidatedOrder,
-  ZSD35A_OFFICIAL_FIELDS,
+  ZSD35A_V3_OFFICIAL_FIELDS,
 } from '@/domain/zsd35ImportEngine'
 
 export const Zsd35ImportPage: React.FC = () => {
@@ -50,6 +51,8 @@ export const Zsd35ImportPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'import' | 'history'>('import')
   const [customMappings, setCustomMappings] = useState<Record<string, string>>({})
   const [isDeletingBatch, setIsDeletingBatch] = useState(false)
+  const [previewFilter, setPreviewFilter] = useState<'ALL' | 'VALID' | 'WARNING'>('ALL')
+  const [searchTerm, setSearchTerm] = useState('')
 
   // Carrega mapeamento e histórico se permitido
   useEffect(() => {
@@ -308,7 +311,7 @@ export const Zsd35ImportPage: React.FC = () => {
               Importação da Carteira ZSD35A (.xlsx / .csv)
             </h1>
             <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-              ESTRUTURA OFICIAL 40 CAMPOS
+              ESTRUTURA OFICIAL — 27 CAMPOS
             </Badge>
             <Badge
               variant="outline"
@@ -323,15 +326,27 @@ export const Zsd35ImportPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
             size="sm"
             onClick={downloadZsd35aTemplateFile}
             className="text-xs h-8 border-slate-300 text-[#005596] hover:bg-sky-50 font-semibold"
+            title="Baixa a planilha em branco com os 27 cabeçalhos canônicos da ZSD35A V3"
           >
             <Download className="w-3.5 h-3.5 mr-1.5" />
             Baixar Template ZSD35A
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={downloadZsd35aExampleFile}
+            className="text-xs h-8 border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold"
+            title="Baixa exemplo preenchido com dados fictícios da ZSD35A V3"
+          >
+            <Download className="w-3.5 h-3.5 mr-1.5" />
+            Baixar Exemplo Preenchido
           </Button>
 
           <Link to="/tms/zsd35-mapeamento">
@@ -382,6 +397,32 @@ export const Zsd35ImportPage: React.FC = () => {
 
       {activeTab === 'import' && (
         <>
+          {/* Bloco Visual de Identificação do Layout Padrão ZSD35A V3 */}
+          <Card className="bg-gradient-to-r from-sky-50 via-white to-indigo-50 border-sky-200 shadow-sm">
+            <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-[#005596] text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-xs uppercase tracking-wide text-[#005596]">
+                      PADRÃO ZSD35A V3
+                    </span>
+                    <Badge className="bg-[#005596] text-white text-[10px] font-bold px-1.5 py-0">
+                      27 CAMPOS
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed max-w-3xl">
+                    Importação baseada no layout operacional oficial “ZSD35 Carga TMS v3”. O arquivo
+                    é carregado sem necessidade de conversão manual e posteriormente enriquecido
+                    pelo TMS com dados de estoque, PCP, crédito, logística e disponibilidade.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Upload Box */}
           <Card className="bg-white border-dashed border-2 border-slate-300 shadow-sm">
             <CardContent className="p-6 flex flex-col items-center justify-center text-center space-y-3">
@@ -393,9 +434,7 @@ export const Zsd35ImportPage: React.FC = () => {
                   Selecione a Planilha ZSD35A (.xlsx ou .csv)
                 </h3>
                 <p className="text-xs text-slate-500 mt-1 max-w-lg">
-                  Suporta os 40 campos oficiais da transação SAP ZSD35A da CIAFAL (Empresa, Centro,
-                  Doc Vendas, Item, Quantidade, Peso, Depósito, Itinerário, Rota, Crédito, Estoque
-                  DP34, PCP, Dias em Carteira, Veículo, etc.).
+                  Compatível com a estrutura oficial ZSD35A V3 de 27 campos utilizada pela CIAFAL.
                 </p>
               </div>
 
@@ -426,6 +465,36 @@ export const Zsd35ImportPage: React.FC = () => {
           {/* Relatório de Validação & Prévia */}
           {report && (
             <div className="space-y-4">
+              {/* Status do Reconhecimento de Layout */}
+              <div
+                className={`p-3 rounded-lg border text-xs flex items-center justify-between ${
+                  report.layoutRecognized
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    : 'bg-rose-50 border-rose-200 text-rose-900'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {report.layoutRecognized ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                  )}
+                  <div>
+                    <strong>{report.layoutMessage}</strong> — Origem:{' '}
+                    <code>{report.origem_dado}</code> (Layout: <code>{report.layoutVersion}</code>)
+                  </div>
+                </div>
+                <Badge
+                  className={
+                    report.layoutRecognized
+                      ? 'bg-emerald-600 text-white text-[10px]'
+                      : 'bg-rose-600 text-white text-[10px]'
+                  }
+                >
+                  {report.layoutRecognized ? 'LAYOUT V3 RECONHECIDO' : 'NÃO RECONHECIDO'}
+                </Badge>
+              </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
                 <Card className="bg-white border-slate-200 shadow-sm">
                   <CardContent className="p-3">
@@ -504,115 +573,273 @@ export const Zsd35ImportPage: React.FC = () => {
                 </Card>
               </div>
 
-              {/* Tabela de Pré-visualização */}
+              {/* Tabela de Pré-visualização com Rolagem Horizontal para os 27 Campos */}
               <Card className="bg-white border-slate-200 shadow-sm">
-                <CardHeader className="p-3.5 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between">
+                <CardHeader className="p-3.5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <CardTitle className="text-xs font-bold uppercase text-slate-800">
-                      Pré-visualização dos Registros ({report.validOrders.length} válidos)
+                      Pré-visualização dos 27 Campos ZSD35A V3 ({report.validOrders.length}{' '}
+                      registros válidos)
                     </CardTitle>
                     <CardDescription className="text-[11px]">
-                      Estrutura espelho do relatório ZSD35A. Confirme os dados antes da gravação na
-                      Carteira.
+                      Estrutura espelho do arquivo operacional ZSD35A V3. Navegue horizontalmente
+                      para conferir todas as 27 colunas.
                     </CardDescription>
                   </div>
 
-                  <Button
-                    onClick={handleConfirmImport}
-                    disabled={isSaving || report.validOrders.length === 0}
-                    size="sm"
-                    className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-8 font-bold"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                    {isSaving ? 'Gravando e Auditando...' : 'Confirmar Importação ZSD35A'}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Buscar pedido, cliente ou material..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="h-8 text-xs w-48"
+                    />
+
+                    <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[11px]">
+                      <button
+                        onClick={() => setPreviewFilter('ALL')}
+                        className={`px-2 py-1 rounded font-semibold ${
+                          previewFilter === 'ALL'
+                            ? 'bg-white text-slate-900 shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Todos ({report.validOrders.length})
+                      </button>
+                      <button
+                        onClick={() => setPreviewFilter('VALID')}
+                        className={`px-2 py-1 rounded font-semibold ${
+                          previewFilter === 'VALID'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'text-emerald-700 hover:text-emerald-900'
+                        }`}
+                      >
+                        🟢 Válidos ({report.validCount})
+                      </button>
+                      <button
+                        onClick={() => setPreviewFilter('WARNING')}
+                        className={`px-2 py-1 rounded font-semibold ${
+                          previewFilter === 'WARNING'
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'text-amber-700 hover:text-amber-900'
+                        }`}
+                      >
+                        🟡 Alertas ({report.warningCount})
+                      </button>
+                    </div>
+
+                    <Button
+                      onClick={handleConfirmImport}
+                      disabled={isSaving || report.validOrders.length === 0}
+                      size="sm"
+                      className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-8 font-bold"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                      {isSaving ? 'Gravando e Auditando...' : 'Confirmar Importação ZSD35A'}
+                    </Button>
+                  </div>
                 </CardHeader>
 
                 <CardContent className="p-0 overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse min-w-[1300px]">
-                    <thead className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase text-slate-600 font-bold font-mono">
+                  <table className="w-full text-left text-xs border-collapse min-w-[2400px]">
+                    <thead className="bg-slate-100/90 border-b border-slate-200 text-[10px] uppercase text-slate-600 font-bold font-mono">
                       <tr>
-                        <th className="p-2 text-center w-12">Q.Dias</th>
-                        <th className="p-2">Documento de vendas</th>
-                        <th className="p-2 text-center">Região</th>
-                        <th className="p-2">Cidade</th>
-                        <th className="p-2 text-right">Qtde Real (t)</th>
-                        <th className="p-2">Material</th>
-                        <th className="p-2 text-right">Valor Frete</th>
-                        <th className="p-2 text-right">Limite Crédito</th>
-                        <th className="p-2 text-center">Data Pedido</th>
-                        <th className="p-2 text-center">Itinerário</th>
-                        <th className="p-2">Motivo Crédito</th>
-                        <th className="p-2 text-center">Estoque DP34</th>
-                        <th className="p-2 text-center">Status</th>
+                        <th className="p-2 text-center w-12 bg-slate-200/50">#</th>
+                        <th className="p-2 text-center w-16">1. Q.Dias</th>
+                        <th className="p-2 text-center w-16">2. Gerar</th>
+                        <th className="p-2 text-center w-16">3. Inco</th>
+                        <th className="p-2 w-32">4. Doc. Vendas</th>
+                        <th className="p-2 text-center w-16">5. Região</th>
+                        <th className="p-2 w-36">6. Cidade</th>
+                        <th className="p-2 text-right w-24">7. Qtde Real</th>
+                        <th className="p-2 text-center w-20">8. Qtde.Amar.</th>
+                        <th className="p-2 text-right w-20">9. Est. Sider</th>
+                        <th className="p-2 w-56">10. Texto breve de material</th>
+                        <th className="p-2 text-right w-24">11. Valor do Frete</th>
+                        <th className="p-2 w-52">12. Recebedor Merc</th>
+                        <th className="p-2 text-right w-28">13. Limite de Crédito</th>
+                        <th className="p-2 w-28">14. Emissor da ordem</th>
+                        <th className="p-2 text-right w-28">15. Compromisso esp.</th>
+                        <th className="p-2 w-28">16. Condição Pag.</th>
+                        <th className="p-2 w-36">17. Motivo Estoque</th>
+                        <th className="p-2 text-right w-24">18. Qtde.Estoque</th>
+                        <th className="p-2 text-right w-20">19. Saldo</th>
+                        <th className="p-2 text-center w-24">20. Data Pedido</th>
+                        <th className="p-2 text-center w-20">21. Hora Pedido</th>
+                        <th className="p-2 text-right w-24">22. Qtde Ordem</th>
+                        <th className="p-2 text-center w-28">23. Data Remessa(Semana)</th>
+                        <th className="p-2 text-center w-20">24. Itinerário</th>
+                        <th className="p-2 w-52">25. Motivo Crédito</th>
+                        <th className="p-2 text-right w-28">26. Total a Receber</th>
+                        <th className="p-2 text-right w-24">27. Estoque Total</th>
+                        <th className="p-2 text-center w-20 bg-slate-200/50">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-mono text-[11px] text-slate-800">
-                      {report.validOrders.slice(0, 30).map((ord, idx) => (
-                        <tr key={idx} className="hover:bg-sky-50/40">
-                          <td className="p-2 text-center">
-                            <Badge variant="outline" className="text-[9px] px-1 py-0">
-                              {ord.walletDays || ord.q_dias || 0}
-                            </Badge>
-                          </td>
-                          <td className="p-2 font-bold text-slate-900">
-                            {ord.order_number}
-                            {ord.item_number && ord.item_number !== '000010' && (
-                              <span className="text-[10px] font-normal text-slate-400">
-                                /{ord.item_number}
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-2 text-center font-bold text-slate-600">{ord.uf}</td>
-                          <td className="p-2 font-sans font-medium">{ord.destination_city}</td>
-                          <td className="p-2 text-right font-bold">{ord.weight_ton.toFixed(3)}</td>
-                          <td className="p-2 font-sans font-medium text-[#005596] truncate max-w-[180px]">
-                            {ord.material}
-                          </td>
-                          <td className="p-2 text-right text-slate-800">
-                            {ord.freight_value || 500}
-                          </td>
-                          <td className="p-2 text-right">
-                            {(ord.credit_limit || 0).toLocaleString('pt-BR', {
-                              minimumFractionDigits: 1,
-                              maximumFractionDigits: 2,
-                            })}
-                          </td>
-                          <td className="p-2 text-center text-[10px] text-slate-500">
-                            {ord.order_date}
-                          </td>
-                          <td className="p-2 text-center">
-                            <Badge className="bg-[#005596] text-white text-[9px] px-1 py-0">
-                              {ord.itinerary_code}
-                            </Badge>
-                          </td>
-                          <td className="p-2 font-sans">
-                            <span className="text-[10px] font-semibold text-slate-700">
-                              {ord.credit_reason || ord.credit_status}
-                            </span>
-                          </td>
-                          <td className="p-2 text-center font-sans">
-                            {ord.stockIntersectionType === 'ESTOQUE_ATUAL' ? (
-                              <Badge className="bg-emerald-600 text-white text-[8px]">
-                                DP34 OK
+                      {report.validOrders
+                        .filter((ord) => {
+                          if (previewFilter === 'VALID' && ord.validation_status !== 'VALID')
+                            return false
+                          if (previewFilter === 'WARNING' && ord.validation_status !== 'WARNING')
+                            return false
+                          if (searchTerm.trim()) {
+                            const term = searchTerm.toLowerCase()
+                            return (
+                              ord.order_number.toLowerCase().includes(term) ||
+                              ord.customer_name.toLowerCase().includes(term) ||
+                              ord.material_description.toLowerCase().includes(term) ||
+                              ord.destination_city.toLowerCase().includes(term)
+                            )
+                          }
+                          return true
+                        })
+                        .slice(0, 50)
+                        .map((ord, idx) => (
+                          <tr key={idx} className="hover:bg-sky-50/40">
+                            <td className="p-2 text-center text-slate-400 font-bold bg-slate-50/50">
+                              {idx + 1}
+                            </td>
+                            {/* 1. Q.Dias */}
+                            <td className="p-2 text-center">
+                              <Badge variant="outline" className="text-[9px] px-1 py-0">
+                                {ord.raw_q_dias || ord.walletDays || 0}
                               </Badge>
-                            ) : (
-                              <span className="text-[10px] text-slate-400">-</span>
-                            )}
-                          </td>
-                          <td className="p-2 text-center">
-                            {ord.validation_status === 'VALID' ? (
-                              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[8px]">
-                                Válido
+                            </td>
+                            {/* 2. Gerar */}
+                            <td className="p-2 text-center text-slate-600">não</td>
+                            {/* 3. Inco */}
+                            <td className="p-2 text-center font-bold text-slate-700">
+                              {ord.incoterms || 'CIF'}
+                            </td>
+                            {/* 4. Documento de vendas */}
+                            <td className="p-2 font-bold text-slate-900">
+                              {ord.order_number}
+                              {ord.item_number && ord.item_number !== '000010' && (
+                                <span className="text-[10px] font-normal text-slate-400">
+                                  /{ord.item_number}
+                                </span>
+                              )}
+                            </td>
+                            {/* 5. Região */}
+                            <td className="p-2 text-center font-bold text-slate-600">{ord.uf}</td>
+                            {/* 6. Cidade */}
+                            <td className="p-2 font-sans font-medium">{ord.destination_city}</td>
+                            {/* 7. Qtde Real */}
+                            <td className="p-2 text-right font-bold text-sky-900">
+                              {ord.weight_ton.toFixed(3)}
+                            </td>
+                            {/* 8. Qtde.Amar. */}
+                            <td className="p-2 text-center text-slate-600">-</td>
+                            {/* 9. Est. Sider */}
+                            <td className="p-2 text-right text-slate-600">
+                              {(ord.stock_sider || 0).toFixed(1)}
+                            </td>
+                            {/* 10. Texto breve de material */}
+                            <td className="p-2 font-sans font-medium text-[#005596] truncate max-w-[220px]">
+                              {ord.material_description}
+                            </td>
+                            {/* 11. Valor do Frete */}
+                            <td className="p-2 text-right text-slate-800 font-semibold">
+                              {(ord.freight_value || 0).toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </td>
+                            {/* 12. Recebedor Merc */}
+                            <td className="p-2 font-sans text-slate-900 truncate max-w-[200px]">
+                              {ord.customer_name}
+                            </td>
+                            {/* 13. Limite de Crédito */}
+                            <td className="p-2 text-right">
+                              {(ord.credit_limit || 0).toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </td>
+                            {/* 14. Emissor da ordem */}
+                            <td className="p-2 text-slate-600">{ord.customer_code}</td>
+                            {/* 15. Compromisso especial (Aceita negativos) */}
+                            <td
+                              className={`p-2 text-right ${
+                                (ord.special_commitment || 0) < 0
+                                  ? 'text-rose-600 font-bold'
+                                  : 'text-slate-700'
+                              }`}
+                            >
+                              {(ord.special_commitment || 0).toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </td>
+                            {/* 16. Condição de Pagament */}
+                            <td className="p-2 text-slate-600">
+                              {ord.credit_condition || '30 DDL'}
+                            </td>
+                            {/* 17. Motivo Estoque */}
+                            <td className="p-2 font-sans text-[10px] text-slate-700 truncate max-w-[150px]">
+                              {ord.stockIntersectionType === 'ESTOQUE_ATUAL'
+                                ? 'ESTOQUE CIAFAL'
+                                : ord.production_status}
+                            </td>
+                            {/* 18. Qtde.Estoque */}
+                            <td className="p-2 text-right text-slate-700">
+                              {(ord.stock_dp34 || 0).toFixed(1)}
+                            </td>
+                            {/* 19. Saldo */}
+                            <td className="p-2 text-right font-semibold text-slate-800">
+                              {((ord.balance_quantity_kg || 0) / 1000).toFixed(3)}
+                            </td>
+                            {/* 20. Data do Pedido */}
+                            <td className="p-2 text-center text-[10px] text-slate-600">
+                              {ord.order_date}
+                            </td>
+                            {/* 21. Hora do Pedido */}
+                            <td className="p-2 text-center text-[10px] text-slate-500">
+                              {ord.order_hour || '00:00:00'}
+                            </td>
+                            {/* 22. Quantidade da ordem */}
+                            <td className="p-2 text-right text-slate-700">
+                              {((ord.quantity_order || 0) / 1000 || ord.weight_ton).toFixed(3)}
+                            </td>
+                            {/* 23. Data Remessa(Semana) */}
+                            <td className="p-2 text-center font-bold text-indigo-700">
+                              {ord.delivery_week || '-'}
+                            </td>
+                            {/* 24. Itinerário */}
+                            <td className="p-2 text-center">
+                              <Badge className="bg-[#005596] text-white text-[9px] px-1 py-0">
+                                {ord.itinerary_code}
                               </Badge>
-                            ) : (
-                              <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[8px]">
-                                Alerta
-                              </Badge>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            {/* 25. Motivo Crédito */}
+                            <td className="p-2 font-sans text-[10px] text-slate-700 truncate max-w-[200px]">
+                              {ord.credit_reason || 'CRÉDITO OK'}
+                            </td>
+                            {/* 26. Total a Receber */}
+                            <td className="p-2 text-right font-bold text-slate-900">
+                              {(ord.total_value || 0).toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </td>
+                            {/* 27. Estoque Total */}
+                            <td className="p-2 text-right text-slate-700">
+                              {(ord.stock_available || 0).toFixed(1)}
+                            </td>
+                            {/* Status de Validação */}
+                            <td className="p-2 text-center bg-slate-50/50">
+                              {ord.validation_status === 'VALID' ? (
+                                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[8px]">
+                                  Válido
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[8px]">
+                                  Alerta
+                                </Badge>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </CardContent>

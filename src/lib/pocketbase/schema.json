@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-31T12:30:02.162Z",
+  "generatedAt": "2026-08-31T13:06:02.275Z",
   "collections": [
     {
       "name": "users",
@@ -878,13 +878,6 @@
           "system": false
         },
         {
-          "name": "origem_dado",
-          "type": "select",
-          "required": false,
-          "system": false,
-          "selectValues": ["SAP", "EXCEL_QAS"]
-        },
-        {
           "name": "template_version",
           "type": "text",
           "required": false,
@@ -925,6 +918,13 @@
           "type": "json",
           "required": false,
           "system": false
+        },
+        {
+          "name": "origem_dado",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["SAP", "EXCEL_QAS", "EXCEL_QAS_ZSD35_V3"]
         }
       ],
       "indexes": ["CREATE INDEX `idx_sap_imports_batch` ON `sap_imports` (batch_id)"]
@@ -1543,13 +1543,6 @@
           "system": false
         },
         {
-          "name": "origem_dado",
-          "type": "select",
-          "required": false,
-          "system": false,
-          "selectValues": ["SAP", "EXCEL_QAS"]
-        },
-        {
           "name": "import_batch_id",
           "type": "text",
           "required": false,
@@ -1782,6 +1775,13 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "origem_dado",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["SAP", "EXCEL_QAS", "EXCEL_QAS_ZSD35_V3"]
         }
       ],
       "indexes": [

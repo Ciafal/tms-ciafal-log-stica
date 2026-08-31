@@ -3550,7 +3550,7 @@ export const TmsService = {
   },
 
   /**
-   * Importação em lote transacional de pedidos validados ZSD35A (EXCEL_QAS)
+   * Importação em lote transacional de pedidos validados ZSD35A V3 (EXCEL_QAS_ZSD35_V3)
    * Alimenta a mesma carteira sem criar carteira paralela
    */
   async importZsd35aOrdersBatch(
@@ -3584,12 +3584,12 @@ export const TmsService = {
           required_vehicle_type: order.required_vehicle_type || 'Carreta / Bitrem',
           order_date: order.order_date,
           desired_date: order.desired_date,
-          origem_dado: 'EXCEL_QAS',
+          origem_dado: 'EXCEL_QAS_ZSD35_V3',
           import_batch_id: report.batchId,
           source_file: report.fileName,
           imported_by_user: userName || userEmail,
           imported_at: report.importedAt,
-          template_version: 'ZSD35A-2026.1',
+          template_version: 'ZSD35A_V3_27_CAMPOS',
           company_code: order.company_code || '1000',
           plant_code: order.plant_code || '1010',
           supplying_plant: order.supplying_plant || '1010',
@@ -3634,8 +3634,8 @@ export const TmsService = {
         batch_id: report.batchId,
         file_name: report.fileName,
         imported_by: `${userName} (${userEmail})`,
-        origem_dado: 'EXCEL_QAS',
-        template_version: 'ZSD35A-2026.1',
+        origem_dado: 'EXCEL_QAS_ZSD35_V3',
+        template_version: 'ZSD35A_V3_27_CAMPOS',
         total_read: report.totalRowsRead,
         valid_count: report.validCount,
         warning_count: report.warningCount,
@@ -3650,6 +3650,9 @@ export const TmsService = {
         summary_report: {
           duplicateCount: report.duplicateCount,
           totalValue: report.totalValue,
+          totalFreightForecast: report.totalFreightForecast,
+          layoutRecognized: report.layoutRecognized,
+          layoutMessage: report.layoutMessage,
           summaryStatus: report.summaryStatus,
         },
         status: report.rejectedRowsCount > 0 ? 'concluido_com_erros' : 'concluido',
@@ -3668,7 +3671,8 @@ export const TmsService = {
           updatedCount,
           rejectedCount: report.rejectedRowsCount,
           totalWeightTon: report.totalWeightTon,
-          origem_dado: 'EXCEL_QAS',
+          origem_dado: 'EXCEL_QAS_ZSD35_V3',
+          layoutVersion: 'ZSD35A_V3_27_CAMPOS',
         },
       })
 
@@ -3676,7 +3680,7 @@ export const TmsService = {
         success: true,
         createdCount,
         updatedCount,
-        message: `Importação ZSD35A concluída! ${createdCount} novos itens e ${updatedCount} atualizados na Carteira de Pedidos.`,
+        message: `Importação ZSD35A V3 concluída! ${createdCount} novos itens e ${updatedCount} atualizados na Carteira de Pedidos.`,
       }
     } catch (err: any) {
       console.error('Erro na importação em lote ZSD35A:', err)
@@ -3691,7 +3695,7 @@ export const TmsService = {
 
   /**
    * REGRA DE SEGURANÇA MANDATÓRIA:
-   * Exclusão restrita a registros com origem_dado = 'EXCEL_QAS' (massa de homologação).
+   * Exclusão restrita a registros com origem_dado = 'EXCEL_QAS' ou 'EXCEL_QAS_ZSD35_V3' (massa de homologação).
    * Registros oficiais 'SAP' NUNCA podem ser apagados por esta rotina.
    */
   async deleteExcelQasBatch(
@@ -3700,8 +3704,8 @@ export const TmsService = {
     userName = 'Gestor de Logística',
   ): Promise<{ success: boolean; deletedCount: number; message: string }> {
     try {
-      // Busca somente registros com origem_dado == 'EXCEL_QAS'
-      let filter = 'origem_dado = "EXCEL_QAS"'
+      // Busca registros de homologação EXCEL_QAS / EXCEL_QAS_ZSD35_V3
+      let filter = '(origem_dado = "EXCEL_QAS" || origem_dado = "EXCEL_QAS_ZSD35_V3")'
       if (batchId) {
         filter += ` && import_batch_id = "${batchId}"`
       }
@@ -3713,7 +3717,7 @@ export const TmsService = {
       let deletedCount = 0
       for (const rec of recordsToDelete) {
         // Validação adicional de proteção
-        if (rec.origem_dado === 'EXCEL_QAS') {
+        if (rec.origem_dado === 'EXCEL_QAS' || rec.origem_dado === 'EXCEL_QAS_ZSD35_V3') {
           await pb.collection('sap_sales_orders').delete(rec.id)
           deletedCount++
         }
@@ -3748,7 +3752,7 @@ export const TmsService = {
       return {
         success: true,
         deletedCount,
-        message: `${deletedCount} registro(s) de teste (EXCEL_QAS) excluído(s) com sucesso. Registros oficiais SAP foram preservados.`,
+        message: `${deletedCount} registro(s) de teste (Excel QAS) excluído(s) com sucesso. Registros oficiais SAP foram preservados.`,
       }
     } catch (err: any) {
       console.error('Erro ao excluir lote EXCEL_QAS:', err)
