@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T22:25:07.826Z",
+  "generatedAt": "2026-08-31T12:30:02.162Z",
   "collections": [
     {
       "name": "users",
@@ -870,9 +870,64 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "batch_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem_dado",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["SAP", "EXCEL_QAS"]
+        },
+        {
+          "name": "template_version",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_weight_ton",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valid_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "warning_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "clients_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "materials_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "summary_report",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": []
+      "indexes": ["CREATE INDEX `idx_sap_imports_batch` ON `sap_imports` (batch_id)"]
     },
     {
       "name": "freight_offers",
@@ -1486,6 +1541,247 @@
           "type": "bool",
           "required": false,
           "system": false
+        },
+        {
+          "name": "origem_dado",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["SAP", "EXCEL_QAS"]
+        },
+        {
+          "name": "import_batch_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "source_file",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "imported_by_user",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "imported_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "template_version",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "company_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "plant_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "supplying_plant",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "storage_location",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "route_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "credit_limit",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "credit_condition",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "credit_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "stock_situation",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "stock_available",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "stock_dp34",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "stock_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "stock_sider",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "missing_quantity",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pcp_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pcp_forecast_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wallet_days",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delay_days",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delivery_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delivery_week",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "discharges_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logistic_restrictions",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "order_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "freight_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "toll_forecast_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "priority_level",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "raw_q_dias",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "q_dias",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "order_hour",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "incoterms",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_sidercentro",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "stock_quantity_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "balance_quantity_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "technical_key",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -1494,7 +1790,9 @@
         "CREATE INDEX idx_sales_order_status ON sap_sales_orders (status)",
         "CREATE INDEX `idx_sales_customer_code` ON `sap_sales_orders` (customer_code)",
         "CREATE INDEX `idx_sales_dates` ON `sap_sales_orders` (order_date, desired_date)",
-        "CREATE INDEX `idx_sales_assigned_load` ON `sap_sales_orders` (assigned_load_id)"
+        "CREATE INDEX `idx_sales_assigned_load` ON `sap_sales_orders` (assigned_load_id)",
+        "CREATE INDEX `idx_sales_origem_dado` ON `sap_sales_orders` (origem_dado)",
+        "CREATE INDEX `idx_sales_import_batch` ON `sap_sales_orders` (import_batch_id)"
       ]
     },
     {

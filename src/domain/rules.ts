@@ -399,8 +399,23 @@ export interface SapSalesOrderEntity {
   freight_value?: number
   credit_limit?: number
   credit_reason?: string
+  credit_condition?: string
   stock_total?: number
   stock_sider?: number
+  stock_situation?: string
+  stock_available?: number
+  stock_dp34?: number
+  missing_quantity?: number
+  pcp_status?: string
+  pcp_forecast_date?: string
+  wallet_days?: number
+  delay_days?: number
+  delivery_number?: string
+  discharges_count?: number
+  logistic_restrictions?: string
+  order_value?: number
+  toll_forecast_value?: number
+  priority_level?: string
   order_hour?: string
   quantity_order?: number
   delivery_week?: string
@@ -410,6 +425,19 @@ export interface SapSalesOrderEntity {
   balance_quantity_kg?: number
   created?: string
   updated?: string
+  // Campos ZSD35A & Origem do Dado (QAS Excel / SAP Online)
+  origem_dado?: 'SAP' | 'EXCEL_QAS'
+  import_batch_id?: string
+  source_file?: string
+  imported_by_user?: string
+  imported_at?: string
+  template_version?: string
+  company_code?: string
+  plant_code?: string
+  supplying_plant?: string
+  storage_location?: string
+  route_code?: string
+  technical_key?: string
 }
 
 export interface OportunidadeComplementoCargaEntity {

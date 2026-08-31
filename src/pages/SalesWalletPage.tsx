@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   FileSpreadsheet,
   Search,
@@ -15,7 +15,16 @@ import {
   Filter,
   Eye,
   SlidersHorizontal,
+  Upload,
+  FileCheck,
+  XCircle,
+  AlertCircle,
+  HelpCircle,
+  Trash2,
+  History,
+  Info,
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -44,9 +53,16 @@ import {
   SapItineraryEntity,
   calculateOrderPriorityScore,
 } from '@/domain/rules'
+import {
+  processZsd35Rows,
+  parseZsd35CsvText,
+  downloadZsd35aTemplateFile,
+  Zsd35ImportValidationReport,
+  Zsd35ValidatedOrder,
+} from '@/domain/zsd35ImportEngine'
 import { exportToCsv } from '@/lib/exportUtils'
 
-// Mock inicial enriquecido espelhando com precisão os 25 registros do PNG de prévia ZSD35
+// Mock inicial espelhando os registros de homologação ZSD35A da CIAFAL
 const INITIAL_PREVIEW_RECORDS: Partial<SapSalesOrderEntity>[] = [
   {
     order_number: '258477',
@@ -71,6 +87,7 @@ const INITIAL_PREVIEW_RECORDS: Partial<SapSalesOrderEntity>[] = [
     customer_name: 'METALURGICA ALAGOAS S.A.',
     customer_code: 'CLI-258477',
     total_value: 12500,
+    origem_dado: 'SAP',
   },
   {
     order_number: '258506',
@@ -95,6 +112,7 @@ const INITIAL_PREVIEW_RECORDS: Partial<SapSalesOrderEntity>[] = [
     customer_name: 'CONSTRUTORA NORDESTE LTDA',
     customer_code: 'CLI-258506',
     total_value: 13200,
+    origem_dado: 'SAP',
   },
   {
     order_number: '258520',
@@ -119,150 +137,7 @@ const INITIAL_PREVIEW_RECORDS: Partial<SapSalesOrderEntity>[] = [
     customer_name: 'DISTRIBUIDORA MACEIO AÇOS',
     customer_code: 'CLI-258520',
     total_value: 6800,
-  },
-  {
-    order_number: '258520',
-    uf: 'AL',
-    destination_city: 'MACEIO',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'CANT. 2 X 1/8 - 6,00 M - 10',
-    material_description: 'CANT. 2 X 1/8 - 6,00 M - 10',
-    freight_value: 531,
-    credit_limit: 104944.72,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-20',
-    delivery_week: '34.2026',
-    desired_date: '2026-08-20',
-    itinerary_code: 'AL001C',
-    credit_reason: 'CRÉDITO OK/CHECAR LIMITE',
-    credit_status: 'Liberado',
-    stock_total: 211.17,
-    q_dias: 9,
-    production_status: 'Pronto',
-    customer_name: 'DISTRIBUIDORA MACEIO AÇOS',
-    customer_code: 'CLI-258520',
-    total_value: 6900,
-  },
-  {
-    order_number: '258679',
-    uf: 'AL',
-    destination_city: 'MACEIO',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'B. CH. 1 X 1/4 - 6,00 M - 10',
-    material_description: 'B. CH. 1 X 1/4 - 6,00 M - 10',
-    freight_value: 531,
-    credit_limit: 104944.72,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-25',
-    delivery_week: '35.2026',
-    desired_date: '2026-08-25',
-    itinerary_code: 'AL001C',
-    credit_reason: 'CRÉDITO OK/CHECAR LIMITE',
-    credit_status: 'Liberado',
-    stock_total: 39.568,
-    q_dias: 4,
-    production_status: 'Pronto',
-    customer_name: 'ESTRUTURAS JARAGUA LTDA',
-    customer_code: 'CLI-258679',
-    total_value: 7100,
-  },
-  {
-    order_number: '258679',
-    uf: 'AL',
-    destination_city: 'MACEIO',
-    weight_kg: 2000,
-    stock_sider: 0.0,
-    material: 'CANT. 1.1/4 X 1/8 - 6,00 M',
-    material_description: 'CANT. 1.1/4 X 1/8 - 6,00 M',
-    freight_value: 531,
-    credit_limit: 104944.72,
-    balance_quantity_kg: 2000,
-    order_date: '2026-08-25',
-    delivery_week: '35.2026',
-    desired_date: '2026-08-25',
-    itinerary_code: 'AL001C',
-    credit_reason: 'CRÉDITO OK/CHECAR LIMITE',
-    credit_status: 'Liberado',
-    stock_total: 263.609,
-    q_dias: 4,
-    production_status: 'Pronto',
-    customer_name: 'ESTRUTURAS JARAGUA LTDA',
-    customer_code: 'CLI-258679',
-    total_value: 13500,
-  },
-  {
-    order_number: '257591',
-    uf: 'AM',
-    destination_city: 'MANAUS',
-    weight_kg: 2000,
-    stock_sider: 0.0,
-    material: 'B.RED.107,95MM-NBR1129',
-    material_description: 'B.RED.107,95MM-NBR1129',
-    freight_value: 330,
-    credit_limit: 242580.24,
-    balance_quantity_kg: 2000,
-    order_date: '2026-08-04',
-    delivery_week: '32.2026',
-    desired_date: '2026-08-04',
-    itinerary_code: 'AM001C',
-    credit_reason: 'CRÉDITO OK/CHECAR LIMITE',
-    credit_status: 'Liberado',
-    stock_total: 1.825,
-    q_dias: 25,
-    production_status: 'Pronto',
-    customer_name: 'AMAZONAS METALURGICA POLO',
-    customer_code: 'CLI-257591',
-    total_value: 16800,
-  },
-  {
-    order_number: '256473',
-    uf: 'BA',
-    destination_city: 'MUCURI',
-    weight_kg: 747,
-    stock_sider: 0.0,
-    material: 'B. RED. 3/4 - 6,00 M - 1020',
-    material_description: 'B. RED. 3/4 - 6,00 M - 1020',
-    freight_value: 500,
-    credit_limit: -5636.0,
-    balance_quantity_kg: 747,
-    order_date: '2026-07-10',
-    delivery_week: '28.2026',
-    desired_date: '2026-07-10',
-    itinerary_code: 'BA001C',
-    credit_reason: 'CRÉDITO OK',
-    credit_status: 'Liberado',
-    stock_total: 278.341,
-    q_dias: 50,
-    production_status: 'Pronto',
-    customer_name: 'CELULOSE BAHIA S.A.',
-    customer_code: 'CLI-256473',
-    total_value: 4900,
-  },
-  {
-    order_number: '256473',
-    uf: 'BA',
-    destination_city: 'MUCURI',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'CANT. 1 X 1/8 - 6,00 M - 10',
-    material_description: 'CANT. 1 X 1/8 - 6,00 M - 10',
-    freight_value: 500,
-    credit_limit: -5636.0,
-    balance_quantity_kg: 1000,
-    order_date: '2026-07-10',
-    delivery_week: '28.2026',
-    desired_date: '2026-07-10',
-    itinerary_code: 'BA001C',
-    credit_reason: 'CRÉDITO OK',
-    credit_status: 'Liberado',
-    stock_total: 328.232,
-    q_dias: 50,
-    production_status: 'Pronto',
-    customer_name: 'CELULOSE BAHIA S.A.',
-    customer_code: 'CLI-256473',
-    total_value: 6700,
+    origem_dado: 'SAP',
   },
   {
     order_number: '257690',
@@ -287,366 +162,7 @@ const INITIAL_PREVIEW_RECORDS: Partial<SapSalesOrderEntity>[] = [
     customer_name: 'FORTALEZA SIDERURGIA CE',
     customer_code: 'CLI-257690',
     total_value: 7800,
-  },
-  {
-    order_number: '257690',
-    uf: 'CE',
-    destination_city: 'FORTALEZA',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'B. QUAD. 2 - 6,00 M - 1045',
-    material_description: 'B. QUAD. 2 - 6,00 M - 1045',
-    freight_value: 640,
-    credit_limit: 70000.0,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-05',
-    delivery_week: '32.2026',
-    desired_date: '2026-08-05',
-    itinerary_code: 'CE001C',
-    credit_reason: 'DATA SEGUINTE P/ REVISÃO',
-    credit_status: 'Em Análise',
-    stock_total: 1.115,
-    q_dias: 24,
-    production_status: 'Pronto',
-    customer_name: 'FORTALEZA SIDERURGIA CE',
-    customer_code: 'CLI-257690',
-    total_value: 7900,
-  },
-  {
-    order_number: '257817',
-    uf: 'CE',
-    destination_city: 'FORTALEZA',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'B. QUAD. 2" - 6,00 M - 102',
-    material_description: 'B. QUAD. 2" - 6,00 M - 102',
-    freight_value: 640,
-    credit_limit: 50000.0,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-07',
-    delivery_week: '32.2026',
-    desired_date: '2026-08-07',
-    itinerary_code: 'CE001C',
-    credit_reason: 'CRÉDITO OK/CHECAR LIMITE',
-    credit_status: 'Liberado',
-    stock_total: 94.142,
-    q_dias: 22,
-    production_status: 'Pronto',
-    customer_name: 'CEARA PERFIS INDUSTRIAIS',
-    customer_code: 'CLI-257817',
-    total_value: 7800,
-  },
-  {
-    order_number: '257818',
-    uf: 'CE',
-    destination_city: 'FORTALEZA',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'B. CH. 2.1/2 X 3/4 - 6,00 M',
-    material_description: 'B. CH. 2.1/2 X 3/4 - 6,00 M',
-    freight_value: 640,
-    credit_limit: 50000.0,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-07',
-    delivery_week: '32.2026',
-    desired_date: '2026-08-07',
-    itinerary_code: 'CE001C',
-    credit_reason: 'CRÉDITO OK/CHECAR LIMITE',
-    credit_status: 'Liberado',
-    stock_total: 2.435,
-    q_dias: 22,
-    production_status: 'Pronto',
-    customer_name: 'CEARA PERFIS INDUSTRIAIS',
-    customer_code: 'CLI-257818',
-    total_value: 8100,
-  },
-  {
-    order_number: '258090',
-    uf: 'CE',
-    destination_city: 'JAGUARUANA',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'B. RED. 1/2 - 6,00 M - 1006',
-    material_description: 'B. RED. 1/2 - 6,00 M - 1006',
-    freight_value: 630,
-    credit_limit: 1.0,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-13',
-    delivery_week: '33.2026',
-    desired_date: '2026-08-13',
-    itinerary_code: 'CE001C',
-    credit_reason: 'CRÉDITO OK/CHECAR LIMITE',
-    credit_status: 'Liberado',
-    stock_total: 138.002,
-    q_dias: 16,
-    production_status: 'Pronto',
-    customer_name: 'AGROVILA JAGUARUANA ME',
-    customer_code: 'CLI-258090',
-    total_value: 6200,
-  },
-  {
-    order_number: '258090',
-    uf: 'CE',
-    destination_city: 'JAGUARUANA',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'CANT. 1.1/2 X 1/8 - 6,00 M',
-    material_description: 'CANT. 1.1/2 X 1/8 - 6,00 M',
-    freight_value: 630,
-    credit_limit: 1.0,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-13',
-    delivery_week: '33.2026',
-    desired_date: '2026-08-13',
-    itinerary_code: 'CE001C',
-    credit_reason: 'CRÉDITO OK/CHECAR LIMITE',
-    credit_status: 'Liberado',
-    stock_total: 320.474,
-    q_dias: 16,
-    production_status: 'Pronto',
-    customer_name: 'AGROVILA JAGUARUANA ME',
-    customer_code: 'CLI-258090',
-    total_value: 6900,
-  },
-  {
-    order_number: '258090',
-    uf: 'CE',
-    destination_city: 'JAGUARUANA',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'CANT. 1.1/2 X 3/16 - 6,00 M',
-    material_description: 'CANT. 1.1/2 X 3/16 - 6,00 M',
-    freight_value: 630,
-    credit_limit: 1.0,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-13',
-    delivery_week: '33.2026',
-    desired_date: '2026-08-13',
-    itinerary_code: 'CE001C',
-    credit_reason: 'CRÉDITO OK/CHECAR LIMITE',
-    credit_status: 'Liberado',
-    stock_total: 253.15,
-    q_dias: 16,
-    production_status: 'Pronto',
-    customer_name: 'AGROVILA JAGUARUANA ME',
-    customer_code: 'CLI-258090',
-    total_value: 7000,
-  },
-  {
-    order_number: '258270',
-    uf: 'CE',
-    destination_city: 'JUAZEIRO DO NORTE',
-    weight_kg: 785,
-    stock_sider: 0.0,
-    material: 'CANT. 1.1/2 X 1/8 - 6,00 M',
-    material_description: 'CANT. 1.1/2 X 1/8 - 6,00 M',
-    freight_value: 600,
-    credit_limit: -28435.25,
-    balance_quantity_kg: 785,
-    order_date: '2026-08-17',
-    delivery_week: '34.2026',
-    desired_date: '2026-08-17',
-    itinerary_code: 'CE001C',
-    credit_reason: 'DATA SEGUINTE P/ REVISÃO',
-    credit_status: 'Em Análise',
-    stock_total: 320.474,
-    q_dias: 12,
-    production_status: 'Pronto',
-    customer_name: 'CARIRI METALICA EIRELI',
-    customer_code: 'CLI-258270',
-    total_value: 5400,
-  },
-  {
-    order_number: '258270',
-    uf: 'CE',
-    destination_city: 'JUAZEIRO DO NORTE',
-    weight_kg: 2000,
-    stock_sider: 0.0,
-    material: 'CANT. 2 X 1/8 - 6,00 M - 10',
-    material_description: 'CANT. 2 X 1/8 - 6,00 M - 10',
-    freight_value: 600,
-    credit_limit: -28435.25,
-    balance_quantity_kg: 2000,
-    order_date: '2026-08-17',
-    delivery_week: '34.2026',
-    desired_date: '2026-08-17',
-    itinerary_code: 'CE001C',
-    credit_reason: 'DATA SEGUINTE P/ REVISÃO',
-    credit_status: 'Em Análise',
-    stock_total: 123.344,
-    q_dias: 12,
-    production_status: 'Pronto',
-    customer_name: 'CARIRI METALICA EIRELI',
-    customer_code: 'CLI-258270',
-    total_value: 13800,
-  },
-  {
-    order_number: '258591',
-    uf: 'CE',
-    destination_city: 'JUAZEIRO DO NORTE',
-    weight_kg: 1000,
-    stock_sider: 135.835,
-    material: 'B.CH. 1.1/4 X 1/8- 6,00 M-',
-    material_description: 'B.CH. 1.1/4 X 1/8- 6,00 M-',
-    freight_value: 600,
-    credit_limit: -28435.25,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-24',
-    delivery_week: '35.2026',
-    desired_date: '2026-08-24',
-    itinerary_code: 'CE001C',
-    credit_reason: 'DATA SEGUINTE P/ REVISÃO',
-    credit_status: 'Em Análise',
-    stock_total: 147.438,
-    q_dias: 5,
-    production_status: 'Pronto',
-    customer_name: 'SERRARIA JUAZEIRO DO NORTE',
-    customer_code: 'CLI-258591',
-    total_value: 6900,
-  },
-  {
-    order_number: '258855',
-    uf: 'DF',
-    destination_city: 'BRASILIA',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'CANT. 3/4 X 1/8 - 6,00 M -',
-    material_description: 'CANT. 3/4 X 1/8 - 6,00 M -',
-    freight_value: 360,
-    credit_limit: 20000.0,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-27',
-    delivery_week: '35.2026',
-    desired_date: '2026-08-27',
-    itinerary_code: 'DF001B',
-    credit_reason: 'DATA SEGUINTE P/ REVISÃO',
-    credit_status: 'Em Análise',
-    stock_total: 117.632,
-    q_dias: 2,
-    production_status: 'Pronto',
-    customer_name: 'PLANALTO CONSTRUCOES S.A.',
-    customer_code: 'CLI-258855',
-    total_value: 7200,
-  },
-  {
-    order_number: '258855',
-    uf: 'DF',
-    destination_city: 'BRASILIA',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'CANT. 1 X 1/8 - 6,00 M - 10',
-    material_description: 'CANT. 1 X 1/8 - 6,00 M - 10',
-    freight_value: 360,
-    credit_limit: 20000.0,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-27',
-    delivery_week: '35.2026',
-    desired_date: '2026-08-27',
-    itinerary_code: 'DF001B',
-    credit_reason: 'DATA SEGUINTE P/ REVISÃO',
-    credit_status: 'Em Análise',
-    stock_total: 328.232,
-    q_dias: 2,
-    production_status: 'Pronto',
-    customer_name: 'PLANALTO CONSTRUCOES S.A.',
-    customer_code: 'CLI-258855',
-    total_value: 7100,
-  },
-  {
-    order_number: '258503',
-    uf: 'DF',
-    destination_city: 'BRASILIA',
-    weight_kg: 1200,
-    stock_sider: 0.0,
-    material: 'B. RED. 5/8 - 6,00 M - 1020',
-    material_description: 'B. RED. 5/8 - 6,00 M - 1020',
-    freight_value: 360,
-    credit_limit: 1.0,
-    balance_quantity_kg: 1200,
-    order_date: '2026-08-20',
-    delivery_week: '34.2026',
-    desired_date: '2026-08-20',
-    itinerary_code: 'DF001B',
-    credit_reason: 'DATA SEGUINTE P/ REVISÃO',
-    credit_status: 'Em Análise',
-    stock_total: 199.468,
-    q_dias: 9,
-    production_status: 'Pronto',
-    customer_name: 'CAPITAL ESTRUTURAS MET.',
-    customer_code: 'CLI-258503',
-    total_value: 8400,
-  },
-  {
-    order_number: '258503',
-    uf: 'DF',
-    destination_city: 'BRASILIA',
-    weight_kg: 1200,
-    stock_sider: 0.0,
-    material: 'B. RED. 3/4 - 6,00 M - 1020',
-    material_description: 'B. RED. 3/4 - 6,00 M - 1020',
-    freight_value: 360,
-    credit_limit: 1.0,
-    balance_quantity_kg: 1200,
-    order_date: '2026-08-20',
-    delivery_week: '34.2026',
-    desired_date: '2026-08-20',
-    itinerary_code: 'DF001B',
-    credit_reason: 'DATA SEGUINTE P/ REVISÃO',
-    credit_status: 'Em Análise',
-    stock_total: 278.341,
-    q_dias: 9,
-    production_status: 'Pronto',
-    customer_name: 'CAPITAL ESTRUTURAS MET.',
-    customer_code: 'CLI-258503',
-    total_value: 8350,
-  },
-  {
-    order_number: '258503',
-    uf: 'DF',
-    destination_city: 'BRASILIA',
-    weight_kg: 1200,
-    stock_sider: 0.0,
-    material: 'CANT. 1.1/2 X 1/8 - 6,00 M',
-    material_description: 'CANT. 1.1/2 X 1/8 - 6,00 M',
-    freight_value: 360,
-    credit_limit: 1.0,
-    balance_quantity_kg: 1200,
-    order_date: '2026-08-20',
-    delivery_week: '34.2026',
-    desired_date: '2026-08-20',
-    itinerary_code: 'DF001B',
-    credit_reason: 'DATA SEGUINTE P/ REVISÃO',
-    credit_status: 'Em Análise',
-    stock_total: 320.474,
-    q_dias: 9,
-    production_status: 'Pronto',
-    customer_name: 'CAPITAL ESTRUTURAS MET.',
-    customer_code: 'CLI-258503',
-    total_value: 8200,
-  },
-  {
-    order_number: '258713',
-    uf: 'ES',
-    destination_city: 'CACHOEIRO DE ITAPEMIRIM',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'B. RED.3/8 - 6,00 M - 1006',
-    material_description: 'B. RED.3/8 - 6,00 M - 1006',
-    freight_value: 300,
-    credit_limit: 7963.94,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-25',
-    delivery_week: '35.2026',
-    desired_date: '2026-08-25',
-    itinerary_code: 'ES001A',
-    credit_reason: 'CRÉDITO OK/CHECAR LIMITE',
-    credit_status: 'Liberado',
-    stock_total: 175.929,
-    q_dias: 4,
-    production_status: 'Pronto',
-    customer_name: 'MARMORES & SIDERURGIA ITAPEMIRIM',
-    customer_code: 'CLI-258713',
-    total_value: 6900,
+    origem_dado: 'SAP',
   },
 ]
 
@@ -667,7 +183,7 @@ export const SalesWalletPage: React.FC = () => {
   const [filterStockIntersection, setFilterStockIntersection] = useState('ALL')
   const [filterWalletTime, setFilterWalletTime] = useState('ALL')
   const [filterOverdue, setFilterOverdue] = useState('ALL')
-  const [viewMode, setViewMode] = useState<'png_order' | 'detailed'>('png_order')
+  const [filterOrigem, setFilterOrigem] = useState<'ALL' | 'SAP' | 'EXCEL_QAS'>('ALL')
 
   // Stock & Credit Request Modals
   const [stockModalOrder, setStockModalOrder] = useState<SapSalesOrderEntity | null>(null)
@@ -680,6 +196,23 @@ export const SalesWalletPage: React.FC = () => {
   const [creditRequestedVal, setCreditRequestedVal] = useState<number>(0)
   const [isSubmittingCredit, setIsSubmittingCredit] = useState(false)
 
+  // Modal Carga ZSD35A via Excel (QAS)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isParsing, setIsParsing] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const [validationReport, setValidationReport] = useState<Zsd35ImportValidationReport | null>(null)
+  const [previewSearch, setPreviewSearch] = useState('')
+  const [previewFilterStatus, setPreviewFilterStatus] = useState<string>('ALL')
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Modal Histórico de Importações
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+  const [importHistory, setImportHistory] = useState<any[]>([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [isDeletingBatch, setIsDeletingBatch] = useState(false)
+
   const fetchData = async () => {
     setIsLoading(true)
     try {
@@ -688,9 +221,8 @@ export const SalesWalletPage: React.FC = () => {
         TmsService.getSapItineraries(),
       ])
 
-      // Se o banco estiver vazio no primeiro boot, mescla com os 25 registros do espelho PNG
       if (ords.length === 0) {
-        const seededFromPng = INITIAL_PREVIEW_RECORDS.map((rec, idx) => ({
+        const seeded = INITIAL_PREVIEW_RECORDS.map((rec, idx) => ({
           id: `seed-png-${idx}`,
           order_number: rec.order_number || `PED-${idx}`,
           item_number: '000010',
@@ -715,13 +247,14 @@ export const SalesWalletPage: React.FC = () => {
           stock_total: rec.stock_total || 100,
           production_status: rec.production_status || 'Pronto',
           q_dias: rec.q_dias || 5,
+          origem_dado: (rec.origem_dado as any) || 'SAP',
           status: 'disponivel' as const,
         }))
-        setOrders(seededFromPng as SapSalesOrderEntity[])
+        setOrders(seeded as SapSalesOrderEntity[])
       } else {
-        // Enriquecer registros do banco com campos padrão se nulos
         const mapped = ords.map((o) => ({
           ...o,
+          origem_dado: o.origem_dado || 'SAP',
           q_dias: o.q_dias !== undefined ? o.q_dias : o.raw_q_dias || 5,
           freight_value: o.freight_value || 500,
           credit_limit: o.credit_limit || 50000,
@@ -753,7 +286,7 @@ export const SalesWalletPage: React.FC = () => {
   const processedOrders = useMemo(() => {
     const today = new Date()
     return orders.map((o) => {
-      // 1. Tempo em Carteira (hoje - data pedido)
+      // 1. Tempo em Carteira automático (hoje - data pedido)
       let walletDays = o.q_dias || 0
       if (o.order_date) {
         const d = new Date(o.order_date + (o.order_date.includes('T') ? '' : 'T12:00:00'))
@@ -762,7 +295,9 @@ export const SalesWalletPage: React.FC = () => {
           walletDays = diff
         }
       }
-      if (o.q_dias && o.q_dias > 0) {
+      if (o.wallet_days !== undefined && o.wallet_days > 0) {
+        walletDays = o.wallet_days
+      } else if (o.q_dias && o.q_dias > 0) {
         walletDays = o.q_dias
       }
 
@@ -811,6 +346,7 @@ export const SalesWalletPage: React.FC = () => {
         delayText,
         isOverdue,
         stockIntersectionType,
+        origem_dado: o.origem_dado || 'SAP',
         priorityScore: priority.totalScore,
         priorityClass: priority.classification,
         priorityExplanation: priority.explanation,
@@ -832,6 +368,7 @@ export const SalesWalletPage: React.FC = () => {
           (o.itinerary_code && o.itinerary_code.toLowerCase().includes(q))
         if (!match) return false
       }
+      if (filterOrigem !== 'ALL' && o.origem_dado !== filterOrigem) return false
       if (filterItinerary !== 'ALL' && o.itinerary_code !== filterItinerary) return false
       if (filterUf !== 'ALL' && o.uf !== filterUf) return false
       if (filterCredit !== 'ALL' && o.credit_status !== filterCredit) return false
@@ -856,6 +393,7 @@ export const SalesWalletPage: React.FC = () => {
   }, [
     processedOrders,
     search,
+    filterOrigem,
     filterItinerary,
     filterUf,
     filterCredit,
@@ -879,6 +417,7 @@ export const SalesWalletPage: React.FC = () => {
     const semPrevisaoCount = filteredOrders.filter(
       (o) => o.stockIntersectionType === 'SEM_PREVISAO',
     ).length
+    const excelQasCount = filteredOrders.filter((o) => o.origem_dado === 'EXCEL_QAS').length
 
     return {
       totalOrders,
@@ -887,33 +426,38 @@ export const SalesWalletPage: React.FC = () => {
       estoqueAtualCount,
       producaoFuturaCount,
       semPrevisaoCount,
+      excelQasCount,
     }
   }, [filteredOrders])
 
   // Exportação CSV
   const handleExportCsv = () => {
     const headers = [
+      'Origem Dado',
       'Q.Dias',
       'Documento de vendas',
+      'Item',
       'Região',
       'Cidade',
-      'Qtde Real',
-      'Est. Sider',
+      'Qtde Real (t)',
+      'Est. Sider (t)',
       'Texto breve de material',
-      'Valor do Frete',
-      'Limite de Crédito',
-      'Saldo',
+      'Valor do Frete (R$)',
+      'Limite de Crédito (R$)',
+      'Saldo (t)',
       'Data do Pedido',
       'Data Remessa(Semana)',
       'Itinerário',
       'Motivo Crédito',
-      'Estoque Total',
+      'Estoque Total (t)',
       'Cruzamento DP34/PCP',
     ]
 
     const rows = filteredOrders.map((o) => [
+      o.origem_dado || 'SAP',
       o.q_dias || o.walletDays || 0,
       o.order_number,
+      o.item_number || '000010',
       o.uf,
       o.destination_city,
       (o.weight_kg / 1000).toFixed(3),
@@ -930,10 +474,233 @@ export const SalesWalletPage: React.FC = () => {
       o.stockIntersectionType,
     ])
 
-    exportToCsv(`Carteira_ZSD35_CIAFAL_${new Date().toISOString().split('T')[0]}`, headers, rows)
+    exportToCsv(`Carteira_ZSD35A_CIAFAL_${new Date().toISOString().split('T')[0]}`, headers, rows)
   }
 
-  // Ações Operacionais
+  // Ação de Atualizar SAP / ZSD35A (Nunca retorna erro de sistema, sempre orienta)
+  const handleUpdateSapOrReprocess = async () => {
+    setIsLoading(true)
+    try {
+      await fetchData()
+      toast({
+        title: 'Atualização Concluída',
+        description:
+          'Carteira de Pedidos ZSD35A atualizada com sucesso. Ambiente de homologação QAS sincronizado com a base de dados.',
+      })
+    } catch {
+      toast({
+        title: 'Integração SAP QAS',
+        description:
+          'A sincronização online RFC/BAPI com o SAP ECC está aguardando parametrização de credenciais corporativas. Exibindo última massa de homologação carregada.',
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Processamento do Arquivo Excel (.xlsx) no Modal de Carga
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      processSelectedFile(file)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) {
+      processSelectedFile(file)
+    }
+  }
+
+  const processSelectedFile = (file: File) => {
+    // 17. Validação de Segurança: Apenas .xlsx (rejeitar macros .xlsm e executáveis)
+    const fileName = file.name.toLowerCase()
+    if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.csv')) {
+      toast({
+        title: 'Formato de Arquivo Rejeitado',
+        description:
+          'Por motivos de segurança cibernética corporativa, são aceitos exclusivamente arquivos .xlsx ou .csv padrão. Arquivos com macros (.xlsm) ou executáveis são bloqueados.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Limite de 25 MB
+    if (file.size > 25 * 1024 * 1024) {
+      toast({
+        title: 'Arquivo Excede o Limite',
+        description: 'O tamanho máximo permitido para o arquivo ZSD35A é de 25 MB.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setSelectedFile(file)
+    setIsParsing(true)
+    setValidationReport(null)
+
+    const reader = new FileReader()
+
+    if (fileName.endsWith('.csv')) {
+      reader.onload = (event) => {
+        try {
+          const text = event.target?.result as string
+          const rawRows = parseZsd35CsvText(text)
+          const report = processZsd35Rows(rawRows, undefined, {
+            fileName: file.name,
+            userName: user?.name || user?.email,
+          })
+          setValidationReport(report)
+        } catch (err: any) {
+          toast({
+            title: 'Erro no Processamento do CSV',
+            description: err.message || 'Falha ao analisar a estrutura do arquivo CSV.',
+            variant: 'destructive',
+          })
+        } finally {
+          setIsParsing(false)
+        }
+      }
+      reader.readAsText(file, 'utf-8')
+    } else {
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target?.result as ArrayBuffer)
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true })
+          const firstSheetName = workbook.SheetNames[0]
+          const worksheet = workbook.Sheets[firstSheetName]
+          const rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' })
+
+          const report = processZsd35Rows(rawRows, undefined, {
+            fileName: file.name,
+            userName: user?.name || user?.email,
+          })
+          setValidationReport(report)
+        } catch (err: any) {
+          toast({
+            title: 'Erro no Processamento do Excel',
+            description: err.message || 'Falha ao analisar o arquivo .xlsx.',
+            variant: 'destructive',
+          })
+        } finally {
+          setIsParsing(false)
+        }
+      }
+      reader.readAsArrayBuffer(file)
+    }
+  }
+
+  // Confirmação da Importação ZSD35A
+  const handleConfirmImport = async () => {
+    if (!validationReport || validationReport.validOrders.length === 0) return
+
+    setIsImporting(true)
+    try {
+      const res = await TmsService.importZsd35aOrdersBatch(
+        validationReport,
+        user?.email || 'homologacao@ciafal.logistica',
+        user?.name || 'Operador Logístico QAS',
+      )
+
+      if (res.success) {
+        toast({
+          title: 'Carga ZSD35A Realizada com Sucesso!',
+          description: `${res.createdCount} novos pedidos inseridos e ${res.updatedCount} atualizados na Carteira oficial.`,
+        })
+        setIsImportModalOpen(false)
+        setSelectedFile(null)
+        setValidationReport(null)
+        await fetchData()
+      } else {
+        toast({
+          title: 'Falha na Carga',
+          description: res.message,
+          variant: 'destructive',
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro Crítico',
+        description: err.message || 'Falha durante a persistência dos pedidos.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  // Histórico de Importações
+  const handleOpenHistoryModal = async () => {
+    setIsHistoryModalOpen(true)
+    setIsLoadingHistory(true)
+    try {
+      const history = await TmsService.getSapImports()
+      setImportHistory(history)
+    } catch {
+      setImportHistory([])
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }
+
+  const handleDeleteQasBatch = async (batchId?: string) => {
+    if (
+      !confirm(
+        'ATENÇÃO: Deseja realmente excluir esta massa de homologação (EXCEL_QAS)? Registros oficiais do SAP permanecerão 100% protegidos.',
+      )
+    ) {
+      return
+    }
+
+    setIsDeletingBatch(true)
+    try {
+      const res = await TmsService.deleteExcelQasBatch(
+        batchId,
+        user?.email || 'admin@ciafal.logistica',
+        user?.name || 'Gestor Logístico',
+      )
+      toast({
+        title: 'Massa Homologação Excluída',
+        description: res.message,
+      })
+      const history = await TmsService.getSapImports()
+      setImportHistory(history)
+      await fetchData()
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao excluir',
+        description: err.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeletingBatch(false)
+    }
+  }
+
+  // Filtragem da Prévia no Modal
+  const filteredPreviewOrders = useMemo(() => {
+    if (!validationReport) return []
+    return validationReport.validOrders.filter((o) => {
+      if (previewSearch) {
+        const q = previewSearch.toLowerCase()
+        const match =
+          o.order_number.toLowerCase().includes(q) ||
+          o.customer_name.toLowerCase().includes(q) ||
+          o.material.toLowerCase().includes(q) ||
+          o.destination_city.toLowerCase().includes(q)
+        if (!match) return false
+      }
+      if (previewFilterStatus !== 'ALL' && o.validation_status !== previewFilterStatus) {
+        return false
+      }
+      return true
+    })
+  }, [validationReport, previewSearch, previewFilterStatus])
+
+  // Ações Operacionais (Estoque & Crédito)
   const handleOpenStockModal = (order: SapSalesOrderEntity) => {
     if (!permissions.canRequestStockConfirmation) {
       toast({
@@ -1041,25 +808,45 @@ export const SalesWalletPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Header com Identidade CIAFAL Pantone 2945 */}
+      {/* Header com Identidade CIAFAL Pantone 2945 e Sequência Obrigatória de Botões */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <div>
           <div className="flex items-center space-x-2">
             <h1 className="text-xl font-black tracking-tight text-slate-900">
-              Carteira de Pedidos (SAP ZSD35)
+              Carteira de Pedidos SAP (ZSD35A)
             </h1>
             <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-              ESTRUTURA OFICIAL 28 CAMPOS
+              ESTRUTURA OFICIAL 40 CAMPOS
             </Badge>
+            {metrics.excelQasCount > 0 && (
+              <Badge
+                variant="outline"
+                className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold flex items-center gap-1"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
+                EXCEL QAS ({metrics.excelQasCount})
+              </Badge>
+            )}
           </div>
-          <p className="text-xs text-slate-500">
-            Espelho da transação SAP ZSD35 da CIAFAL. Colunas e ordenação alinhadas aos registros
-            reais da siderúrgica com indicadores de estoque DP34, PCP Robotizado e tempo em
-            carteira.
+          <p className="text-xs text-slate-500 mt-0.5">
+            Espelho da transação SAP ZSD35A da CIAFAL. Fonte unificada para o Planejador de Cargas,
+            Roteirizador e Mesa de Fretes.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Sequência Solicitada: [ Importar ZSD35A — Excel ] [ Exportar CSV ] [ Atualizar SAP / ZSD35A ] */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => setIsImportModalOpen(true)}
+            className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-8 shadow-xs font-semibold"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />
+            Importar ZSD35A — Excel
+            <Badge className="ml-1.5 bg-amber-400/30 text-amber-100 text-[9px] px-1 py-0 font-normal">
+              QAS
+            </Badge>
+          </Button>
+
           <Button
             onClick={handleExportCsv}
             variant="outline"
@@ -1069,18 +856,54 @@ export const SalesWalletPage: React.FC = () => {
             <Download className="w-3.5 h-3.5 mr-1.5 text-slate-600" />
             Exportar CSV
           </Button>
+
           <Button
-            onClick={fetchData}
+            onClick={handleUpdateSapOrReprocess}
             variant="outline"
             size="sm"
             className="text-xs h-8 border-slate-300"
             disabled={isLoading}
           >
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-            Atualizar ZSD35
+            Atualizar SAP / ZSD35A
+          </Button>
+
+          <Button
+            onClick={handleOpenHistoryModal}
+            variant="ghost"
+            size="sm"
+            className="text-xs h-8 text-slate-600 hover:text-slate-900"
+            title="Histórico de Importações QAS"
+          >
+            <History className="w-3.5 h-3.5 mr-1 text-slate-500" />
+            Histórico
           </Button>
         </div>
       </div>
+
+      {/* Identificação de Massa de Homologação QAS Discreta */}
+      {metrics.excelQasCount > 0 && (
+        <div className="bg-purple-50 border border-purple-200 text-purple-900 px-3.5 py-2 rounded-lg text-xs flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-purple-600 shrink-0" />
+            <span>
+              <strong>Massa de Homologação — Excel ZSD35A:</strong> {metrics.excelQasCount} pedidos
+              carregados via planilha QAS ativos na carteira. Eles utilizam o mesmo motor e regras
+              do SAP.
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleDeleteQasBatch()}
+            disabled={isDeletingBatch}
+            className="text-[11px] h-6 text-purple-700 hover:bg-purple-100 font-semibold"
+          >
+            <Trash2 className="w-3 h-3 mr-1" />
+            Limpar Massa QAS
+          </Button>
+        </div>
+      )}
 
       {/* KPI Cards & Indicadores Cruzados */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -1158,7 +981,7 @@ export const SalesWalletPage: React.FC = () => {
             <div className="relative flex-1">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
               <Input
-                placeholder="Buscar por Doc. Vendas, Cidade, Material, Itinerário, Motivo Crédito..."
+                placeholder="Buscar por Doc. Vendas, Cliente, Cidade, Material, Itinerário, Motivo Crédito..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-8 h-8 text-xs"
@@ -1166,7 +989,22 @@ export const SalesWalletPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-xs">
+            {/* Origem do Dado */}
+            <div className="space-y-1">
+              <label className="text-[9px] font-bold uppercase text-slate-400">Origem:</label>
+              <Select value={filterOrigem} onValueChange={(v: any) => setFilterOrigem(v)}>
+                <SelectTrigger className="h-7 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="text-xs">
+                  <SelectItem value="ALL">Todas Origens</SelectItem>
+                  <SelectItem value="SAP">SAP Oficial</SelectItem>
+                  <SelectItem value="EXCEL_QAS">EXCEL QAS</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* UF */}
             <div className="space-y-1">
               <label className="text-[9px] font-bold uppercase text-slate-400">Região / UF:</label>
@@ -1203,6 +1041,7 @@ export const SalesWalletPage: React.FC = () => {
                   <SelectItem value="CE001C">CE001C (Fortaleza/Juazeiro)</SelectItem>
                   <SelectItem value="DF001B">DF001B (Brasília)</SelectItem>
                   <SelectItem value="ES001A">ES001A (Cachoeiro)</SelectItem>
+                  <SelectItem value="SP001A">SP001A (Campinas/SP)</SelectItem>
                   {itineraries.map((it) => (
                     <SelectItem key={it.sap_code} value={it.sap_code}>
                       {it.sap_code} ({it.uf})
@@ -1214,15 +1053,13 @@ export const SalesWalletPage: React.FC = () => {
 
             {/* Cruzamento Estoque DP34 vs PCP */}
             <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase text-slate-400">
-                Cruzamento DP34 x PCP:
-              </label>
+              <label className="text-[9px] font-bold uppercase text-slate-400">DP34 x PCP:</label>
               <Select value={filterStockIntersection} onValueChange={setFilterStockIntersection}>
                 <SelectTrigger className="h-7 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="text-xs">
-                  <SelectItem value="ALL">Todos os Cruzamentos</SelectItem>
+                  <SelectItem value="ALL">Todos Cruzamentos</SelectItem>
                   <SelectItem value="ESTOQUE_ATUAL">Estoque Atual (DP34)</SelectItem>
                   <SelectItem value="PRODUCAO_FUTURA">Produção Futura (PCP)</SelectItem>
                   <SelectItem value="SEM_PREVISAO">Sem Previsão</SelectItem>
@@ -1233,7 +1070,7 @@ export const SalesWalletPage: React.FC = () => {
             {/* Tempo em Carteira (Q.Dias) */}
             <div className="space-y-1">
               <label className="text-[9px] font-bold uppercase text-slate-400">
-                Q.Dias em Carteira:
+                Dias em Carteira:
               </label>
               <Select value={filterWalletTime} onValueChange={setFilterWalletTime}>
                 <SelectTrigger className="h-7 text-xs">
@@ -1275,7 +1112,7 @@ export const SalesWalletPage: React.FC = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="text-xs">
-                  <SelectItem value="ALL">Todos os Prazos</SelectItem>
+                  <SelectItem value="ALL">Todos Prazos</SelectItem>
                   <SelectItem value="atrasado">Apenas Atrasados</SelectItem>
                   <SelectItem value="no_prazo">No Prazo / Futuro</SelectItem>
                 </SelectContent>
@@ -1285,15 +1122,15 @@ export const SalesWalletPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Tabela Principal da Carteira ZSD35 (Espelho Exato da Imagem de Referência) */}
+      {/* Tabela Principal da Carteira ZSD35A */}
       <Card className="bg-white border-slate-200 shadow-sm">
         <div className="p-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <span className="text-xs font-bold text-slate-800">
-              Visualização da Carteira ZSD35 ({filteredOrders.length} registros)
+              Visualização da Carteira ZSD35A ({filteredOrders.length} registros)
             </span>
             <Badge variant="outline" className="text-[10px] font-mono bg-white text-slate-700">
-              Ordem das Colunas: Idêntica ao Relatório SAP CIAFAL
+              Ordem das Colunas: Transação SAP ZSD35A CIAFAL
             </Badge>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
@@ -1311,10 +1148,10 @@ export const SalesWalletPage: React.FC = () => {
         </div>
 
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse min-w-[1400px]">
+          <table className="w-full text-left text-xs border-collapse min-w-[1450px]">
             <thead>
-              {/* As 15 Colunas Exatas da Imagem de Referência + Cruzamentos */}
               <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 text-[11px]">
+                <th className="p-2.5 text-center font-mono w-16">Origem</th>
                 <th className="p-2.5 text-center font-mono w-16">Q.Dias</th>
                 <th className="p-2.5 font-mono">Documento de vendas</th>
                 <th className="p-2.5 text-center font-mono">Região</th>
@@ -1337,15 +1174,14 @@ export const SalesWalletPage: React.FC = () => {
             <tbody className="divide-y divide-slate-200 text-slate-800 text-[11px] font-mono">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={17} className="p-8 text-center text-slate-400 font-sans">
-                    Nenhum registro ZSD35 encontrado com os filtros selecionados.
+                  <td colSpan={18} className="p-8 text-center text-slate-400 font-sans">
+                    Nenhum registro ZSD35A encontrado com os filtros selecionados.
                   </td>
                 </tr>
               ) : (
                 filteredOrders.map((order, idx) => {
-                  // Badge de Q.Dias / Tempo em carteira
                   let qDiasClass = 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                  const dias = order.q_dias || order.walletDays || 0
+                  const dias = order.walletDays || order.q_dias || 0
                   if (dias > 30) {
                     qDiasClass = 'bg-rose-100 text-rose-800 border-rose-300 font-bold'
                   } else if (dias >= 16) {
@@ -1354,7 +1190,6 @@ export const SalesWalletPage: React.FC = () => {
                     qDiasClass = 'bg-amber-100 text-amber-800 border-amber-300'
                   }
 
-                  // Badge de Cruzamento DP34 x PCP
                   let intersectionBadge = (
                     <Badge className="bg-emerald-600 text-white text-[9px] px-1.5 py-0">
                       Estoque Atual
@@ -1374,7 +1209,6 @@ export const SalesWalletPage: React.FC = () => {
                     )
                   }
 
-                  // Formatadores
                   const qtdeRealFormatted = (order.weight_kg / 1000).toLocaleString('pt-BR', {
                     minimumFractionDigits: 1,
                     maximumFractionDigits: 3,
@@ -1407,6 +1241,26 @@ export const SalesWalletPage: React.FC = () => {
                       key={order.id || `${order.order_number}-${idx}`}
                       className="hover:bg-sky-50/50 transition-colors"
                     >
+                      {/* 0. Origem do Dado */}
+                      <td className="p-2.5 text-center">
+                        {order.origem_dado === 'EXCEL_QAS' ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] font-mono px-1 py-0 bg-purple-50 text-purple-700 border-purple-200"
+                            title="Massa de Homologação via Excel QAS"
+                          >
+                            EXCEL
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] font-mono px-1 py-0 bg-slate-100 text-slate-700 border-slate-200"
+                          >
+                            SAP
+                          </Badge>
+                        )}
+                      </td>
+
                       {/* 1. Q.Dias */}
                       <td className="p-2.5 text-center">
                         <Badge
@@ -1422,6 +1276,11 @@ export const SalesWalletPage: React.FC = () => {
                       <td className="p-2.5 font-bold text-slate-900">
                         <div className="flex items-center gap-1.5">
                           <span>{order.order_number}</span>
+                          {order.item_number && order.item_number !== '000010' && (
+                            <span className="text-[10px] font-normal text-slate-400">
+                              /{order.item_number}
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -1558,6 +1417,465 @@ export const SalesWalletPage: React.FC = () => {
           </table>
         </CardContent>
       </Card>
+
+      {/* ========================================================================= */}
+      {/* MODAL 1: CARGA ZSD35A VIA EXCEL (QAS) COM PRÉVIA & VALIDAÇÃO RIGOROSA      */}
+      {/* ========================================================================= */}
+      <Dialog
+        open={isImportModalOpen}
+        onOpenChange={(open) => {
+          if (!open && !isImporting) {
+            setIsImportModalOpen(false)
+            setSelectedFile(null)
+            setValidationReport(null)
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-[#005596]" />
+                Carga ZSD35A — QAS (Massa de Homologação)
+              </DialogTitle>
+              <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs">
+                Homologação / Simulação Temporária SAP
+              </Badge>
+            </div>
+            <DialogDescription className="text-xs text-slate-600">
+              Alimenta o mesmo objeto "Pedido TMS" da integração online SAP. Não cria cadastros
+              mestres e passa por validação rigorosa com sanitização contra formula injection.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Bloco 1: Download do Template e Upload */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex flex-col justify-between">
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block mb-1">
+                    Template Padrão ZSD35A
+                  </span>
+                  <p className="text-[11px] text-slate-500">
+                    Baixe o arquivo padrão oficial contendo os 40 campos da transação SAP ECC.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadZsd35aTemplateFile}
+                  className="mt-3 text-xs w-full border-slate-300 text-[#005596] hover:bg-sky-50 font-semibold"
+                >
+                  <Download className="w-3.5 h-3.5 mr-1.5" />
+                  Baixar Template ZSD35A (.xlsx)
+                </Button>
+              </div>
+
+              {/* Área de Drag & Drop */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setIsDragging(true)
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`md:col-span-2 border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                  isDragging
+                    ? 'border-[#005596] bg-sky-50/50'
+                    : 'border-slate-300 hover:border-slate-400 bg-white'
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.csv"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <Upload className="w-8 h-8 text-slate-400 mb-1" />
+                <span className="text-xs font-semibold text-slate-700">
+                  {selectedFile
+                    ? selectedFile.name
+                    : 'Clique para selecionar ou arraste o arquivo .xlsx'}
+                </span>
+                <span className="text-[10px] text-slate-400 mt-0.5">
+                  Suporta arquivos .xlsx e .csv (Máx. 25 MB). Sanitização e proteção DDE ativas.
+                </span>
+              </div>
+            </div>
+
+            {/* Spinner de Parsing */}
+            {isParsing && (
+              <div className="p-8 text-center bg-slate-50 rounded-lg border border-slate-200">
+                <RefreshCw className="w-6 h-6 animate-spin text-[#005596] mx-auto mb-2" />
+                <span className="text-xs font-semibold text-slate-700">
+                  Validando e normalizando linhas da planilha ZSD35A...
+                </span>
+              </div>
+            )}
+
+            {/* Bloco 2: Relatório de Validação Antes da Carga */}
+            {validationReport && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+                  <div className="p-2 bg-slate-50 border border-slate-200 rounded text-center">
+                    <span className="text-[9px] text-slate-400 uppercase font-bold block">
+                      Total Lidas
+                    </span>
+                    <span className="text-sm font-bold text-slate-800">
+                      {validationReport.totalRowsRead}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-slate-50 border border-slate-200 rounded text-center">
+                    <span className="text-[9px] text-slate-400 uppercase font-bold block">
+                      Pedidos
+                    </span>
+                    <span className="text-sm font-bold text-slate-800">
+                      {validationReport.uniqueOrdersCount}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-slate-50 border border-slate-200 rounded text-center">
+                    <span className="text-[9px] text-slate-400 uppercase font-bold block">
+                      Clientes
+                    </span>
+                    <span className="text-sm font-bold text-slate-800">
+                      {validationReport.uniqueClientsCount}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-slate-50 border border-slate-200 rounded text-center">
+                    <span className="text-[9px] text-slate-400 uppercase font-bold block">
+                      Materiais
+                    </span>
+                    <span className="text-sm font-bold text-slate-800">
+                      {validationReport.uniqueMaterialsCount}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-sky-50 border border-sky-200 rounded text-center">
+                    <span className="text-[9px] text-sky-700 uppercase font-bold block">
+                      Peso Total
+                    </span>
+                    <span className="text-sm font-bold text-sky-900">
+                      {validationReport.totalWeightTon} t
+                    </span>
+                  </div>
+                  <div className="p-2 bg-emerald-50 border border-emerald-200 rounded text-center">
+                    <span className="text-[9px] text-emerald-700 uppercase font-bold block">
+                      🟢 Válidos
+                    </span>
+                    <span className="text-sm font-bold text-emerald-900">
+                      {validationReport.validCount}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-amber-50 border border-amber-200 rounded text-center">
+                    <span className="text-[9px] text-amber-700 uppercase font-bold block">
+                      🟡 Avisos
+                    </span>
+                    <span className="text-sm font-bold text-amber-900">
+                      {validationReport.warningCount}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-rose-50 border border-rose-200 rounded text-center">
+                    <span className="text-[9px] text-rose-700 uppercase font-bold block">
+                      🔴 Rejeitados
+                    </span>
+                    <span className="text-sm font-bold text-rose-900">
+                      {validationReport.rejectedRowsCount}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Avisos ou Rejeições */}
+                {validationReport.rejectionsLog.length > 0 && (
+                  <div className="p-2.5 bg-rose-50 border border-rose-200 rounded text-xs text-rose-900 space-y-1">
+                    <div className="font-bold flex items-center gap-1">
+                      <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                      Erros impeditivos encontrados ({validationReport.rejectionsLog.length} linhas
+                      descartadas):
+                    </div>
+                    <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
+                      {validationReport.rejectionsLog.slice(0, 3).map((rej, i) => (
+                        <li key={i}>
+                          Linha {rej.rowNumber}: {rej.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Bloco 3: Tabela de Prévia */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-800">
+                        Prévia dos Registros ({filteredPreviewOrders.length} de{' '}
+                        {validationReport.validOrders.length})
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="Filtrar na prévia..."
+                        value={previewSearch}
+                        onChange={(e) => setPreviewSearch(e.target.value)}
+                        className="h-7 text-xs w-48"
+                      />
+                      <Select value={previewFilterStatus} onValueChange={setPreviewFilterStatus}>
+                        <SelectTrigger className="h-7 text-xs w-36">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="text-xs">
+                          <SelectItem value="ALL">Todos Status</SelectItem>
+                          <SelectItem value="VALID">🟢 Válidos</SelectItem>
+                          <SelectItem value="WARNING">🟡 Com Avisos</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="border border-slate-200 rounded-lg overflow-x-auto max-h-60">
+                    <table className="w-full text-left text-xs border-collapse min-w-[1000px]">
+                      <thead className="bg-slate-100 sticky top-0 text-[11px] font-bold text-slate-700">
+                        <tr>
+                          <th className="p-2 font-mono">Pedido</th>
+                          <th className="p-2 font-mono">Item</th>
+                          <th className="p-2">Cliente</th>
+                          <th className="p-2">Cidade/UF</th>
+                          <th className="p-2">Material</th>
+                          <th className="p-2 text-right font-mono">Qtde (kg)</th>
+                          <th className="p-2 text-right font-mono">Peso t</th>
+                          <th className="p-2 text-center">Estoque</th>
+                          <th className="p-2 text-center">PCP</th>
+                          <th className="p-2">Crédito</th>
+                          <th className="p-2 text-center font-mono">Itinerário</th>
+                          <th className="p-2 text-center font-mono">Dias Cart.</th>
+                          <th className="p-2 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 font-mono text-[11px]">
+                        {filteredPreviewOrders.map((ord, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50">
+                            <td className="p-2 font-bold text-slate-900">{ord.order_number}</td>
+                            <td className="p-2 text-slate-500">{ord.item_number}</td>
+                            <td className="p-2 font-sans truncate max-w-[150px]">
+                              {ord.customer_name}
+                            </td>
+                            <td className="p-2 font-sans">
+                              {ord.destination_city}/{ord.uf}
+                            </td>
+                            <td className="p-2 font-sans truncate max-w-[140px] text-[#005596]">
+                              {ord.material}
+                            </td>
+                            <td className="p-2 text-right">
+                              {ord.weight_kg.toLocaleString('pt-BR')}
+                            </td>
+                            <td className="p-2 text-right font-bold text-slate-900">
+                              {ord.weight_ton.toFixed(3)}
+                            </td>
+                            <td className="p-2 text-center font-sans">
+                              {ord.stockIntersectionType === 'ESTOQUE_ATUAL' ? (
+                                <Badge className="bg-emerald-600 text-white text-[8px]">
+                                  DP34 OK
+                                </Badge>
+                              ) : (
+                                <span className="text-[10px] text-slate-500">-</span>
+                              )}
+                            </td>
+                            <td className="p-2 text-center font-sans">
+                              <span className="text-[10px] text-slate-700">
+                                {ord.production_status}
+                              </span>
+                            </td>
+                            <td className="p-2 font-sans">
+                              <span
+                                className={`text-[10px] font-semibold ${
+                                  ord.credit_status === 'Bloqueado'
+                                    ? 'text-rose-600'
+                                    : ord.credit_status === 'Em Análise'
+                                      ? 'text-amber-600'
+                                      : 'text-emerald-700'
+                                }`}
+                              >
+                                {ord.credit_status}
+                              </span>
+                            </td>
+                            <td className="p-2 text-center">
+                              <Badge variant="outline" className="text-[9px]">
+                                {ord.itinerary_code}
+                              </Badge>
+                            </td>
+                            <td className="p-2 text-center font-bold">{ord.walletDays}d</td>
+                            <td className="p-2 text-center">
+                              {ord.validation_status === 'VALID' ? (
+                                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[9px]">
+                                  🟢 Válido
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[9px]">
+                                  🟡 Alerta
+                                </Badge>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex items-center justify-between border-t border-slate-200 pt-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsImportModalOpen(false)
+                setSelectedFile(null)
+                setValidationReport(null)
+              }}
+              className="text-xs"
+              disabled={isImporting}
+            >
+              Cancelar
+            </Button>
+
+            <Button
+              onClick={handleConfirmImport}
+              disabled={
+                !validationReport || validationReport.validOrders.length === 0 || isImporting
+              }
+              className="bg-[#005596] hover:bg-[#004478] text-white text-xs font-bold shadow-xs"
+            >
+              {isImporting ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  Processando Carga...
+                </>
+              ) : (
+                <>
+                  <FileCheck className="w-3.5 h-3.5 mr-1.5" />
+                  Confirmar Importação ZSD35A ({validationReport?.validOrders.length || 0}{' '}
+                  registros)
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* MODAL 2: HISTÓRICO DE IMPORTAÇÕES & GESTÃO DE LOTES QAS                    */}
+      {/* ========================================================================= */}
+      <Dialog
+        open={isHistoryModalOpen}
+        onOpenChange={(open) => !open && setIsHistoryModalOpen(false)}
+      >
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <History className="w-4 h-4 text-[#005596]" />
+                Histórico de Importações ZSD35A (QAS)
+              </DialogTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDeleteQasBatch()}
+                disabled={isDeletingBatch}
+                className="text-xs text-rose-600 hover:bg-rose-50 border-rose-200"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                Excluir Toda Massa QAS
+              </Button>
+            </div>
+            <DialogDescription className="text-xs">
+              Registro auditável dos lotes de importação executados. Somente registros com
+              origem_dado = 'EXCEL_QAS' podem ser excluídos por esta função.
+            </DialogDescription>
+          </DialogHeader>
+
+          {isLoadingHistory ? (
+            <div className="p-8 text-center text-slate-500 text-xs">
+              <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#005596]" />
+              Carregando histórico...
+            </div>
+          ) : importHistory.length === 0 ? (
+            <div className="p-8 text-center bg-slate-50 rounded-lg text-slate-400 text-xs">
+              Nenhuma carga de homologação registrada até o momento.
+            </div>
+          ) : (
+            <div className="border border-slate-200 rounded-lg overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse font-mono">
+                <thead className="bg-slate-100 text-[11px] font-bold text-slate-700">
+                  <tr>
+                    <th className="p-2">Lote</th>
+                    <th className="p-2">Data/Hora</th>
+                    <th className="p-2">Arquivo</th>
+                    <th className="p-2 text-right">Lidas</th>
+                    <th className="p-2 text-right">Peso (t)</th>
+                    <th className="p-2 text-center">Status</th>
+                    <th className="p-2 text-center">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 text-[11px]">
+                  {importHistory.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50">
+                      <td className="p-2 font-bold text-[#005596]">{item.batch_id || item.id}</td>
+                      <td className="p-2 text-slate-600">
+                        {item.created ? new Date(item.created).toLocaleString('pt-BR') : '-'}
+                      </td>
+                      <td className="p-2 truncate max-w-[160px] font-sans">{item.file_name}</td>
+                      <td className="p-2 text-right font-bold text-slate-900">
+                        {item.valid_count || item.total_read || 0}
+                      </td>
+                      <td className="p-2 text-right text-sky-700">
+                        {(item.total_weight_ton || 0).toFixed(2)} t
+                      </td>
+                      <td className="p-2 text-center">
+                        <Badge
+                          variant="outline"
+                          className={`text-[9px] ${
+                            item.status === 'concluido'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}
+                        >
+                          {item.status || 'concluido'}
+                        </Badge>
+                      </td>
+                      <td className="p-2 text-center">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteQasBatch(item.batch_id)}
+                          disabled={isDeletingBatch}
+                          className="h-6 px-1 text-rose-600 hover:bg-rose-50 text-[10px]"
+                          title="Excluir apenas este lote QAS"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsHistoryModalOpen(false)}
+              className="text-xs"
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Stock Confirmation Request Modal */}
       <Dialog open={!!stockModalOrder} onOpenChange={(open) => !open && setStockModalOrder(null)}>

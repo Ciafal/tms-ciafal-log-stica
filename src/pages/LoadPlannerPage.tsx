@@ -420,7 +420,7 @@ export const LoadPlannerPage: React.FC = () => {
                 </Badge>
               </div>
               <CardDescription className="text-[11px]">
-                Carteira de vendas SAP pronta para montagem.
+                Carteira de vendas SAP e ZSD35A pronta para montagem de carga.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3 space-y-2 flex-1 overflow-y-auto max-h-[600px]">
@@ -436,9 +436,19 @@ export const LoadPlannerPage: React.FC = () => {
                   >
                     <div className="flex items-start justify-between">
                       <div>
-                        <strong className="text-slate-900 font-mono text-xs">
-                          {order.order_number}
-                        </strong>
+                        <div className="flex items-center gap-1.5">
+                          <strong className="text-slate-900 font-mono text-xs">
+                            {order.order_number}
+                          </strong>
+                          {order.origem_dado === 'EXCEL_QAS' && (
+                            <Badge
+                              variant="outline"
+                              className="text-[8px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200"
+                            >
+                              QAS
+                            </Badge>
+                          )}
+                        </div>
                         <div className="text-slate-700 font-semibold">{order.customer_name}</div>
                         <div className="text-[10px] text-slate-500">
                           {order.destination_city} / {order.uf}

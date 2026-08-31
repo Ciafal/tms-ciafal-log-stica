@@ -3427,32 +3427,50 @@ export const TmsService = {
     }
   },
 
-  // 1.1 Inserção / Upsert de Pedidos da Carteira SAP (ZSD35) com Chave Técnica Única
+  // 1.1 Inserção / Upsert de Pedidos da Carteira SAP (ZSD35 / ZSD35A) com Chave Técnica Única
   async upsertSalesOrder(data: any): Promise<{ record: any; isNew: boolean }> {
     try {
       const orderNumber = data.order_number
+      const itemNumber = data.item_number || '000010'
       const material = data.material || ''
-      // Busca registro existente por order_number e opcionalmente material
+      const technicalKey =
+        data.technical_key ||
+        `${orderNumber}_${itemNumber}_${material.replace(/[^a-zA-Z0-9]/g, '')}`
+
+      // Busca registro existente por order_number
       const existing = await pb.collection('sap_sales_orders').getFullList({
         filter: `order_number = "${orderNumber}"`,
       })
+
       const matched = existing.find(
         (rec) =>
-          !material ||
-          !rec.material ||
-          rec.material.trim().toLowerCase() === material.trim().toLowerCase(),
+          (rec.technical_key && rec.technical_key === technicalKey) ||
+          ((!itemNumber || !rec.item_number || rec.item_number === itemNumber) &&
+            (!material ||
+              !rec.material ||
+              rec.material.trim().toLowerCase() === material.trim().toLowerCase())),
       )
 
+      const payload = {
+        ...data,
+        technical_key: technicalKey,
+        origem_dado: data.origem_dado || 'SAP',
+      }
+
       if (matched) {
-        const updated = await pb.collection('sap_sales_orders').update(matched.id, data)
+        const updated = await pb.collection('sap_sales_orders').update(matched.id, payload)
         return { record: updated, isNew: false }
       }
-      const created = await pb.collection('sap_sales_orders').create(data)
+      const created = await pb.collection('sap_sales_orders').create(payload)
       return { record: created, isNew: true }
     } catch (err) {
       console.warn('upsertSalesOrder error, fallbacking to create:', err)
       try {
-        const created = await pb.collection('sap_sales_orders').create(data)
+        const payload = {
+          ...data,
+          origem_dado: data.origem_dado || 'SAP',
+        }
+        const created = await pb.collection('sap_sales_orders').create(payload)
         return { record: created, isNew: true }
       } catch (e2) {
         return { record: null, isNew: false }
@@ -3467,6 +3485,278 @@ export const TmsService = {
     } catch (err) {
       console.warn('createSalesOrder error:', err)
       return null
+    }
+  },
+
+  // 1.2 Importações ZSD35A em Lote (Excel QAS & Histórico de Importações)
+  async getSapImports(filter?: string, sort = '-created'): Promise<any[]> {
+    try {
+      return await pb.collection('sap_imports').getFullList({
+        filter: filter || '',
+        sort,
+      })
+    } catch (err) {
+      console.warn('getSapImports error:', err)
+      return []
+    }
+  },
+
+  async createSapImportRecord(data: {
+    batch_id: string
+    file_name: string
+    imported_by: string
+    origem_dado?: 'SAP' | 'EXCEL_QAS'
+    template_version?: string
+    total_read: number
+    valid_count: number
+    warning_count: number
+    created_count: number
+    updated_count: number
+    ignored_count: number
+    rejected_count: number
+    total_weight_ton?: number
+    clients_count?: number
+    materials_count?: number
+    rejections_log?: any
+    summary_report?: any
+    status: 'concluido' | 'concluido_com_erros' | 'falha'
+  }): Promise<any> {
+    try {
+      const rec = await pb.collection('sap_imports').create({
+        batch_id: data.batch_id,
+        file_name: data.file_name,
+        imported_by: data.imported_by,
+        origem_dado: data.origem_dado || 'EXCEL_QAS',
+        template_version: data.template_version || 'ZSD35A-2026.1',
+        total_read: data.total_read,
+        valid_count: data.valid_count,
+        warning_count: data.warning_count,
+        created_count: data.created_count,
+        updated_count: data.updated_count,
+        ignored_count: data.ignored_count,
+        rejected_count: data.rejected_count,
+        total_weight_ton: data.total_weight_ton || 0,
+        clients_count: data.clients_count || 0,
+        materials_count: data.materials_count || 0,
+        rejections_log: data.rejections_log || [],
+        summary_report: data.summary_report || {},
+        status: data.status,
+      })
+      return rec
+    } catch (err) {
+      console.warn('createSapImportRecord error:', err)
+      return null
+    }
+  },
+
+  /**
+   * Importação em lote transacional de pedidos validados ZSD35A (EXCEL_QAS)
+   * Alimenta a mesma carteira sem criar carteira paralela
+   */
+  async importZsd35aOrdersBatch(
+    report: import('@/domain/zsd35ImportEngine').Zsd35ImportValidationReport,
+    userEmail: string,
+    userName: string,
+  ): Promise<{ success: boolean; createdCount: number; updatedCount: number; message: string }> {
+    let createdCount = 0
+    let updatedCount = 0
+
+    try {
+      for (const order of report.validOrders) {
+        const payload: Partial<SapSalesOrderEntity> = {
+          order_number: order.order_number,
+          item_number: order.item_number || '000010',
+          technical_key: order.technical_key,
+          customer_code: order.customer_code,
+          customer_name: order.customer_name,
+          destination_city: order.destination_city,
+          uf: order.uf,
+          itinerary_code: order.itinerary_code,
+          route_code: order.route_code || order.itinerary_code,
+          material: order.material,
+          material_description: order.material_description,
+          weight_kg: order.weight_kg,
+          total_value: order.total_value,
+          production_status: order.production_status,
+          credit_status: order.credit_status,
+          discharge_type: order.discharge_type,
+          discharges_count: order.discharges_count || 1,
+          required_vehicle_type: order.required_vehicle_type || 'Carreta / Bitrem',
+          order_date: order.order_date,
+          desired_date: order.desired_date,
+          origem_dado: 'EXCEL_QAS',
+          import_batch_id: report.batchId,
+          source_file: report.fileName,
+          imported_by_user: userName || userEmail,
+          imported_at: report.importedAt,
+          template_version: 'ZSD35A-2026.1',
+          company_code: order.company_code || '1000',
+          plant_code: order.plant_code || '1010',
+          supplying_plant: order.supplying_plant || '1010',
+          storage_location: order.storage_location || '0001',
+          credit_limit: order.credit_limit,
+          credit_condition: order.credit_condition,
+          credit_reason: order.credit_reason,
+          stock_situation: order.stockIntersectionType,
+          stock_available: order.stock_available,
+          stock_dp34: order.stock_dp34,
+          stock_total: order.stock_total,
+          stock_sider: order.stock_sider,
+          missing_quantity: order.missing_quantity,
+          pcp_status: order.pcp_status,
+          pcp_forecast_date: order.pcp_forecast_date,
+          wallet_days: order.walletDays,
+          delay_days: order.overdueDays,
+          delivery_number: order.delivery_number,
+          delivery_week: order.delivery_week,
+          logistic_restrictions: order.logistic_restrictions,
+          order_value: order.total_value,
+          freight_value: order.freight_value,
+          toll_forecast_value: order.toll_forecast_value,
+          priority_level: order.priority_level,
+          raw_q_dias: order.raw_q_dias,
+          q_dias: order.q_dias,
+          order_hour: order.order_hour,
+          incoterms: order.incoterms,
+          is_sidercentro: order.is_sidercentro,
+          stock_quantity_kg: order.stock_quantity_kg,
+          balance_quantity_kg: order.balance_quantity_kg,
+          status: 'disponivel',
+        }
+
+        const res = await this.upsertSalesOrder(payload)
+        if (res.isNew) createdCount++
+        else updatedCount++
+      }
+
+      // Salva histórico da importação
+      await this.createSapImportRecord({
+        batch_id: report.batchId,
+        file_name: report.fileName,
+        imported_by: `${userName} (${userEmail})`,
+        origem_dado: 'EXCEL_QAS',
+        template_version: 'ZSD35A-2026.1',
+        total_read: report.totalRowsRead,
+        valid_count: report.validCount,
+        warning_count: report.warningCount,
+        created_count: createdCount,
+        updated_count: updatedCount,
+        ignored_count: report.ignoredRowsCount,
+        rejected_count: report.rejectedRowsCount,
+        total_weight_ton: report.totalWeightTon,
+        clients_count: report.uniqueClientsCount,
+        materials_count: report.uniqueMaterialsCount,
+        rejections_log: report.rejectionsLog,
+        summary_report: {
+          duplicateCount: report.duplicateCount,
+          totalValue: report.totalValue,
+          summaryStatus: report.summaryStatus,
+        },
+        status: report.rejectedRowsCount > 0 ? 'concluido_com_erros' : 'concluido',
+      })
+
+      // Log de Auditoria
+      await this.logAudit({
+        user_name: userName || userEmail,
+        action_type: 'ZSD35A_EXCEL_IMPORT',
+        target_entity: 'sap_sales_orders',
+        target_id: report.batchId,
+        details: {
+          fileName: report.fileName,
+          totalRead: report.totalRowsRead,
+          createdCount,
+          updatedCount,
+          rejectedCount: report.rejectedRowsCount,
+          totalWeightTon: report.totalWeightTon,
+          origem_dado: 'EXCEL_QAS',
+        },
+      })
+
+      return {
+        success: true,
+        createdCount,
+        updatedCount,
+        message: `Importação ZSD35A concluída! ${createdCount} novos itens e ${updatedCount} atualizados na Carteira de Pedidos.`,
+      }
+    } catch (err: any) {
+      console.error('Erro na importação em lote ZSD35A:', err)
+      return {
+        success: false,
+        createdCount,
+        updatedCount,
+        message: err.message || 'Erro durante a importação em lote ZSD35A.',
+      }
+    }
+  },
+
+  /**
+   * REGRA DE SEGURANÇA MANDATÓRIA:
+   * Exclusão restrita a registros com origem_dado = 'EXCEL_QAS' (massa de homologação).
+   * Registros oficiais 'SAP' NUNCA podem ser apagados por esta rotina.
+   */
+  async deleteExcelQasBatch(
+    batchId?: string,
+    userEmail = 'admin@ciafal.logistica',
+    userName = 'Gestor de Logística',
+  ): Promise<{ success: boolean; deletedCount: number; message: string }> {
+    try {
+      // Busca somente registros com origem_dado == 'EXCEL_QAS'
+      let filter = 'origem_dado = "EXCEL_QAS"'
+      if (batchId) {
+        filter += ` && import_batch_id = "${batchId}"`
+      }
+
+      const recordsToDelete = await pb.collection('sap_sales_orders').getFullList({
+        filter,
+      })
+
+      let deletedCount = 0
+      for (const rec of recordsToDelete) {
+        // Validação adicional de proteção
+        if (rec.origem_dado === 'EXCEL_QAS') {
+          await pb.collection('sap_sales_orders').delete(rec.id)
+          deletedCount++
+        }
+      }
+
+      // Se passou batchId, atualiza status no sap_imports
+      if (batchId) {
+        try {
+          const imports = await pb.collection('sap_imports').getFullList({
+            filter: `batch_id = "${batchId}"`,
+          })
+          if (imports.length > 0) {
+            await pb.collection('sap_imports').delete(imports[0].id)
+          }
+        } catch {
+          /* intentionally ignored */
+        }
+      }
+
+      await this.logAudit({
+        user_name: userName,
+        action_type: 'DELETE_EXCEL_QAS_BATCH',
+        target_entity: 'sap_sales_orders',
+        target_id: batchId || 'ALL_EXCEL_QAS',
+        details: {
+          deletedCount,
+          batchId: batchId || 'TODOS_QAS',
+          safetyCheck: 'ORIGEM_EXCEL_QAS_ONLY_PROTECTED',
+        },
+      })
+
+      return {
+        success: true,
+        deletedCount,
+        message: `${deletedCount} registro(s) de teste (EXCEL_QAS) excluído(s) com sucesso. Registros oficiais SAP foram preservados.`,
+      }
+    } catch (err: any) {
+      console.error('Erro ao excluir lote EXCEL_QAS:', err)
+      return {
+        success: false,
+        deletedCount: 0,
+        message: err.message || 'Falha ao excluir massa de homologação.',
+      }
     }
   },
 
