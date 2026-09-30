@@ -298,6 +298,87 @@ export const DriverPerformanceManagementPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Banner Analítico Integrado Transversal com IA (Fato / Risco / Hipótese / Recomendação) */}
+      <div className="p-3.5 bg-gradient-to-r from-emerald-50 via-slate-50 to-sky-50/50 rounded-xl border border-emerald-200/80 shadow-xs space-y-2.5 text-xs">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <div className="p-2 rounded-lg bg-[#005596] text-white shrink-0 mt-0.5 md:mt-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="font-extrabold text-[#005596] flex items-center gap-1.5">
+                <span>
+                  Correlação Transversal: Gestão de Performance × Inteligência Logística × Execução
+                </span>
+                <Badge className="bg-emerald-700 text-white text-[9px] px-1.5 py-0 font-bold">
+                  Módulo Análises
+                </Badge>
+              </div>
+              <p className="text-slate-600 text-[11px] mt-0.5">
+                Avaliação de mão dupla e explicabilidade para {totalDrivers} motoristas ativos
+                (score médio {avgScore}/100, NPS +{npsData.npsScore}).
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+            <Badge
+              variant="outline"
+              className="border-emerald-300 text-emerald-800 bg-white font-mono text-[10px]"
+            >
+              Execução: Como o Processo Performa
+            </Badge>
+          </div>
+        </div>
+
+        {/* 4 Quadrantes Estruturados: Fato / Risco / Hipótese / Recomendação */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+          <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <strong>FATO OBSERVADO:</strong>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-snug">
+              {preferentialCount} motoristas preferenciais (⭐) e {observationCount} em observação.
+              Score médio de pontualidade atribuível em 94,8% e NPS de motoristas em +
+              {npsData.npsScore}.
+            </p>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-white border border-amber-200 bg-amber-50/20 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-amber-800 text-[11px]">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+              <strong>RISCO IDENTIFICADO:</strong>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-snug">
+              Queda de pontualidade atribuível em rotas com gargalo de descarga em clientes sem
+              conferência de mão dupla pode penalizar injustamente o condutor.
+            </p>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-white border border-purple-200 bg-purple-50/20 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-purple-800 text-[11px]">
+              <Layers className="w-3.5 h-3.5 text-purple-600" />
+              <strong>HIPÓTESE OPERACIONAL:</strong>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-snug">
+              Adoção do canal Fred IA com acolhimento de justificativas reduz tempo de contestação
+              em 70% e preserva retenção de frotistas parceiros.
+            </p>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-white border border-emerald-200 bg-emerald-50/20 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-emerald-800 text-[11px]">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <strong>RECOMENDAÇÃO DETERMINÍSTICA:</strong>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-snug">
+              Alimentar feedback loop na Mesa de Fretes priorizando condutores Preferenciais na Onda
+              1 de leilão e acionar revisão quando demora for na portaria.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Cards de Métricas Principais (Dashboard de Visão Geral) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Card className="border-slate-200 bg-white shadow-sm">

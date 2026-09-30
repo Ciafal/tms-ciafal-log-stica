@@ -23,6 +23,7 @@ import {
   Trash2,
   History,
   Info,
+  Sparkles,
   Database,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
@@ -855,7 +856,91 @@ export const SalesWalletPage: React.FC = () => {
             alimentada pelo Provider Excel (ZSD35A).
           </p>
         </div>
+      </div>
 
+      {/* Banner Analítico Integrado Transversal com IA (Fato / Risco / Hipótese / Recomendação) */}
+      <div className="p-3.5 bg-gradient-to-r from-sky-50 via-slate-50 to-indigo-50/50 rounded-xl border border-sky-200/80 shadow-xs space-y-2.5 text-xs">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <div className="p-2 rounded-lg bg-[#005596] text-white shrink-0 mt-0.5 md:mt-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="font-extrabold text-[#005596] flex items-center gap-1.5">
+                <span>
+                  Correlação Transversal: Carteira Única × Estoque × Seleção × Performance
+                </span>
+                <Badge className="bg-[#005596] text-white text-[9px] px-1.5 py-0 font-bold">
+                  Análises IA
+                </Badge>
+              </div>
+              <p className="text-slate-600 text-[11px] mt-0.5">
+                Diagnóstico preditivo determinístico baseado nos {processedOrders.length} pedidos em
+                carteira ({metrics.totalWeightTons} t).
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+            <Badge
+              variant="outline"
+              className="border-sky-300 text-sky-800 bg-white font-mono text-[10px]"
+            >
+              Demanda: O Que Entregar
+            </Badge>
+          </div>
+        </div>
+
+        {/* 4 Quadrantes Estruturados: Fato / Risco / Hipótese / Recomendação */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+          <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
+              <span className="w-2 h-2 rounded-full bg-sky-500"></span>
+              <strong>FATO OBSERVADO:</strong>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-snug">
+              {metrics.totalOrders} pedidos ativos ({metrics.totalWeightTons} t).{' '}
+              {metrics.estoqueAtualCount} com saldo físico imediato (DP34) e{' '}
+              {metrics.producaoFuturaCount} em programação PCP.
+            </p>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-white border border-amber-200 bg-amber-50/20 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-amber-800 text-[11px]">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+              <strong>RISCO IDENTIFICADO:</strong>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-snug">
+              {metrics.semPrevisaoCount > 0
+                ? `${metrics.semPrevisaoCount} pedidos sem estoque ou PCP vinculado; risco de vencimento de remessa se não alocados a tempo.`
+                : 'Zero pedidos sem cobertura de estoque/produção no momento. Fluxo de remessas sem gargalos.'}
+            </p>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-white border border-purple-200 bg-purple-50/20 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-purple-800 text-[11px]">
+              <Layers className="w-3.5 h-3.5 text-purple-600" />
+              <strong>HIPÓTESE OPERACIONAL:</strong>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-snug">
+              Consolidação de itinerários com maior densidade de carga eleva taxa de ocupação dos
+              veículos acima de 92% e reduz custo/t em até 8%.
+            </p>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-white border border-emerald-200 bg-emerald-50/20 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-emerald-800 text-[11px]">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <strong>RECOMENDAÇÃO DETERMINÍSTICA:</strong>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-snug">
+              Priorizar montagem no Planejador para pedidos com DP34 liberado e crédito OK,
+              acionando motoristas de score &gt; 85 na Mesa de Fretes.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
         {/* Sequência Solicitada: [ Importar ZSD35A — Excel ] [ Exportar CSV ] [ Atualizar SAP / ZSD35A ] */}
         <div className="flex flex-wrap items-center gap-2">
           <Button

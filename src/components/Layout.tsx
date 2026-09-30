@@ -119,13 +119,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           path: '/tms/motoristas',
           show: true,
         },
-        {
-          title: 'Gestão de Performance',
-          path: '/tms/gestao-motoristas',
-          badge: 'Mão Dupla',
-          badgeColor: 'bg-[#005596]',
-          show: true,
-        },
       ],
     },
     {
@@ -157,13 +150,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           path: '/tms/complemento-cargas',
           badge: 'CRM',
           badgeColor: 'bg-purple-600',
-          show: true,
-        },
-        {
-          title: 'Carteira Única de Vendas',
-          path: '/tms/carteira-pedidos',
-          badge: 'Order Book',
-          badgeColor: 'bg-[#005596]',
           show: true,
         },
         {
@@ -300,17 +286,31 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       icon: BarChart3,
       items: [
         {
-          title: 'Ciclo de Inteligência Logística & Governança de Seleção',
-          path: '/tms/analises/inteligencia-logistica',
-          badge: 'Governança IA',
-          badgeColor: 'bg-purple-700',
+          title: 'Carteira Única de Vendas',
+          path: '/tms/analises/carteira-vendas',
+          badge: 'O que entregar',
+          badgeColor: 'bg-[#005596]',
           show: true,
         },
         {
           title: 'Estoque & Produção',
           path: '/tms/analises/estoque-producao',
-          badge: 'SAP + PCP',
+          badge: 'O que disponível',
           badgeColor: 'bg-sky-600',
+          show: true,
+        },
+        {
+          title: 'Ciclo de Inteligência Logística & Governança de Seleção',
+          path: '/tms/analises/inteligencia-logistica',
+          badge: 'Como transportar',
+          badgeColor: 'bg-purple-700',
+          show: true,
+        },
+        {
+          title: 'Gestão de Performance',
+          path: '/tms/analises/gestao-performance',
+          badge: 'Como performa',
+          badgeColor: 'bg-emerald-700',
           show: true,
         },
         {
@@ -339,13 +339,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           path: '/tms/mesa-fretes',
           badge: 'Supervisão',
           badgeColor: 'bg-sky-600',
-          show: true,
-        },
-        {
-          title: 'Motoristas & Ranking',
-          path: '/tms/gestao-motoristas',
-          badge: 'Score 360º',
-          badgeColor: 'bg-emerald-600',
           show: true,
         },
       ],

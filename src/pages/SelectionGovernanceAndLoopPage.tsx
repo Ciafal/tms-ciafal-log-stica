@@ -229,31 +229,80 @@ export const SelectionGovernanceAndLoopPage: React.FC = () => {
       </div>
 
       {/* Banner Analítico Integrado Transversal */}
-      <div className="p-3.5 bg-gradient-to-r from-purple-50 via-sky-50/50 to-white rounded-xl border border-purple-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
-        <div className="flex items-start gap-2.5">
-          <div className="p-2 rounded-lg bg-[#005596] text-white shrink-0 mt-0.5 md:mt-0">
-            <Sparkles className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="font-extrabold text-[#005596] flex items-center gap-1.5">
-              <span>Inteligência Logística & Governança de Seleção (Módulo Análises)</span>
-              <Badge className="bg-purple-700 text-white text-[9px] px-1.5 py-0 font-bold">
-                Decisão Determinística + IA
-              </Badge>
+      <div className="p-3.5 bg-gradient-to-r from-purple-50 via-sky-50/50 to-white rounded-xl border border-purple-200/80 shadow-xs space-y-2.5 text-xs">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <div className="p-2 rounded-lg bg-[#005596] text-white shrink-0 mt-0.5 md:mt-0">
+              <Sparkles className="w-4 h-4" />
             </div>
-            <p className="text-slate-600 text-[11px] mt-0.5">
-              Mapeamento transversal de critérios de seleção, histórico de performance, aderência
-              operacional e governança humana. Conexão direta com Mesa de Fretes e Carlão.
-            </p>
+            <div>
+              <div className="font-extrabold text-[#005596] flex items-center gap-1.5">
+                <span>Correlação Transversal: Inteligência Logística & Governança de Seleção</span>
+                <Badge className="bg-purple-700 text-white text-[9px] px-1.5 py-0 font-bold">
+                  Decisão Determinística + IA
+                </Badge>
+              </div>
+              <p className="text-slate-600 text-[11px] mt-0.5">
+                Mapeamento transversal de critérios multicritério, histórico de performance,
+                aderência operacional e governança humana com Carlão.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+            <Badge
+              variant="outline"
+              className="border-purple-300 text-purple-800 bg-white font-mono text-[10px]"
+            >
+              Seleção: Como e Com Quem Transportar
+            </Badge>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-          <Badge
-            variant="outline"
-            className="border-purple-300 text-purple-800 bg-white font-mono text-[10px]"
-          >
-            Ciclo Fechado: 100% Auditável
-          </Badge>
+
+        {/* 4 Quadrantes Estruturados: Fato / Risco / Hipótese / Recomendação */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+          <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
+              <span className="w-2 h-2 rounded-full bg-purple-600"></span>
+              <strong>FATO OBSERVADO:</strong>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-snug">
+              100% das decisões de contratação auditadas com score explicável em 7 dimensões.{' '}
+              {templates.length} templates de critérios ativos com pesos somando 100%.
+            </p>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-white border border-amber-200 bg-amber-50/20 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-amber-800 text-[11px]">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+              <strong>RISCO IDENTIFICADO:</strong>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-snug">
+              Contratação exclusivamente por menor frete nominal pode ocultar custos de reentrega e
+              estadias em rotas de alta complexidade.
+            </p>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-white border border-purple-200 bg-purple-50/20 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-purple-800 text-[11px]">
+              <Layers className="w-3.5 h-3.5 text-purple-600" />
+              <strong>HIPÓTESE OPERACIONAL:</strong>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-snug">
+              Priorização de motoristas com experiência comprovada no cliente e rota reduz o índice
+              de ocorrências em até 34%.
+            </p>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-white border border-emerald-200 bg-emerald-50/20 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-emerald-800 text-[11px]">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <strong>RECOMENDAÇÃO DETERMINÍSTICA:</strong>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-snug">
+              Acionar na Onda 1 de oferta da Mesa de Fretes os condutores do quadrante Q1 (Alta
+              Performance + Baixo Custo) com score &gt; 85.
+            </p>
+          </div>
         </div>
       </div>
 

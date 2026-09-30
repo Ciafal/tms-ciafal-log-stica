@@ -130,11 +130,7 @@ export const App: React.FC = () => {
           />
           <Route
             path="/tms/performance-motoristas"
-            element={
-              <Layout>
-                <DriverPerformanceManagementPage />
-              </Layout>
-            }
+            element={<Navigate to="/tms/analises/gestao-performance" replace />}
           />
           <Route
             path="/tms/governanca-selecao-loop"
@@ -146,11 +142,7 @@ export const App: React.FC = () => {
           />
           <Route
             path="/tms/gestao-motoristas"
-            element={
-              <Layout>
-                <DriverPerformanceManagementPage />
-              </Layout>
-            }
+            element={<Navigate to="/tms/analises/gestao-performance" replace />}
           />
 
           {/* 2. PLANEJAMENTO LOGÍSTICO */}
@@ -180,19 +172,11 @@ export const App: React.FC = () => {
           />
           <Route
             path="/tms/carteira"
-            element={
-              <Layout>
-                <SalesWalletPage />
-              </Layout>
-            }
+            element={<Navigate to="/tms/analises/carteira-vendas" replace />}
           />
           <Route
             path="/tms/carteira-pedidos"
-            element={
-              <Layout>
-                <SalesWalletPage />
-              </Layout>
-            }
+            element={<Navigate to="/tms/analises/carteira-vendas" replace />}
           />
           <Route
             path="/tms/zsd35-mapeamento"
@@ -455,6 +439,14 @@ export const App: React.FC = () => {
 
           {/* 6. INTEGRAÇÕES & HOMOLOGAÇÃO TÉCNICA (SPRINT 4.1) */}
           <Route
+            path="/tms/monitor-integracoes"
+            element={
+              <Layout>
+                <IntegrationsMonitorPage />
+              </Layout>
+            }
+          />
+          <Route
             path="/tms/integracao-sap"
             element={
               <Layout>
@@ -578,10 +570,10 @@ export const App: React.FC = () => {
           />
           {/* 7. ANÁLISES TRANSVERSAIS */}
           <Route
-            path="/tms/analises/inteligencia-logistica"
+            path="/tms/analises/carteira-vendas"
             element={
               <Layout>
-                <SelectionGovernanceAndLoopPage />
+                <SalesWalletPage />
               </Layout>
             }
           />
@@ -590,6 +582,22 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <StockAndProductionPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/analises/inteligencia-logistica"
+            element={
+              <Layout>
+                <SelectionGovernanceAndLoopPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/analises/gestao-performance"
+            element={
+              <Layout>
+                <DriverPerformanceManagementPage />
               </Layout>
             }
           />
