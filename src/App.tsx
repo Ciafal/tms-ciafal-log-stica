@@ -138,19 +138,11 @@ export const App: React.FC = () => {
           />
           <Route
             path="/tms/governanca-selecao-loop"
-            element={
-              <Layout>
-                <SelectionGovernanceAndLoopPage />
-              </Layout>
-            }
+            element={<Navigate to="/tms/analises/inteligencia-logistica" replace />}
           />
           <Route
             path="/tms/feedback-loop"
-            element={
-              <Layout>
-                <SelectionGovernanceAndLoopPage />
-              </Layout>
-            }
+            element={<Navigate to="/tms/analises/inteligencia-logistica" replace />}
           />
           <Route
             path="/tms/gestao-motoristas"
@@ -212,11 +204,7 @@ export const App: React.FC = () => {
           />
           <Route
             path="/tms/estoque-producao"
-            element={
-              <Layout>
-                <StockAndProductionPage />
-              </Layout>
-            }
+            element={<Navigate to="/tms/analises/estoque-producao" replace />}
           />
           <Route
             path="/tms/programacao-futura"
@@ -585,6 +573,23 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <TmsDashboard />
+              </Layout>
+            }
+          />
+          {/* 7. ANÁLISES TRANSVERSAIS */}
+          <Route
+            path="/tms/analises/inteligencia-logistica"
+            element={
+              <Layout>
+                <SelectionGovernanceAndLoopPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/analises/estoque-producao"
+            element={
+              <Layout>
+                <StockAndProductionPage />
               </Layout>
             }
           />

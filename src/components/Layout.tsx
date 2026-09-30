@@ -74,12 +74,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     disponibilidade: true,
     planejamento: true,
-    fretes: false,
-    transportes: false,
-    agentes: false,
-    integracoes: false,
-    gestao: false,
-    admin: false,
+    contratacao: false,
+    expedicao: false,
+    transporte: false,
+    analises: true,
+    configuracoes: false,
   })
 
   const toggleGroup = (groupId: string) => {
@@ -125,13 +124,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           path: '/tms/gestao-motoristas',
           badge: 'Mão Dupla',
           badgeColor: 'bg-[#005596]',
-          show: true,
-        },
-        {
-          title: 'Critérios & Feedback Loop',
-          path: '/tms/governanca-selecao-loop',
-          badge: 'Governança',
-          badgeColor: 'bg-purple-700',
           show: true,
         },
       ],
@@ -180,13 +172,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           badge: 'Provider Ativo',
           badgeColor: 'bg-emerald-600',
           show: permissions.canImportZsd35 || permissions.canViewZsd35History,
-        },
-        {
-          title: 'Estoque & Produção',
-          path: '/tms/estoque-producao',
-          badge: 'MB52 + PCP',
-          badgeColor: 'bg-sky-600',
-          show: true,
         },
         {
           title: 'Itinerários SAP',
@@ -314,6 +299,20 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       title: 'ANÁLISES',
       icon: BarChart3,
       items: [
+        {
+          title: 'Ciclo de Inteligência Logística & Governança de Seleção',
+          path: '/tms/analises/inteligencia-logistica',
+          badge: 'Governança IA',
+          badgeColor: 'bg-purple-700',
+          show: true,
+        },
+        {
+          title: 'Estoque & Produção',
+          path: '/tms/analises/estoque-producao',
+          badge: 'SAP + PCP',
+          badgeColor: 'bg-sky-600',
+          show: true,
+        },
         {
           title: 'Custos & Rentabilidade',
           path: '/tms/rentabilidade-logistica',

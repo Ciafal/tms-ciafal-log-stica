@@ -14,6 +14,8 @@ import {
   ShieldCheck,
   Building2,
   FileCheck,
+  Sparkles,
+  Link2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -244,16 +246,14 @@ export const StockAndProductionPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-black tracking-tight text-slate-900">
-              Estoque & Produção (SAP MB52 + PCP Robotizado)
-            </h1>
+            <h1 className="text-xl font-black tracking-tight text-slate-900">Estoque & Produção</h1>
             <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-              ESTOQUE REAL vs. ESTOQUE FUTURO
+              SAP MB52 + PCP ROBOTIZADO
             </Badge>
           </div>
           <p className="text-xs text-slate-500">
             Visão consolidada de saldo físico imediato (SAP MB52) cruzado com ordens de produção
-            programadas (PCP Robotizado).
+            programadas (PCP Robotizado) e correlação com cargas planejadas.
           </p>
         </div>
 
@@ -285,8 +285,39 @@ export const StockAndProductionPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Banner Analítico Integrado Transversal */}
+      <div className="p-3.5 bg-gradient-to-r from-sky-50 via-indigo-50/50 to-white rounded-xl border border-sky-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
+        <div className="flex items-start gap-2.5">
+          <div className="p-2 rounded-lg bg-[#005596] text-white shrink-0 mt-0.5 md:mt-0">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="font-extrabold text-[#005596] flex items-center gap-1.5">
+              <span>Análise Transversal de Estoque & Produção (Módulo Análises)</span>
+              <Badge className="bg-sky-600 text-white text-[9px] px-1.5 py-0 font-bold">
+                IA & Governança
+              </Badge>
+            </div>
+            <p className="text-slate-600 text-[11px] mt-0.5">
+              Alimenta o Planejamento Logístico e Planejador de Cargas em tempo real. Correlações
+              entre carteira SAP, saldo físico MB52, programação industrial PCP e capacidade de
+              expedição.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+          <Badge
+            variant="outline"
+            className="border-sky-300 text-sky-800 bg-white font-mono text-[10px]"
+          >
+            Cadeia: SAP → MB52 → PCP → Planejador → Fretes
+          </Badge>
+        </div>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {' '}
         <Card className="bg-emerald-50/50 border-emerald-200 shadow-xs">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
@@ -303,7 +334,6 @@ export const StockAndProductionPage: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-
         <Card className="bg-sky-50/50 border-sky-200 shadow-xs">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
@@ -318,7 +348,6 @@ export const StockAndProductionPage: React.FC = () => {
             <div className="text-[10px] text-sky-700 mt-0.5">Programação confirmada D+1 / D+2</div>
           </CardContent>
         </Card>
-
         <Card className="bg-amber-50/50 border-amber-200 shadow-xs">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
@@ -335,7 +364,6 @@ export const StockAndProductionPage: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-
         <Card className="bg-slate-50 border-slate-200 shadow-xs">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
@@ -354,21 +382,24 @@ export const StockAndProductionPage: React.FC = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="current_stock" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-slate-100 p-1">
+        <TabsList className="grid w-full grid-cols-4 bg-slate-100 p-1">
           <TabsTrigger value="current_stock" className="text-xs font-bold">
             <Boxes className="w-3.5 h-3.5 mr-1.5" />
-            1. Estoque Disponível Agora (SAP MB52)
+            1. Estoque SAP (MB52)
           </TabsTrigger>
           <TabsTrigger value="future_pcp" className="text-xs font-bold">
             <Factory className="w-3.5 h-3.5 mr-1.5" />
-            2. Estoque Previsto / PCP Robotizado
+            2. Produção PCP Robotizado
+          </TabsTrigger>
+          <TabsTrigger value="transversal_impact" className="text-xs font-bold">
+            <Sparkles className="w-3.5 h-3.5 mr-1.5 text-purple-600" />
+            3. Correlação Cargas × IA
           </TabsTrigger>
           <TabsTrigger value="requests_workflow" className="text-xs font-bold">
             <FileCheck className="w-3.5 h-3.5 mr-1.5" />
-            3. Solicitações de Confirmação ({stockRequests.length})
+            4. Confirmações Pátio ({stockRequests.length})
           </TabsTrigger>
         </TabsList>
-
         {/* TAB 1: ESTOQUE ATUAL */}
         <TabsContent value="current_stock" className="space-y-3 mt-3">
           <Card className="bg-white border-slate-200 shadow-sm">
@@ -578,7 +609,99 @@ export const StockAndProductionPage: React.FC = () => {
           </Card>
         </TabsContent>
 
-        {/* TAB 3: WORKFLOW DE CONFIRMAÇÃO DE ESTOQUE */}
+        {/* TAB 3: ANÁLISE TRANSVERSAL DE IMPACTO NAS CARGAS & IA */}
+        <TabsContent value="transversal_impact" className="space-y-3 mt-3">
+          <Card className="bg-white border-slate-200 shadow-sm">
+            <CardHeader className="p-3.5 pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-purple-600" />
+                    Impacto do Estoque & Produção no Planejamento de Cargas
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Cruzamento analítico de saldo em tempo real com pedidos da carteira e janelas de
+                    expedição.
+                  </CardDescription>
+                </div>
+                <Badge className="bg-purple-700 text-white text-[10px] font-bold">
+                  Governança Transversal
+                </Badge>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-3.5 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/60 space-y-1.5">
+                  <div className="flex items-center justify-between font-bold text-emerald-950">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      Pronto para Planejamento
+                    </span>
+                    <Badge className="bg-emerald-600 text-white text-[9px]">Saldo OK</Badge>
+                  </div>
+                  <p className="text-slate-600 text-[11px]">
+                    Itens com saldo físico imediato no depósito DP34. O Planejador de Cargas pode
+                    alocar sem risco operacional de corte.
+                  </p>
+                  <div className="text-[11px] font-bold text-emerald-800">
+                    {metrics.readyItemsCount} materiais aptos para carregamento imediato
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg border border-sky-200 bg-sky-50/60 space-y-1.5">
+                  <div className="flex items-center justify-between font-bold text-sky-950">
+                    <span className="flex items-center gap-1.5">
+                      <Factory className="w-4 h-4 text-sky-600" />
+                      Vínculo com PCP Robotizado
+                    </span>
+                    <Badge className="bg-sky-600 text-white text-[9px]">D+1 a D+3</Badge>
+                  </div>
+                  <p className="text-slate-600 text-[11px]">
+                    Ordens de fabricação em andamento sincronizadas com o Planejador. Cargas
+                    planejadas com data de expedição posterior à liberação física.
+                  </p>
+                  <div className="text-[11px] font-bold text-sky-800">
+                    {metrics.totalPcpTons} t em produção programada
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg border border-amber-200 bg-amber-50/60 space-y-1.5">
+                  <div className="flex items-center justify-between font-bold text-amber-950">
+                    <span className="flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600" />
+                      Risco Operacional & Pátio
+                    </span>
+                    <Badge className="bg-amber-600 text-white text-[9px]">Atenção IA</Badge>
+                  </div>
+                  <p className="text-slate-600 text-[11px]">
+                    Verificações físicas pendentes que bloqueiam liberação para a Mesa de Fretes e
+                    leilão Carlão até confirmação do saldo.
+                  </p>
+                  <div className="text-[11px] font-bold text-amber-800">
+                    {metrics.activeRequestsCount} solicitações em análise de pátio
+                  </div>
+                </div>
+              </div>
+
+              {/* Destaque de IA */}
+              <div className="p-3 rounded-lg border border-purple-200 bg-purple-50/40 space-y-1 text-xs">
+                <div className="flex items-center gap-2 font-bold text-purple-900 text-xs">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                  Diretriz de IA Transversal (Estoque × Produção × Mesa de Fretes)
+                </div>
+                <p className="text-[11px] text-slate-700 leading-relaxed">
+                  A integridade da cadeia logística é mantida: qualquer alteração de saldo físico no
+                  SAP MB52 ou alteração de turno/data no PCP Robotizado repercute automaticamente
+                  nas propostas do Planejador de Cargas e nas restrições de contratação da Mesa de
+                  Fretes.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 4: WORKFLOW DE CONFIRMAÇÃO DE ESTOQUE */}
         <TabsContent value="requests_workflow" className="space-y-3 mt-3">
           <Card className="bg-white border-slate-200 shadow-sm">
             <CardHeader className="p-3.5 pb-2">

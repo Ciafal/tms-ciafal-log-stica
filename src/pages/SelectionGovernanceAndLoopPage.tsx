@@ -228,8 +228,38 @@ export const SelectionGovernanceAndLoopPage: React.FC = () => {
         </Button>
       </div>
 
+      {/* Banner Analítico Integrado Transversal */}
+      <div className="p-3.5 bg-gradient-to-r from-purple-50 via-sky-50/50 to-white rounded-xl border border-purple-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
+        <div className="flex items-start gap-2.5">
+          <div className="p-2 rounded-lg bg-[#005596] text-white shrink-0 mt-0.5 md:mt-0">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="font-extrabold text-[#005596] flex items-center gap-1.5">
+              <span>Inteligência Logística & Governança de Seleção (Módulo Análises)</span>
+              <Badge className="bg-purple-700 text-white text-[9px] px-1.5 py-0 font-bold">
+                Decisão Determinística + IA
+              </Badge>
+            </div>
+            <p className="text-slate-600 text-[11px] mt-0.5">
+              Mapeamento transversal de critérios de seleção, histórico de performance, aderência
+              operacional e governança humana. Conexão direta com Mesa de Fretes e Carlão.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+          <Badge
+            variant="outline"
+            className="border-purple-300 text-purple-800 bg-white font-mono text-[10px]"
+          >
+            Ciclo Fechado: 100% Auditável
+          </Badge>
+        </div>
+      </div>
+
       {/* TABS */}
       <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)}>
+        {' '}
         <TabsList className="bg-slate-100 p-1 border border-slate-200">
           <TabsTrigger value="loop" className="gap-1.5 text-xs font-bold">
             <Layers className="w-4 h-4 text-[#005596]" />
@@ -248,7 +278,6 @@ export const SelectionGovernanceAndLoopPage: React.FC = () => {
             Contestações de Motoristas ({appeals.length})
           </TabsTrigger>
         </TabsList>
-
         {/* 1. CICLO DE INTELIGÊNCIA LOGÍSTICA DASHBOARD */}
         <TabsContent value="loop" className="space-y-4 mt-4">
           {/* 7 Etapas do Ciclo */}
@@ -389,7 +418,6 @@ export const SelectionGovernanceAndLoopPage: React.FC = () => {
             </div>
           </Card>
         </TabsContent>
-
         {/* 2. TEMPLATES & PESOS PARAMETRIZÁVEIS */}
         <TabsContent value="templates" className="space-y-4 mt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -463,7 +491,6 @@ export const SelectionGovernanceAndLoopPage: React.FC = () => {
             ))}
           </div>
         </TabsContent>
-
         {/* 3. AUDITORIA DE DECISÕES */}
         <TabsContent value="audits" className="space-y-4 mt-4">
           <Card className="border-slate-200 bg-white shadow-sm">
@@ -534,7 +561,6 @@ export const SelectionGovernanceAndLoopPage: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
-
         {/* 4. CONTESTAÇÕES DE MOTORISTAS */}
         <TabsContent value="appeals" className="space-y-4 mt-4">
           <Card className="border-slate-200 bg-white shadow-sm">
