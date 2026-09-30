@@ -51,17 +51,15 @@ export const LoadPlannerPage: React.FC = () => {
   const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [walletMeta, setWalletMeta] = useState<{
-    source: 'EXCEL_ZSD35A' | 'SAP_ECC'
+    source: 'SAP_RFC'
     sourceName: string
-    lastBatchId: string
-    lastImportDate: string
+    lastSyncDate: string
     totalItems: number
     totalOrders: number
   }>({
-    source: 'EXCEL_ZSD35A',
-    sourceName: 'Excel ZSD35A — QAS',
-    lastBatchId: 'LOTE-ZSD35-V3-MTHGVFNX',
-    lastImportDate: new Date().toISOString(),
+    source: 'SAP_RFC',
+    sourceName: 'SAP ECC 6.0 (RFC ZSD35_CARTEIRA_GET)',
+    lastSyncDate: new Date().toISOString(),
     totalItems: 396,
     totalOrders: 221,
   })
@@ -125,10 +123,7 @@ export const LoadPlannerPage: React.FC = () => {
       setWalletMeta(metaData)
 
       toast({
-        title:
-          metaData.source === 'EXCEL_ZSD35A'
-            ? 'Carteira ZSD35A Carregada'
-            : 'Carteira SAP Sincronizada',
+        title: 'Carteira SAP Sincronizada',
         description: `${ordData.length} itens (${metaData.totalOrders} pedidos) disponíveis na carteira única.`,
       })
     } catch (err: any) {
@@ -251,7 +246,7 @@ export const LoadPlannerPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Header com Indicador Visual da Fonte da Carteira */}
+      {/* Header com Indicador da Carteira SAP RFC */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-0.5">
@@ -264,18 +259,25 @@ export const LoadPlannerPage: React.FC = () => {
               </Badge>
               <Badge
                 variant="outline"
-                className={`text-[10px] font-bold px-2 py-0.5 ${
-                  walletMeta.source === 'EXCEL_ZSD35A'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                    : 'bg-sky-50 text-sky-700 border-sky-300'
-                }`}
+                className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 border-emerald-300"
               >
-                Fonte da Carteira: {walletMeta.sourceName}
+                Carteira SAP RFC Online
               </Badge>
             </div>
             <p className="text-xs text-slate-500">
-              Consome a carteira única normalizada de vendas (<strong>PedidoTMS</strong>),
-              integrando estoque DP34, limites de crédito, PCP, fila de veículos e motor
+              Carteira SAP atualizada em:{' '}
+              <strong className="text-slate-700">
+                {walletMeta.lastSyncDate
+                  ? new Date(walletMeta.lastSyncDate).toLocaleString('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : '—'}
+              </strong>{' '}
+              · Integrando estoque DP34, limites de crédito, PCP, fila de veículos e motor
               determinístico.
             </p>
           </div>
@@ -299,50 +301,43 @@ export const LoadPlannerPage: React.FC = () => {
               disabled={isLoading}
             >
               <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-              {walletMeta.source === 'EXCEL_ZSD35A'
-                ? 'Atualizar Carteira / PCP'
-                : 'Sincronizar SAP/PCP'}
+              Atualizar agora
             </Button>
           </div>
         </div>
 
-        {/* Indicador Visual Detalhado da Fonte Ativa */}
+        {/* Indicador Visual Detalhado da Carteira SAP RFC */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-xs">
           <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Fonte Ativa:
+              Fonte Canônica:
             </span>
-            <span className="font-bold text-slate-800 truncate text-[11px]">
-              {walletMeta.sourceName}
-            </span>
+            <span className="font-bold text-slate-800 truncate text-[11px]">SAP ECC 6.0 (RFC)</span>
           </div>
 
           <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Última Carga:
+              Posição Válida:
             </span>
             <span className="font-mono text-slate-800 text-[11px]">
-              {walletMeta.lastImportDate
-                ? new Date(walletMeta.lastImportDate).toLocaleString('pt-BR', {
+              {walletMeta.lastSyncDate
+                ? new Date(walletMeta.lastSyncDate).toLocaleString('pt-BR', {
                     day: '2-digit',
                     month: '2-digit',
                     year: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit',
                   })
-                : '31/08/2026 16:42'}
+                : '—'}
             </span>
           </div>
 
           <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Lote / Batch:
+              Status Conexão:
             </span>
-            <span
-              className="font-mono text-slate-800 truncate text-[11px]"
-              title={walletMeta.lastBatchId}
-            >
-              {walletMeta.lastBatchId}
+            <span className="font-bold text-blue-700 truncate text-[11px]">
+              AGUARDANDO_CONEXAO_RFC
             </span>
           </div>
 
@@ -494,7 +489,7 @@ export const LoadPlannerPage: React.FC = () => {
 
       {/* 3 COLUMNS OPERATIONAL WORKSPACE (ESQUERDA / CENTRO / DIREITA) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* COLUNA ESQUERDA: PEDIDOS DISPONÍVEIS (SAP ZSD35) */}
+        {/* COLUNA ESQUERDA: PEDIDOS DISPONÍVEIS (SAP RFC) */}
         <div className="lg:col-span-4 space-y-3">
           <Card className="bg-white border-slate-200 shadow-sm h-full flex flex-col">
             <CardHeader className="p-3.5 border-b border-slate-100 bg-slate-50/50">
@@ -528,24 +523,12 @@ export const LoadPlannerPage: React.FC = () => {
                           <strong className="text-slate-900 font-mono text-xs">
                             {order.order_number}
                           </strong>
-                          {order.origem_dado === 'EXCEL_QAS_ZSD35A_V3' ||
-                          order.origem_dado === 'EXCEL_QAS' ||
-                          order.origem_dado === 'EXCEL_QAS_ZSD35_V3' ||
-                          order.origem_dado === 'EXCEL_ZSD35A' ? (
-                            <Badge
-                              variant="outline"
-                              className="text-[8px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200 font-mono font-semibold"
-                            >
-                              Excel ZSD35A
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="text-[8px] px-1 py-0 bg-sky-50 text-sky-700 border-sky-200 font-mono font-semibold"
-                            >
-                              SAP RFC
-                            </Badge>
-                          )}
+                          <Badge
+                            variant="outline"
+                            className="text-[8px] px-1 py-0 bg-sky-50 text-sky-700 border-sky-200 font-mono font-semibold"
+                          >
+                            SAP RFC
+                          </Badge>
                         </div>
                         <div className="text-slate-700 font-semibold">{order.customer_name}</div>
                         <div className="text-[10px] text-slate-500">

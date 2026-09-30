@@ -765,131 +765,100 @@ export const TmsService = {
     }
   },
   // ----------------------------------------------------
-  // CARTEIRA ÚNICA DE PEDIDOS (ORDER BOOK) & PROVIDERS
-  // Ingestão unificada para Planejador, Roteirizador e Mesa de Fretes.
-  // Provider ativo hoje: EXCEL (ZSD35A). Provider futuro: SAP (RFC/OData).
+  // CARTEIRA ÚNICA DE PEDIDOS (FONTE EXCLUSIVA: SAP RFC)
+  // Espelho operacional fiel para Planejador, Roteirizador e Mesa de Fretes.
   // ----------------------------------------------------
-  async getWalletSourceConfig(): Promise<{
-    source: 'EXCEL_ZSD35A' | 'SAP_ECC'
-    name: string
-    sapFallbackAllowed: boolean
-  }> {
-    try {
-      const params = await this.getSystemParameters()
-      const sourceParam = params.find((p) => p.key === 'ACTIVE_SALES_WALLET_SOURCE')
-      const nameParam = params.find((p) => p.key === 'ACTIVE_SALES_WALLET_NAME')
-      const fallbackParam = params.find((p) => p.key === 'SALES_WALLET_SAP_FALLBACK_ALLOWED')
-
-      const source = (sourceParam?.value as 'EXCEL_ZSD35A' | 'SAP_ECC') || 'EXCEL_ZSD35A'
-      const name =
-        nameParam?.value || (source === 'SAP_ECC' ? 'SAP ECC 6.0 (RFC/BAPI)' : 'Excel ZSD35A — QAS')
-      const sapFallbackAllowed = fallbackParam?.value === 'true'
-
-      return { source, name, sapFallbackAllowed }
-    } catch (err) {
-      console.warn('Could not fetch wallet source config from system_parameters:', err)
-      return {
-        source: 'EXCEL_ZSD35A',
-        name: 'Excel ZSD35A — QAS',
-        sapFallbackAllowed: false,
-      }
-    }
-  },
-
-  async setWalletSourceConfig(
-    source: 'EXCEL_ZSD35A' | 'SAP_ECC',
-    operatorEmail?: string,
-    operatorName?: string,
-  ): Promise<boolean> {
-    try {
-      const name = source === 'SAP_ECC' ? 'SAP ECC 6.0 (RFC/BAPI)' : 'Excel ZSD35A — QAS'
-      await this.saveSystemParameter('ACTIVE_SALES_WALLET_SOURCE', source)
-      await this.saveSystemParameter('ACTIVE_SALES_WALLET_NAME', name)
-
-      if (operatorEmail) {
-        try {
-          await pb.collection('audit_logs').create({
-            user_email: operatorEmail,
-            user_name: operatorName || 'Operador Master',
-            user_role: 'admin_tms',
-            action: 'UPDATE_ACTIVE_SALES_WALLET_SOURCE',
-            resource: 'system_parameters',
-            resource_id: 'ACTIVE_SALES_WALLET_SOURCE',
-            new_state: source,
-            reason: `Fonte da carteira de pedidos alterada para ${name}`,
-            correlation_id: `SYS-WALLET-${Date.now()}`,
-            payload: { source, name },
-          })
-        } catch {
-          /* audit silent */
-        }
-      }
-      return true
-    } catch (err) {
-      console.error('Failed to set wallet source config:', err)
-      return false
-    }
-  },
-
   async getSapSalesOrders(): Promise<SapSalesOrderEntity[]> {
     try {
       return await pb.collection('sap_sales_orders').getFullList<SapSalesOrderEntity>({
         sort: 'order_number',
       })
     } catch (err) {
-      console.error('Failed to fetch sales orders from unified wallet:', err)
+      console.error('Failed to fetch sales orders from sap_sales_orders:', err)
       return []
     }
   },
 
   /**
-   * Método canônico arquitetural para Carteira Única de Pedidos (PedidoTMS[])
-   * Consulta a configuração de fonte ativa e recupera a carteira padronizada do repositório único.
+   * Método canônico para Carteira Única de Pedidos TMS (PedidoTMS[])
    */
   async getUnifiedSalesWallet(): Promise<SapSalesOrderEntity[]> {
     return this.getSapSalesOrders()
   },
 
   async getLatestWalletMetadata(): Promise<{
-    source: 'EXCEL_ZSD35A' | 'SAP_ECC'
+    source: 'SAP_RFC'
     sourceName: string
-    lastBatchId: string
-    lastImportDate: string
+    lastSyncDate: string
     totalItems: number
     totalOrders: number
   }> {
     try {
-      const config = await this.getWalletSourceConfig()
-      const [latestImport, allOrders] = await Promise.all([
-        this.getSapImports('status="CONCLUIDO"', '-created').then((res) => res[0] || null),
-        this.getSapSalesOrders(),
-      ])
-
+      const allOrders = await this.getSapSalesOrders()
       const uniqueOrders = new Set(allOrders.map((o) => o.order_number)).size
       const totalItems = allOrders.length
 
       return {
-        source: config.source,
-        sourceName: config.name,
-        lastBatchId:
-          latestImport?.batch_id || allOrders[0]?.import_batch_id || 'ZSD35A-LOTE-OFICIAL',
-        lastImportDate:
-          latestImport?.created ||
-          latestImport?.updated ||
-          allOrders[0]?.created ||
-          new Date().toISOString(),
-        totalItems: totalItems || (latestImport?.valid_count ?? 396),
+        source: 'SAP_RFC',
+        sourceName: 'SAP ECC 6.0 (RFC ZSD35_CARTEIRA_GET)',
+        lastSyncDate: allOrders[0]?.updated || allOrders[0]?.created || new Date().toISOString(),
+        totalItems: totalItems || 396,
         totalOrders: uniqueOrders || 221,
       }
     } catch (err) {
       console.warn('Could not load latest wallet metadata:', err)
       return {
-        source: 'EXCEL_ZSD35A',
-        sourceName: 'Excel ZSD35A — QAS',
-        lastBatchId: 'LOTE-ZSD35-V3-MTHGVFNX',
-        lastImportDate: new Date().toISOString(),
+        source: 'SAP_RFC',
+        sourceName: 'SAP ECC 6.0 (RFC ZSD35_CARTEIRA_GET)',
+        lastSyncDate: new Date().toISOString(),
         totalItems: 396,
         totalOrders: 221,
+      }
+    }
+  },
+
+  /**
+   * Dispara a sincronização autorizada da Carteira com o SAP ECC via RFC
+   */
+  async syncSapSalesWallet(): Promise<{
+    success: boolean
+    correlationId: string
+    status: string
+    message: string
+    execution?: any
+    gapNotes?: string[]
+  }> {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/sap/sync-carteira`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: pb.authStore.token || '',
+          },
+        },
+      )
+      if (res.ok) {
+        return await res.json()
+      }
+      const err = await res.json().catch(() => ({}))
+      return {
+        success: false,
+        correlationId: 'ERR-' + Date.now().toString(36),
+        status: 'FALHA_CONEXAO',
+        message:
+          err.error ||
+          err.message ||
+          'Não foi possível atualizar a carteira SAP. A última posição válida permanece disponível.',
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        correlationId: 'ERR-' + Date.now().toString(36),
+        status: 'FALHA_CONEXAO',
+        message:
+          'Não foi possível atualizar a carteira SAP. A última posição válida permanece disponível.',
       }
     }
   },
@@ -1031,7 +1000,7 @@ export const TmsService = {
   },
 
   // ----------------------------------------------------
-  // SPRINT 3: CARTEIRA SAP (ZSD35), ESTOQUE MB52 & PCP ROBOTIZADO
+  // SPRINT 3: CARTEIRA SAP RFC, ESTOQUE MB52 & PCP ROBOTIZADO
   // ----------------------------------------------------
 
   async getStockCurrent(): Promise<import('@/domain/rules').SapStockCurrentEntity[]> {
@@ -3375,9 +3344,9 @@ export const TmsService = {
         user_name: params.user_name,
         user_email: email,
         user_role: params.user_role || 'operador_logistica',
-        action: params.action || params.action_type || 'ZSD35_OPERATION',
+        action: params.action || params.action_type || 'SAP_WALLET_OPERATION',
         resource: params.resource || params.target_entity || 'sap_sales_orders',
-        resource_id: params.resource_id || params.target_id || 'ZSD35',
+        resource_id: params.resource_id || params.target_id || 'SAP_WALLET',
         payload: params.details || params.payload || {},
         correlation_id: `AUDIT-${Date.now()}`,
       })
@@ -3543,38 +3512,30 @@ export const TmsService = {
     }
   },
 
-  // 1.1 Inserção / Upsert de Pedidos da Carteira SAP (ZSD35 / ZSD35A) com Chave Técnica Única
+  // 1.1 Inserção / Upsert Idempotente de Pedidos da Carteira SAP via RFC
   async upsertSalesOrder(data: any): Promise<{ record: any; isNew: boolean }> {
     try {
+      const companyCode = data.company_code || '1000'
       const orderNumber = data.order_number
       const itemNumber = data.item_number || '000010'
-      const material = data.material || ''
-      const technicalKey =
-        data.technical_key ||
-        `${orderNumber}_${itemNumber}_${material.replace(/[^a-zA-Z0-9]/g, '')}`
+      const technicalKey = data.technical_key || `${companyCode}_${orderNumber}_${itemNumber}`
 
-      // Busca registro existente por order_number
+      // Busca registro existente pelo índice único (company_code, order_number, item_number)
       const existing = await pb.collection('sap_sales_orders').getFullList({
-        filter: `order_number = "${orderNumber}"`,
+        filter: `order_number = "${orderNumber}" && item_number = "${itemNumber}"`,
       })
-
-      const matched = existing.find(
-        (rec) =>
-          (rec.technical_key && rec.technical_key === technicalKey) ||
-          ((!itemNumber || !rec.item_number || rec.item_number === itemNumber) &&
-            (!material ||
-              !rec.material ||
-              rec.material.trim().toLowerCase() === material.trim().toLowerCase())),
-      )
 
       const payload = {
         ...data,
+        company_code: companyCode,
+        order_number: orderNumber,
+        item_number: itemNumber,
         technical_key: technicalKey,
-        origem_dado: data.origem_dado || 'SAP',
+        origem_dado: 'SAP',
       }
 
-      if (matched) {
-        const updated = await pb.collection('sap_sales_orders').update(matched.id, payload)
+      if (existing.length > 0) {
+        const updated = await pb.collection('sap_sales_orders').update(existing[0].id, payload)
         return { record: updated, isNew: false }
       }
       const created = await pb.collection('sap_sales_orders').create(payload)
@@ -3584,7 +3545,7 @@ export const TmsService = {
       try {
         const payload = {
           ...data,
-          origem_dado: data.origem_dado || 'SAP',
+          origem_dado: 'SAP',
         }
         const created = await pb.collection('sap_sales_orders').create(payload)
         return { record: created, isNew: true }
@@ -3604,392 +3565,6 @@ export const TmsService = {
     }
   },
 
-  // 1.2 Importações ZSD35A em Lote (Excel QAS & Histórico de Importações)
-  async getSapImports(filter?: string, sort = '-created'): Promise<any[]> {
-    try {
-      return await pb.collection('sap_imports').getFullList({
-        filter: filter || '',
-        sort,
-      })
-    } catch (err) {
-      console.warn('getSapImports error:', err)
-      return []
-    }
-  },
-
-  async createSapImportRecord(data: {
-    batch_id: string
-    file_name: string
-    imported_by: string
-    origem_dado?: 'SAP' | 'EXCEL_QAS'
-    template_version?: string
-    total_read: number
-    valid_count: number
-    warning_count: number
-    created_count: number
-    updated_count: number
-    ignored_count: number
-    rejected_count: number
-    total_weight_ton?: number
-    clients_count?: number
-    materials_count?: number
-    rejections_log?: any
-    summary_report?: any
-    status: 'concluido' | 'concluido_com_erros' | 'falha'
-  }): Promise<any> {
-    try {
-      const rec = await pb.collection('sap_imports').create({
-        batch_id: data.batch_id,
-        file_name: data.file_name,
-        imported_by: data.imported_by,
-        origem_dado: data.origem_dado || 'EXCEL_QAS',
-        template_version: data.template_version || 'ZSD35A-2026.1',
-        total_read: data.total_read,
-        valid_count: data.valid_count,
-        warning_count: data.warning_count,
-        created_count: data.created_count,
-        updated_count: data.updated_count,
-        ignored_count: data.ignored_count,
-        rejected_count: data.rejected_count,
-        total_weight_ton: data.total_weight_ton || 0,
-        clients_count: data.clients_count || 0,
-        materials_count: data.materials_count || 0,
-        rejections_log: data.rejections_log || [],
-        summary_report: data.summary_report || {},
-        status: data.status,
-      })
-      return rec
-    } catch (err) {
-      console.warn('createSapImportRecord error:', err)
-      return null
-    }
-  },
-
-  /**
-   * Consulta status de lote de importação ZSD35A no backend PocketBase
-   */
-  async getZsd35BatchStatus(batchId: string): Promise<any> {
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/zsd35/batch-status/${encodeURIComponent(batchId)}`,
-        {
-          headers: {
-            Authorization: pb.authStore.token || '',
-          },
-        },
-      )
-      if (res.ok) {
-        return await res.json()
-      }
-      return null
-    } catch {
-      return null
-    }
-  },
-
-  /**
-   * Importação em lote transacional e assíncrona de pedidos validados ZSD35A V3 (EXCEL_QAS_ZSD35A_V3)
-   * Dispara o endpoint server-side com transação, rollback em falhas e auditoria não-bloqueante.
-   * Em caso de indisponibilidade do endpoint, executa fallback determinístico local.
-   */
-  async importZsd35aOrdersBatch(
-    report: import('@/domain/zsd35ImportEngine').Zsd35ImportValidationReport,
-    userEmail: string,
-    userName: string,
-    onProgressUpdate?: (step: string, pct: number) => void,
-  ): Promise<{
-    success: boolean
-    createdCount: number
-    updatedCount: number
-    persistedCount: number
-    batchId: string
-    auditWarning?: string | null
-    message: string
-  }> {
-    const batchId = report.batchId
-
-    // 1. Tenta executar via Hook Backend Transacional (Skip Cloud PocketBase)
-    try {
-      onProgressUpdate?.('Criando lote de homologação...', 20)
-      const res = await fetch(
-        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/zsd35/import-confirm`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: pb.authStore.token || '',
-          },
-          body: JSON.stringify({
-            report,
-            user_email: userEmail,
-            user_name: userName,
-          }),
-        },
-      )
-
-      if (res.ok) {
-        const data = await res.json()
-        onProgressUpdate?.('Verificando persistência...', 90)
-        return {
-          success: true,
-          batchId: data.batch_id || batchId,
-          createdCount: data.created_count || 0,
-          updatedCount: data.updated_count || 0,
-          persistedCount: data.persisted_count || report.validCount,
-          auditWarning: data.audit_warning,
-          message: data.message || 'Importação ZSD35A V3 concluída com sucesso.',
-        }
-      }
-
-      const errJson = await res.json().catch(() => ({}))
-      if (res.status === 500 && errJson.step_failed === 'PERSISTINDO') {
-        throw new Error(
-          errJson.message || errJson.error || 'Falha na persistência transacional dos registros.',
-        )
-      }
-    } catch (apiErr: any) {
-      if (apiErr.message && apiErr.message.includes('transacional')) {
-        throw apiErr
-      }
-      console.warn(
-        'Backend hook import endpoint indisponível, executando fallback local cliente:',
-        apiErr,
-      )
-    }
-
-    // 2. Fallback Cliente Determinístico (caso o hook não responda)
-    let createdCount = 0
-    let updatedCount = 0
-
-    try {
-      onProgressUpdate?.('Gravando registros na Carteira SAP...', 40)
-      for (let i = 0; i < report.validOrders.length; i++) {
-        const order = report.validOrders[i]
-        const payload: Partial<SapSalesOrderEntity> = {
-          order_number: order.order_number,
-          item_number: order.item_number || '000010',
-          technical_key: order.technical_key,
-          customer_code: order.customer_code,
-          customer_name: order.customer_name,
-          destination_city: order.destination_city,
-          uf: order.uf,
-          itinerary_code: order.itinerary_code,
-          route_code: order.route_code || order.itinerary_code,
-          material: order.material,
-          material_description: order.material_description,
-          weight_kg: order.weight_kg,
-          total_value: order.total_value,
-          production_status: order.production_status,
-          credit_status: order.credit_status,
-          discharge_type: order.discharge_type,
-          discharges_count: order.discharges_count || 1,
-          required_vehicle_type: order.required_vehicle_type || 'Carreta / Bitrem',
-          order_date: order.order_date,
-          desired_date: order.desired_date,
-          origem_dado: 'EXCEL_QAS_ZSD35A_V3',
-          import_batch_id: report.batchId,
-          source_file: report.fileName,
-          imported_by_user: userName || userEmail,
-          imported_at: report.importedAt,
-          template_version: 'ZSD35A_V3_27_CAMPOS',
-          company_code: order.company_code || '1000',
-          plant_code: order.plant_code || '1010',
-          supplying_plant: order.supplying_plant || '1010',
-          storage_location: order.storage_location || '0001',
-          credit_limit: order.credit_limit,
-          credit_condition: order.credit_condition,
-          credit_reason: order.credit_reason,
-          stock_situation: order.stockIntersectionType,
-          stock_available: order.stock_available,
-          stock_dp34: order.stock_dp34,
-          stock_total: order.stock_total,
-          stock_sider: order.stock_sider,
-          missing_quantity: order.missing_quantity,
-          pcp_status: order.pcp_status,
-          pcp_forecast_date: order.pcp_forecast_date,
-          wallet_days: order.walletDays,
-          delay_days: order.overdueDays,
-          delivery_number: order.delivery_number,
-          delivery_week: order.delivery_week,
-          logistic_restrictions: order.logistic_restrictions,
-          order_value: order.total_value,
-          freight_value: order.freight_value,
-          toll_forecast_value: order.toll_forecast_value,
-          priority_level: order.priority_level,
-          raw_q_dias: order.raw_q_dias,
-          q_dias: order.q_dias,
-          order_hour: order.order_hour,
-          incoterms: order.incoterms,
-          is_sidercentro: order.is_sidercentro,
-          stock_quantity_kg: order.stock_quantity_kg,
-          balance_quantity_kg: order.balance_quantity_kg,
-          status: 'disponivel',
-        }
-
-        const res = await this.upsertSalesOrder(payload)
-        if (res.isNew) createdCount++
-        else updatedCount++
-
-        if (i % 50 === 0 && onProgressUpdate) {
-          const pct = Math.min(85, Math.round(40 + (i / report.validOrders.length) * 45))
-          onProgressUpdate(`Gravando registro ${i + 1} de ${report.validOrders.length}...`, pct)
-        }
-      }
-
-      onProgressUpdate?.('Registrando auditoria e lote...', 88)
-      // Salva histórico da importação
-      await this.createSapImportRecord({
-        batch_id: report.batchId,
-        file_name: report.fileName,
-        imported_by: `${userName} (${userEmail})`,
-        origem_dado: 'EXCEL_QAS_ZSD35A_V3',
-        template_version: 'ZSD35A_V3_27_CAMPOS',
-        total_read: report.totalRowsRead,
-        valid_count: report.validCount,
-        warning_count: report.warningCount,
-        created_count: createdCount,
-        updated_count: updatedCount,
-        ignored_count: report.ignoredRowsCount,
-        rejected_count: report.rejectedRowsCount,
-        total_weight_ton: report.totalWeightTon,
-        clients_count: report.uniqueClientsCount,
-        materials_count: report.uniqueMaterialsCount,
-        rejections_log: report.rejectionsLog,
-        summary_report: {
-          duplicateCount: report.duplicateCount,
-          totalValue: report.totalValue,
-          totalFreightForecast: report.totalFreightForecast,
-          layoutRecognized: report.layoutRecognized,
-          layoutMessage: report.layoutMessage,
-          summaryStatus: report.summaryStatus,
-        },
-        status: report.warningCount > 0 ? 'CONCLUIDO_COM_ALERTAS' : 'CONCLUIDO',
-      })
-
-      // Log de Auditoria não-bloqueante
-      let auditWarning: string | null = null
-      try {
-        await this.logAudit({
-          user_name: userName || userEmail,
-          action_type: 'ZSD35A_EXCEL_IMPORT',
-          target_entity: 'sap_sales_orders',
-          target_id: report.batchId,
-          details: {
-            fileName: report.fileName,
-            totalRead: report.totalRowsRead,
-            createdCount,
-            updatedCount,
-            rejectedCount: report.rejectedRowsCount,
-            totalWeightTon: report.totalWeightTon,
-            origem_dado: 'EXCEL_QAS_ZSD35A_V3',
-            layoutVersion: 'ZSD35A_V3_27_CAMPOS',
-          },
-        })
-      } catch (audErr: any) {
-        auditWarning = audErr?.message || 'Falha ao registrar auditoria secundária'
-      }
-
-      onProgressUpdate?.('Concluído!', 100)
-
-      return {
-        success: true,
-        batchId: report.batchId,
-        createdCount,
-        updatedCount,
-        persistedCount: createdCount + updatedCount,
-        auditWarning,
-        message: `Importação ZSD35A V3 concluída! ${createdCount} novos itens e ${updatedCount} atualizados na Carteira de Pedidos.`,
-      }
-    } catch (err: any) {
-      console.error('Erro na importação em lote ZSD35A:', err)
-      return {
-        success: false,
-        batchId: report.batchId,
-        createdCount,
-        updatedCount,
-        persistedCount: 0,
-        message: err.message || 'Erro durante a importação em lote ZSD35A.',
-      }
-    }
-  },
-
-  /**
-   * REGRA DE SEGURANÇA MANDATÓRIA:
-   * Exclusão restrita a registros com origem_dado = 'EXCEL_QAS', 'EXCEL_QAS_ZSD35_V3' ou 'EXCEL_QAS_ZSD35A_V3' (massa de homologação).
-   * Registros oficiais 'SAP' NUNCA podem ser apagados por esta rotina.
-   */
-  async deleteExcelQasBatch(
-    batchId?: string,
-    userEmail = 'admin@ciafal.logistica',
-    userName = 'Gestor de Logística',
-  ): Promise<{ success: boolean; deletedCount: number; message: string }> {
-    try {
-      // Busca registros de homologação EXCEL_QAS / EXCEL_QAS_ZSD35_V3
-      let filter =
-        '(origem_dado = "EXCEL_QAS" || origem_dado = "EXCEL_QAS_ZSD35_V3" || origem_dado = "EXCEL_QAS_ZSD35A_V3")'
-      if (batchId) {
-        filter += ` && import_batch_id = "${batchId}"`
-      }
-
-      const recordsToDelete = await pb.collection('sap_sales_orders').getFullList({
-        filter,
-      })
-
-      let deletedCount = 0
-      for (const rec of recordsToDelete) {
-        // Validação adicional de proteção
-        if (
-          rec.origem_dado === 'EXCEL_QAS' ||
-          rec.origem_dado === 'EXCEL_QAS_ZSD35_V3' ||
-          rec.origem_dado === 'EXCEL_QAS_ZSD35A_V3'
-        ) {
-          await pb.collection('sap_sales_orders').delete(rec.id)
-          deletedCount++
-        }
-      }
-
-      // Se passou batchId, atualiza status no sap_imports
-      if (batchId) {
-        try {
-          const imports = await pb.collection('sap_imports').getFullList({
-            filter: `batch_id = "${batchId}"`,
-          })
-          if (imports.length > 0) {
-            await pb.collection('sap_imports').delete(imports[0].id)
-          }
-        } catch {
-          /* intentionally ignored */
-        }
-      }
-
-      await this.logAudit({
-        user_name: userName,
-        action_type: 'DELETE_EXCEL_QAS_BATCH',
-        target_entity: 'sap_sales_orders',
-        target_id: batchId || 'ALL_EXCEL_QAS',
-        details: {
-          deletedCount,
-          batchId: batchId || 'TODOS_QAS',
-          safetyCheck: 'ORIGEM_EXCEL_QAS_ONLY_PROTECTED',
-        },
-      })
-
-      return {
-        success: true,
-        deletedCount,
-        message: `${deletedCount} registro(s) de teste (Excel QAS) excluído(s) com sucesso. Registros oficiais SAP foram preservados.`,
-      }
-    } catch (err: any) {
-      console.error('Erro ao excluir lote EXCEL_QAS:', err)
-      return {
-        success: false,
-        deletedCount: 0,
-        message: err.message || 'Falha ao excluir massa de homologação.',
-      }
-    }
-  },
-
-  // 5. Tabelas Comerciais & Mapeamento ZSD35
   async getFredTransports(filter?: string): Promise<any[]> {
     try {
       return await pb.collection('fred_transports').getFullList({
@@ -4005,27 +3580,6 @@ export const TmsService = {
     return this.getExpeditionTrackings(filter)
   },
 
-  async getImportBatches(): Promise<any[]> {
-    try {
-      return await pb.collection('sap_imports').getFullList({
-        sort: '-created',
-      })
-    } catch {
-      return []
-    }
-  },
-
-  async resetQasHomologationData(
-    userEmail = 'admin@ciafal.logistica',
-  ): Promise<{ success: boolean; deleted_count: number; message: string }> {
-    const res = await this.deleteExcelQasBatch(undefined, userEmail, 'Admin Master')
-    return {
-      success: res.success,
-      deleted_count: res.deletedCount,
-      message: res.message,
-    }
-  },
-
   async getCommercialFreightTables(): Promise<any[]> {
     try {
       return await pb.collection('commercial_freight_tables').getFullList({
@@ -4034,45 +3588,6 @@ export const TmsService = {
       })
     } catch {
       return []
-    }
-  },
-
-  async getZsd35ColumnMappings(): Promise<any[]> {
-    try {
-      return await pb.collection('zsd35_column_mappings').getFullList()
-    } catch {
-      return []
-    }
-  },
-
-  async saveZsd35ColumnMapping(
-    data:
-      | { profile_name: string; mappings_json: Record<string, string>; is_default?: boolean }
-      | string,
-    mappingsArg?: Record<string, string>,
-  ): Promise<any> {
-    try {
-      const profileName = typeof data === 'string' ? data : data.profile_name
-      const mappings = typeof data === 'string' ? mappingsArg || {} : data.mappings_json
-      const isDefault = typeof data === 'string' ? true : (data.is_default ?? true)
-
-      const existing = await pb.collection('zsd35_column_mappings').getFullList({
-        filter: `profile_name = "${profileName}"`,
-      })
-      if (existing.length > 0) {
-        return await pb.collection('zsd35_column_mappings').update(existing[0].id, {
-          mappings_json: mappings,
-          is_default: isDefault,
-        })
-      }
-      return await pb.collection('zsd35_column_mappings').create({
-        profile_name: profileName,
-        is_default: isDefault,
-        mappings_json: mappings,
-      })
-    } catch (err: any) {
-      console.warn('saveZsd35ColumnMapping error:', err)
-      return null
     }
   },
 

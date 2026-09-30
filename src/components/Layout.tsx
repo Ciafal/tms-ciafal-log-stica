@@ -153,11 +153,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: true,
         },
         {
-          title: 'Carregar Carteira (Excel ZSD35A)',
-          path: '/tms/zsd35-importar',
-          badge: 'Provider Ativo',
+          title: 'Sincronização SAP',
+          path: '/tms/sincronizacao-sap',
+          badge: 'RFC Online',
           badgeColor: 'bg-emerald-600',
-          show: permissions.canImportZsd35 || permissions.canViewZsd35History,
+          show: permissions.canSyncSapWallet || true,
         },
         {
           title: 'Itinerários SAP',

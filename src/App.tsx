@@ -51,9 +51,8 @@ import CargoDetailPage from '@/pages/CargoDetailPage'
 import ProfitabilityDashboardPage from '@/pages/ProfitabilityDashboardPage'
 import ExpeditionPerformancePage from '@/pages/ExpeditionPerformancePage'
 import WmsLoadingMapPage from '@/pages/WmsLoadingMapPage'
-import Zsd35ImportPage from '@/pages/Zsd35ImportPage'
 import SalesWalletPage from '@/pages/SalesWalletPage'
-import Zsd35MappingAdminPage from '@/pages/Zsd35MappingAdminPage'
+import SapSyncStatusPage from '@/pages/SapSyncStatusPage'
 import AiPlannerParamsPage from '@/pages/AiPlannerParamsPage'
 import { FredControlTowerPage } from '@/pages/FredControlTowerPage'
 import { FredTransport360Page } from '@/pages/FredTransport360Page'
@@ -156,9 +155,13 @@ export const App: React.FC = () => {
           />
           <Route
             path="/tms/zsd35-importar"
+            element={<Navigate to="/tms/analises/carteira-vendas" replace />}
+          />
+          <Route
+            path="/tms/sincronizacao-sap"
             element={
               <Layout>
-                <Zsd35ImportPage />
+                <SapSyncStatusPage />
               </Layout>
             }
           />
@@ -180,11 +183,7 @@ export const App: React.FC = () => {
           />
           <Route
             path="/tms/zsd35-mapeamento"
-            element={
-              <Layout>
-                <Zsd35MappingAdminPage />
-              </Layout>
-            }
+            element={<Navigate to="/tms/sap-monitor" replace />}
           />
           <Route
             path="/tms/estoque-producao"
@@ -705,11 +704,7 @@ export const App: React.FC = () => {
           />
           <Route
             path="/tms/administracao/mapeamento-zsd35"
-            element={
-              <Layout>
-                <Zsd35MappingAdminPage />
-              </Layout>
-            }
+            element={<Navigate to="/tms/sap-monitor" replace />}
           />
           <Route
             path="/tms/impressoras"

@@ -393,7 +393,7 @@ export interface SapSalesOrderEntity {
   dest_longitude?: number
   address_validated?: boolean
   status?: 'disponivel' | 'em_montagem' | 'carregado' | 'cancelado'
-  // ZSD35 Rich Fields from SAP ECC / Preview PNG
+  // Campos SAP ECC da Carteira Comercial (VBAK/VBAP)
   q_dias?: number
   raw_q_dias?: number
   freight_value?: number
@@ -425,10 +425,8 @@ export interface SapSalesOrderEntity {
   balance_quantity_kg?: number
   created?: string
   updated?: string
-  // Campos ZSD35A & Origem do Dado / Provider da Carteira (QAS Excel / SAP Online)
-  origem_dado?: 'SAP' | 'EXCEL_QAS' | 'EXCEL_QAS_ZSD35_V3' | 'EXCEL_QAS_ZSD35A_V3' | 'EXCEL_ZSD35A'
-  wallet_provider?: 'EXCEL_ZSD35A' | 'SAP_ECC' | 'SAP_S4' | 'MANUAL'
-  import_batch_id?: string
+  // Origem do Dado / Sincronização SAP RFC (Fonte Única da Carteira)
+  origem_dado?: 'SAP'
   source_file?: string
   imported_by_user?: string
   imported_at?: string
@@ -443,75 +441,15 @@ export interface SapSalesOrderEntity {
 
 /**
  * PedidoTMS — Entidade canônica unificada de Pedido no ecossistema TMS CIAFAL.
- * Alinhada à estrutura sap_sales_orders (repositório único), garantindo interoperabilidade
- * transparente entre fontes (Excel ZSD35A e SAP ECC RFC) sem caminho paralelo.
+ * Alinhada à estrutura sap_sales_orders (repositório único), espelho operacional fiel do SAP ECC via RFC.
  */
 export type PedidoTMS = SapSalesOrderEntity
 
 // ----------------------------------------------------
-// CONTRATO ARQUITETURAL DE PROVIDERS DE CARTEIRA ÚNICA
+// FONTE ÚNICA EXCLUSIVA DA CARTEIRA TMS: SAP VIA RFC
 // ----------------------------------------------------
-export type SalesWalletProviderType = 'EXCEL_ZSD35A' | 'SAP_ECC' | 'SAP_S4' | 'MANUAL'
-
-export interface SalesWalletProviderInfo {
-  id: SalesWalletProviderType
-  name: string
-  shortLabel: string
-  description: string
-  status: 'ACTIVE' | 'IN_DEVELOPMENT' | 'PLANNED'
-  badgeLabel: string
-  badgeVariant: 'default' | 'secondary' | 'outline' | 'destructive'
-  isAvailable: boolean
-  syncMethod: 'EXCEL_INGESTION' | 'RFC_BAPI' | 'REST_ODATA' | 'INTERNAL'
-}
-
-export const SALES_WALLET_PROVIDERS: Record<SalesWalletProviderType, SalesWalletProviderInfo> = {
-  EXCEL_ZSD35A: {
-    id: 'EXCEL_ZSD35A',
-    name: 'Excel (ZSD35A / QAS)',
-    shortLabel: 'Excel (ZSD35A)',
-    description:
-      'Ingestão e carregamento de pedidos via arquivo Excel/CSV espelho da transação ZSD35A.',
-    status: 'ACTIVE',
-    badgeLabel: 'Ativo / Em Operação',
-    badgeVariant: 'default',
-    isAvailable: true,
-    syncMethod: 'EXCEL_INGESTION',
-  },
-  SAP_ECC: {
-    id: 'SAP_ECC',
-    name: 'SAP ECC 6.0 (RFC/BAPI)',
-    shortLabel: 'SAP ECC (RFC)',
-    description: 'Conexão direta RFC/BAPI com transação SAP ZSD35/VT01N em tempo real.',
-    status: 'IN_DEVELOPMENT',
-    badgeLabel: 'Em desenvolvimento',
-    badgeVariant: 'outline',
-    isAvailable: false,
-    syncMethod: 'RFC_BAPI',
-  },
-  SAP_S4: {
-    id: 'SAP_S4',
-    name: 'SAP S/4HANA (OData/REST)',
-    shortLabel: 'SAP S/4HANA',
-    description: 'Integração OData V4 / REST com SAP S/4HANA Cloud & On-Premise.',
-    status: 'PLANNED',
-    badgeLabel: 'Futuro / Planejado',
-    badgeVariant: 'outline',
-    isAvailable: false,
-    syncMethod: 'REST_ODATA',
-  },
-  MANUAL: {
-    id: 'MANUAL',
-    name: 'Digitação Manual TMS',
-    shortLabel: 'Manual',
-    description: 'Entrada manual para contingência operacional restrita.',
-    status: 'PLANNED',
-    badgeLabel: 'Contingência',
-    badgeVariant: 'outline',
-    isAvailable: false,
-    syncMethod: 'INTERNAL',
-  },
-}
+export const CARTEIRA_TMS_SOURCE = 'SAP_RFC' as const
+export type CarteiraTmsSourceType = typeof CARTEIRA_TMS_SOURCE
 
 export interface OportunidadeComplementoCargaEntity {
   id: string
@@ -1021,9 +959,7 @@ export interface Permissions {
   canAnalyzeExpeditionAi: boolean // expedicao.analisar_ia
   canViewWmsLoadingMap: boolean // wms.mapa_carregamento
   canConfirmWmsLoading: boolean // wms.confirmar_carregamento
-  canImportZsd35: boolean // zsd35.importar
-  canViewZsd35History: boolean // zsd35.ver_historico
-  canManageZsd35Mapping: boolean // zsd35.mapeamento
+  canSyncSapWallet: boolean // sap.sync_carteira
   // Sprint 7: Mesa de Fretes, Carlão, Expedição e Inteligência
   canNegotiateFreights: boolean // fretes.negociar
   canSuperviseCarlao: boolean // carlao.supervisao
@@ -1077,9 +1013,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canAnalyzeExpeditionAi: true,
     canViewWmsLoadingMap: true,
     canConfirmWmsLoading: true,
-    canImportZsd35: true,
-    canViewZsd35History: true,
-    canManageZsd35Mapping: true,
+    canSyncSapWallet: true,
     canNegotiateFreights: true,
     canSuperviseCarlao: true,
     canManageCarlaoAutonomy: true,
@@ -1129,9 +1063,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canAnalyzeExpeditionAi: true,
     canViewWmsLoadingMap: true,
     canConfirmWmsLoading: true,
-    canImportZsd35: true,
-    canViewZsd35History: true,
-    canManageZsd35Mapping: true,
+    canSyncSapWallet: true,
     canNegotiateFreights: true,
     canSuperviseCarlao: true,
     canManageCarlaoAutonomy: true,
@@ -1181,9 +1113,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canAnalyzeExpeditionAi: true,
     canViewWmsLoadingMap: true,
     canConfirmWmsLoading: true,
-    canImportZsd35: true,
-    canViewZsd35History: true,
-    canManageZsd35Mapping: true,
+    canSyncSapWallet: true,
     canNegotiateFreights: true,
     canSuperviseCarlao: true,
     canManageCarlaoAutonomy: true,
@@ -1233,9 +1163,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canAnalyzeExpeditionAi: true,
     canViewWmsLoadingMap: true,
     canConfirmWmsLoading: true,
-    canImportZsd35: true,
-    canViewZsd35History: true,
-    canManageZsd35Mapping: false,
+    canSyncSapWallet: false,
     canNegotiateFreights: true,
     canSuperviseCarlao: false,
     canManageCarlaoAutonomy: false,
@@ -1285,9 +1213,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canAnalyzeExpeditionAi: false,
     canViewWmsLoadingMap: true,
     canConfirmWmsLoading: true,
-    canImportZsd35: false,
-    canViewZsd35History: true,
-    canManageZsd35Mapping: false,
+    canSyncSapWallet: false,
     canNegotiateFreights: true,
     canSuperviseCarlao: false,
     canManageCarlaoAutonomy: false,
@@ -1337,9 +1263,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canAnalyzeExpeditionAi: false,
     canViewWmsLoadingMap: false,
     canConfirmWmsLoading: false,
-    canImportZsd35: false,
-    canViewZsd35History: false,
-    canManageZsd35Mapping: false,
+    canSyncSapWallet: false,
     canNegotiateFreights: false,
     canSuperviseCarlao: false,
     canManageCarlaoAutonomy: false,
@@ -1389,9 +1313,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canAnalyzeExpeditionAi: false,
     canViewWmsLoadingMap: false,
     canConfirmWmsLoading: false,
-    canImportZsd35: false,
-    canViewZsd35History: true,
-    canManageZsd35Mapping: false,
+    canSyncSapWallet: false,
     canNegotiateFreights: false,
     canSuperviseCarlao: false,
     canManageCarlaoAutonomy: false,
@@ -1441,9 +1363,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canAnalyzeExpeditionAi: false,
     canViewWmsLoadingMap: false,
     canConfirmWmsLoading: false,
-    canImportZsd35: false,
-    canViewZsd35History: true,
-    canManageZsd35Mapping: false,
+    canSyncSapWallet: false,
     canNegotiateFreights: false,
     canSuperviseCarlao: false,
     canManageCarlaoAutonomy: false,
@@ -1493,9 +1413,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canAnalyzeExpeditionAi: true,
     canViewWmsLoadingMap: true,
     canConfirmWmsLoading: false,
-    canImportZsd35: false,
-    canViewZsd35History: true,
-    canManageZsd35Mapping: false,
+    canSyncSapWallet: false,
     canNegotiateFreights: false,
     canSuperviseCarlao: true,
     canManageCarlaoAutonomy: false,
@@ -1564,9 +1482,7 @@ export function getUserPermissions(role?: UserRole): Permissions {
       canAnalyzeExpeditionAi: false,
       canViewWmsLoadingMap: false,
       canConfirmWmsLoading: false,
-      canImportZsd35: false,
-      canViewZsd35History: false,
-      canManageZsd35Mapping: false,
+      canSyncSapWallet: false,
       canNegotiateFreights: false,
       canSuperviseCarlao: false,
       canManageCarlaoAutonomy: false,
