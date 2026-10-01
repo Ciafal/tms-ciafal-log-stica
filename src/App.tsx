@@ -105,11 +105,7 @@ export const App: React.FC = () => {
           />
           <Route
             path="/tms/disponibilidade-programada"
-            element={
-              <Layout>
-                <QueueDashboard />
-              </Layout>
-            }
+            element={<Navigate to="/tms/fila?tab=PROGRAMADOS" replace />}
           />
           <Route
             path="/tms/pre-cadastros"

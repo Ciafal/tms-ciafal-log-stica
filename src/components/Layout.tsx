@@ -105,13 +105,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: true,
         },
         {
-          title: 'Disponibilidade Programada',
-          path: '/tms/disponibilidade-programada',
-          badge: 'Futuro',
-          badgeColor: 'bg-sky-600',
-          show: true,
-        },
-        {
           title: 'Pré-cadastros',
           path: '/tms/pre-cadastros',
           show: permissions.canManagePreRegistrations,

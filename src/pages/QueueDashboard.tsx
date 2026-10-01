@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Layers,
   Truck,
@@ -72,6 +73,7 @@ import {
 export const QueueDashboard: React.FC = () => {
   const { user, permissions } = useAuth()
   const { toast } = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
   const [preRegistrations, setPreRegistrations] = useState<PreRegistrationEntity[]>([])
@@ -79,9 +81,30 @@ export const QueueDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedItineraryFilter, setSelectedItineraryFilter] = useState('ALL')
+
+  const initialTabParam = searchParams.get('tab')?.toUpperCase()
+  const validTabs: Array<'PORTA' | 'FORA' | 'PROGRAMADOS' | 'PREREG' | 'MATRIZ'> = [
+    'PORTA',
+    'FORA',
+    'PROGRAMADOS',
+    'PREREG',
+    'MATRIZ',
+  ]
+  const resolvedInitialTab = validTabs.includes(initialTabParam as any)
+    ? (initialTabParam as 'PORTA' | 'FORA' | 'PROGRAMADOS' | 'PREREG' | 'MATRIZ')
+    : 'PORTA'
+
   const [activeTab, setActiveTab] = useState<
     'PORTA' | 'FORA' | 'PROGRAMADOS' | 'PREREG' | 'MATRIZ'
-  >('PORTA')
+  >(resolvedInitialTab)
+
+  // Sincroniza a aba ativa quando o search param mudar via navegação/redirecionamento
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')?.toUpperCase()
+    if (tabParam && validTabs.includes(tabParam as any)) {
+      setActiveTab(tabParam as any)
+    }
+  }, [searchParams])
 
   // QR Code Modal
   const [showQrModal, setShowQrModal] = useState(false)
