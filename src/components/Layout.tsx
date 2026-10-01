@@ -70,7 +70,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // Collapsible menu groups state
+  // Collapsible menu groups state (auto-abre se a rota ativa pertencer ao grupo)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     disponibilidade: true,
     planejamento: true,
@@ -78,7 +78,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     expedicao: false,
     transporte: false,
     analises: true,
-    configuracoes: false,
+    configuracoes:
+      location.pathname.startsWith('/tms/sincronizacao-sap') ||
+      location.pathname.startsWith('/tms/monitor-integracoes'),
   })
 
   const toggleGroup = (groupId: string) => {
@@ -151,13 +153,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           badge: 'CRM',
           badgeColor: 'bg-purple-600',
           show: true,
-        },
-        {
-          title: 'Sincronização SAP',
-          path: '/tms/sincronizacao-sap',
-          badge: 'RFC Online',
-          badgeColor: 'bg-emerald-600',
-          show: permissions.canSyncSapWallet || true,
         },
         {
           title: 'Itinerários SAP',
@@ -348,6 +343,17 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       title: 'CONFIGURAÇÕES',
       icon: Sliders,
       items: [
+        {
+          title: 'Sincronização SAP',
+          path: '/tms/sincronizacao-sap',
+          badge: 'RFC Online',
+          badgeColor: 'bg-emerald-600',
+          show:
+            permissions.canSyncSapWallet ||
+            role === 'admin_master' ||
+            role === 'admin_tms' ||
+            role === 'gestor_logistica',
+        },
         {
           title: 'Integrações & Central',
           path: '/tms/monitor-integracoes',
@@ -608,8 +614,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             {/* Grouped Accordion Menu */}
             {menuGroups.map((group) => {
               const Icon = group.icon
-              const isOpen = openGroups[group.id] ?? false
               const hasActiveChild = group.items.some((i) => location.pathname === i.path)
+              const isOpen = openGroups[group.id] ?? hasActiveChild
 
               return (
                 <div key={group.id} className="border-t border-slate-100 pt-1.5">

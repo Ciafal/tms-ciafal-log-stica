@@ -15,6 +15,9 @@ import {
   ShieldCheck,
   Clock,
   FileCode,
+  Building2,
+  ChevronRight,
+  Sliders,
 } from 'lucide-react'
 import { tmsService } from '@/services/tmsService'
 import { useAuth } from '@/contexts/AuthContext'
@@ -116,32 +119,62 @@ export function SapSyncStatusPage() {
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Sincronização SAP ECC (RFC)
-            </h1>
-            <Badge variant="outline" className="border-emerald-600 bg-emerald-50 text-emerald-700">
-              Fonte Única Exclusiva
-            </Badge>
-          </div>
-          <p className="text-sm text-slate-500">
-            Monitoramento da integração RFC com o SAP ECC 6.0 e sincronização da carteira comercial.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="default"
-            onClick={handleSyncNow}
-            disabled={syncing || !canSync}
-            className="gap-2 bg-blue-700 hover:bg-blue-800 text-white"
+      {/* Breadcrumb e Cabeçalho */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
+        {/* Breadcrumb Estrutural: TMS → Configurações → Sincronização SAP */}
+        <nav
+          aria-label="breadcrumb"
+          className="flex items-center space-x-2 text-xs font-semibold text-slate-500"
+        >
+          <Link
+            to="/tms/dashboard"
+            className="hover:text-[#005596] transition flex items-center gap-1"
           >
-            <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Sincronizando...' : 'Sincronizar Carteira Agora'}
-          </Button>
+            <Building2 className="w-3.5 h-3.5 text-slate-400" />
+            TMS
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+          <Link
+            to="/tms/monitor-integracoes"
+            className="hover:text-[#005596] transition flex items-center gap-1"
+          >
+            <Sliders className="w-3.5 h-3.5 text-slate-400" />
+            Configurações
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+          <span className="text-[#005596] font-bold">Sincronização SAP</span>
+        </nav>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pt-1">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-black tracking-tight text-slate-900">
+                Sincronização SAP ECC (RFC)
+              </h1>
+              <Badge
+                variant="outline"
+                className="border-emerald-600 bg-emerald-50 text-emerald-700"
+              >
+                Fonte Única Exclusiva
+              </Badge>
+            </div>
+            <p className="text-sm text-slate-500">
+              Monitoramento da integração RFC com o SAP ECC 6.0 e sincronização da carteira
+              comercial.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              onClick={handleSyncNow}
+              disabled={syncing || !canSync}
+              className="gap-2 bg-blue-700 hover:bg-blue-800 text-white"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar Carteira Agora'}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -317,7 +350,7 @@ export function SapSyncStatusPage() {
             <div className="text-xs text-slate-500">
               Consulte os parâmetros técnicos no Monitor de Integrações.
             </div>
-            <Link to="/tms/integracoes">
+            <Link to="/tms/monitor-integracoes">
               <Button variant="outline" size="sm" className="gap-1 text-xs">
                 Monitor de Integrações
                 <ArrowRight className="h-3 w-3" />
