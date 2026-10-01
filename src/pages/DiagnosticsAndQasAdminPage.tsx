@@ -12,29 +12,17 @@ import {
   Clock,
   Radio,
   Server,
-  Trash2,
-  Lock,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
-import { tmsService, TmsService } from '@/services/tmsService'
+import { tmsService } from '@/services/tmsService'
 
 export const DiagnosticsAndQasAdminPage: React.FC = () => {
-  const { user, role } = useAuth()
+  const { role } = useAuth()
   const { toast } = useToast()
 
   const [loading, setLoading] = useState(true)
@@ -48,10 +36,8 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
   const [transportsCount, setTransportsCount] = useState<number>(0)
   const [expeditionCount, setExpeditionCount] = useState<number>(0)
 
-  // Modal Reset QAS
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false)
-  const [confirmText, setConfirmText] = useState('')
-  const [isResetting, setIsResetting] = useState(false)
+  // Sincronização direta SAP RFC
+  const [isSyncingSap, setIsSyncingSap] = useState(false)
 
   const loadDiagnostics = async () => {
     try {
@@ -87,47 +73,27 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
     loadDiagnostics()
   }, [])
 
-  const handleExecuteReset = async () => {
-    if (confirmText !== 'CONFIRMAR RESET QAS') {
-      toast({
-        variant: 'destructive',
-        title: 'Texto de confirmação incorreto',
-        description: 'Digite exatamente "CONFIRMAR RESET QAS" para autorizar.',
-      })
-      return
-    }
-
-    if (role !== 'admin_master') {
-      toast({
-        variant: 'destructive',
-        title: 'Ação não permitida',
-        description: 'Apenas Administrador Master pode executar o Reset QAS.',
-      })
-      return
-    }
-
-    setIsResetting(true)
+  const handleSyncSapRfc = async () => {
+    setIsSyncingSap(true)
     try {
-      const res = await tmsService.resetQasHomologationData(user?.email || 'admin@ciafal.com.br')
+      const res = await tmsService.syncSapSalesWallet()
       toast({
-        title: 'Reset QAS Concluído com Sucesso',
-        description: `${res.deleted_count} registros operacionais QAS foram removidos com segurança.`,
+        title: res.success ? 'Sincronização SAP RFC Processada' : 'Aviso SAP RFC',
+        description: res.message,
       })
-      setIsResetModalOpen(false)
-      setConfirmText('')
       await loadDiagnostics()
     } catch (err: any) {
       toast({
         variant: 'destructive',
-        title: 'Erro ao executar Reset QAS',
-        description: err?.message || 'Falha ao executar limpeza da base.',
+        title: 'Erro de Conexão SAP RFC',
+        description: err?.message || 'Falha ao sincronizar com SAP ECC via RFC.',
       })
     } finally {
-      setIsResetting(false)
+      setIsSyncingSap(false)
     }
   }
 
-  const isMaster = role === 'admin_master'
+  const canSyncSap = role === 'admin_master' || role === 'admin_tms' || role === 'gestor_logistica'
 
   return (
     <div className="space-y-6 animate-fade-in pb-16">
@@ -137,13 +103,13 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
           <div className="flex items-center space-x-2.5">
             <Activity className="w-6 h-6 text-[#005596]" />
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              Diagnóstico de Integrações & Administração QAS
+              Diagnóstico de Integrações & Administração SAP
             </h1>
-            <Badge className="bg-[#005596] text-white text-xs">Governança QAS</Badge>
+            <Badge className="bg-[#005596] text-white text-xs">Governança SAP RFC</Badge>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Painel de saúde das fontes de dados, integridade da sincronização SAP RFC e saneamento
-            seguro.
+            Painel de saúde das fontes de dados, integridade da sincronização SAP RFC
+            (ZSD35_CARTEIRA_GET) e auditoria de registros.
           </p>
         </div>
 
@@ -158,6 +124,16 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
             <RotateCcw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             Atualizar Diagnóstico
           </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleSyncSapRfc}
+            disabled={isSyncingSap || !canSyncSap}
+            className="text-xs bg-[#005596] hover:bg-[#004478] text-white gap-1.5"
+          >
+            <Server className={`w-3.5 h-3.5 ${isSyncingSap ? 'animate-spin' : ''}`} />
+            {isSyncingSap ? 'Sincronizando RFC...' : 'Sincronizar SAP RFC'}
+          </Button>
         </div>
       </div>
 
@@ -167,9 +143,9 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
             <Activity className="w-4 h-4 text-[#005596]" />
             1. Saúde das Integrações & SAP RFC
           </TabsTrigger>
-          <TabsTrigger value="reset_qas" className="text-xs font-bold gap-1.5 text-rose-700">
-            <Trash2 className="w-4 h-4 text-rose-600" />
-            2. Administração & Saneamento Operacional
+          <TabsTrigger value="sap_governanca" className="text-xs font-bold gap-1.5 text-blue-700">
+            <Server className="w-4 h-4 text-blue-600" />
+            2. Governança SAP RFC & Preservação
           </TabsTrigger>
         </TabsList>
 
@@ -384,40 +360,42 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
           </div>
         </TabsContent>
 
-        {/* TAB 2: ADMINISTRAÇÃO QAS & RESET */}
-        <TabsContent value="reset_qas" className="space-y-4">
-          <Card className="border-rose-200 bg-rose-50/30">
-            <CardHeader className="p-5 border-b border-rose-100">
+        {/* TAB 2: GOVERNANÇA SAP RFC & PRESERVAÇÃO DE DADOS */}
+        <TabsContent value="sap_governanca" className="space-y-4">
+          <Card className="border-blue-200 bg-sky-50/20">
+            <CardHeader className="p-5 border-b border-blue-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-base font-bold text-rose-950 flex items-center gap-2">
-                    <Trash2 className="w-5 h-5 text-rose-600" />
-                    Rotina Administrativa: Reset de Massa de Homologação QAS
+                  <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <Server className="w-5 h-5 text-[#005596]" />
+                    Governança da Fonte Única: SAP ECC RFC (ZSD35_CARTEIRA_GET)
                   </CardTitle>
-                  <CardDescription className="text-xs text-rose-700 mt-1">
-                    Permite ao Administrador Master limpar dados de teste e homologação mantendo
-                    usuários, regras, RBAC e cadastros técnicos intactos.
+                  <CardDescription className="text-xs text-slate-600 mt-1">
+                    Diretriz de integridade e soberania do SAP ECC como repositório canônico de
+                    ordens de venda (VBAK/VBAP).
                   </CardDescription>
                 </div>
-                <Badge className="bg-rose-700 text-white text-xs font-mono">
-                  SOMENTE ADM MASTER
+                <Badge className="bg-[#005596] text-white text-xs font-mono">
+                  FONTE OFICIAL SAP
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="p-5 space-y-4 text-xs">
-              <div className="p-4 bg-white rounded-lg border border-rose-200 space-y-2">
+              <div className="p-4 bg-white rounded-lg border border-slate-200 space-y-2">
                 <h4 className="font-bold text-slate-900 text-sm">
-                  Resumo da Massa Atual que será Removida:
+                  Espelho Operacional Ativo no TMS CIAFAL:
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 font-mono">
                   <div className="p-2.5 bg-slate-50 rounded border">
                     <span className="text-slate-500 text-[10px] block font-sans">
-                      Carteira de Pedidos:
+                      Pedidos na Carteira SAP:
                     </span>
                     <strong className="text-sm text-slate-900">{ordersCount} registros</strong>
                   </div>
                   <div className="p-2.5 bg-slate-50 rounded border">
-                    <span className="text-slate-500 text-[10px] block font-sans">Cargas TMS:</span>
+                    <span className="text-slate-500 text-[10px] block font-sans">
+                      Cargas Planejadas:
+                    </span>
                     <strong className="text-sm text-slate-900">{cargosCount} registros</strong>
                   </div>
                   <div className="p-2.5 bg-slate-50 rounded border">
@@ -437,93 +415,34 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg text-amber-900 space-y-1">
+              <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-lg text-emerald-900 space-y-1">
                 <strong className="font-bold flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-amber-700" />
-                  Garantia de Segurança & Preservação:
+                  <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                  Política de Preservação e Resiliência (Zero Limpeza Destrutiva):
                 </strong>
                 <p className="text-[11px] leading-relaxed">
-                  Esta rotina remove dados operacionais de homologação. Usuários, permissões,
-                  parâmetros, regras ANTT, rotas e configurações do sistema <strong>
-                    NUNCA
-                  </strong>{' '}
-                  são afetados.
+                  A carteira comercial operacional é mantida intacta e idempotente. Sincronizações
+                  com o SAP ECC atualizam status de estoque, crédito e novos pedidos sem perda de
+                  histórico ou descarte acidental de dados transacionais.
                 </p>
               </div>
+
               <div className="flex justify-end pt-2">
                 <Button
-                  variant="destructive"
+                  variant="default"
                   size="sm"
-                  disabled={!isMaster || (ordersCount === 0 && cargosCount === 0)}
-                  onClick={() => setIsResetModalOpen(true)}
-                  className="bg-rose-700 hover:bg-rose-800 text-xs font-bold gap-1.5"
+                  disabled={isSyncingSap || !canSyncSap}
+                  onClick={handleSyncSapRfc}
+                  className="bg-[#005596] hover:bg-[#004478] text-white text-xs font-bold gap-1.5"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  Limpar Massa de Homologação (Reset QAS)
+                  <Server className={`w-4 h-4 ${isSyncingSap ? 'animate-spin' : ''}`} />
+                  {isSyncingSap ? 'Sincronizando SAP...' : 'Disparar Sincronização SAP RFC'}
                 </Button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* MODAL DE CONFIRMAÇÃO ESTREITA DO RESET */}
-      <Dialog open={isResetModalOpen} onOpenChange={setIsResetModalOpen}>
-        <DialogContent className="max-w-md bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-rose-700 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-rose-600" />
-              Confirmação de Reset de Homologação QAS
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-600">
-              Esta ação excluirá os registros operacionais transacionais de homologação.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 py-2 text-xs">
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-900 space-y-1">
-              <p>Digite exatamente a frase abaixo para autorizar:</p>
-              <div className="font-mono font-bold bg-white p-2 rounded border border-rose-300 text-center select-all">
-                CONFIRMAR RESET QAS
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold">Frase de confirmação:</Label>
-              <Input
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                placeholder="CONFIRMAR RESET QAS"
-                className="font-mono text-xs"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setIsResetModalOpen(false)
-                setConfirmText('')
-              }}
-              disabled={isResetting}
-              className="text-xs"
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleExecuteReset}
-              disabled={confirmText !== 'CONFIRMAR RESET QAS' || isResetting}
-              className="text-xs bg-rose-700 hover:bg-rose-800 font-bold"
-            >
-              {isResetting ? 'Executando Reset...' : 'Confirmar e Executar Reset'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

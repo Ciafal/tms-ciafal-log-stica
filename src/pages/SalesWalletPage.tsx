@@ -439,9 +439,7 @@ export const SalesWalletPage: React.FC = () => {
   const handleSyncSapRfc = async () => {
     setIsSyncing(true)
     try {
-      const syncResult = await tmsService.syncSapCarteira(
-        user?.email || 'operador.logistico@ciafal.com.br',
-      )
+      const syncResult = await tmsService.syncSapSalesWallet()
 
       await fetchData()
 
@@ -450,7 +448,7 @@ export const SalesWalletPage: React.FC = () => {
           title: 'Sincronização SAP RFC Concluída',
           description:
             syncResult.message ||
-            `${syncResult.recordsSynced || orders.length} ordens de venda sincronizadas via RFC ZSD35_CARTEIRA_GET.`,
+            `${syncResult.execution?.recordsRead || orders.length} ordens de venda sincronizadas via RFC ZSD35_CARTEIRA_GET.`,
         })
       } else {
         toast({
