@@ -8,7 +8,6 @@ import {
   Truck,
   Package,
   Layers,
-  FileSpreadsheet,
   CheckCircle2,
   Clock,
   Radio,
@@ -48,8 +47,6 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
   const [negotiationsCount, setNegotiationsCount] = useState<number>(0)
   const [transportsCount, setTransportsCount] = useState<number>(0)
   const [expeditionCount, setExpeditionCount] = useState<number>(0)
-  const [auditCount, setAuditCount] = useState<number>(0)
-  const [lastBatch, setLastBatch] = useState<any>(null)
 
   // Modal Reset QAS
   const [isResetModalOpen, setIsResetModalOpen] = useState(false)
@@ -59,14 +56,13 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
   const loadDiagnostics = async () => {
     try {
       setRefreshing(true)
-      const [ordList, cList, qList, negList, tList, expList, batches] = await Promise.all([
+      const [ordList, cList, qList, negList, tList, expList] = await Promise.all([
         tmsService.getSapSalesOrders().catch(() => []),
         tmsService.getCargos().catch(() => []),
         tmsService.getQueueEntries().catch(() => []),
         tmsService.getFreightNegotiations().catch(() => []),
         tmsService.getFredTransports().catch(() => []),
         tmsService.getExpeditionTracking().catch(() => []),
-        tmsService.getImportBatches().catch(() => []),
       ])
 
       setOrdersCount(ordList.length)
@@ -75,10 +71,6 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
       setNegotiationsCount(negList.length)
       setTransportsCount(tList.length)
       setExpeditionCount(expList.length)
-
-      if (batches && batches.length > 0) {
-        setLastBatch(batches[0])
-      }
     } catch (err: any) {
       toast({
         variant: 'destructive',
@@ -150,8 +142,8 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
             <Badge className="bg-[#005596] text-white text-xs">Governança QAS</Badge>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Painel de saúde das fontes de dados, rastreabilidade de lotes ZSD35A e saneamento seguro
-            de homologação.
+            Painel de saúde das fontes de dados, integridade da sincronização SAP RFC e saneamento
+            seguro.
           </p>
         </div>
 
@@ -173,50 +165,46 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
         <TabsList className="bg-slate-100 p-1 border border-slate-200 flex flex-wrap h-auto gap-1">
           <TabsTrigger value="diagnostico" className="text-xs font-bold gap-1.5">
             <Activity className="w-4 h-4 text-[#005596]" />
-            1. Saúde das Integrações & Lotes
+            1. Saúde das Integrações & SAP RFC
           </TabsTrigger>
           <TabsTrigger value="reset_qas" className="text-xs font-bold gap-1.5 text-rose-700">
             <Trash2 className="w-4 h-4 text-rose-600" />
-            2. Administração QAS & Reset de Massa
+            2. Administração & Saneamento Operacional
           </TabsTrigger>
         </TabsList>
 
         {/* TAB 1: DIAGNÓSTICO E SAÚDE */}
         <TabsContent value="diagnostico" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Card 1: ZSD35A Excel QAS */}
+            {/* Card 1: SAP RFC Sincronização */}
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardHeader className="p-4 pb-2 border-b">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs text-slate-700 flex items-center gap-1.5">
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                    ZSD35A Importação
+                    <Server className="w-4 h-4 text-[#005596]" />
+                    SAP RFC Sincronização
                   </span>
-                  <Badge className="bg-emerald-600 text-white text-[10px]">🟢 Conectado</Badge>
+                  <Badge className="bg-emerald-600 text-white text-[10px]">🟢 Fonte Única</Badge>
                 </div>
               </CardHeader>
               <CardContent className="p-4 space-y-2 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Último Lote:</span>
-                  <strong className="font-mono text-slate-900">
-                    {lastBatch?.batch_code || 'EXCEL_QAS_ZSD35A_V3'}
-                  </strong>
+                  <span className="text-slate-500">Função RFC:</span>
+                  <strong className="font-mono text-slate-900">ZSD35_CARTEIRA_GET</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Origem Padrão:</span>
+                  <span className="text-slate-500">Origem Dado:</span>
                   <Badge
                     variant="outline"
-                    className="text-[9px] font-mono font-bold bg-purple-50 text-purple-700"
+                    className="text-[9px] font-mono font-bold bg-sky-50 text-sky-700 border-sky-200"
                   >
-                    EXCEL_QAS_ZSD35A_V3
+                    SAP (Oficial)
                   </Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Data Importação:</span>
-                  <span className="font-mono text-slate-700">
-                    {lastBatch?.created
-                      ? new Date(lastBatch.created).toLocaleString('pt-BR')
-                      : 'Base Homologada'}
+                  <span className="text-slate-500">Integridade:</span>
+                  <span className="font-mono text-emerald-700 font-semibold">
+                    Espelho Direto SAP
                   </span>
                 </div>
               </CardContent>
@@ -455,13 +443,13 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
                   Garantia de Segurança & Preservação:
                 </strong>
                 <p className="text-[11px] leading-relaxed">
-                  Esta rotina remove <strong>EXCLUSIVAMENTE</strong> registros com{' '}
-                  <code>origem_dado = 'EXCEL_QAS*'</code> e dados operacionais de homologação.
-                  Usuários, permissões, parâmetros, regras ANTT, rotas e configurações do sistema{' '}
-                  <strong>NUNCA</strong> são afetados.
+                  Esta rotina remove dados operacionais de homologação. Usuários, permissões,
+                  parâmetros, regras ANTT, rotas e configurações do sistema <strong>
+                    NUNCA
+                  </strong>{' '}
+                  são afetados.
                 </p>
               </div>
-
               <div className="flex justify-end pt-2">
                 <Button
                   variant="destructive"
@@ -488,7 +476,7 @@ export const DiagnosticsAndQasAdminPage: React.FC = () => {
               Confirmação de Reset de Homologação QAS
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-600">
-              Esta ação excluirá os registros operacionais transacionais da homologação ZSD35A.
+              Esta ação excluirá os registros operacionais transacionais de homologação.
             </DialogDescription>
           </DialogHeader>
 

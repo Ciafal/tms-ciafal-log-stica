@@ -480,7 +480,7 @@ export interface OptimizerEngineInput {
  */
 /**
  * Motor de Inferência / Sugestão Inteligente de Itinerário
- * Utilizado quando o pedido da ZSD35A não possui itinerário SAP preenchido.
+ * Utilizado quando o pedido da carteira SAP não possui itinerário SAP preenchido.
  */
 export function inferItineraryForOrder(
   order: SapSalesOrderEntity,
@@ -592,7 +592,7 @@ export function inferItineraryForOrder(
 
 /**
  * MOTOR GLOBAL DE PROPOSTAS AUTOMÁTICAS DE CARGA (SPRINT CORREÇÃO FUNCIONAL PRIORITÁRIA)
- * Lê toda a Carteira Única (ZSD35A) -> Identifica todos os itinerários ->
+ * Lê toda a Carteira Única (SAP RFC) -> Identifica todos os itinerários ->
  * Avalia elegibilidade -> Otimiza multicritério -> Propondo todas as cargas automaticamente.
  */
 export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOptimizerResult {

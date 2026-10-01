@@ -369,7 +369,7 @@ export function LoadRouterAndSimulatorPage() {
               variant="outline"
               className="bg-sky-50 text-sky-700 border-sky-200 text-xs font-semibold"
             >
-              Fonte: Carteira ZSD35A ({orders.length} pedidos)
+              Fonte: SAP ECC 6.0 (RFC) ({orders.length} pedidos)
             </Badge>
           </div>
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
@@ -691,7 +691,7 @@ export function LoadRouterAndSimulatorPage() {
               </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
                 {orders.length === 0
-                  ? 'Carregue um arquivo ZSD35A ou atualize a integração SAP.'
+                  ? 'Sincronize a carteira SAP via RFC no menu Análises > Carteira de Vendas.'
                   : 'Experimente selecionar "Todos os Itinerários" ou ajustar a data prevista.'}
               </p>
             </Card>
@@ -1074,7 +1074,7 @@ export function LoadRouterAndSimulatorPage() {
                   <div>
                     <CardTitle className="text-base font-bold flex items-center gap-2">
                       <FileCheck className="h-4 w-4 text-emerald-600" />
-                      Reconciliação Matemática da Carteira Única (ZSD35A)
+                      Reconciliação Matemática da Carteira Única (SAP RFC)
                     </CardTitle>
                     <CardDescription className="text-xs">
                       Auditoria de integridade operacional: Total da Carteira = Cargas Propostas +

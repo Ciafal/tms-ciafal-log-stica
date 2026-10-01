@@ -183,7 +183,7 @@ export const App: React.FC = () => {
           />
           <Route
             path="/tms/zsd35-mapeamento"
-            element={<Navigate to="/tms/sap-monitor" replace />}
+            element={<Navigate to="/tms/analises/carteira-vendas" replace />}
           />
           <Route
             path="/tms/estoque-producao"
@@ -704,7 +704,7 @@ export const App: React.FC = () => {
           />
           <Route
             path="/tms/administracao/mapeamento-zsd35"
-            element={<Navigate to="/tms/sap-monitor" replace />}
+            element={<Navigate to="/tms/analises/carteira-vendas" replace />}
           />
           <Route
             path="/tms/impressoras"
