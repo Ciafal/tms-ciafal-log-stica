@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-01T18:35:09.819Z",
+  "generatedAt": "2026-10-01T19:01:34.563Z",
   "collections": [
     {
       "name": "users",
@@ -11116,6 +11116,661 @@
         "CREATE INDEX idx_lcc_opp ON load_complement_candidates (opportunity_code)",
         "CREATE INDEX idx_lcc_cust ON load_complement_candidates (customer_code)",
         "CREATE INDEX idx_lcc_rank ON load_complement_candidates (ranking_score)"
+      ]
+    },
+    {
+      "name": "tms_collector_events",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "event_type",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tknum",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vbeln",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "posnr",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "matnr",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "charg",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "warehouse",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "storage_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "storage_bin",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "transfer_order",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "hub_user_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "employee_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "device_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_message_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_message_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_message",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payload_hash",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "details",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_collevt_tknum ON tms_collector_events (tknum)",
+        "CREATE INDEX idx_collevt_vbeln ON tms_collector_events (vbeln)",
+        "CREATE INDEX idx_collevt_matcharg ON tms_collector_events (matnr, charg)",
+        "CREATE INDEX idx_collevt_type ON tms_collector_events (event_type)",
+        "CREATE INDEX idx_collevt_corr ON tms_collector_events (correlation_id)"
+      ]
+    },
+    {
+      "name": "tms_collector_pickings",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "tknum",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vbeln",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "posnr",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "matnr",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "charg",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "material_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "unit",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tanum",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lgnum",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vltyp",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vlpla",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nltyp",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nlpla",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["CONFIRMADO", "CANCELADO", "ELIMINADO"]
+        },
+        {
+          "name": "operator_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "operator_matricula",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "operator_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cancelled_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cancelled_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cancelled_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_collpick_tknum ON tms_collector_pickings (tknum)",
+        "CREATE INDEX idx_collpick_vbeln ON tms_collector_pickings (vbeln)",
+        "CREATE INDEX idx_collpick_batch ON tms_collector_pickings (matnr, charg)",
+        "CREATE INDEX idx_collpick_status ON tms_collector_pickings (status)"
+      ]
+    },
+    {
+      "name": "tms_collector_justifications",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "tknum",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vbeln",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "posnr",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "justi",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "matri",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "uname",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "planned_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "collected_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "percentage",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "erdat",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "erzet",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_colljust_tknum ON tms_collector_justifications (tknum)",
+        "CREATE INDEX idx_colljust_vbeln ON tms_collector_justifications (vbeln)"
+      ]
+    },
+    {
+      "name": "tms_collector_locks",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "lock_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vbeln",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "posnr",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "matnr",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "charg",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "operator_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "operator_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "device_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "expires_at",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_colllock_key ON tms_collector_locks (lock_key)",
+        "CREATE INDEX idx_colllock_exp ON tms_collector_locks (expires_at)"
+      ]
+    },
+    {
+      "name": "tms_collector_sessions",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "tknum",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "operator_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "operator_matricula",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "operator_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "device_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["INICIADO", "EM_COLETA", "FINALIZADO", "CANCELADO"]
+        },
+        {
+          "name": "started_at",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "first_scan_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_scan_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "finished_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_planned_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_collected_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "percentage_loaded",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deliveries_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deliveries_completed",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "batches_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_collsess_tknum ON tms_collector_sessions (tknum)",
+        "CREATE INDEX idx_collsess_oper ON tms_collector_sessions (operator_id)",
+        "CREATE INDEX idx_collsess_status ON tms_collector_sessions (status)"
       ]
     }
   ]

@@ -44,6 +44,7 @@ import { StubModulePage } from '@/pages/StubModulePage'
 import PrintersAdminPage from '@/pages/PrintersAdminPage'
 import { ExpeditionManagementPage } from '@/pages/ExpeditionManagementPage'
 import { ExpeditionControlTowerPage } from '@/pages/ExpeditionControlTowerPage'
+import { CollectorPage } from '@/pages/CollectorPage'
 import { FreightIntelligencePage } from '@/pages/FreightIntelligencePage'
 import { AiAutonomyAndRulesPage } from '@/pages/AiAutonomyAndRulesPage'
 import PrintMonitorPage from '@/pages/PrintMonitorPage'
@@ -278,6 +279,22 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <ExpeditionManagementPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/expedicao/coletor"
+            element={
+              <Layout>
+                <CollectorPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/coletor"
+            element={
+              <Layout>
+                <CollectorPage />
               </Layout>
             }
           />

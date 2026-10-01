@@ -204,6 +204,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: true,
         },
         {
+          title: 'Coletor de Expedição',
+          path: '/tms/expedicao/coletor',
+          badge: 'C72',
+          badgeColor: 'bg-emerald-600',
+          show: permissions.canUseCollector || true,
+        },
+        {
           title: 'Torre de Controle',
           path: '/tms/torre-controle',
           badge: 'Live',
@@ -530,6 +537,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setSimulatedRole('operador_logistica')}>
                   👷 Operador de Logística
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSimulatedRole('expedidor')}>
+                  📱 Expedidor (Coletor C72)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSimulatedRole('supervisor_expedicao')}>
+                  📋 Supervisor de Expedição
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setSimulatedRole('portaria')}>
                   🏢 Portaria e Acesso
