@@ -309,9 +309,33 @@ export const TmsService = {
       }
     }
 
-    // 2. Lookup Vehicle and Driver
+    // 2. Lookup Vehicle and Driver — Integração com a base mestre SAP ZSD004
     let driver: DriverEntity | null = null
     let vehicle: VehicleEntity | null = null
+    let sapZsd004Record: any = null
+
+    // Consulta prioritária na base mestre SAP ZSD004
+    try {
+      const zsdRecords = await pb.collection('sap_zsd004_vehicles_drivers').getList(1, 1, {
+        filter: `plate = "${cleanPlate}" || driver_cpf = "${cleanDoc}"`,
+      })
+      if (zsdRecords.items.length > 0) {
+        sapZsd004Record = zsdRecords.items[0]
+      }
+    } catch {
+      // tabela sap_zsd004 ainda não populada ou falha
+    }
+
+    // Bloqueio Rígido SAP ZSD004: Veículo ou Motorista com Status B NUNCA entra na fila
+    if (sapZsd004Record && sapZsd004Record.status === 'B') {
+      const reason = sapZsd004Record.block_reason
+        ? ` Motivo do bloqueio: ${sapZsd004Record.block_reason}.`
+        : ''
+      return {
+        success: false,
+        message: `Veículo bloqueado no cadastro SAP ZSD004. Verifique o motivo do bloqueio antes de prosseguir.${reason}`,
+      }
+    }
 
     try {
       const vRecords = await pb.collection('vehicles').getList<VehicleEntity>(1, 1, {
@@ -331,6 +355,46 @@ export const TmsService = {
     // Fallback: If not found by vehicle, search driver by document
     if (!driver && cleanDoc) {
       driver = await this.findDriverByDocument(cleanDoc)
+    }
+
+    // Se encontrado na ZSD004 mas ainda sem registro operacional correspondente em drivers/vehicles,
+    // sincronizar cadastro mestre preservando a separação das entidades
+    if (sapZsd004Record && (!driver || !vehicle)) {
+      if (!driver && (sapZsd004Record.driver_cpf || sapZsd004Record.driver_document)) {
+        try {
+          driver = await pb.collection('drivers').create<DriverEntity>({
+            name: sapZsd004Record.driver_name || 'Motorista SAP ZSD004',
+            document:
+              sapZsd004Record.driver_cpf !== 'Não informado no SAP'
+                ? sapZsd004Record.driver_cpf.replace(/\D/g, '')
+                : cleanDoc,
+            whatsapp: (
+              sapZsd004Record.driver_phone ||
+              sapZsd004Record.driver_mobile ||
+              cleanPhone
+            ).replace(/\D/g, ''),
+            status: sapZsd004Record.status === 'B' ? 'bloqueado' : 'ativo',
+            sap_id: sapZsd004Record.technical_key || cleanPlate,
+            notes: 'Sincronizado automaticamente da base mestre SAP ZSD004',
+          })
+        } catch {
+          // ignore create error
+        }
+      }
+      if (!vehicle && cleanPlate) {
+        try {
+          vehicle = await pb.collection('vehicles').create<VehicleEntity>({
+            plate: cleanPlate,
+            type: sapZsd004Record.vehicle_type || params.vehicleType || 'Carreta LS',
+            capacity_kg: sapZsd004Record.capacity_kg || params.declaredCapacityKg || 0,
+            driver: driver?.id,
+            body_type: sapZsd004Record.body_type,
+            brand_model: sapZsd004Record.vehicle_brand_model,
+          })
+        } catch {
+          // ignore
+        }
+      }
     }
 
     // 3. System Parameters for Geofences and Cutoff
@@ -393,7 +457,7 @@ export const TmsService = {
       params.scheduledArrivalDate,
     )
 
-    // 5. IF DRIVER OR VEHICLE NOT FOUND -> AUTOMATIC PRE-REGISTRATION
+    // 5. IF DRIVER OR VEHICLE NOT FOUND -> AUTOMATIC PRE-REGISTRATION (Marcar 'Não localizado na ZSD004')
     if (!driver) {
       try {
         const pre = await pb.collection('pre_registrations').create({
@@ -412,7 +476,7 @@ export const TmsService = {
           driver_notes: params.driverNotes || '',
           latitude: params.latitude,
           longitude: params.longitude,
-          reviewer_notes: `Pré-cadastro via link público. Placa ${cleanPlate} sem cadastro ativo no SAP. Classificação: ${assignedGroup}.`,
+          reviewer_notes: `Não localizado na ZSD004 (Centro WSTL). Placa ${cleanPlate} sem cadastro ativo no SAP. Classificação: ${assignedGroup}.`,
         })
 
         // Audit Pre-Registration
@@ -424,7 +488,7 @@ export const TmsService = {
           resource: 'pre_registrations',
           resource_id: pre.id,
           new_state: 'novo',
-          reason: `Placa ${cleanPlate} não localizada na base SAP ZSD004V_V2. Encaminhado para pré-cadastro pendente.`,
+          reason: `Placa ${cleanPlate} não localizada na ZSD004 (Centro WSTL). Encaminhado para fluxo de pré-cadastro/validação.`,
           correlation_id: `PREREG-${Date.now()}`,
           payload: {
             plate: cleanPlate,
@@ -432,6 +496,7 @@ export const TmsService = {
             origin: assignedGroup,
             distance_km: distanceKm,
             itinerary: params.preferredItinerary,
+            zsd004_status: 'NAO_LOCALIZADO_NA_ZSD004',
           },
         })
 
@@ -441,7 +506,7 @@ export const TmsService = {
           group: assignedGroup,
           calculatedLogisticsDate,
           message:
-            'Placa ou motorista não localizado no cadastro ativo da CIAFAL. Seus dados foram encaminhados como Pré-cadastro para validação pela equipe de logística.',
+            'Não localizado na ZSD004. Seus dados foram encaminhados para fluxo de pré-cadastro e validação pela equipe de logística CIAFAL.',
           data: pre,
         }
       } catch (err: any) {

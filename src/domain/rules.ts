@@ -1796,10 +1796,12 @@ export function avaliar_elegibilidade_motorista_oferta(
     reasons.push('Motorista não possui canal de comunicação válido (WhatsApp cadastrado).')
   }
 
-  // 7. Não bloqueado
+  // 7. Não bloqueado (Bloqueio estrito SAP ZSD004 e Fila)
   const notBlocked = !!driver && driver.status !== 'bloqueado' && queueEntry?.status !== 'bloqueado'
   if ((driver && driver.status === 'bloqueado') || queueEntry?.status === 'bloqueado') {
-    reasons.push('Motorista com restrição ou bloqueio administrativo ativo.')
+    reasons.push(
+      'Veículo bloqueado no cadastro SAP ZSD004. Verifique o motivo do bloqueio antes de prosseguir.',
+    )
   }
 
   // 8. Grupo correto da oferta (PROGRAMADO não participa de oferta atual)

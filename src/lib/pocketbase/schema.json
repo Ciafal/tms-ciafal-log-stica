@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-01T14:34:24.009Z",
+  "generatedAt": "2026-10-01T17:35:56.637Z",
   "collections": [
     {
       "name": "users",
@@ -9688,6 +9688,555 @@
       "indexes": [
         "CREATE INDEX idx_freight_rule_code ON freight_rule_parameters (rule_code)",
         "CREATE INDEX idx_freight_rule_active ON freight_rule_parameters (is_active)"
+      ]
+    },
+    {
+      "name": "sap_zsd004_vehicles_drivers",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "technical_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "plant",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "plate",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vehicle_brand_model",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_model",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_color",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_chassis",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_region",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_renavam",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_year_fab",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_year_model",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_antt",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "trailer_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "trailer_antt",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "trailer_region",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_ddd_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_document",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_issuer_org",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_issuer_state",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_cnh",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_street",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_complement",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_district",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_mobile",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_birth_date",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_marital_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_cnh_expiration",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_dependents",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_nationality",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_country_key",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_zipcode",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_inss_registry",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_autonomous_category",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_autonomous_cbo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_document",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_cei",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_state_registration",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_municipal_registration",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_cnpj",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_zipcode",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_street",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_complement",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_district",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_freight_date",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["A", "B", "NAO_INFORMADO"]
+        },
+        {
+          "name": "block_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "totvs_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wheel_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "body_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tare_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "capacity_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "capacity_m3",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "supplier_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "axles_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reconciliation_account",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "irrf_fleet",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sest_entry",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "senat_entry",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "inss_entry",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "treasury_admin_group",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aux_plate_1",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aux_antt_1",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aux_plate_2",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aux_antt_2",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cnh_attached",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_doc_attached",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contract_attached",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "integrity_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["integro", "incompleto", "inconsistente"]
+        },
+        {
+          "name": "validation_issues",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "raw_source_values",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "source_mode",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["MHTML_TEMP", "SAP_RFC"]
+        },
+        {
+          "name": "source_file",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_sync_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_zsd004_tech_key ON sap_zsd004_vehicles_drivers (technical_key)",
+        "CREATE INDEX idx_zsd004_plate ON sap_zsd004_vehicles_drivers (plate)",
+        "CREATE INDEX idx_zsd004_status ON sap_zsd004_vehicles_drivers (status)",
+        "CREATE INDEX idx_zsd004_driver_cpf ON sap_zsd004_vehicles_drivers (driver_cpf)",
+        "CREATE INDEX idx_zsd004_owner_cnpj ON sap_zsd004_vehicles_drivers (owner_cnpj)",
+        "CREATE INDEX idx_zsd004_plant ON sap_zsd004_vehicles_drivers (plant)",
+        "CREATE INDEX idx_zsd004_integrity ON sap_zsd004_vehicles_drivers (integrity_status)"
       ]
     }
   ]
