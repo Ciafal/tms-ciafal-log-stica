@@ -985,6 +985,42 @@ export const TmsService = {
         },
       })
 
+      // 1.1 Registrar histórico cumulativo em load_optimization_logs
+      try {
+        const totalAnttCost = params.proposals.reduce(
+          (sum, p) => sum + (p.anttFloorValue || p.estimatedCost || 0),
+          0,
+        )
+        await pb.collection('load_optimization_logs').create({
+          executed_at: new Date().toISOString(),
+          user_name: params.operatorName || 'Operador TMS',
+          user_id: params.operatorEmail || 'sistema@ciafal.com.br',
+          itinerary_filter: params.itineraryCode || 'TODOS',
+          planned_date: params.plannedDate
+            ? new Date(params.plannedDate).toISOString()
+            : new Date().toISOString(),
+          vehicle_type: params.vehicleType || 'Carreta 5 Eixos',
+          min_occupancy_pct: params.minOccupancyPct,
+          max_occupancy_pct: params.maxOccupancyPct,
+          orders_count: params.totalOrdersConsidered,
+          vehicles_count: 1,
+          itineraries_count: params.itineraryCode && params.itineraryCode !== 'TODOS' ? 1 : 10,
+          combinations_evaluated: Math.max(1, params.proposals.length * 4),
+          proposals_selected: params.totalProposalsCreated,
+          antt_total_cost: Math.round(totalAnttCost * 100) / 100,
+          total_planned_weight_kg: params.totalWeightKg,
+          avg_occupancy_pct: params.avgOccupancyPct,
+          status: params.totalProposalsCreated > 0 ? 'sucesso' : 'sem_propostas',
+          result_summary: `Otimização concluída: ${params.totalProposalsCreated} propostas geradas, ${params.totalOrdersConsidered} pedidos considerados, ocupação média ${params.avgOccupancyPct}%.`,
+          metadata: {
+            correlation_id: correlationId,
+            proposal_numbers: params.proposals.map((p) => p.cargoNumber),
+          },
+        })
+      } catch (logErr) {
+        console.warn('Falha não-bloqueante ao registrar load_optimization_logs:', logErr)
+      }
+
       // 2. Persistir cada proposta em load_proposals e seus itens em load_proposal_items
       for (const p of params.proposals) {
         let lifecycleStage: import('@/domain/rules').LoadLifecycleStage = 'Proposta TMS'

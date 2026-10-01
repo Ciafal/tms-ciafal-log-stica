@@ -721,58 +721,94 @@ export function LoadRouterAndSimulatorPage() {
 
       {/* ABAS OPERACIONAIS */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg">
-          <TabsList className="grid grid-cols-2 sm:grid-cols-5 w-full sm:w-auto h-auto bg-transparent p-0">
-            <TabsTrigger
-              value="proposed_cargos"
-              className="py-2 text-xs font-semibold flex items-center gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900"
-            >
-              <Sparkles className="h-4 w-4 text-indigo-600" />
-              <span>Cargas Propostas ({globalResult?.allProposedCargos.length || 0})</span>
-            </TabsTrigger>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-slate-100/90 dark:bg-slate-800/90 p-2 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
+          {/* TabsList com scroll horizontal controlado, whitespace-nowrap, min-w-max por tab, sem sobreposição nem truncamento */}
+          <div className="overflow-x-auto pb-1 lg:pb-0 scrollbar-thin">
+            <TabsList className="inline-flex flex-nowrap items-center h-10 bg-transparent p-0 gap-1.5 min-w-max">
+              <TabsTrigger
+                value="proposed_cargos"
+                className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg shrink-0 whitespace-nowrap transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-indigo-700 dark:data-[state=active]:text-indigo-400 data-[state=active]:shadow-sm hover:bg-white/60 dark:hover:bg-slate-900/60"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                <span>Cargas Propostas</span>
+                <Badge
+                  variant="secondary"
+                  className="ml-1 text-[11px] font-bold px-1.5 py-0 h-4.5 bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-0"
+                >
+                  {globalResult?.allProposedCargos.length || 0}
+                </Badge>
+              </TabsTrigger>
 
-            <TabsTrigger
-              value="immediate_exit"
-              className="py-2 text-xs font-semibold flex items-center gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900"
-            >
-              <CheckCircle className="h-4 w-4 text-emerald-600" />
-              <span>Saída Imediata ({globalResult?.immediateExitCargos.length || 0})</span>
-            </TabsTrigger>
+              <TabsTrigger
+                value="immediate_exit"
+                className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg shrink-0 whitespace-nowrap transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-400 data-[state=active]:shadow-sm hover:bg-white/60 dark:hover:bg-slate-900/60"
+              >
+                <CheckCircle className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                <span>Saída Imediata</span>
+                <Badge
+                  variant="secondary"
+                  className="ml-1 text-[11px] font-bold px-1.5 py-0 h-4.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-0"
+                >
+                  {globalResult?.immediateExitCargos.length || 0}
+                </Badge>
+              </TabsTrigger>
 
-            <TabsTrigger
-              value="future_programming"
-              className="py-2 text-xs font-semibold flex items-center gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900"
-            >
-              <Clock className="h-4 w-4 text-blue-600" />
-              <span>Prog. Futura ({globalResult?.futureProgrammingCargos.length || 0})</span>
-            </TabsTrigger>
+              <TabsTrigger
+                value="future_programming"
+                className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg shrink-0 whitespace-nowrap transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400 data-[state=active]:shadow-sm hover:bg-white/60 dark:hover:bg-slate-900/60"
+              >
+                <Clock className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                <span>Programação Futura</span>
+                <Badge
+                  variant="secondary"
+                  className="ml-1 text-[11px] font-bold px-1.5 py-0 h-4.5 bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-0"
+                >
+                  {globalResult?.futureProgrammingCargos.length || 0}
+                </Badge>
+              </TabsTrigger>
 
-            <TabsTrigger
-              value="complement_cargos"
-              className="py-2 text-xs font-semibold flex items-center gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900"
-            >
-              <Layers className="h-4 w-4 text-amber-600" />
-              <span>Complementos ({globalResult?.complementCargos.length || 0})</span>
-            </TabsTrigger>
+              <TabsTrigger
+                value="complement_cargos"
+                className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg shrink-0 whitespace-nowrap transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-amber-700 dark:data-[state=active]:text-amber-400 data-[state=active]:shadow-sm hover:bg-white/60 dark:hover:bg-slate-900/60"
+              >
+                <Layers className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                <span>Complemento</span>
+                <Badge
+                  variant="secondary"
+                  className="ml-1 text-[11px] font-bold px-1.5 py-0 h-4.5 bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-0"
+                >
+                  {globalResult?.complementCargos.length || 0}
+                </Badge>
+              </TabsTrigger>
 
-            <TabsTrigger
-              value="reconciliation_wallet"
-              className="py-2 text-xs font-semibold flex items-center gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900"
-            >
-              <FileCheck className="h-4 w-4 text-rose-600" />
-              <span>Reconciliação 100% ({orders.length})</span>
-            </TabsTrigger>
-          </TabsList>
+              <TabsTrigger
+                value="reconciliation_wallet"
+                className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg shrink-0 whitespace-nowrap transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-rose-700 dark:data-[state=active]:text-rose-400 data-[state=active]:shadow-sm hover:bg-white/60 dark:hover:bg-slate-900/60"
+              >
+                <FileCheck className="h-3.5 w-3.5 text-rose-600 shrink-0" />
+                <span>Conciliação 100%</span>
+                <Badge
+                  variant="secondary"
+                  className="ml-1 text-[11px] font-bold px-1.5 py-0 h-4.5 bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-0"
+                >
+                  {orders.length}
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <div className="flex items-center gap-2 px-2">
-            <Search className="h-3.5 w-3.5 text-slate-400" />
-            <Input
-              type="text"
-              placeholder="Buscar por carga, cliente, cidade..."
-              value={filterSearchQuery}
-              onChange={(e) => setFilterSearchQuery(e.target.value)}
-              className="h-8 text-xs w-48 sm:w-64 bg-white dark:bg-slate-900"
-            />
+          {/* Campo de Busca em container flex-shrink-0 sem competir espaço com as abas */}
+          <div className="flex items-center gap-2 px-2 shrink-0 self-end lg:self-center w-full lg:w-auto">
+            <div className="relative w-full lg:w-72">
+              <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Buscar por carga, cliente, cidade..."
+                value={filterSearchQuery}
+                onChange={(e) => setFilterSearchQuery(e.target.value)}
+                className="h-8.5 pl-8 text-xs w-full bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+              />
+            </div>
           </div>
         </div>
 
