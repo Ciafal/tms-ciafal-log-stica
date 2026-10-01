@@ -1487,6 +1487,64 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canSyncSapWallet: false,
     canNegotiateFreights: false,
     canSuperviseCarlao: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+=======
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+=======
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+=======
     canManageCarlaoAutonomy: false,
     canManageExpeditionWorkflow: false,
     canConfigureExpeditionSla: false,
@@ -1497,7 +1555,195 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
     canSendFredProactiveAlert: false,
     canViewFredEvidences: false,
   },
-  gerente_carga: {
+  auditor: {
+    canViewQueue: true,
+=======
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+=======
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+=======
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+    canManageQueueStatus: false,
+=======
+  auditor: {
+    canViewQueue: true,
+    canManageQueueStatus: false,
+=======
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+=======
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+=======
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+=======
+    canManageCarlaoAutonomy: false,
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+=======
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+=======
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
 =======
   auditor: {
     canViewQueue: true,
@@ -1551,6 +1797,160 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permissions> = {
   },
 }
 
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+    financeiro: 'Financeiro / Controladoria',
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+    portaria: 'Portaria e Acesso',
+    financeiro: 'Financeiro / Controladoria',
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+    financeiro: 'Financeiro / Controladoria',
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+export function getUserPermissions(role?: UserRole): Permissions {
+  if (!role || !ROLE_PERMISSIONS[role]) {
+    return {
+      canViewQueue: false,
+      canManageQueueStatus: false,
+      canRemoveDriver: false,
+      canBlockDriver: false,
+      canManagePreRegistrations: false,
+      canImportSap: false,
+      canViewAuditLogs: false,
+      canManageSystemParameters: false,
+      canViewFullSensitiveData: false,
+      canPlanLoads: false,
+      canManageItineraries: false,
+      canViewRouter: false,
+      canSimulateRouter: false,
+      canApproveScenario: false,
+      canRequestStockConfirmation: false,
+      canRespondStockConfirmation: false,
+      canRequestCreditReassessment: false,
+      canRespondCreditReassessment: false,
+      canRequestComplement: false,
+      canRespondComplement: false,
+      canAdminAntt: false,
+      canAdminRoutingProviders: false,
+      canViewPrinters: false,
+      canManagePrinters: false,
+      canPrintTransport: false,
+      canReprintTransport: false,
+      canExecuteAiPlanner: false,
+      canApproveAiPlanner: false,
+      canManageAiPlannerParams: false,
+      canViewProfitability: false,
+      canViewProfitabilityDetail: false,
+      canExportProfitability: false,
+      canViewExpeditionPerformance: false,
+      canAnalyzeExpeditionAi: false,
+      canViewWmsLoadingMap: false,
+      canConfirmWmsLoading: false,
+      canSyncSapWallet: false,
+      canNegotiateFreights: false,
+      canSuperviseCarlao: false,
+      canManageCarlaoAutonomy: false,
+      canManageExpeditionWorkflow: false,
+      canConfigureExpeditionSla: false,
+      canViewFreightIntelligence: false,
+      canTrackFred: false,
+      canTakeoverFredConversation: false,
+      canViewFredControlTower: false,
+      canSendFredProactiveAlert: false,
+      canViewFredEvidences: false,
+  gerente_carga: {
+    canViewQueue: true,
+    canManageQueueStatus: true,
+=======
+      canUseCollector: false,
+      canCancelCollectorPicking: false,
+    }
+  }
+  return { ...ROLE_PERMISSIONS[role] }
+}
+
+// ----------------------------------------------------
+// MOTOR DETERMINÍSTICO DE MONTAGEM DE CARGA (PLANEJADOR)
+// ----------------------------------------------------
+
+export type LoadAssemblyDecision = 'permitida' | 'exige_aprovacao' | 'recusada'
+=======
+=======
 export function getRoleLabel(role: UserRole): string {
   const labels: Record<UserRole, string> = {
     admin_master: 'Administrador Master HUB',
@@ -1568,8 +1968,6 @@ export function getRoleLabel(role: UserRole): string {
   return labels[role] || role
 }
 
-  gerente_carga: {
-=======
 export function getUserPermissions(role?: UserRole): Permissions {
   if (!role || !ROLE_PERMISSIONS[role]) {
     return {
@@ -1627,9 +2025,159 @@ export function getUserPermissions(role?: UserRole): Permissions {
   }
   return { ...ROLE_PERMISSIONS[role] }
 }
+=======
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+    financeiro: 'Financeiro / Controladoria',
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+    portaria: 'Portaria e Acesso',
+    financeiro: 'Financeiro / Controladoria',
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+    financeiro: 'Financeiro / Controladoria',
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+=======
+export function getUserPermissions(role?: UserRole): Permissions {
+  if (!role || !ROLE_PERMISSIONS[role]) {
+    return {
+      canViewQueue: false,
+      canManageQueueStatus: false,
+      canRemoveDriver: false,
+      canBlockDriver: false,
+      canManagePreRegistrations: false,
+      canImportSap: false,
+      canViewAuditLogs: false,
+      canManageSystemParameters: false,
+      canViewFullSensitiveData: false,
+      canPlanLoads: false,
+      canManageItineraries: false,
+      canViewRouter: false,
+      canSimulateRouter: false,
+      canApproveScenario: false,
+      canRequestStockConfirmation: false,
+      canRespondStockConfirmation: false,
+      canRequestCreditReassessment: false,
+      canRespondCreditReassessment: false,
+      canRequestComplement: false,
+      canRespondComplement: false,
+      canAdminAntt: false,
+      canAdminRoutingProviders: false,
+      canViewPrinters: false,
+      canManagePrinters: false,
+      canPrintTransport: false,
+      canReprintTransport: false,
+      canExecuteAiPlanner: false,
+      canApproveAiPlanner: false,
+      canManageAiPlannerParams: false,
+      canViewProfitability: false,
+      canViewProfitabilityDetail: false,
+      canExportProfitability: false,
+      canViewExpeditionPerformance: false,
+      canAnalyzeExpeditionAi: false,
+      canViewWmsLoadingMap: false,
+      canConfirmWmsLoading: false,
+      canSyncSapWallet: false,
+      canNegotiateFreights: false,
+      canSuperviseCarlao: false,
+      canManageCarlaoAutonomy: false,
+      canManageExpeditionWorkflow: false,
+      canConfigureExpeditionSla: false,
+      canViewFreightIntelligence: false,
+      canTrackFred: false,
+      canTakeoverFredConversation: false,
+      canViewFredControlTower: false,
+      canSendFredProactiveAlert: false,
+      canViewFredEvidences: false,
+  gerente_carga: {
+    canViewQueue: true,
+    canManageQueueStatus: true,
+=======
+      canUseCollector: false,
+      canCancelCollectorPicking: false,
+    }
+  }
+  return { ...ROLE_PERMISSIONS[role] }
+}
+
 // ----------------------------------------------------
 // MOTOR DETERMINÍSTICO DE MONTAGEM DE CARGA (PLANEJADOR)
 // ----------------------------------------------------
+
+export type LoadAssemblyDecision = 'permitida' | 'exige_aprovacao' | 'recusada'
 =======
   gerente_carga: {
     canViewQueue: true,
