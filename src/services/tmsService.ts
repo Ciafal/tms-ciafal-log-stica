@@ -929,7 +929,570 @@ export const TmsService = {
   },
 
   // ----------------------------------------------------
-  // CARGO COMPLEMENT OPPORTUNITIES
+  // EVOLUÇÃO MULTICRITÉRIO CIAFAL: LOAD PROPOSALS & COMPLEMENT OPPORTUNITIES
+  // ----------------------------------------------------
+
+  async getLoadProposals(): Promise<import('@/domain/rules').LoadProposalEntity[]> {
+    try {
+      return await pb
+        .collection('load_proposals')
+        .getFullList<import('@/domain/rules').LoadProposalEntity>({
+          sort: '-created',
+        })
+    } catch (err) {
+      console.error('Failed to fetch load proposals:', err)
+      return []
+    }
+  },
+
+  async saveLoadOptimizationRun(params: {
+    itineraryCode?: string
+    plannedDate: string
+    vehicleType: string
+    minOccupancyPct: number
+    maxOccupancyPct: number
+    totalOrdersConsidered: number
+    totalProposalsCreated: number
+    totalWeightKg: number
+    avgOccupancyPct: number
+    proposals: import('@/domain/optimizerEngine').ProposedCargoEntity[]
+    candidatesByProposal?: Record<
+      string,
+      import('@/domain/optimizerEngine').CommercialCandidateResult[]
+    >
+    operatorEmail: string
+    operatorName: string
+  }): Promise<{ success: boolean; correlationId: string; createdProposalsCount: number }> {
+    const correlationId = `OPT-RUN-${Date.now().toString(36).toUpperCase()}`
+    try {
+      // 1. Criar registro de load_optimization_runs
+      await pb.collection('load_optimization_runs').create({
+        correlation_id: correlationId,
+        itinerary_code: params.itineraryCode || 'TODOS',
+        planned_date: params.plannedDate,
+        vehicle_type: params.vehicleType,
+        min_occupancy_pct: params.minOccupancyPct,
+        max_occupancy_pct: params.maxOccupancyPct,
+        total_orders_considered: params.totalOrdersConsidered,
+        total_proposals_created: params.totalProposalsCreated,
+        total_weight_kg: params.totalWeightKg,
+        avg_occupancy_pct: params.avgOccupancyPct,
+        status: 'executado',
+        executed_by: `${params.operatorName} (${params.operatorEmail})`,
+        metadata: {
+          timestamp: new Date().toISOString(),
+          proposal_numbers: params.proposals.map((p) => p.cargoNumber),
+        },
+      })
+
+      // 2. Persistir cada proposta em load_proposals e seus itens em load_proposal_items
+      for (const p of params.proposals) {
+        let lifecycleStage: import('@/domain/rules').LoadLifecycleStage = 'Proposta TMS'
+        if (p.isFutureMatch) {
+          lifecycleStage = 'Programação futura'
+        } else if (
+          p.classificationStatus === 'Carga parcial — Complemento Comercial' ||
+          p.classificationStatus === 'Aguardando consolidação'
+        ) {
+          lifecycleStage = 'Aguardando complemento'
+        } else if (p.classificationStatus === 'Carga dentro da faixa') {
+          lifecycleStage = 'Carga consolidada'
+        }
+
+        let savedProposalRecord: any = null
+        try {
+          savedProposalRecord = await pb.collection('load_proposals').create({
+            proposal_number: p.cargoNumber,
+            correlation_id: correlationId,
+            itinerary_code: p.itineraryCode,
+            itinerary_description: p.itineraryDescription,
+            uf: p.uf,
+            region: p.region,
+            planned_dispatch_date: p.plannedExpeditionDate,
+            vehicle_plate:
+              p.scheduledVehiclePlate ||
+              (p.eligiblePortaDriverNames?.[0] ? 'PORTA-01' : 'FROTA-CIAFAL'),
+            vehicle_type: p.vehicleType,
+            vehicle_capacity_kg: p.vehicleCapacityKg,
+            current_weight_kg: p.totalWeightKg,
+            current_occupancy_pct: p.occupancyPct,
+            min_occupancy_pct: p.minOccupancyPct || params.minOccupancyPct,
+            max_occupancy_pct: p.maxOccupancyPct || params.maxOccupancyPct,
+            target_weight_kg:
+              p.targetWeightKg || Math.round(p.vehicleCapacityKg * (params.maxOccupancyPct / 100)),
+            missing_weight_kg:
+              p.missingWeightKg ||
+              Math.max(
+                0,
+                Math.round(p.vehicleCapacityKg * (params.maxOccupancyPct / 100) - p.totalWeightKg),
+              ),
+            classification_status: p.classificationStatus || 'Carga dentro da faixa',
+            lifecycle_stage: lifecycleStage,
+            orders_count: p.ordersCount,
+            customers_count: p.customersCount,
+            discharges_count: p.dischargesCount,
+            estimated_freight_cost: p.estimatedCost,
+            antt_floor_value: p.anttFloorValue,
+            tolls_value: p.tollsValue,
+            is_future_match: Boolean(p.isFutureMatch),
+            scheduled_vehicle_date: p.scheduledVehicleDate,
+            score: p.scoreBreakdown?.totalScore || 80,
+            why_proposed: p.whyProposed,
+            reasons: p.reasons,
+            created_by: params.operatorEmail,
+          })
+        } catch (propErr) {
+          // Se já existe com este número, tentar atualizar
+          try {
+            const existing = await pb
+              .collection('load_proposals')
+              .getFirstListItem(`proposal_number="${p.cargoNumber}"`)
+            if (existing) {
+              savedProposalRecord = await pb.collection('load_proposals').update(existing.id, {
+                current_weight_kg: p.totalWeightKg,
+                current_occupancy_pct: p.occupancyPct,
+                classification_status: p.classificationStatus || 'Carga dentro da faixa',
+                lifecycle_stage: lifecycleStage,
+                target_weight_kg: p.targetWeightKg,
+                missing_weight_kg: p.missingWeightKg,
+                min_occupancy_pct: p.minOccupancyPct || params.minOccupancyPct,
+                max_occupancy_pct: p.maxOccupancyPct || params.maxOccupancyPct,
+                orders_count: p.ordersCount,
+                customers_count: p.customersCount,
+              })
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+
+        // Itens da proposta
+        for (const ord of p.orders) {
+          try {
+            await pb.collection('load_proposal_items').create({
+              load_proposal_number: p.cargoNumber,
+              order_number: ord.order_number,
+              item_number: ord.item_number || '000010',
+              customer_code: ord.customer_code,
+              customer_name: ord.customer_name,
+              destination_city: ord.destination_city,
+              uf: ord.uf,
+              material_code: ord.material,
+              material_description: ord.material_description,
+              weight_kg: ord.weight_kg,
+              order_value: ord.total_value,
+              desired_date: ord.desired_date,
+              credit_status: ord.credit_status,
+              stock_situation: ord.stock_situation,
+              pcp_status: ord.production_status,
+            })
+          } catch {
+            /* ignore duplicate or error */
+          }
+        }
+
+        // Se for Carga parcial ou Aguardando consolidação, gerar oportunidade de complemento
+        const isComplementNeeded =
+          p.classificationStatus === 'Carga parcial — Complemento Comercial' ||
+          p.classificationStatus === 'Aguardando consolidação' ||
+          (p.missingWeightKg && p.missingWeightKg > 0)
+
+        if (isComplementNeeded) {
+          const oppCode = `OPP-${p.cargoNumber}`
+          const candidates = params.candidatesByProposal?.[p.cargoNumber] || []
+          const topCandidate = candidates[0]
+
+          try {
+            await pb.collection('load_complement_opportunities').create({
+              opportunity_code: oppCode,
+              load_proposal_id: p.cargoNumber,
+              itinerary_id: p.itineraryCode,
+              planned_dispatch_date: p.plannedExpeditionDate,
+              vehicle_plate: p.scheduledVehiclePlate || 'FROTA-CIAFAL',
+              vehicle_type: p.vehicleType,
+              vehicle_capacity_kg: p.vehicleCapacityKg,
+              current_weight_kg: p.totalWeightKg,
+              current_occupancy_pct: p.occupancyPct,
+              minimum_occupancy_pct: p.minOccupancyPct || params.minOccupancyPct,
+              maximum_occupancy_pct: p.maxOccupancyPct || params.maxOccupancyPct,
+              target_weight_kg:
+                p.targetWeightKg ||
+                Math.round(p.vehicleCapacityKg * (params.maxOccupancyPct / 100)),
+              missing_weight_kg: p.missingWeightKg || 5000,
+              customer_id: topCandidate?.customerCode || 'CLI-CIAFAL',
+              customer_name: topCandidate?.customerName || 'Clientes do Itinerário',
+              material_id: topCandidate?.materialCode || 'CA-50',
+              material_description: topCandidate?.materialDescription || 'Vergalhão CA-50',
+              suggested_quantity_kg: topCandidate?.suggestedQtyKg || p.missingWeightKg || 5000,
+              credit_status: topCandidate?.creditStatus || 'Crédito OK',
+              stock_status: topCandidate?.stockStatus || 'Disponível agora',
+              projected_stock_date:
+                topCandidate?.projectedAvailabilityDate || p.plannedExpeditionDate,
+              commercial_status: 'Nova oportunidade',
+              logistic_adherence: topCandidate?.logisticAdherence || 'Alta',
+              commercial_adherence: topCandidate?.commercialAdherence || 'Alta',
+              adherence_explanation:
+                topCandidate?.recommendationRationale ||
+                'Oportunidade gerada pelo motor multicritério CIAFAL.',
+              ai_recommendation: `Carga ${p.itineraryCode} prevista para ${p.plannedExpeditionDate} está com ocupação de ${p.occupancyPct}%. Faltam ${(p.missingWeightKg || 5000) / 1000} t para a meta máxima configurada (${p.maxOccupancyPct || params.maxOccupancyPct}%). Foram identificados ${candidates.length} clientes compatíveis no itinerário.`,
+              audit_status: 'Auditado pelo TMS',
+              created_by: params.operatorEmail,
+              deadline_hours: 48,
+              notes: `Gerada automaticamente da proposta ${p.cargoNumber}`,
+            })
+          } catch {
+            /* ignore duplicate opportunity */
+          }
+
+          // Persistir candidatos
+          for (const cand of candidates.slice(0, 10)) {
+            try {
+              await pb.collection('load_complement_candidates').create({
+                opportunity_code: oppCode,
+                customer_code: cand.customerCode,
+                customer_name: cand.customerName,
+                city: cand.city,
+                uf: cand.uf,
+                itinerary_code: cand.itineraryCode,
+                credit_status: cand.creditStatus,
+                material_code: cand.materialCode,
+                material_description: cand.materialDescription,
+                historical_avg_qty_kg: cand.historicalAvgQtyKg,
+                last_purchase_date: cand.lastPurchaseDate,
+                stock_status: cand.stockStatus,
+                stock_available_kg: cand.stockAvailableKg,
+                projected_availability_date: cand.projectedAvailabilityDate,
+                suggested_qty_kg: cand.suggestedQtyKg,
+                logistic_adherence: cand.logisticAdherence,
+                commercial_adherence: cand.commercialAdherence,
+                ranking_score: cand.rankingScore,
+                recommendation_rationale: cand.recommendationRationale,
+                is_exception: cand.isException,
+                exception_reason: cand.exceptionReason,
+              })
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+      }
+
+      // Log de auditoria
+      try {
+        await pb.collection('audit_logs').create({
+          user_email: params.operatorEmail,
+          user_name: params.operatorName,
+          user_role: 'gerente_carga',
+          action: 'REOPTIMIZE_LOADS_MULTICRITERIA',
+          resource: 'load_proposals',
+          resource_id: correlationId,
+          reason: `Otimização multicritério executada com faixa de ocupação ${params.minOccupancyPct}% - ${params.maxOccupancyPct}%`,
+          correlation_id: correlationId,
+          payload: {
+            itinerary: params.itineraryCode,
+            planned_date: params.plannedDate,
+            proposals_count: params.proposals.length,
+            min_occupancy_pct: params.minOccupancyPct,
+            max_occupancy_pct: params.maxOccupancyPct,
+          },
+        })
+      } catch {
+        /* ignore */
+      }
+
+      return {
+        success: true,
+        correlationId,
+        createdProposalsCount: params.proposals.length,
+      }
+    } catch (err: any) {
+      console.error('Error saving optimization run:', err)
+      return {
+        success: false,
+        correlationId,
+        createdProposalsCount: 0,
+      }
+    }
+  },
+
+  async getLoadComplementOpportunities(): Promise<
+    import('@/domain/rules').LoadComplementOpportunityEntity[]
+  > {
+    try {
+      return await pb
+        .collection('load_complement_opportunities')
+        .getFullList<import('@/domain/rules').LoadComplementOpportunityEntity>({
+          sort: '-created',
+        })
+    } catch (err) {
+      console.error('Failed to fetch load complement opportunities:', err)
+      return []
+    }
+  },
+
+  async getLoadComplementCandidates(
+    opportunityCode: string,
+  ): Promise<import('@/domain/rules').LoadComplementCandidateEntity[]> {
+    try {
+      return await pb
+        .collection('load_complement_candidates')
+        .getFullList<import('@/domain/rules').LoadComplementCandidateEntity>({
+          filter: `opportunity_code="${opportunityCode}"`,
+          sort: '-ranking_score',
+        })
+    } catch (err) {
+      console.error('Failed to fetch candidates:', err)
+      return []
+    }
+  },
+
+  async updateCommercialOpportunityStatus(
+    id: string,
+    newStatus: import('@/domain/rules').CommercialOpportunityStatus,
+    operatorEmail: string,
+    operatorName: string,
+    notes?: string,
+  ): Promise<boolean> {
+    try {
+      const old = await pb.collection('load_complement_opportunities').getOne(id)
+      await pb.collection('load_complement_opportunities').update(id, {
+        commercial_status: newStatus,
+        notes: notes || old.notes,
+      })
+
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'gerente_carga',
+        action: 'UPDATE_COMMERCIAL_OPPORTUNITY_STATUS',
+        resource: 'load_complement_opportunities',
+        resource_id: id,
+        previous_state: old.commercial_status,
+        new_state: newStatus,
+        reason: notes || `Status alterado para ${newStatus}`,
+        correlation_id: old.opportunity_code || `OPP-${Date.now()}`,
+        payload: { id, newStatus, notes },
+      })
+      return true
+    } catch (err) {
+      console.error('Failed to update opportunity status:', err)
+      return false
+    }
+  },
+
+  async sendLoadComplementToCommercial(
+    oppId: string,
+    operatorEmail: string,
+    operatorName: string,
+  ): Promise<boolean> {
+    try {
+      const opp = await pb.collection('load_complement_opportunities').getOne(oppId)
+      const correlationId = `CRM-DEMAND-${opp.opportunity_code}-${Date.now()}`
+
+      // Integração via crmService
+      await crmService.sendComplementOpportunity({
+        cargoId: opp.load_proposal_id,
+        itineraryCode: opp.itinerary_id,
+        targetDate: opp.planned_dispatch_date,
+        residualCapacityKg: opp.missing_weight_kg,
+        candidateClients: [
+          {
+            customerCode: opp.customer_id || 'CLI-01',
+            customerName: opp.customer_name || 'Cliente Elegível',
+          },
+        ],
+        candidateOrders: [],
+        salesRep: opp.salesperson_id || 'Comercial CIAFAL',
+        opportunityReason: opp.ai_recommendation || 'Complemento de carga em rota ativa',
+        validityMinutes: 120,
+        correlationId,
+        sentBy: operatorName,
+      })
+
+      await pb.collection('load_complement_opportunities').update(oppId, {
+        commercial_status: 'Em análise comercial',
+      })
+
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'gerente_carga',
+        action: 'SEND_COMPLEMENT_DEMAND_TO_COMMERCIAL',
+        resource: 'load_complement_opportunities',
+        resource_id: oppId,
+        previous_state: opp.commercial_status,
+        new_state: 'Em análise comercial',
+        reason: 'Demanda de Complemento de Carga enviada para a equipe Comercial/CRM 360°',
+        correlation_id: correlationId,
+        payload: {
+          proposal_id: opp.load_proposal_id,
+          itinerary: opp.itinerary_id,
+          missing_weight_kg: opp.missing_weight_kg,
+        },
+      })
+      return true
+    } catch (err) {
+      console.error('Failed to send complement demand to commercial:', err)
+      return false
+    }
+  },
+
+  /**
+   * CORRELAÇÃO AUTOMÁTICA DE NOVOS PEDIDOS SAP COM CARGAS EM ABERTO:
+   * Cenário: Novo pedido entra no SAP (ex.: 5t para cliente do itinerário) ->
+   * TMS detecta correlação automática -> incorpora à proposta -> recalcula peso e ocupação.
+   */
+  async correlateSapOrderWithComplement(
+    sapOrderId: string,
+    operatorEmail: string,
+    operatorName: string,
+  ): Promise<{ correlated: boolean; proposalNumber?: string; message: string }> {
+    try {
+      const order = await pb.collection('sap_sales_orders').getOne(sapOrderId)
+      if (!order) {
+        return { correlated: false, message: 'Pedido SAP não localizado na base.' }
+      }
+
+      // Buscar propostas aguardando complemento no mesmo itinerário
+      const openProposals = await pb
+        .collection('load_proposals')
+        .getFullList<import('@/domain/rules').LoadProposalEntity>({
+          filter: `itinerary_code="${order.itinerary_code}" && (classification_status="Carga parcial — Complemento Comercial" || classification_status="Aguardando consolidação")`,
+          sort: 'planned_dispatch_date',
+        })
+
+      if (openProposals.length === 0) {
+        return {
+          correlated: false,
+          message: 'Nenhuma carga aguardando complemento no mesmo itinerário.',
+        }
+      }
+
+      const proposal = openProposals[0]
+      const orderWeight = order.weight_kg || 0
+      const newWeight = proposal.current_weight_kg + orderWeight
+      const newOccupancy = Math.min(
+        100,
+        Math.round((newWeight / proposal.vehicle_capacity_kg) * 1000) / 10,
+      )
+
+      let newStatus: import('@/domain/rules').LoadClassificationStatus =
+        proposal.classification_status
+      let newStage: import('@/domain/rules').LoadLifecycleStage = proposal.lifecycle_stage
+
+      if (newWeight > proposal.vehicle_capacity_kg) {
+        newStatus = 'Capacidade excedida — Reotimizar'
+      } else if (newOccupancy >= proposal.max_occupancy_pct) {
+        newStatus = 'Carga dentro da faixa'
+        newStage = 'Carga consolidada'
+      } else if (newOccupancy >= proposal.min_occupancy_pct) {
+        newStatus = 'Carga parcial — Complemento Comercial'
+      } else {
+        newStatus = 'Aguardando consolidação'
+      }
+
+      const newMissing = Math.max(
+        0,
+        Math.round(
+          (proposal.vehicle_capacity_kg * (proposal.max_occupancy_pct / 100) - newWeight) * 10,
+        ) / 10,
+      )
+
+      // Atualizar proposta
+      await pb.collection('load_proposals').update(proposal.id, {
+        current_weight_kg: newWeight,
+        current_occupancy_pct: newOccupancy,
+        classification_status: newStatus,
+        lifecycle_stage: newStage,
+        missing_weight_kg: newMissing,
+        orders_count: (proposal.orders_count || 0) + 1,
+      })
+
+      // Inserir item na proposta
+      await pb.collection('load_proposal_items').create({
+        load_proposal_number: proposal.proposal_number,
+        order_number: order.order_number,
+        item_number: order.item_number || '000010',
+        customer_code: order.customer_code,
+        customer_name: order.customer_name,
+        destination_city: order.destination_city,
+        uf: order.uf,
+        material_code: order.material,
+        material_description: order.material_description,
+        weight_kg: order.weight_kg,
+        order_value: order.total_value,
+        desired_date: order.desired_date,
+        credit_status: order.credit_status,
+        stock_situation: order.stock_situation,
+      })
+
+      // Atualizar ou encerrar oportunidade de complemento vinculada
+      try {
+        const opps = await pb.collection('load_complement_opportunities').getFullList({
+          filter: `load_proposal_id="${proposal.proposal_number}"`,
+        })
+        for (const opp of opps) {
+          if (newStatus === 'Carga dentro da faixa') {
+            await pb.collection('load_complement_opportunities').update(opp.id, {
+              commercial_status: 'Associado à carga',
+              sap_order_id: order.order_number,
+              missing_weight_kg: newMissing,
+              current_weight_kg: newWeight,
+              current_occupancy_pct: newOccupancy,
+              notes: `Carga atingiu meta máxima (${newOccupancy}%). Pedido SAP ${order.order_number} associado com sucesso.`,
+            })
+          } else {
+            await pb.collection('load_complement_opportunities').update(opp.id, {
+              commercial_status: 'Pedido criado',
+              sap_order_id: order.order_number,
+              missing_weight_kg: newMissing,
+              current_weight_kg: newWeight,
+              current_occupancy_pct: newOccupancy,
+              notes: `Pedido SAP ${order.order_number} (${orderWeight} kg) incorporado. Novo saldo: ${newMissing} kg.`,
+            })
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+
+      // Auditoria
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'gerente_carga',
+        action: 'SAP_ORDER_AUTO_CORRELATED_WITH_LOAD',
+        resource: 'load_proposals',
+        resource_id: proposal.id,
+        previous_state: `${proposal.current_weight_kg}kg (${proposal.current_occupancy_pct}%)`,
+        new_state: `${newWeight}kg (${newOccupancy}%)`,
+        reason: `Pedido SAP ${order.order_number} de ${(orderWeight / 1000).toFixed(1)}t correlacionado automaticamente com a proposta ${proposal.proposal_number}`,
+        correlation_id: `CORR-${order.order_number}-${proposal.proposal_number}`,
+        payload: {
+          proposal_number: proposal.proposal_number,
+          order_number: order.order_number,
+          added_weight_kg: orderWeight,
+          new_occupancy_pct: newOccupancy,
+          new_status: newStatus,
+        },
+      })
+
+      return {
+        correlated: true,
+        proposalNumber: proposal.proposal_number,
+        message: `Complemento comercial incorporado com sucesso. Proposta ${proposal.proposal_number} recalculada: ${newOccupancy}% de ocupação (${(newWeight / 1000).toFixed(1)}t).`,
+      }
+    } catch (err: any) {
+      console.error('Error correlating SAP order with complement:', err)
+      return {
+        correlated: false,
+        message: 'Erro ao correlacionar pedido SAP com a carga.',
+      }
+    }
+  },
+
+  // ----------------------------------------------------
+  // CARGO COMPLEMENT OPPORTUNITIES (LEGADO/COMPATIBILIDADE)
   // ----------------------------------------------------
   async getComplementOpportunities(): Promise<OportunidadeComplementoCargaEntity[]> {
     try {

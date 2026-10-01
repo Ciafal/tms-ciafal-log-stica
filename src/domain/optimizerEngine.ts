@@ -380,28 +380,43 @@ export interface WalletReconciliationSummary {
   items: OrderReconciliationItem[]
 }
 
+export type OccupancyBandType = 'EXCELENTE' | 'BOA' | 'ATENCAO' | 'BAIXA'
+
 export interface ProposedCargoEntity {
   id: string
   cargoNumber: string
   itineraryCode: string
-  itineraryDescription?: string
-  uf?: string
-  region?: string
-  isSuggestedItinerary: boolean
+  itineraryDescription: string
+  uf: string
+  region: string
+  isSuggestedItinerary?: boolean
   suggestedItineraryInfo?: ItinerarySuggestion
   plannedExpeditionDate: string
   vehicleType: string
   vehicleCapacityKg: number
   totalWeightKg: number
   occupancyPct: number
-  occupancyBand: 'EXCELENTE' | 'BOA' | 'ATENCAO' | 'BAIXA'
-  occupancyAlert?: string
+  occupancyBand: OccupancyBandType
+  occupancyAlert: string
   readinessStatus: OperationalReadinessStatus
   readinessLabel:
     | 'SAÍDA IMEDIATA'
     | 'PROGRAMAÇÃO FUTURA'
     | 'AGUARDANDO COMPLEMENTO'
     | 'BLOQUEADA / EXCEÇÃO'
+  // Campos novos CIAFAL Evolução Multicritério:
+  classificationStatus?:
+    | 'Aguardando consolidação'
+    | 'Carga parcial — Complemento Comercial'
+    | 'Carga dentro da faixa'
+    | 'Capacidade excedida — Reotimizar'
+  minOccupancyPct?: number
+  maxOccupancyPct?: number
+  targetWeightKg?: number
+  missingWeightKg?: number
+  isFutureMatch?: boolean
+  scheduledVehicleDate?: string
+  scheduledVehiclePlate?: string
   orders: SapSalesOrderEntity[]
   customersCount: number
   ordersCount: number
@@ -423,7 +438,6 @@ export interface ProposedCargoEntity {
   reasons: string[]
   suggestedAction?: string
 }
-
 export interface GlobalOptimizerResult {
   allProposedCargos: ProposedCargoEntity[]
   immediateExitCargos: ProposedCargoEntity[]
@@ -466,6 +480,8 @@ export interface OptimizerEngineInput {
   weights?: OptimizationWeights
   occupancyBands?: OccupancyBandConfig
   itinerariesMetadata?: Record<string, { description: string; region?: string; uf?: string }>
+  minOccupancyPct?: number
+  maxOccupancyPct?: number
 }
 
 /**
@@ -608,7 +624,12 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
     weights = DEFAULT_OPTIMIZATION_WEIGHTS,
     occupancyBands = DEFAULT_OCCUPANCY_BANDS,
     itinerariesMetadata = {},
+    minOccupancyPct: inputMinOcc,
+    maxOccupancyPct: inputMaxOcc,
   } = input
+
+  const minOccupancyPct = typeof inputMinOcc === 'number' && inputMinOcc >= 0 ? inputMinOcc : 70
+  const maxOccupancyPct = typeof inputMaxOcc === 'number' && inputMaxOcc > 0 ? inputMaxOcc : 95
 
   const mappedOrdersWithItin = orders.filter(
     (o) => o.itinerary_code && o.itinerary_code.trim().length > 0,
@@ -705,6 +726,16 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
         q.status === 'disponivel' &&
         (!q.preferred_itinerary || q.preferred_itinerary === itin),
     )
+
+    // Veículos PROGRAMADOS futuros compatíveis (Fila & Disponibilidade - PROGRAMADO)
+    const scheduledEntries = queueEntries.filter(
+      (q) => q.type === 'PROGRAMADO' && (!q.preferred_itinerary || q.preferred_itinerary === itin),
+    )
+    const futureScheduled = scheduledEntries.find((q) => {
+      const qDate =
+        q.calculated_logistics_date || q.scheduled_arrival_date || q.entry_time?.split('T')[0]
+      return (qDate && qDate >= plannedDate) || qDate === plannedDate
+    })
 
     // Avaliação detalhada de cada pedido do itinerário
     const evaluatedItinOrders = itinOrders.map((ord) => {
@@ -861,6 +892,26 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
 
       const totalScore = Math.min(100, Math.max(10, Math.round(rawTotal)))
 
+      // Classificação segundo a evolução multicritério CIAFAL:
+      // Abaixo da ocupação mínima -> "Aguardando consolidação"
+      // Entre mínimo e máximo -> "Carga parcial — Complemento Comercial"
+      // Igual ou superior ao máximo -> "Carga dentro da faixa"
+      // Acima da capacidade permitida -> "Capacidade excedida — Reotimizar"
+      let classificationStatus: ProposedCargoEntity['classificationStatus'] =
+        'Carga dentro da faixa'
+      const targetWeightKg = Math.round(vehicleCapacityKg * (maxOccupancyPct / 100) * 10) / 10
+      const missingWeightKg = Math.max(0, Math.round((targetWeightKg - totalWeightKg) * 10) / 10)
+
+      if (totalWeightKg > vehicleCapacityKg) {
+        classificationStatus = 'Capacidade excedida — Reotimizar'
+      } else if (occupancyPct < minOccupancyPct) {
+        classificationStatus = 'Aguardando consolidação'
+      } else if (occupancyPct < maxOccupancyPct) {
+        classificationStatus = 'Carga parcial — Complemento Comercial'
+      } else {
+        classificationStatus = 'Carga dentro da faixa'
+      }
+
       // Determinar Status de Prontidão e Rótulo
       let readinessStatus: OperationalReadinessStatus = 'PRONTA_PARA_OFERTA'
       let readinessLabel: ProposedCargoEntity['readinessLabel'] = 'SAÍDA IMEDIATA'
@@ -870,7 +921,7 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
         readinessStatus = 'BLOQUEADA'
         readinessLabel = 'BLOQUEADA / EXCEÇÃO'
         reasons.push(
-          `Excesso de peso: ${(totalWeightKg / 1000).toFixed(1)}t excede a capacidade (${(vehicleCapacityKg / 1000).toFixed(1)}t).`,
+          `Capacidade excedida — Reotimizar: ${(totalWeightKg / 1000).toFixed(1)}t excede a capacidade (${(vehicleCapacityKg / 1000).toFixed(1)}t).`,
         )
       }
 
@@ -897,16 +948,21 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
         creditClassification === 'LIBERADO' &&
         totalWeightKg <= vehicleCapacityKg
       ) {
-        if (occupancyPct < 80) {
+        if (occupancyPct < minOccupancyPct) {
           readinessLabel = 'AGUARDANDO COMPLEMENTO'
           reasons.push(
-            `Ocupação de ${occupancyPct}% abaixo de 80%. Recomenda-se complemento de carga.`,
+            `Aguardando consolidação: Ocupação de ${occupancyPct}% abaixo do mínimo configurado (${minOccupancyPct}%).`,
+          )
+        } else if (occupancyPct < maxOccupancyPct) {
+          readinessLabel = 'AGUARDANDO COMPLEMENTO'
+          reasons.push(
+            `Carga parcial — Complemento Comercial: Ocupação de ${occupancyPct}% (faixa ${minOccupancyPct}% a ${maxOccupancyPct}%). Complemento necessário: ${(missingWeightKg / 1000).toFixed(1)} t.`,
           )
         } else {
           readinessStatus = 'PRONTA_SAIDA_IMEDIATA'
           readinessLabel = 'SAÍDA IMEDIATA'
           reasons.push(
-            '100% Apta para SAÍDA IMEDIATA: Estoque DP34 + Crédito liberado + Ocupação excelente/boa.',
+            `Carga dentro da faixa: ${occupancyPct}% atingiu a meta máxima (${maxOccupancyPct}%). 100% Apta para SAÍDA IMEDIATA.`,
           )
         }
       }
@@ -960,6 +1016,17 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
         occupancyAlert: occBand.alert,
         readinessStatus,
         readinessLabel,
+        classificationStatus,
+        minOccupancyPct,
+        maxOccupancyPct,
+        targetWeightKg,
+        missingWeightKg,
+        isFutureMatch: Boolean(futureScheduled),
+        scheduledVehicleDate:
+          futureScheduled?.calculated_logistics_date ||
+          futureScheduled?.scheduled_arrival_date ||
+          futureScheduled?.entry_time?.split('T')[0],
+        scheduledVehiclePlate: futureScheduled?.vehicle_plate_cached,
         orders: cargoOrders,
         customersCount,
         ordersCount,
@@ -1193,13 +1260,15 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
   // Agrupamentos por Abas
   const immediateExitCargos = allProposedCargos.filter((c) => c.readinessLabel === 'SAÍDA IMEDIATA')
   const futureProgrammingCargos = allProposedCargos.filter(
-    (c) => c.readinessLabel === 'PROGRAMAÇÃO FUTURA',
+    (c) => c.readinessLabel === 'PROGRAMAÇÃO FUTURA' || c.isFutureMatch,
   )
   const complementCargos = allProposedCargos.filter(
-    (c) => c.readinessLabel === 'AGUARDANDO COMPLEMENTO',
+    (c) =>
+      c.readinessLabel === 'AGUARDANDO COMPLEMENTO' ||
+      c.classificationStatus === 'Carga parcial — Complemento Comercial' ||
+      c.classificationStatus === 'Aguardando consolidação',
   )
   const exceptionOrders = reconciliationItems.filter((item) => !item.isAssignedToCargo)
-
   // Descoberta e contagem de itinerários para exibição nos filtros
   const discoveredItineraries = Object.entries(discoveredItinerariesMap)
     .map(([code, data]) => {
@@ -1291,6 +1360,20 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
   const attendedOrdersCount = assignedOrderIds.size
   const pendingOrdersCount = totalWalletOrders - attendedOrdersCount
 
+  // Contagem para os 8 CARDS obrigatórios da tela principal:
+  // "CARGAS PROPOSTAS", "SAÍDA IMEDIATA", "TON. ROTEIRIZADAS", "OCUPAÇÃO MÉDIA",
+  // "PEDIDOS ATENDIDOS", "AGUARD. COMPLEMENTO", "PROG. FUTURA (PCP)", "EXCEÇÕES / PENDENTES"
+  const aguardComplementoCount = allProposedCargos.filter(
+    (c) =>
+      c.classificationStatus === 'Carga parcial — Complemento Comercial' ||
+      c.classificationStatus === 'Aguardando consolidação' ||
+      c.readinessLabel === 'AGUARDANDO COMPLEMENTO',
+  ).length
+
+  const progFuturaCount = allProposedCargos.filter(
+    (c) => c.readinessLabel === 'PROGRAMAÇÃO FUTURA' || c.isFutureMatch,
+  ).length
+
   return {
     allProposedCargos,
     immediateExitCargos,
@@ -1301,8 +1384,8 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
     kpis: {
       totalProposedCargos: allProposedCargos.length,
       readyForImmediateExitCount: immediateExitCargos.length,
-      waitingComplementCount: complementCargos.length,
-      futureProgrammingCount: futureProgrammingCargos.length,
+      waitingComplementCount: aguardComplementoCount,
+      futureProgrammingCount: progFuturaCount,
       totalPlannedWeightKg: totalPlannedWeight,
       avgOccupancyPct: avgOccupancy,
       attendedOrdersCount,
@@ -1351,12 +1434,12 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
   const {
     itineraryCode = '',
     plannedDate,
-    orders,
-    stocks,
-    pcpOrders,
-    queueEntries,
-    vehicleCapacityKg,
-    vehicleType,
+    orders = [],
+    stocks = [],
+    pcpOrders = [],
+    queueEntries = [],
+    vehicleCapacityKg = 28000,
+    vehicleType = 'Carreta 5 Eixos',
     weights = DEFAULT_OPTIMIZATION_WEIGHTS,
     occupancyBands = DEFAULT_OCCUPANCY_BANDS,
   } = input
@@ -1810,4 +1893,253 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
       portaDriversAvailableCount: portaDrivers.length,
     },
   }
+}
+
+// ----------------------------------------------------
+// MOTOR DE OPORTUNIDADES COMERCIAIS & COMPLEMENTO DE CARGAS (CIAFAL)
+// ----------------------------------------------------
+
+export interface CandidateEvaluationInput {
+  cargo: ProposedCargoEntity
+  allOrders: SapSalesOrderEntity[]
+  stocks: SapStockCurrentEntity[]
+  pcpOrders: PcpProductionOrderEntity[]
+}
+
+export interface CommercialCandidateResult {
+  customerCode: string
+  customerName: string
+  city: string
+  uf: string
+  itineraryCode: string
+  creditStatus: string
+  materialCode: string
+  materialDescription: string
+  historicalAvgQtyKg: number
+  lastPurchaseDate: string
+  stockStatus:
+    | 'Disponível agora'
+    | 'Disponível antes da expedição'
+    | 'Produção prevista'
+    | 'Risco de disponibilidade'
+    | 'Indisponível'
+  stockAvailableKg: number
+  projectedAvailabilityDate: string
+  suggestedQtyKg: number
+  logisticAdherence: 'Alta' | 'Média' | 'Baixa'
+  commercialAdherence: 'Alta' | 'Média' | 'Baixa'
+  rankingScore: number
+  recommendationRationale: string
+  isException: boolean
+  exceptionReason?: string
+  adherenceFactors: {
+    itineraryMatch: boolean
+    creditOk: boolean
+    historicalProduct: boolean
+    stockFeasible: boolean
+    residualCapacityFit: boolean
+  }
+}
+
+export function evaluateComplementCandidates(
+  input: CandidateEvaluationInput,
+): CommercialCandidateResult[] {
+  const { cargo, allOrders = [], stocks = [], pcpOrders = [] } = input
+  const residualKg =
+    cargo.missingWeightKg ||
+    Math.max(
+      0,
+      cargo.vehicleCapacityKg * ((cargo.maxOccupancyPct || 95) / 100) - cargo.totalWeightKg,
+    )
+
+  if (residualKg <= 0) return []
+
+  // Agrupar pedidos históricos e ativos por cliente
+  const customerMap = new Map<string, SapSalesOrderEntity[]>()
+  allOrders.forEach((o) => {
+    const code = (o.customer_code || '').trim()
+    if (!code) return
+    const list = customerMap.get(code) || []
+    list.push(o)
+    customerMap.set(code, list)
+  })
+
+  const candidates: CommercialCandidateResult[] = []
+
+  customerMap.forEach((orders, custCode) => {
+    const first = orders[0]
+    const custName = first.customer_name || `Cliente ${custCode}`
+    const city = first.destination_city || 'N/I'
+    const uf = first.uf || cargo.uf || 'SP'
+    const custItin = (first.itinerary_code || '').trim()
+
+    // 1. Compatibilidade de Itinerário / Região
+    const sameItin =
+      custItin === cargo.itineraryCode || custItin.startsWith(cargo.uf) || uf === cargo.uf
+    if (!sameItin && !custItin.includes(cargo.region || '')) {
+      // Ignora clientes geograficamente incompatíveis
+      return
+    }
+
+    // 2. Histórico real de produtos
+    const productCounts = new Map<
+      string,
+      { count: number; totalWeight: number; desc: string; lastDate: string }
+    >()
+    orders.forEach((o) => {
+      const mat = (o.material || 'CA-50').trim()
+      const desc = o.material_description || mat
+      const prev = productCounts.get(mat) || {
+        count: 0,
+        totalWeight: 0,
+        desc,
+        lastDate: o.desired_date || '',
+      }
+      prev.count++
+      prev.totalWeight += o.weight_kg || 0
+      if (o.desired_date && o.desired_date > prev.lastDate) {
+        prev.lastDate = o.desired_date
+      }
+      productCounts.set(mat, prev)
+    })
+
+    // Produto com maior recorrência
+    let topMaterial = 'CA-50 10 mm'
+    let topDesc = 'Vergalhão CA-50 10 mm'
+    let avgWeight = 5000
+    let lastDate = '2026-08-15'
+    let maxCount = -1
+
+    productCounts.forEach((info, mat) => {
+      if (info.count > maxCount) {
+        maxCount = info.count
+        topMaterial = mat
+        topDesc = info.desc
+        avgWeight = Math.round(info.totalWeight / Math.max(1, info.count))
+        lastDate = info.lastDate || '2026-08-15'
+      }
+    })
+
+    // 3. Crédito do cliente
+    const creditClass = classifyCredit(first)
+    let creditStatus = 'Crédito OK'
+    let creditOk = true
+    if (creditClass.classification === 'BLOQUEADO' || first.credit_status === 'Bloqueado') {
+      creditStatus = 'Bloqueado'
+      creditOk = false
+    } else if (
+      creditClass.classification === 'LIBERADO_COM_APROVACAO' ||
+      first.credit_status === 'Em Análise'
+    ) {
+      creditStatus = 'Crédito em análise'
+      creditOk = false
+    }
+
+    // 4. Estoque e Produção Futura (sap_stock_current + pcp_production_orders)
+    const stockChk = validateDp34Stock(topMaterial, residualKg, stocks, pcpOrders)
+    let stockStatus: CommercialCandidateResult['stockStatus'] = 'Disponível agora'
+    let stockAvailableKg = stockChk.dp34AvailableKg
+    let projectedDate = cargo.plannedExpeditionDate
+    let stockFeasible = true
+
+    if (stockChk.isDp34Available) {
+      stockStatus = 'Disponível agora'
+    } else if (stockChk.pcpFutureKg > 0) {
+      stockStatus = 'Disponível antes da expedição'
+      stockAvailableKg += stockChk.pcpFutureKg
+      projectedDate = cargo.plannedExpeditionDate
+    } else {
+      const pcpMatch = pcpOrders.find((p) => p.material_code === topMaterial)
+      if (pcpMatch) {
+        stockStatus = 'Produção prevista'
+        stockAvailableKg = pcpMatch.weight_kg_planned || 0
+        projectedDate = pcpMatch.scheduled_date?.split('T')[0] || cargo.plannedExpeditionDate
+        if (projectedDate > cargo.plannedExpeditionDate) {
+          stockStatus = 'Risco de disponibilidade'
+          stockFeasible = false
+        }
+      } else {
+        stockStatus = 'Indisponível'
+        stockFeasible = false
+      }
+    }
+
+    // Sugestão de quantidade alinhada à capacidade residual e compra média
+    const suggestedQtyKg = Math.min(residualKg, avgWeight > 0 ? avgWeight : residualKg)
+
+    // Aderência logística e comercial
+    let logisticScore = 0
+    if (custItin === cargo.itineraryCode) logisticScore += 50
+    else if (sameItin) logisticScore += 30
+    if (suggestedQtyKg <= residualKg) logisticScore += 30
+    if (orders.length >= 2) logisticScore += 20
+
+    const logisticAdherence: 'Alta' | 'Média' | 'Baixa' =
+      logisticScore >= 75 ? 'Alta' : logisticScore >= 45 ? 'Média' : 'Baixa'
+
+    let commercialScore = 0
+    if (creditOk) commercialScore += 40
+    if (stockFeasible) commercialScore += 30
+    if (orders.length >= 2) commercialScore += 20
+    if (avgWeight >= 3000) commercialScore += 10
+
+    const commercialAdherence: 'Alta' | 'Média' | 'Baixa' =
+      commercialScore >= 75 ? 'Alta' : commercialScore >= 45 ? 'Média' : 'Baixa'
+
+    const rankingScore = Math.min(100, Math.round(logisticScore * 0.45 + commercialScore * 0.55))
+
+    // Exceções: Crédito insuficiente/bloqueado ou Produto indisponível até a expedição
+    let isException = false
+    let exceptionReason: string | undefined = undefined
+
+    if (!creditOk) {
+      isException = true
+      exceptionReason =
+        creditStatus === 'Bloqueado'
+          ? 'Crédito insuficiente/bloqueado'
+          : 'Crédito em análise comercial'
+    } else if (!stockFeasible) {
+      isException = true
+      exceptionReason = 'Produto incompatível com a data da carga'
+    }
+
+    const rationale = `Cliente recomendado porque compra regularmente ${topDesc}, possui ${creditStatus}, pertence ao itinerário ${cargo.itineraryCode} e existe previsão de ${(stockAvailableKg / 1000).toFixed(1)} t em estoque/produção antes da saída.`
+
+    candidates.push({
+      customerCode: custCode,
+      customerName: custName,
+      city,
+      uf,
+      itineraryCode: custItin || cargo.itineraryCode,
+      creditStatus,
+      materialCode: topMaterial,
+      materialDescription: topDesc,
+      historicalAvgQtyKg: avgWeight,
+      lastPurchaseDate: lastDate,
+      stockStatus,
+      stockAvailableKg,
+      projectedAvailabilityDate: projectedDate,
+      suggestedQtyKg,
+      logisticAdherence,
+      commercialAdherence,
+      rankingScore,
+      recommendationRationale: rationale,
+      isException,
+      exceptionReason,
+      adherenceFactors: {
+        itineraryMatch: custItin === cargo.itineraryCode,
+        creditOk,
+        historicalProduct: true,
+        stockFeasible,
+        residualCapacityFit: suggestedQtyKg <= residualKg,
+      },
+    })
+  })
+
+  // Ordenar: principais (não exceções) primeiro por rankingScore, depois exceções
+  return candidates.sort((a, b) => {
+    if (!a.isException && b.isException) return -1
+    if (a.isException && !b.isException) return 1
+    return b.rankingScore - a.rankingScore
+  })
 }

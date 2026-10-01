@@ -57,6 +57,7 @@ import {
   classifyCredit,
   DEFAULT_OPTIMIZATION_WEIGHTS,
   DEFAULT_OCCUPANCY_BANDS,
+  evaluateComplementCandidates,
 } from '../domain/optimizerEngine'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../hooks/use-toast'
@@ -113,10 +114,18 @@ export function LoadRouterAndSimulatorPage() {
   const [plannedDate, setPlannedDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [selectedVehicleType, setSelectedVehicleType] = useState<string>('Carreta 5 Eixos')
   const [vehicleCapacityKg, setVehicleCapacityKg] = useState<number>(28000)
+  // Novos campos: Ocupação mínima e máxima (faixa 0–100%, formato inicial "00%", padrão brasileiro com vírgula)
+  const [minOccupancyInput, setMinOccupancyInput] = useState<string>('70%')
+  const [maxOccupancyInput, setMaxOccupancyInput] = useState<string>('95%')
 
   // Resultado do Motor Global de Otimização
   const [globalResult, setGlobalResult] = useState<GlobalOptimizerResult | null>(null)
   const [activeTab, setActiveTab] = useState<string>('proposed_cargos')
+  const [isWaitingComplementModalOpen, setIsWaitingComplementModalOpen] = useState(false)
+  const [selectedComplementTargetCargo, setSelectedComplementTargetCargo] =
+    useState<ProposedCargoEntity | null>(null)
+  const [isTargetOccupancyModalOpen, setIsTargetOccupancyModalOpen] = useState(false)
+  const [newTargetOccupancyInput, setNewTargetOccupancyInput] = useState<string>('95%')
 
   // Modais de Detalhamento e Ações
   const [selectedCargoDetail, setSelectedCargoDetail] = useState<ProposedCargoEntity | null>(null)
@@ -135,6 +144,13 @@ export function LoadRouterAndSimulatorPage() {
 
   const [filterSearchQuery, setFilterSearchQuery] = useState<string>('')
 
+  // Utilitário para parse de percentual brasileiro ("70%", "85,50%", etc.)
+  const parsePercentBr = (str: string): number => {
+    const cleaned = (str || '').replace('%', '').trim().replace(',', '.')
+    const num = parseFloat(cleaned)
+    return isNaN(num) ? 0 : num
+  }
+
   // Executar Otimização Multicritério com feedback de etapas
   const runOptimization = (
     currentOrders = orders,
@@ -146,11 +162,34 @@ export function LoadRouterAndSimulatorPage() {
     capKg = vehicleCapacityKg,
     vType = selectedVehicleType,
     meta = itinerariesMetadata,
+    minOccStr = minOccupancyInput,
+    maxOccStr = maxOccupancyInput,
   ) => {
+    const minOcc = parsePercentBr(minOccStr)
+    const maxOcc = parsePercentBr(maxOccStr)
+
+    // Validações obrigatórias
+    if (minOcc === 0 && maxOcc === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Faixa de ocupação obrigatória',
+        description: 'Informe a faixa de ocupação mínima e máxima para realizar a otimização.',
+      })
+      return
+    }
+
+    if (minOcc > maxOcc || minOcc < 0 || maxOcc > 100) {
+      toast({
+        variant: 'destructive',
+        title: 'Validação de Ocupação',
+        description: 'A ocupação máxima deve ser igual ou superior à ocupação mínima.',
+      })
+      return
+    }
+
     setOptimizing(true)
     setOptimizationStep('Lendo Carteira Única & Normalizando...')
 
-    // Simulação visual ultra rápida das etapas reais do motor determinístico
     setTimeout(() => {
       setOptimizationStep('Avaliando elegibilidade, estoque DP34 & crédito...')
     }, 120)
@@ -159,7 +198,7 @@ export function LoadRouterAndSimulatorPage() {
       setOptimizationStep('Agrupando por itinerários e combinando capacidades...')
     }, 240)
 
-    setTimeout(() => {
+    setTimeout(async () => {
       const result = runGlobalCiafalOptimizer({
         itineraryCode: itinFilter,
         plannedDate: date,
@@ -171,11 +210,44 @@ export function LoadRouterAndSimulatorPage() {
         vehicleType: vType,
         weights,
         itinerariesMetadata: meta,
+        minOccupancyPct: minOcc,
+        maxOccupancyPct: maxOcc,
       })
 
       setGlobalResult(result)
       setOptimizing(false)
       setOptimizationStep('')
+
+      // Persistir em load_proposals e gerar oportunidades de complemento no backend
+      try {
+        const candidatesByProposal: Record<string, any[]> = {}
+        result.allProposedCargos.forEach((c) => {
+          candidatesByProposal[c.cargoNumber] = evaluateComplementCandidates({
+            cargo: c,
+            allOrders: currentOrders,
+            stocks: currentStocks,
+            pcpOrders: currentPcp,
+          })
+        })
+
+        await tmsService.saveLoadOptimizationRun({
+          itineraryCode: itinFilter,
+          plannedDate: date,
+          vehicleType: vType,
+          minOccupancyPct: minOcc,
+          maxOccupancyPct: maxOcc,
+          totalOrdersConsidered: currentOrders.length,
+          totalProposalsCreated: result.allProposedCargos.length,
+          totalWeightKg: result.kpis.totalPlannedWeightKg,
+          avgOccupancyPct: result.kpis.avgOccupancyPct,
+          proposals: result.allProposedCargos,
+          candidatesByProposal,
+          operatorEmail: user?.email || 'operador@ciafal.com.br',
+          operatorName: user?.name || 'Operador TMS',
+        })
+      } catch (saveErr) {
+        console.warn('Persistência de propostas em contingência:', saveErr)
+      }
     }, 380)
   }
 
@@ -228,6 +300,8 @@ export function LoadRouterAndSimulatorPage() {
         vehicleCapacityKg,
         selectedVehicleType,
         itinMetaMap,
+        minOccupancyInput,
+        maxOccupancyInput,
       )
     } catch (err: any) {
       toast({
@@ -511,25 +585,46 @@ export function LoadRouterAndSimulatorPage() {
           </div>
 
           <div>
-            <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-              <Package className="h-3.5 w-3.5 text-indigo-600" />
-              Capacidade Efetiva (Kg)
-            </Label>
-            <div className="flex items-center gap-2 mt-1">
-              <Input
-                type="number"
-                step="500"
-                value={vehicleCapacityKg}
-                onChange={(e) => {
-                  const cap = Number(e.target.value) || 28000
-                  setVehicleCapacityKg(cap)
-                  handleFilterChange(selectedItineraryFilter, plannedDate, selectedVehicleType, cap)
-                }}
-                className="h-9 bg-white dark:bg-slate-900"
-              />
-              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                {(vehicleCapacityKg / 1000).toFixed(1)}t
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <Sliders className="h-3.5 w-3.5 text-indigo-600" />
+                Faixa de Ocupação Alvo
+              </Label>
+              <span className="text-[10px] text-slate-500 font-mono">
+                Capacidade: {(vehicleCapacityKg / 1000).toFixed(1)}t (auto)
               </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              <div>
+                <span className="text-[10px] text-slate-500 block mb-0.5">Ocupação mínima</span>
+                <Input
+                  type="text"
+                  placeholder="00%"
+                  value={minOccupancyInput}
+                  onChange={(e) => setMinOccupancyInput(e.target.value)}
+                  onBlur={() => {
+                    let val = minOccupancyInput.trim()
+                    if (val && !val.endsWith('%')) val = `${val}%`
+                    setMinOccupancyInput(val || '00%')
+                  }}
+                  className="h-9 text-xs bg-white dark:bg-slate-900 font-semibold"
+                />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 block mb-0.5">Ocupação máxima</span>
+                <Input
+                  type="text"
+                  placeholder="00%"
+                  value={maxOccupancyInput}
+                  onChange={(e) => setMaxOccupancyInput(e.target.value)}
+                  onBlur={() => {
+                    let val = maxOccupancyInput.trim()
+                    if (val && !val.endsWith('%')) val = `${val}%`
+                    setMaxOccupancyInput(val || '00%')
+                  }}
+                  className="h-9 text-xs bg-white dark:bg-slate-900 font-semibold"
+                />
+              </div>
             </div>
           </div>
         </CardContent>
@@ -588,14 +683,18 @@ export function LoadRouterAndSimulatorPage() {
             <span className="text-[10px] text-emerald-600 block">Em cargas sugeridas</span>
           </Card>
 
-          <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 p-3">
-            <span className="text-[10px] font-semibold text-amber-700 uppercase block">
-              Aguard. Complemento
+          <Card
+            className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 p-3 cursor-pointer hover:border-amber-400 hover:shadow-md transition-all"
+            onClick={() => setIsWaitingComplementModalOpen(true)}
+          >
+            <span className="text-[10px] font-semibold text-amber-700 uppercase block flex items-center justify-between">
+              <span>Aguard. Complemento</span>
+              <Eye className="h-3 w-3 text-amber-600" />
             </span>
             <span className="text-2xl font-black text-amber-900 dark:text-amber-200">
               {globalResult.kpis.waitingComplementCount}
             </span>
-            <span className="text-[10px] text-amber-600 block">&lt; 80% ocupação</span>
+            <span className="text-[10px] text-amber-600 block">Clique para detalhar</span>
           </Card>
 
           <Card className="border-slate-200 bg-slate-50 dark:bg-slate-900 p-3">
@@ -1515,6 +1614,305 @@ export function LoadRouterAndSimulatorPage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE DETALHAMENTO DE CARGAS AGUARDANDO COMPLEMENTO */}
+      <Dialog open={isWaitingComplementModalOpen} onOpenChange={setIsWaitingComplementModalOpen}>
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                  <Package className="h-5 w-5 text-amber-600" />
+                  Cargas Aguardando Complemento Comercial (
+                  {globalResult?.complementCargos.length || 0})
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  Cargas abaixo da meta de ocupação máxima ({maxOccupancyInput}). Registros com
+                  oportunidade de fechamento comercial ativo.
+                </DialogDescription>
+              </div>
+              <Badge className="bg-amber-100 text-amber-800 border-amber-300">
+                Ação Comercial Pendente
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {globalResult?.complementCargos.map((cargo) => {
+              const missingKg =
+                cargo.missingWeightKg ||
+                Math.max(0, cargo.vehicleCapacityKg * 0.95 - cargo.totalWeightKg)
+              const candidates = evaluateComplementCandidates({
+                cargo,
+                allOrders: orders,
+                stocks,
+                pcpOrders,
+              })
+
+              return (
+                <div
+                  key={cargo.id}
+                  className="p-4 rounded-lg border border-amber-200 bg-amber-50/30 dark:bg-amber-950/10 space-y-3"
+                >
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-amber-100 pb-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                          {cargo.cargoNumber}
+                        </span>
+                        <Badge variant="outline" className="text-[10px] bg-white font-mono">
+                          {cargo.itineraryCode}
+                        </Badge>
+                        <Badge className="bg-amber-600 text-white text-[10px]">
+                          {cargo.classificationStatus || 'Carga parcial — Complemento Comercial'}
+                        </Badge>
+                        {cargo.isFutureMatch && (
+                          <Badge className="bg-blue-600 text-white text-[10px]">
+                            Match Veículo Futuro
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-600 dark:text-slate-400 block mt-0.5">
+                        Saída: {cargo.plannedExpeditionDate} • {cargo.itineraryDescription} (
+                        {cargo.uf}) • {cargo.vehicleType}
+                      </span>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-xs text-slate-500 block">
+                        Programado: <strong>{(cargo.totalWeightKg / 1000).toFixed(1)}t</strong> (
+                        {cargo.occupancyPct}%)
+                      </span>
+                      <span className="text-xs font-bold text-amber-700 block">
+                        Complemento necessário: {(missingKg / 1000).toFixed(1)} t (Meta{' '}
+                        {maxOccupancyInput})
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Resumo de Sugestões Comerciais */}
+                  <div className="bg-white dark:bg-slate-900 p-3 rounded border text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                        Recomendações da IA ({candidates.length} clientes elegíveis):
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Base: SAP RFC + MB52 + PCP + CRM 360°
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {candidates.slice(0, 2).map((cand) => (
+                        <div
+                          key={cand.customerCode}
+                          className="p-2 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 text-[11px] space-y-1"
+                        >
+                          <div className="flex justify-between items-start font-semibold">
+                            <span>{cand.customerName}</span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] ${
+                                cand.creditStatus === 'Crédito OK'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                  : 'bg-rose-50 text-rose-700 border-rose-300'
+                              }`}
+                            >
+                              {cand.creditStatus}
+                            </Badge>
+                          </div>
+                          <span className="text-slate-600 dark:text-slate-400 block">
+                            Material: <strong>{cand.materialDescription}</strong> (
+                            {cand.stockStatus})
+                          </span>
+                          <span className="text-slate-500 block">
+                            Sugerido: {(cand.suggestedQtyKg / 1000).toFixed(1)}t • Score:{' '}
+                            {cand.rankingScore}/100
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 8 AÇÕES OBRIGATÓRIAS DO USUÁRIO */}
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => {
+                        setSelectedCargoDetail(cargo)
+                        setIsWaitingComplementModalOpen(false)
+                      }}
+                    >
+                      <Eye className="h-3 w-3 mr-1" />
+                      Ver carga
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => {
+                        navigate('/tms/complemento-cargas')
+                      }}
+                    >
+                      <Users className="h-3 w-3 mr-1" />
+                      Ver clientes sugeridos
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => {
+                        navigate('/tms/complemento-cargas')
+                      }}
+                    >
+                      <Package className="h-3 w-3 mr-1" />
+                      Ver produtos sugeridos
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-7"
+                      onClick={async () => {
+                        toast({
+                          title: 'Enviando ao Comercial...',
+                          description: `Demanda de complemento de ${(missingKg / 1000).toFixed(1)}t criada e enviada para a equipe comercial/CRM 360°.`,
+                        })
+                        try {
+                          await tmsService.sendLoadComplementToCommercial(
+                            `OPP-${cargo.cargoNumber}`,
+                            user?.email || 'operador@ciafal.com.br',
+                            user?.name || 'Operador TMS',
+                          )
+                        } catch {
+                          /* ignore */
+                        }
+                      }}
+                    >
+                      <Send className="h-3 w-3 mr-1" />
+                      Enviar ao Comercial
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7 text-indigo-700 border-indigo-300"
+                      onClick={() => navigate('/tms/complemento-cargas')}
+                    >
+                      Abrir Complemento de Cargas
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => {
+                        runOptimization()
+                        toast({
+                          title: 'Reotimizando...',
+                          description: 'Recálculo multicritério acionado para esta proposta.',
+                        })
+                      }}
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Reotimizar
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7 text-rose-600 hover:bg-rose-50"
+                      onClick={() => {
+                        toast({
+                          title: 'Oportunidade Descartada',
+                          description: `A proposta ${cargo.cargoNumber} foi marcada para descarte manual.`,
+                        })
+                      }}
+                    >
+                      Descartar oportunidade
+                    </Button>
+
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => {
+                        setSelectedComplementTargetCargo(cargo)
+                        setNewTargetOccupancyInput(`${cargo.maxOccupancyPct || 95}%`)
+                        setIsTargetOccupancyModalOpen(true)
+                      }}
+                    >
+                      Alterar ocupação alvo
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsWaitingComplementModalOpen(false)}
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE ALTERAÇÃO DE OCUPAÇÃO ALVO */}
+      <Dialog open={isTargetOccupancyModalOpen} onOpenChange={setIsTargetOccupancyModalOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">Alterar Ocupação Alvo</DialogTitle>
+            <DialogDescription className="text-xs">
+              Ajuste a ocupação máxima para esta proposta específica (
+              {selectedComplementTargetCargo?.cargoNumber}).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-2 text-xs">
+            <Label className="text-xs">Nova Ocupação Máxima Alvo</Label>
+            <Input
+              type="text"
+              value={newTargetOccupancyInput}
+              onChange={(e) => setNewTargetOccupancyInput(e.target.value)}
+              placeholder="95%"
+              className="h-9 font-semibold"
+            />
+            <span className="text-[10px] text-slate-500 block">
+              Padrão brasileiro (ex: 85%, 90%, 95%). Apenas usuários com permissão.
+            </span>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsTargetOccupancyModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              className="bg-indigo-600 text-white"
+              onClick={() => {
+                setIsTargetOccupancyModalOpen(false)
+                toast({
+                  title: 'Ocupação Alvo Atualizada',
+                  description: `Meta para ${selectedComplementTargetCargo?.cargoNumber} redefinida para ${newTargetOccupancyInput}.`,
+                })
+                runOptimization()
+              }}
+            >
+              Salvar Alteração
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

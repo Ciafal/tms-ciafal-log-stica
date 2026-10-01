@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-01T18:01:34.719Z",
+  "generatedAt": "2026-10-01T18:13:11.122Z",
   "collections": [
     {
       "name": "users",
@@ -10237,6 +10237,885 @@
         "CREATE INDEX idx_zsd004_owner_cnpj ON sap_zsd004_vehicles_drivers (owner_cnpj)",
         "CREATE INDEX idx_zsd004_plant ON sap_zsd004_vehicles_drivers (plant)",
         "CREATE INDEX idx_zsd004_integrity ON sap_zsd004_vehicles_drivers (integrity_status)"
+      ]
+    },
+    {
+      "name": "load_optimization_runs",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "planned_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "min_occupancy_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "max_occupancy_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_orders_considered",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_proposals_created",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avg_occupancy_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["executado", "em_processamento", "erro"]
+        },
+        {
+          "name": "executed_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_lor_corr ON load_optimization_runs (correlation_id)",
+        "CREATE INDEX idx_lor_date ON load_optimization_runs (planned_date)",
+        "CREATE INDEX idx_lor_itin ON load_optimization_runs (itinerary_code)"
+      ]
+    },
+    {
+      "name": "load_proposals",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "proposal_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "itinerary_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "uf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "region",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "planned_dispatch_date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vehicle_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_capacity_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "current_weight_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "current_occupancy_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "min_occupancy_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "max_occupancy_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "target_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "missing_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "classification_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Aguardando consolidação",
+            "Carga parcial — Complemento Comercial",
+            "Carga dentro da faixa",
+            "Capacidade excedida — Reotimizar"
+          ]
+        },
+        {
+          "name": "lifecycle_stage",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Simulação",
+            "Proposta TMS",
+            "Programação futura",
+            "Aguardando complemento",
+            "Carga consolidada",
+            "Aprovada",
+            "Transporte SAP"
+          ]
+        },
+        {
+          "name": "orders_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customers_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "discharges_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estimated_freight_cost",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "antt_floor_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tolls_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_future_match",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "scheduled_vehicle_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "why_proposed",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reasons",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_lp_num ON load_proposals (proposal_number)",
+        "CREATE INDEX idx_lp_itin ON load_proposals (itinerary_code)",
+        "CREATE INDEX idx_lp_date ON load_proposals (planned_dispatch_date)",
+        "CREATE INDEX idx_lp_status ON load_proposals (classification_status)",
+        "CREATE INDEX idx_lp_stage ON load_proposals (lifecycle_stage)",
+        "CREATE INDEX idx_lp_corr ON load_proposals (correlation_id)"
+      ]
+    },
+    {
+      "name": "load_proposal_items",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "load_proposal_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "order_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "item_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination_city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "uf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "material_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "material_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "order_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "desired_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "credit_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "stock_situation",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pcp_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_lpi_prop ON load_proposal_items (load_proposal_number)",
+        "CREATE INDEX idx_lpi_ord ON load_proposal_items (order_number)",
+        "CREATE INDEX idx_lpi_cust ON load_proposal_items (customer_code)"
+      ]
+    },
+    {
+      "name": "load_complement_opportunities",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "opportunity_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "load_proposal_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "itinerary_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "planned_dispatch_date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vehicle_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_capacity_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "current_weight_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "current_occupancy_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "minimum_occupancy_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "maximum_occupancy_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "target_weight_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "missing_weight_kg",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "material_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "material_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "suggested_quantity_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "credit_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "stock_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "projected_stock_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "salesperson_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "commercial_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Nova oportunidade",
+            "Em análise comercial",
+            "Contato iniciado",
+            "Cliente interessado",
+            "Aguardando pedido SAP",
+            "Pedido criado",
+            "Associado à carga",
+            "Recusado pelo cliente",
+            "Descartado",
+            "Expirado"
+          ]
+        },
+        {
+          "name": "sap_order_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logistic_adherence",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Alta", "Média", "Baixa"]
+        },
+        {
+          "name": "commercial_adherence",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Alta", "Média", "Baixa"]
+        },
+        {
+          "name": "adherence_explanation",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_recommendation",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "audit_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deadline_hours",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_lco_code ON load_complement_opportunities (opportunity_code)",
+        "CREATE INDEX idx_lco_prop ON load_complement_opportunities (load_proposal_id)",
+        "CREATE INDEX idx_lco_itin ON load_complement_opportunities (itinerary_id)",
+        "CREATE INDEX idx_lco_status ON load_complement_opportunities (commercial_status)",
+        "CREATE INDEX idx_lco_cust ON load_complement_opportunities (customer_id)"
+      ]
+    },
+    {
+      "name": "load_complement_candidates",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "opportunity_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "uf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "credit_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "material_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "material_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historical_avg_qty_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_purchase_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "stock_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "stock_available_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "projected_availability_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "suggested_qty_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logistic_adherence",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "commercial_adherence",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ranking_score",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "recommendation_rationale",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_exception",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "exception_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_lcc_opp ON load_complement_candidates (opportunity_code)",
+        "CREATE INDEX idx_lcc_cust ON load_complement_candidates (customer_code)",
+        "CREATE INDEX idx_lcc_rank ON load_complement_candidates (ranking_score)"
       ]
     }
   ]

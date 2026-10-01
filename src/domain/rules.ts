@@ -2515,3 +2515,157 @@ export function calculateOrderPriorityScore(order: SapSalesOrderEntity): OrderPr
     classification,
   }
 }
+
+// ----------------------------------------------------
+// ENTIDADES TMS EVOLUÇÃO MULTICRITÉRIO & COMPLEMENTO DE CARGAS
+// ----------------------------------------------------
+
+export type LoadClassificationStatus =
+  | 'Aguardando consolidação'
+  | 'Carga parcial — Complemento Comercial'
+  | 'Carga dentro da faixa'
+  | 'Capacidade excedida — Reotimizar'
+
+export type LoadLifecycleStage =
+  | 'Simulação'
+  | 'Proposta TMS'
+  | 'Programação futura'
+  | 'Aguardando complemento'
+  | 'Carga consolidada'
+  | 'Aprovada'
+  | 'Transporte SAP'
+
+export type CommercialOpportunityStatus =
+  | 'Nova oportunidade'
+  | 'Em análise comercial'
+  | 'Contato iniciado'
+  | 'Cliente interessado'
+  | 'Aguardando pedido SAP'
+  | 'Pedido criado'
+  | 'Associado à carga'
+  | 'Recusado pelo cliente'
+  | 'Descartado'
+  | 'Expirado'
+
+export type AdherenceLevel = 'Alta' | 'Média' | 'Baixa'
+
+export interface LoadProposalEntity {
+  id: string
+  proposal_number: string
+  correlation_id?: string
+  itinerary_code: string
+  itinerary_description?: string
+  uf?: string
+  region?: string
+  planned_dispatch_date: string
+  vehicle_id?: string
+  vehicle_plate?: string
+  vehicle_type?: string
+  vehicle_capacity_kg: number
+  current_weight_kg: number
+  current_occupancy_pct: number
+  min_occupancy_pct: number
+  max_occupancy_pct: number
+  target_weight_kg?: number
+  missing_weight_kg?: number
+  classification_status: LoadClassificationStatus
+  lifecycle_stage: LoadLifecycleStage
+  orders_count: number
+  customers_count: number
+  discharges_count: number
+  estimated_freight_cost?: number
+  antt_floor_value?: number
+  tolls_value?: number
+  is_future_match?: boolean
+  scheduled_vehicle_date?: string
+  score?: number
+  why_proposed?: string
+  reasons?: string[]
+  sap_transport_number?: string
+  created_by?: string
+  created?: string
+  updated?: string
+}
+
+export interface LoadProposalItemEntity {
+  id?: string
+  load_proposal_number: string
+  order_number: string
+  item_number?: string
+  customer_code?: string
+  customer_name?: string
+  destination_city?: string
+  uf?: string
+  material_code?: string
+  material_description?: string
+  weight_kg: number
+  order_value?: number
+  desired_date?: string
+  credit_status?: string
+  stock_situation?: string
+  pcp_status?: string
+}
+
+export interface LoadComplementOpportunityEntity {
+  id: string
+  opportunity_code: string
+  load_proposal_id: string
+  itinerary_id: string
+  planned_dispatch_date: string
+  vehicle_id?: string
+  vehicle_plate?: string
+  vehicle_type?: string
+  vehicle_capacity_kg: number
+  current_weight_kg: number
+  current_occupancy_pct: number
+  minimum_occupancy_pct: number
+  maximum_occupancy_pct: number
+  target_weight_kg: number
+  missing_weight_kg: number
+  customer_id?: string
+  customer_name?: string
+  material_id?: string
+  material_description?: string
+  suggested_quantity_kg?: number
+  credit_status?: string
+  stock_status?: string
+  projected_stock_date?: string
+  salesperson_id?: string
+  commercial_status: CommercialOpportunityStatus
+  sap_order_id?: string
+  logistic_adherence?: AdherenceLevel
+  commercial_adherence?: AdherenceLevel
+  adherence_explanation?: string
+  ai_recommendation?: string
+  audit_status?: string
+  created_by?: string
+  deadline_hours?: number
+  notes?: string
+  created?: string
+  updated?: string
+}
+
+export interface LoadComplementCandidateEntity {
+  id?: string
+  opportunity_code: string
+  customer_code: string
+  customer_name?: string
+  city?: string
+  uf?: string
+  itinerary_code?: string
+  credit_status?: string
+  material_code?: string
+  material_description?: string
+  historical_avg_qty_kg?: number
+  last_purchase_date?: string
+  stock_status?: string
+  stock_available_kg?: number
+  projected_availability_date?: string
+  suggested_qty_kg?: number
+  logistic_adherence?: AdherenceLevel
+  commercial_adherence?: AdherenceLevel
+  ranking_score?: number
+  recommendation_rationale?: string
+  is_exception?: boolean
+  exception_reason?: string
+}
