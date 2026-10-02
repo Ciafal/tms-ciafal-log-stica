@@ -28,6 +28,7 @@ import { AnttRatesPage } from '@/pages/AnttRatesPage'
 import { FutureProgrammingPage } from '@/pages/FutureProgrammingPage'
 import { ComplementCargosPage } from '@/pages/ComplementCargosPage'
 import { SapItinerariesPage } from '@/pages/SapItinerariesPage'
+import { CustomerLogisticInfoPage } from '@/pages/CustomerLogisticInfoPage'
 import { SapConsultingChecklistPage } from '@/pages/SapConsultingChecklistPage'
 import { SapReceivedDataPage } from '@/pages/SapReceivedDataPage'
 import { SapReconciliationPage } from '@/pages/SapReconciliationPage'
@@ -217,6 +218,14 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <ComplementCargosPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/informacoes-clientes"
+            element={
+              <Layout>
+                <CustomerLogisticInfoPage />
               </Layout>
             }
           />

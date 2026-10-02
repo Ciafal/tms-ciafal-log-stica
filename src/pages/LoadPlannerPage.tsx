@@ -49,6 +49,9 @@ import {
 import { EncontrosDrawer } from '@/components/load-planner/EncontrosDrawer'
 import { runVehicleLoadMatchingEngine } from '@/domain/vehicleLoadMatchingEngine'
 import { useRealtime } from '@/hooks/use-realtime'
+import { CustomerLogisticInfoEntity } from '@/domain/customerLogisticInfoEngine'
+import { customerLogisticInfoService } from '@/services/customerLogisticInfoService'
+import { CustomerLogisticDetailModal } from '@/components/CustomerLogisticDetailModal'
 
 export const LoadPlannerPage: React.FC = () => {
   const { user } = useAuth()
@@ -96,6 +99,12 @@ export const LoadPlannerPage: React.FC = () => {
   const [selectedOrders, setSelectedOrders] = useState<SapSalesOrderEntity[]>([])
   const [selectedQueueVehicle, setSelectedQueueVehicle] = useState<QueueEntryEntity | null>(null)
 
+  // Informações Logísticas de Clientes (SAP RFC HUB)
+  const [customerProfiles, setCustomerProfiles] = useState<CustomerLogisticInfoEntity[]>([])
+  const [selectedCustomerDetail, setSelectedCustomerDetail] =
+    useState<CustomerLogisticInfoEntity | null>(null)
+  const [customerModalOpen, setCustomerModalOpen] = useState(false)
+
   // Sprint 6: Agente IA Planejador Nativo Skip Cloud
   const [aiExplanation, setAiExplanation] = useState<string>('')
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false)
@@ -125,18 +134,30 @@ export const LoadPlannerPage: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const [ordData, itinData, qData, metaData, stockData, pcpData, vehData, drvData, ruleData] =
-        await Promise.all([
-          TmsService.getUnifiedSalesWallet(),
-          TmsService.getSapItineraries(),
-          TmsService.getOperationalQueue(),
-          TmsService.getLatestWalletMetadata(),
-          TmsService.getStockCurrent(),
-          TmsService.getPcpProductionOrders(),
-          TmsService.getVehicles(),
-          TmsService.getDrivers(),
-          TmsService.getFreightRuleParameters(),
-        ])
+      const [
+        ordData,
+        itinData,
+        qData,
+        metaData,
+        stockData,
+        pcpData,
+        vehData,
+        drvData,
+        ruleData,
+        custProfilesData,
+      ] = await Promise.all([
+        TmsService.getUnifiedSalesWallet(),
+        TmsService.getSapItineraries(),
+        TmsService.getOperationalQueue(),
+        TmsService.getLatestWalletMetadata(),
+        TmsService.getStockCurrent(),
+        TmsService.getPcpProductionOrders(),
+        TmsService.getVehicles(),
+        TmsService.getDrivers(),
+        TmsService.getFreightRuleParameters(),
+        customerLogisticInfoService.getAllCustomers().catch(() => []),
+      ])
+      setCustomerProfiles(custProfilesData || [])
       setOrders(ordData)
       setItineraries(itinData)
       setQueueEntries(qData)
@@ -265,8 +286,56 @@ export const LoadPlannerPage: React.FC = () => {
       orders: selectedOrders,
       vehicle: candidateVehicle,
       targetItineraryCode: filterItinerary,
+      customerLogisticProfiles: customerProfiles,
     })
-  }, [selectedOrders, selectedQueueVehicle, filterItinerary])
+  }, [selectedOrders, selectedQueueVehicle, filterItinerary, customerProfiles])
+
+  // Helper para indicador de informações logísticas de clientes
+  const getCustomerIndicator = (customerCode?: string, customerName?: string) => {
+    const prof = customerProfiles.find(
+      (p) =>
+        (p.customer_code === customerCode ||
+          p.ship_to_code === customerCode ||
+          p.customer_name.toLowerCase() === (customerName || '').toLowerCase()) &&
+        p.is_active,
+    )
+    if (!prof) {
+      return {
+        label: 'Sem restrições',
+        color: 'border-slate-300 text-slate-500 bg-slate-50',
+        profile: null,
+      }
+    }
+    if (prof.highest_restriction_level === 'CRITICA') {
+      return {
+        label: 'Restrição crítica',
+        color: 'border-red-400 text-red-700 bg-red-50 font-bold',
+        profile: prof,
+      }
+    }
+    if (
+      prof.highest_restriction_level === 'RESTRITIVA' ||
+      prof.highest_restriction_level === 'ALERTA'
+    ) {
+      return {
+        label: 'Atenção logística',
+        color: 'border-amber-400 text-amber-800 bg-amber-50 font-medium',
+        profile: prof,
+      }
+    }
+    if (prof.scheduling_restrictions_json?.requiresScheduling) {
+      return {
+        label: 'Agendamento obrigatório',
+        color: 'border-blue-400 text-blue-700 bg-blue-50 font-medium',
+        profile: prof,
+      }
+    }
+    return {
+      label: 'Informações disponíveis',
+      color: 'border-sky-300 text-sky-700 bg-sky-50',
+      profile: prof,
+    }
+  }
 
   // Complement Opportunity check
   const complementOpportunity = useMemo(() => {
@@ -667,6 +736,27 @@ export const LoadPlannerPage: React.FC = () => {
                         >
                           Crédito: {order.credit_status}
                         </Badge>
+
+                        {/* Indicador de Informações Logísticas de Clientes (Requisito 19) */}
+                        {(() => {
+                          const ind = getCustomerIndicator(order.customer_code, order.customer_name)
+                          return (
+                            <Badge
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (ind.profile) {
+                                  setSelectedCustomerDetail(ind.profile)
+                                  setCustomerModalOpen(true)
+                                }
+                              }}
+                              className={`text-[9px] cursor-pointer hover:opacity-80 transition-opacity ${ind.color}`}
+                              title="Clique para abrir ficha logística completa do cliente"
+                            >
+                              📋 {ind.label}
+                            </Badge>
+                          )
+                        })()}
                       </div>
                     </div>
 
@@ -1104,6 +1194,16 @@ export const LoadPlannerPage: React.FC = () => {
             title: 'Carga Carregada na Montagem',
             description: `${match.candidateLoad.title} vinculada ao veículo ${match.vehiclePlate}.`,
           })
+        }}
+      />
+
+      {/* Modal Resumido de Informações Logísticas do Cliente Selecionado */}
+      <CustomerLogisticDetailModal
+        customer={selectedCustomerDetail}
+        open={customerModalOpen}
+        onClose={() => {
+          setCustomerModalOpen(false)
+          setSelectedCustomerDetail(null)
         }}
       />
     </div>

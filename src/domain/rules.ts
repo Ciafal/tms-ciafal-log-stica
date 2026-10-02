@@ -1663,6 +1663,8 @@ export interface AssembleLoadInput {
   vehicle: VehicleEntity | null
   targetItineraryCode: string
   maxVolumeM3?: number
+  customerLogisticProfiles?: any[]
+  planningDate?: string
 }
 
 /**
@@ -1759,10 +1761,53 @@ export function avaliar_montagem_carga(input: AssembleLoadInput): LoadAssemblyRu
   const ordersWithObs = orders.filter((o) => !!o.sap_notes && o.sap_notes.trim().length > 0)
   const hasObservations = ordersWithObs.length > 0
 
+  // 8. Validação de Restrições Logísticas de Clientes (Base SAP RFC HUB)
+  let customerValidationSuccess = true
+  if (input.customerLogisticProfiles && input.customerLogisticProfiles.length > 0) {
+    // Importação dinâmica ou avaliação direta inline
+    for (const profile of input.customerLogisticProfiles) {
+      if (!profile.is_active) continue
+      const custOrders = orders.filter(
+        (o) =>
+          o.customer_code === profile.customer_code || o.customer_name === profile.customer_name,
+      )
+      if (custOrders.length === 0) continue
+
+      const custWeightTons = custOrders.reduce((s, o) => s + (o.weight_kg || 0), 0) / 1000
+      const maxTons =
+        profile.load_formation_restrictions_json?.maxTotalWeightTons ||
+        (profile.load_formation_restrictions_json?.maxWeightPerDischargeKg
+          ? profile.load_formation_restrictions_json.maxWeightPerDischargeKg / 1000
+          : null)
+
+      if (maxTons !== null && custWeightTons > maxTons) {
+        customerValidationSuccess = false
+        const lvl = profile.highest_restriction_level || 'RESTRITIVA'
+        reasons.push(
+          `Carga incompatível com restrições logísticas do cliente ${profile.customer_code}: Peso planejado (${custWeightTons.toFixed(1)} t) excede o limite aceito de ${maxTons.toFixed(1)} t [Nível: ${lvl}].`,
+        )
+      }
+
+      // Veículo proibido
+      if (vehicle && profile.vehicle_restrictions_json?.forbiddenVehicleTypes) {
+        const vType = (vehicle.type || '').toLowerCase()
+        const isForbidden = profile.vehicle_restrictions_json.forbiddenVehicleTypes.some(
+          (fb: string) => vType.includes(fb.toLowerCase()),
+        )
+        if (isForbidden) {
+          customerValidationSuccess = false
+          reasons.push(
+            `Carga incompatível com restrições logísticas do cliente ${profile.customer_code}: Veículo ${vehicle.type} proibido no cliente [Nível: ${profile.highest_restriction_level}].`,
+          )
+        }
+      }
+    }
+  }
+
   // DECISION MATRIX
   let decision: LoadAssemblyDecision = 'permitida'
 
-  if (!itineraryValid || !weightValid || !creditValid) {
+  if (!itineraryValid || !weightValid || !creditValid || !customerValidationSuccess) {
     decision = 'recusada'
   } else if (
     !productionReady ||

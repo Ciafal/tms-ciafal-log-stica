@@ -7,11 +7,47 @@ routerAdd(
       const userId = e.auth ? e.auth.id : ''
       const body = e.requestInfo().body || {}
       const itineraryCode = body.itinerary_code || 'MG001A'
+      // Buscar restrições de clientes ativos deste itinerário para fornecer contexto estruturado à IA
+      let customerConstraintsContext = ''
+      try {
+        const custRecords = $app.findRecordsByFilter(
+          'sap_customer_logistic_info',
+          "is_active = true && (itinerary_code = '" + itineraryCode + "' || itinerary_code = '')",
+          '-highest_restriction_level',
+          10,
+          0,
+        )
+        if (custRecords && custRecords.length > 0) {
+          const rulesSummary = []
+          for (let i = 0; i < custRecords.length; i++) {
+            const rec = custRecords[i]
+            const cCode = rec.getString('customer_code')
+            const cName = rec.getString('customer_name')
+            const lvl = rec.getString('highest_restriction_level')
+            const obs = rec.getString('observations')
+            rulesSummary.push(
+              'Cliente ' +
+                cCode +
+                ' (' +
+                cName +
+                '): Nível ' +
+                lvl +
+                ' | Restrições: ' +
+                (obs || 'Consultar ficha técnica'),
+            )
+          }
+          customerConstraintsContext =
+            '\nRESTRIÇÕES LOGÍSTICAS DE CLIENTES OBRIGATÓRIAS (NÃO IGNORAR):\n' +
+            rulesSummary.join('\n')
+        }
+      } catch (_) {}
+
       const message =
-        body.message ||
-        'Analise os pedidos do itinerário ' +
-          itineraryCode +
-          ' e recomende os melhores cenários de carga considerando estoque DP34, crédito e motoristas PORTA.'
+        (body.message ||
+          'Analise os pedidos do itinerário ' +
+            itineraryCode +
+            ' e recomende os melhores cenários de carga considerando estoque DP34, crédito, motoristas PORTA e restrições ativas de clientes.') +
+        customerConstraintsContext
 
       let aiResult = null
       let fallbackUsed = false
@@ -34,7 +70,7 @@ routerAdd(
               {
                 role: 'system',
                 content:
-                  'Você é o Planejador IA do TMS CIAFAL. Seja analítico, direto e justifique os scores das cargas.',
+                  'Você é o Planejador IA do TMS CIAFAL. Seja analítico, direto e justifique os scores das cargas. ATENÇÃO MÁXIMA: Regras RESTRITIVA e CRÍTICA de clientes são regras duras de engenharia e NUNCA devem ser ignoradas. Proponha alternativas caso o pedido/veículo seja incompatível.',
               },
               { role: 'user', content: message },
             ],

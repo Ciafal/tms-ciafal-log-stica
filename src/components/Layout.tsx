@@ -150,6 +150,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: true,
         },
         {
+          title: 'Informações Clientes',
+          path: '/tms/informacoes-clientes',
+          badge: 'SAP RFC',
+          badgeColor: 'bg-[#005596]',
+          show: true,
+        },
+        {
           title: 'Itinerários SAP',
           path: '/tms/itinerarios-sap',
           badge: 'TVROT',

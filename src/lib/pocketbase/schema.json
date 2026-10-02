@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T18:18:50.816Z",
+  "generatedAt": "2026-10-02T18:59:19.182Z",
   "collections": [
     {
       "name": "users",
@@ -13965,6 +13965,247 @@
         "CREATE INDEX idx_lch_code ON load_complement_history (opportunity_code)",
         "CREATE INDEX idx_lch_opp_id ON load_complement_history (opportunity_id)",
         "CREATE INDEX idx_lch_created ON load_complement_history (created)"
+      ]
+    },
+    {
+      "name": "sap_customer_logistic_info",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "technical_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ship_to_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ship_to_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cnpj",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "plant_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sales_org",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "distribution_channel",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sector",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delivery_address",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delivery_city",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "delivery_uf",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "delivery_cep",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logistic_region",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "highest_restriction_level",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["INFORMATIVA", "ALERTA", "RESTRITIVA", "CRITICA"]
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valid_from",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valid_to",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_user",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin_rfc",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin_table",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_sync_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observations",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "material_restrictions_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "load_formation_restrictions_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_restrictions_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "access_restrictions_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "discharge_restrictions_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "scheduling_restrictions_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "documentation_restrictions_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "safety_driver_restrictions_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "history_changelog_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_cust_info_tech_key ON sap_customer_logistic_info (technical_key)",
+        "CREATE INDEX idx_cust_info_customer_code ON sap_customer_logistic_info (customer_code)",
+        "CREATE INDEX idx_cust_info_ship_to ON sap_customer_logistic_info (ship_to_code)",
+        "CREATE INDEX idx_cust_info_itinerary ON sap_customer_logistic_info (itinerary_code)",
+        "CREATE INDEX idx_cust_info_city_uf ON sap_customer_logistic_info (delivery_city, delivery_uf)",
+        "CREATE INDEX idx_cust_info_level ON sap_customer_logistic_info (highest_restriction_level)",
+        "CREATE INDEX idx_cust_info_active ON sap_customer_logistic_info (is_active)"
       ]
     }
   ]
