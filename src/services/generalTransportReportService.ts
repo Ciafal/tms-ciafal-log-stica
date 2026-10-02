@@ -32,7 +32,13 @@ class GeneralTransportReportService {
    * Registra log de auditoria oficial para consultas e exportações
    */
   async logReportAudit(
-    action: 'QUERY_REPORT' | 'EXPORT_REPORT' | 'INTEGRATION_ERROR',
+    action:
+      | 'QUERY_REPORT'
+      | 'EXPORT_REPORT'
+      | 'INTEGRATION_ERROR'
+      | 'OPEN_AI_ANALYSIS'
+      | 'OPEN_CHARTS_ANALYSIS'
+      | 'EXPORT_CHARTS_ANALYSIS',
     payload: {
       userEmail: string
       userName: string
@@ -41,9 +47,25 @@ class GeneralTransportReportService {
       totalItems?: number
       exportFormat?: string
       errorMessage?: string
+      details?: Record<string, any>
     },
   ): Promise<void> {
     try {
+      let reason = ''
+      if (action === 'OPEN_AI_ANALYSIS') {
+        reason = `Abertura da Análise IA do Relatório Geral Transporte (${payload.totalItems} registros considerados)`
+      } else if (action === 'OPEN_CHARTS_ANALYSIS') {
+        reason = `Abertura do Dashboard de Análises Gráficas (${payload.totalItems} registros considerados)`
+      } else if (action === 'EXPORT_CHARTS_ANALYSIS') {
+        reason = `Exportação da Análise Gráfica em ${payload.exportFormat} (${payload.totalItems} registros considerados)`
+      } else if (action === 'EXPORT_REPORT') {
+        reason = `Exportação do Relatório Geral Transporte em ${payload.exportFormat} (${payload.totalItems} registros)`
+      } else if (action === 'QUERY_REPORT') {
+        reason = `Consulta filtrada no Relatório Geral Transporte (${payload.totalItems} registros)`
+      } else {
+        reason = `Falha na consulta ao Relatório Geral Transporte: ${payload.errorMessage}`
+      }
+
       await pb.collection('audit_logs').create({
         action: `GENERAL_TRANSPORT_${action}`,
         user_email: payload.userEmail || 'operador@ciafal.com.br',
@@ -51,17 +73,13 @@ class GeneralTransportReportService {
         user_role: payload.userRole || 'operador_logistica',
         resource: 'carrier_operational_history',
         correlation_id: `GTR-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        reason:
-          action === 'EXPORT_REPORT'
-            ? `Exportação do Relatório Geral Transporte em ${payload.exportFormat} (${payload.totalItems} registros)`
-            : action === 'QUERY_REPORT'
-              ? `Consulta filtrada no Relatório Geral Transporte (${payload.totalItems} registros)`
-              : `Falha na consulta ao Relatório Geral Transporte: ${payload.errorMessage}`,
+        reason,
         payload: {
           filters: payload.filters,
           total_items: payload.totalItems,
           format: payload.exportFormat,
           error: payload.errorMessage,
+          details: payload.details,
           timestamp: new Date().toISOString(),
         },
       })
@@ -218,6 +236,21 @@ class GeneralTransportReportService {
       invoicing_date: rec.invoicing_date || datePart,
       source_collection: 'carrier_operational_history',
     }
+  }
+
+  /**
+   * Busca TODOS os registros que atendem exatamente ao filtro atual para cálculo analítico no backend
+   * e agregação em tempo de execução sem paginação artificial (até 1500 registros para inteligência).
+   */
+  async getAllFilteredRecords(
+    params: GeneralTransportFilterParams,
+  ): Promise<GeneralTransportRecord[]> {
+    const filter = this.buildPbFilter(params)
+    const response = await pb.collection('carrier_operational_history').getList(1, 1500, {
+      filter: filter || undefined,
+      sort: '-transport_date',
+    })
+    return response.items.map((rec) => this.mapRecordToReport(rec))
   }
 
   /**

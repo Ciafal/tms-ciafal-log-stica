@@ -1,15 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import {
-  FileSpreadsheet,
-  RotateCcw,
-  RefreshCw,
-  AlertCircle,
-  Truck,
-  Layers,
-  Scale,
-  Calendar,
-  CheckCircle2,
-} from 'lucide-react'
+import { FileSpreadsheet, RefreshCw, AlertCircle, Sparkles, BarChart3 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -20,12 +10,19 @@ import {
   GeneralTransportRecord,
   GeneralTransportFilterParams,
 } from '@/domain/generalTransportReportEngine'
+import {
+  generateTransportAiAnalysis,
+  AiReportAnalysisResult,
+} from '@/domain/transportAnalyticsEngine'
 import { generalTransportReportService } from '@/services/generalTransportReportService'
 import { ReportFilterBar } from '@/components/general-transport-report/ReportFilterBar'
 import { ReportDataTable } from '@/components/general-transport-report/ReportDataTable'
 import { ReportPagination } from '@/components/general-transport-report/ReportPagination'
 import { ColumnConfigDialog } from '@/components/general-transport-report/ColumnConfigDialog'
 import { ReportDetailModal } from '@/components/general-transport-report/ReportDetailModal'
+import { ReportAiAnalysisModal } from '@/components/general-transport-report/ReportAiAnalysisModal'
+import { ReportChartsDashboardModal } from '@/components/general-transport-report/ReportChartsDashboardModal'
+import { ReportDrillDownModal } from '@/components/general-transport-report/ReportDrillDownModal'
 
 const STORAGE_VISIBLE_COLS_KEY = 'ciafal_tms_gtr_visible_cols_v1'
 const STORAGE_ORDER_COLS_KEY = 'ciafal_tms_gtr_order_cols_v1'
@@ -99,10 +96,57 @@ export const GeneralTransportReportPage: React.FC = () => {
     useState<GeneralTransportRecord | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
 
+  // Estados dos novos recursos: Análise IA, Análises Gráficas e Drill-Down
+  const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false)
+  const [isChartsOpen, setIsChartsOpen] = useState(false)
+  const [isDrillDownOpen, setIsDrillDownOpen] = useState(false)
+  const [drillDownData, setDrillDownData] = useState<{
+    field: string
+    value: string
+    records: GeneralTransportRecord[]
+  }>({ field: '', value: '', records: [] })
+
+  // Dataset filtrado completo para analytics (recalculado nas análises)
+  const [allFilteredRecords, setAllFilteredRecords] = useState<GeneralTransportRecord[]>([])
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false)
+  const [aiAnalysisResult, setAiAnalysisResult] = useState<AiReportAnalysisResult | null>(null)
+
+  // Rastreamento para identificar se filtros mudaram após o cálculo analítico
+  const [analysisFiltersSnapshot, setAnalysisFiltersSnapshot] =
+    useState<GeneralTransportFilterParams | null>(null)
+
   // Colunas ativas ordenadas
   const activeColumns = useMemo(() => {
     return columnsOrder.filter((col) => visibleColumnKeys.includes(col.key as string))
   }, [columnsOrder, visibleColumnKeys])
+
+  // Verifica se filtros atuais divergem do snapshot da análise calculada
+  const isFiltersDirty = useMemo(() => {
+    if (!analysisFiltersSnapshot) return false
+    const f1 = {
+      transport: filters.transport || '',
+      startDate: filters.startDate || '',
+      endDate: filters.endDate || '',
+      startInvoicingDate: filters.startInvoicingDate || '',
+      endInvoicingDate: filters.endInvoicingDate || '',
+      statuses: (filters.statuses || []).slice().sort().join(','),
+      scaleLogFilter: filters.scaleLogFilter || 'ALL',
+      scaleReasons: (filters.scaleReasons || []).slice().sort().join(','),
+      plate: filters.plate || '',
+    }
+    const f2 = {
+      transport: analysisFiltersSnapshot.transport || '',
+      startDate: analysisFiltersSnapshot.startDate || '',
+      endDate: analysisFiltersSnapshot.endDate || '',
+      startInvoicingDate: analysisFiltersSnapshot.startInvoicingDate || '',
+      endInvoicingDate: analysisFiltersSnapshot.endInvoicingDate || '',
+      statuses: (analysisFiltersSnapshot.statuses || []).slice().sort().join(','),
+      scaleLogFilter: analysisFiltersSnapshot.scaleLogFilter || 'ALL',
+      scaleReasons: (analysisFiltersSnapshot.scaleReasons || []).slice().sort().join(','),
+      plate: analysisFiltersSnapshot.plate || '',
+    }
+    return JSON.stringify(f1) !== JSON.stringify(f2)
+  }, [filters, analysisFiltersSnapshot])
 
   // Busca de dados
   const loadReportData = useCallback(async () => {
@@ -181,6 +225,73 @@ export const GeneralTransportReportPage: React.FC = () => {
       sortField: 'transport_date',
       sortOrder: 'desc',
     })
+  }
+
+  // Carrega todos os registros filtrados para análises (IA e Gráficos)
+  const loadFilteredAnalyticsDataset = useCallback(async () => {
+    setIsAnalyticsLoading(true)
+    try {
+      const allRecords = await generalTransportReportService.getAllFilteredRecords(filters)
+      setAllFilteredRecords(allRecords)
+      const aiResult = generateTransportAiAnalysis(allRecords, filters)
+      setAiAnalysisResult(aiResult)
+      setAnalysisFiltersSnapshot({ ...filters })
+      return { allRecords, aiResult }
+    } catch (err) {
+      console.warn('Erro ao carregar dataset de análise:', err)
+      toast({
+        title: 'Falha ao processar análise',
+        description: 'Não foi possível consolidar os dados filtrados para análise.',
+        variant: 'destructive',
+      })
+      return null
+    } finally {
+      setIsAnalyticsLoading(false)
+    }
+  }, [filters, toast])
+
+  // Abertura da Análise IA com auditoria
+  const handleOpenAiAnalysis = async () => {
+    setIsAiAnalysisOpen(true)
+    const res = await loadFilteredAnalyticsDataset()
+    if (res && user) {
+      generalTransportReportService.logReportAudit('OPEN_AI_ANALYSIS', {
+        userEmail: user.email || 'operador@ciafal.com.br',
+        userName: user.name || 'Operador Logística',
+        userRole: user.role,
+        filters,
+        totalItems: res.allRecords.length,
+      })
+    }
+  }
+
+  // Abertura das Análises Gráficas com auditoria
+  const handleOpenCharts = async () => {
+    setIsChartsOpen(true)
+    const res = await loadFilteredAnalyticsDataset()
+    if (res && user) {
+      generalTransportReportService.logReportAudit('OPEN_CHARTS_ANALYSIS', {
+        userEmail: user.email || 'operador@ciafal.com.br',
+        userName: user.name || 'Operador Logística',
+        userRole: user.role,
+        filters,
+        totalItems: res.allRecords.length,
+      })
+    }
+  }
+
+  // Drill-down interativo a partir dos gráficos
+  const handleChartDrillDown = (
+    field: string,
+    value: string,
+    filteredSubset: GeneralTransportRecord[],
+  ) => {
+    setDrillDownData({
+      field,
+      value,
+      records: filteredSubset,
+    })
+    setIsDrillDownOpen(true)
   }
 
   // Detalhamento do transporte
@@ -309,11 +420,15 @@ export const GeneralTransportReportPage: React.FC = () => {
       {/* Barra de Filtros Integrada */}
       <ReportFilterBar
         filters={filters}
-        onFiltersChange={(newFilters) => setFilters(newFilters)}
+        onFiltersChange={(newFilters) => {
+          setFilters(newFilters)
+        }}
         onSearch={loadReportData}
         onClear={handleClearFilters}
         onExport={handleExport}
         onOpenColumnConfig={() => setIsColumnConfigOpen(true)}
+        onOpenAiAnalysis={handleOpenAiAnalysis}
+        onOpenCharts={handleOpenCharts}
         availableStatuses={availableStatuses}
         availableScaleReasons={availableScaleReasons}
         isLoading={isLoading}
@@ -361,6 +476,58 @@ export const GeneralTransportReportPage: React.FC = () => {
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         record={selectedRecordForDetail}
+      />
+
+      {/* Recurso 1: Modal de Análise IA com dados reais filtrados */}
+      <ReportAiAnalysisModal
+        open={isAiAnalysisOpen}
+        onOpenChange={setIsAiAnalysisOpen}
+        analysis={aiAnalysisResult}
+        isLoading={isAnalyticsLoading}
+        isFiltersDirty={isFiltersDirty}
+        onRefreshAnalysis={loadFilteredAnalyticsDataset}
+        onDrillDownTransport={(tNum) => {
+          const found = allFilteredRecords.find(
+            (r) => r.transport_number === tNum || r.sap_transport_number === tNum,
+          )
+          if (found) {
+            setSelectedRecordForDetail(found)
+            setIsDetailOpen(true)
+          }
+        }}
+      />
+
+      {/* Recurso 2: Dashboard de Análises Gráficas */}
+      <ReportChartsDashboardModal
+        open={isChartsOpen}
+        onOpenChange={setIsChartsOpen}
+        records={allFilteredRecords}
+        filters={filters}
+        analysis={aiAnalysisResult}
+        isLoading={isAnalyticsLoading}
+        isFiltersDirty={isFiltersDirty}
+        onRefreshData={loadFilteredAnalyticsDataset}
+        onDrillDown={handleChartDrillDown}
+        userContext={
+          user
+            ? {
+                name: user.name || 'Operador TMS',
+                email: user.email || 'operador@ciafal.com.br',
+                role: user.role,
+              }
+            : undefined
+        }
+      />
+
+      {/* Drill-Down Interativo em Tabela de 43 Colunas */}
+      <ReportDrillDownModal
+        open={isDrillDownOpen}
+        onOpenChange={setIsDrillDownOpen}
+        field={drillDownData.field}
+        value={drillDownData.value}
+        records={drillDownData.records}
+        activeColumns={activeColumns}
+        onSelectTransport={handleSelectTransport}
       />
     </div>
   )

@@ -15,6 +15,8 @@ import {
   FileText,
   Printer,
   CheckCircle2,
+  Sparkles,
+  BarChart3,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,6 +39,8 @@ interface ReportFilterBarProps {
   onClear: () => void
   onExport: (format: 'EXCEL' | 'CSV' | 'PDF') => void
   onOpenColumnConfig: () => void
+  onOpenAiAnalysis?: () => void
+  onOpenCharts?: () => void
   availableStatuses: string[]
   availableScaleReasons: string[]
   isLoading: boolean
@@ -50,6 +54,8 @@ export const ReportFilterBar: React.FC<ReportFilterBarProps> = ({
   onClear,
   onExport,
   onOpenColumnConfig,
+  onOpenAiAnalysis,
+  onOpenCharts,
   availableStatuses,
   availableScaleReasons,
   isLoading,
@@ -115,7 +121,7 @@ export const ReportFilterBar: React.FC<ReportFilterBarProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           <Button
             variant="outline"
             size="sm"
@@ -124,7 +130,7 @@ export const ReportFilterBar: React.FC<ReportFilterBarProps> = ({
             title="Personalizar colunas visíveis e ordenação"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Colunas (43)</span>
+            <span className="hidden md:inline">Colunas (43)</span>
           </Button>
 
           {/* Export Dropdown */}
@@ -135,7 +141,7 @@ export const ReportFilterBar: React.FC<ReportFilterBarProps> = ({
                 className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-8 gap-1.5 shadow-sm"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Exportar</span>
+                <span className="hidden sm:inline">Exportar</span>
                 <ChevronDown className="w-3 h-3 opacity-70" />
               </Button>
             </DropdownMenuTrigger>
@@ -168,6 +174,28 @@ export const ReportFilterBar: React.FC<ReportFilterBarProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Botão Análise IA */}
+          <Button
+            size="sm"
+            onClick={onOpenAiAnalysis}
+            className="bg-[#005596] hover:bg-[#004275] text-white text-xs h-8 gap-1.5 shadow-sm font-semibold rounded-lg"
+            title="Diagnóstico preditivo, anomalias e pesagem com base no dataset filtrado"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span className="hidden sm:inline">Análise IA</span>
+          </Button>
+
+          {/* Botão Análises Gráficas */}
+          <Button
+            size="sm"
+            onClick={onOpenCharts}
+            className="bg-sky-700 hover:bg-sky-800 text-white text-xs h-8 gap-1.5 shadow-sm font-semibold rounded-lg"
+            title="Dashboard com 10 gráficos analíticos e gráfico customizável sobre os dados filtrados"
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Análises Gráficas</span>
+          </Button>
+
           <Button
             variant="ghost"
             size="sm"
@@ -177,12 +205,12 @@ export const ReportFilterBar: React.FC<ReportFilterBarProps> = ({
             {isExpanded ? (
               <>
                 <ChevronUp className="w-4 h-4 mr-1" />
-                <span className="hidden sm:inline">Recolher</span>
+                <span className="hidden md:inline">Recolher</span>
               </>
             ) : (
               <>
                 <ChevronDown className="w-4 h-4 mr-1" />
-                <span className="hidden sm:inline">Expandir</span>
+                <span className="hidden md:inline">Expandir</span>
               </>
             )}
           </Button>
