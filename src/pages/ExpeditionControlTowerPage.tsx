@@ -50,6 +50,7 @@ import { YtdView } from '@/components/control-tower/YtdView'
 import { MapView } from '@/components/control-tower/MapView'
 import { AlertsView } from '@/components/control-tower/AlertsView'
 import { TransportDetailModal } from '@/components/control-tower/TransportDetailModal'
+import { ViewErrorBoundary } from '@/components/control-tower/ViewErrorBoundary'
 
 export const ExpeditionControlTowerPage: React.FC = () => {
   const { user } = useAuth()
@@ -293,107 +294,114 @@ export const ExpeditionControlTowerPage: React.FC = () => {
       </div>
 
       {/* 2. Barra de Botões de Alternância de Visão */}
-      <div className="bg-white rounded-xl border border-slate-200 p-2 shadow-sm overflow-x-auto">
-        <div className="flex items-center gap-1.5 min-w-max">
+      <div className="relative z-10 bg-white rounded-xl border border-slate-200 p-2 shadow-sm pointer-events-auto">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           <Button
+            type="button"
             variant={viewMode === 'executiva' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setViewMode('executiva')}
-            className={`text-xs font-bold gap-1.5 rounded-lg ${
+            className={`text-xs font-bold gap-1.5 rounded-lg pointer-events-auto transition-colors ${
               viewMode === 'executiva'
-                ? 'bg-[#005596] text-white shadow-sm'
+                ? 'bg-[#005596] text-white shadow-sm hover:bg-[#004275]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <LayoutDashboard className="w-3.5 h-3.5" />
-            Visão Executiva
+            <LayoutDashboard className="w-3.5 h-3.5 pointer-events-none" />
+            <span>Visão Executiva</span>
           </Button>
 
           <Button
+            type="button"
             variant={viewMode === 'cards' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setViewMode('cards')}
-            className={`text-xs font-bold gap-1.5 rounded-lg ${
+            className={`text-xs font-bold gap-1.5 rounded-lg pointer-events-auto transition-colors ${
               viewMode === 'cards'
-                ? 'bg-[#005596] text-white shadow-sm'
+                ? 'bg-[#005596] text-white shadow-sm hover:bg-[#004275]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <Grid className="w-3.5 h-3.5" />
-            Cards
+            <Grid className="w-3.5 h-3.5 pointer-events-none" />
+            <span>Cards</span>
           </Button>
 
           <Button
+            type="button"
             variant={viewMode === 'kanban' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setViewMode('kanban')}
-            className={`text-xs font-bold gap-1.5 rounded-lg ${
+            className={`text-xs font-bold gap-1.5 rounded-lg pointer-events-auto transition-colors ${
               viewMode === 'kanban'
-                ? 'bg-[#005596] text-white shadow-sm'
+                ? 'bg-[#005596] text-white shadow-sm hover:bg-[#004275]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <Kanban className="w-3.5 h-3.5" />
-            Kanban
+            <Kanban className="w-3.5 h-3.5 pointer-events-none" />
+            <span>Kanban</span>
           </Button>
 
           <Button
+            type="button"
             variant={viewMode === 'graficos' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setViewMode('graficos')}
-            className={`text-xs font-bold gap-1.5 rounded-lg ${
+            className={`text-xs font-bold gap-1.5 rounded-lg pointer-events-auto transition-colors ${
               viewMode === 'graficos'
-                ? 'bg-[#005596] text-white shadow-sm'
+                ? 'bg-[#005596] text-white shadow-sm hover:bg-[#004275]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <BarChart3 className="w-3.5 h-3.5" />
-            Gráficos
+            <BarChart3 className="w-3.5 h-3.5 pointer-events-none" />
+            <span>Gráficos</span>
           </Button>
 
           <Button
+            type="button"
             variant={viewMode === 'ytd' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setViewMode('ytd')}
-            className={`text-xs font-bold gap-1.5 rounded-lg ${
+            className={`text-xs font-bold gap-1.5 rounded-lg pointer-events-auto transition-colors ${
               viewMode === 'ytd'
-                ? 'bg-[#005596] text-white shadow-sm'
+                ? 'bg-[#005596] text-white shadow-sm hover:bg-[#004275]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <Calendar className="w-3.5 h-3.5" />
-            YTD
+            <Calendar className="w-3.5 h-3.5 pointer-events-none" />
+            <span>YTD</span>
           </Button>
 
           <Button
+            type="button"
             variant={viewMode === 'mapa' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setViewMode('mapa')}
-            className={`text-xs font-bold gap-1.5 rounded-lg ${
+            className={`text-xs font-bold gap-1.5 rounded-lg pointer-events-auto transition-colors ${
               viewMode === 'mapa'
-                ? 'bg-[#005596] text-white shadow-sm'
+                ? 'bg-[#005596] text-white shadow-sm hover:bg-[#004275]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <Map className="w-3.5 h-3.5" />
-            Mapa
+            <Map className="w-3.5 h-3.5 pointer-events-none" />
+            <span>Mapa</span>
           </Button>
 
           <Button
+            type="button"
             variant={viewMode === 'alertas' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setViewMode('alertas')}
-            className={`text-xs font-bold gap-1.5 rounded-lg ${
+            className={`text-xs font-bold gap-1.5 rounded-lg pointer-events-auto transition-colors ${
               viewMode === 'alertas'
-                ? 'bg-[#005596] text-white shadow-sm'
+                ? 'bg-[#005596] text-white shadow-sm hover:bg-[#004275]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <AlertTriangle className="w-3.5 h-3.5" />
-            Alertas
+            <AlertTriangle className="w-3.5 h-3.5 pointer-events-none" />
+            <span>Alertas</span>
             {allTransports.filter((t) => t.hasIntercurrence || t.slaStatus === 'CRITICO').length >
               0 && (
-              <Badge className="bg-rose-600 text-white text-[9px] px-1.5 py-0">
+              <Badge className="bg-rose-600 text-white text-[9px] px-1.5 py-0 pointer-events-none">
                 {
                   allTransports.filter((t) => t.hasIntercurrence || t.slaStatus === 'CRITICO')
                     .length
@@ -403,17 +411,18 @@ export const ExpeditionControlTowerPage: React.FC = () => {
           </Button>
 
           <Button
+            type="button"
             variant={viewMode === 'lista' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setViewMode('lista')}
-            className={`text-xs font-bold gap-1.5 rounded-lg ${
+            className={`text-xs font-bold gap-1.5 rounded-lg pointer-events-auto transition-colors ${
               viewMode === 'lista'
-                ? 'bg-[#005596] text-white shadow-sm'
+                ? 'bg-[#005596] text-white shadow-sm hover:bg-[#004275]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <ListFilter className="w-3.5 h-3.5" />
-            Lista de Transportes
+            <ListFilter className="w-3.5 h-3.5 pointer-events-none" />
+            <span>Lista de Transportes</span>
           </Button>
         </div>
       </div>
@@ -467,40 +476,66 @@ export const ExpeditionControlTowerPage: React.FC = () => {
       ) : (
         <>
           {viewMode === 'executiva' && (
-            <ExecutiveView
-              metrics={executiveMetrics}
-              onSelectStage={(stage) => {
-                setFilters({ ...filters, status: stage })
-                setViewMode('kanban')
-              }}
-            />
+            <ViewErrorBoundary viewName="Visão Executiva" onRetry={() => loadAllData(false)}>
+              <ExecutiveView
+                metrics={executiveMetrics}
+                onSelectStage={(stage) => {
+                  setFilters({ ...filters, status: stage })
+                  setViewMode('kanban')
+                }}
+              />
+            </ViewErrorBoundary>
           )}
 
           {viewMode === 'cards' && (
-            <CardsView transports={filteredTransports} onSelectTransport={setSelectedTransport} />
+            <ViewErrorBoundary viewName="Cards" onRetry={() => loadAllData(false)}>
+              <CardsView transports={filteredTransports} onSelectTransport={setSelectedTransport} />
+            </ViewErrorBoundary>
           )}
 
           {viewMode === 'kanban' && (
-            <KanbanView transports={filteredTransports} onSelectTransport={setSelectedTransport} />
+            <ViewErrorBoundary viewName="Kanban" onRetry={() => loadAllData(false)}>
+              <KanbanView
+                transports={filteredTransports}
+                onSelectTransport={setSelectedTransport}
+              />
+            </ViewErrorBoundary>
           )}
 
-          {viewMode === 'graficos' && <ChartsView transports={filteredTransports} />}
+          {viewMode === 'graficos' && (
+            <ViewErrorBoundary viewName="Gráficos" onRetry={() => loadAllData(false)}>
+              <ChartsView transports={filteredTransports} />
+            </ViewErrorBoundary>
+          )}
 
-          {viewMode === 'ytd' && <YtdView metrics={executiveMetrics} />}
+          {viewMode === 'ytd' && (
+            <ViewErrorBoundary viewName="YTD" onRetry={() => loadAllData(false)}>
+              <YtdView metrics={executiveMetrics} />
+            </ViewErrorBoundary>
+          )}
 
           {viewMode === 'mapa' && (
-            <MapView transports={filteredTransports} onSelectTransport={setSelectedTransport} />
+            <ViewErrorBoundary viewName="Mapa" onRetry={() => loadAllData(false)}>
+              <MapView transports={filteredTransports} onSelectTransport={setSelectedTransport} />
+            </ViewErrorBoundary>
           )}
 
           {viewMode === 'alertas' && (
-            <AlertsView transports={filteredTransports} onSelectTransport={setSelectedTransport} />
+            <ViewErrorBoundary viewName="Alertas" onRetry={() => loadAllData(false)}>
+              <AlertsView
+                transports={filteredTransports}
+                onSelectTransport={setSelectedTransport}
+              />
+            </ViewErrorBoundary>
           )}
 
           {viewMode === 'lista' && (
-            <TransportTableView
-              transports={filteredTransports}
-              onSelectTransport={setSelectedTransport}
-            />
+            <ViewErrorBoundary viewName="Lista de Transportes" onRetry={() => loadAllData(false)}>
+              <TransportTableView
+                transports={filteredTransports}
+                onSelectTransport={setSelectedTransport}
+              />
+            </ViewErrorBoundary>
           )}
         </>
       )}
