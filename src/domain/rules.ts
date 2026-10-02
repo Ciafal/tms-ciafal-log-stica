@@ -2672,8 +2672,15 @@ export type LoadLifecycleStage =
   | 'Transporte SAP'
 
 export type CommercialOpportunityStatus =
-  | 'Nova oportunidade'
+  | 'Nova'
+  | 'Selecionada'
+  | 'Enviada ao Comercial'
   | 'Em análise comercial'
+  | 'Aceita pelo Comercial'
+  | 'Recusada pelo Comercial'
+  | 'Expirada'
+  | 'Convertida em venda'
+  | 'Nova oportunidade'
   | 'Contato iniciado'
   | 'Cliente interessado'
   | 'Aguardando pedido SAP'
@@ -2777,6 +2784,35 @@ export interface LoadComplementOpportunityEntity {
   created_by?: string
   deadline_hours?: number
   notes?: string
+  commercial_sent_at?: string
+  commercial_sent_by?: string
+  commercial_representative?: string
+  customer_sap_code?: string
+  destination_city?: string
+  destination_uf?: string
+  is_blocked?: boolean
+  block_reason?: string
+  resend_count?: number
+  last_resend_at?: string
+  last_resend_by?: string
+  sent_snapshot?: any
+  created?: string
+  updated?: string
+}
+
+export interface LoadComplementHistoryEntity {
+  id?: string
+  opportunity_code: string
+  opportunity_id: string
+  event_type: string
+  event_title: string
+  user_email?: string
+  user_name: string
+  user_role?: string
+  previous_status?: string
+  new_status: string
+  description?: string
+  metadata?: any
   created?: string
   updated?: string
 }

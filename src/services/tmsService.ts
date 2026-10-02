@@ -1557,61 +1557,353 @@ export const TmsService = {
     }
   },
 
+  async getLoadComplementHistory(
+    opportunityCodeOrId: string,
+  ): Promise<import('@/domain/rules').LoadComplementHistoryEntity[]> {
+    try {
+      return await pb
+        .collection('load_complement_history')
+        .getFullList<import('@/domain/rules').LoadComplementHistoryEntity>({
+          filter: `opportunity_code="${opportunityCodeOrId}" || opportunity_id="${opportunityCodeOrId}"`,
+          sort: '-created',
+        })
+    } catch (err) {
+      console.error('Failed to fetch opportunity history:', err)
+      return []
+    }
+  },
+
+  /**
+   * ENVIO UNITÁRIO OU EM LOTE DE OPORTUNIDADES PARA A EQUIPE COMERCIAL
+   * Valida impedimentos (exceções e bloqueios), duplicidade, permissões RBAC,
+   * integra com CRM/Comercial, atualiza status para 'Enviada ao Comercial'
+   * e grava histórico + audit_logs.
+   */
+  async sendLoadComplementsBatchToCommercial(params: {
+    opportunityIds: string[]
+    userEmail: string
+    userName: string
+    userRole: string
+    isResend?: boolean
+    resendReason?: string
+  }): Promise<{
+    success: boolean
+    sentCount: number
+    alreadySent?: boolean
+    isBlocked?: boolean
+    message: string
+    results: Array<{ id: string; opportunity_code?: string; success: boolean; reason?: string }>
+  }> {
+    const {
+      opportunityIds,
+      userEmail,
+      userName,
+      userRole,
+      isResend = false,
+      resendReason = '',
+    } = params
+
+    if (!opportunityIds || opportunityIds.length === 0) {
+      return {
+        success: false,
+        sentCount: 0,
+        message: 'Nenhuma oportunidade selecionada.',
+        results: [],
+      }
+    }
+
+    // RBAC: Verificação de perfil no cliente e backend
+    const allowedRoles = [
+      'admin_master',
+      'admin_tms',
+      'gestor_logistica',
+      'gerente_carga',
+      'operador_logistica',
+      'comercial',
+    ]
+    if (!allowedRoles.includes(userRole)) {
+      return {
+        success: false,
+        sentCount: 0,
+        message: `Perfil "${userRole}" não possui autorização para enviar oportunidades ao Comercial.`,
+        results: [],
+      }
+    }
+
+    if (isResend) {
+      const allowedResendRoles = ['admin_master', 'admin_tms', 'gestor_logistica', 'gerente_carga']
+      if (!allowedResendRoles.includes(userRole)) {
+        return {
+          success: false,
+          sentCount: 0,
+          message: 'Apenas Administradores e Gestores podem autorizar o reenvio ao Comercial.',
+          results: [],
+        }
+      }
+    }
+
+    // Tentar executar pelo endpoint seguro de backend (pb_hooks)
+    try {
+      const response = await fetch(`${pb.baseUrl}/backend/v1/commercial-complement/send-batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(pb.authStore.token ? { Authorization: `Bearer ${pb.authStore.token}` } : {}),
+        },
+        body: JSON.stringify({
+          opportunity_ids: opportunityIds,
+          is_resend: isResend,
+          resend_reason: resendReason,
+          user_email: userEmail,
+          user_name: userName,
+          user_role: userRole,
+        }),
+      })
+
+      const data = await response.json()
+      if (response.ok && data.success) {
+        // Envio bem sucedido pelo backend
+        return {
+          success: true,
+          sentCount: data.sent_count,
+          message: data.message,
+          results: data.results || [],
+        }
+      }
+
+      // Se retornou erro de bloqueio ou duplicidade conhecido
+      if (response.status === 409 || data.already_sent) {
+        return {
+          success: false,
+          alreadySent: true,
+          sentCount: 0,
+          message: data.message || 'Esta oportunidade já foi enviada ao Comercial.',
+          results: [],
+        }
+      }
+      if (response.status === 422) {
+        return {
+          success: false,
+          isBlocked: true,
+          sentCount: 0,
+          message: data.message || 'Oportunidade indisponível para envio por regra impeditiva.',
+          results: [],
+        }
+      }
+      if (response.status === 403) {
+        return {
+          success: false,
+          sentCount: 0,
+          message: data.message || 'Acesso negado para este perfil.',
+          results: [],
+        }
+      }
+    } catch (_hookErr) {
+      // Caso backend hook não responda (ex: teste ou offline), aplica fallback via client direto com as mesmas validações
+    }
+
+    // Fallback transacional no client SDK
+    const results: Array<{
+      id: string
+      opportunity_code?: string
+      success: boolean
+      reason?: string
+    }> = []
+    const now = new Date().toISOString()
+    const newStatus = 'Enviada ao Comercial'
+
+    for (const oppId of opportunityIds) {
+      try {
+        const opp = await pb
+          .collection('load_complement_opportunities')
+          .getOne<import('@/domain/rules').LoadComplementOpportunityEntity>(oppId)
+
+        // 1. Verificação de bloqueio impeditivo
+        if (opp.is_blocked) {
+          return {
+            success: false,
+            isBlocked: true,
+            sentCount: 0,
+            message: `Oportunidade ${opp.opportunity_code} indisponível para envio: ${opp.block_reason || 'bloqueio cadastral/logístico'}.`,
+            results: [
+              {
+                id: oppId,
+                opportunity_code: opp.opportunity_code,
+                success: false,
+                reason: opp.block_reason,
+              },
+            ],
+          }
+        }
+
+        // 2. Verificação de duplicidade
+        const isAlreadySent =
+          opp.commercial_status === 'Enviada ao Comercial' ||
+          opp.commercial_status === 'Em análise comercial'
+        if (isAlreadySent && !isResend) {
+          const sentDateFormatted = opp.commercial_sent_at
+            ? new Date(opp.commercial_sent_at).toLocaleString('pt-BR')
+            : 'data anterior'
+          const sentByFormatted = opp.commercial_sent_by || 'outro usuário'
+          return {
+            success: false,
+            alreadySent: true,
+            sentCount: 0,
+            message: `Esta oportunidade já foi enviada ao Comercial em ${sentDateFormatted} por ${sentByFormatted}.`,
+            results: [
+              {
+                id: oppId,
+                opportunity_code: opp.opportunity_code,
+                success: false,
+                reason: 'Já enviada ao comercial',
+              },
+            ],
+          }
+        }
+
+        const snapshot = {
+          opportunity_code: opp.opportunity_code,
+          load_proposal_id: opp.load_proposal_id,
+          itinerary_id: opp.itinerary_id,
+          planned_dispatch_date: opp.planned_dispatch_date,
+          customer_name: opp.customer_name,
+          customer_sap_code: opp.customer_sap_code || opp.customer_id,
+          destination_city: opp.destination_city,
+          destination_uf: opp.destination_uf,
+          material_id: opp.material_id,
+          material_description: opp.material_description,
+          suggested_quantity_kg: opp.suggested_quantity_kg,
+          missing_weight_kg: opp.missing_weight_kg,
+          stock_status: opp.stock_status,
+          credit_status: opp.credit_status,
+          commercial_representative: opp.commercial_representative || opp.salesperson_id,
+          ai_recommendation: opp.ai_recommendation,
+          sent_by: userName,
+          sent_at: now,
+          is_resend: isResend,
+          resend_reason: resendReason,
+        }
+
+        // Atualizar oportunidade
+        await pb.collection('load_complement_opportunities').update(oppId, {
+          commercial_status: newStatus,
+          commercial_sent_at: now,
+          commercial_sent_by: userName,
+          sent_snapshot: snapshot,
+          ...(isResend
+            ? {
+                resend_count: (opp.resend_count || 0) + 1,
+                last_resend_at: now,
+                last_resend_by: userName,
+              }
+            : {}),
+        })
+
+        // Integrar com CRM Service para notificação operacional
+        try {
+          await crmService.sendComplementOpportunity({
+            cargoId: opp.load_proposal_id,
+            itineraryCode: opp.itinerary_id,
+            targetDate: opp.planned_dispatch_date,
+            residualCapacityKg: opp.missing_weight_kg,
+            candidateClients: [
+              {
+                customerCode: opp.customer_id || 'CLI-01',
+                customerName: opp.customer_name || 'Cliente Elegível',
+              },
+            ],
+            candidateOrders: [],
+            salesRep: opp.commercial_representative || opp.salesperson_id || 'Comercial CIAFAL',
+            opportunityReason: opp.ai_recommendation || 'Complemento de carga em rota ativa',
+            validityMinutes: 120,
+            correlationId: `COMM-ENVIO-${opp.opportunity_code}-${Date.now()}`,
+            sentBy: userName,
+          })
+        } catch {
+          /* crm fallback */
+        }
+
+        // Histórico da oportunidade
+        try {
+          await pb.collection('load_complement_history').create({
+            opportunity_code: opp.opportunity_code,
+            opportunity_id: opp.id,
+            event_type: isResend ? 'COMMERCIAL_RESENT' : 'COMMERCIAL_SENT',
+            event_title: isResend
+              ? 'Oportunidade reenviada para Comercial'
+              : 'Enviada para Comercial',
+            user_email: userEmail,
+            user_name: userName,
+            user_role: userRole,
+            previous_status: opp.commercial_status || 'Nova',
+            new_status: newStatus,
+            description: isResend
+              ? `Reenvio autorizado: ${resendReason || 'Reavaliação comercial solicitada'}`
+              : 'Oportunidade enviada para avaliação e contato da equipe Comercial.',
+            metadata: snapshot,
+          })
+        } catch (hErr) {
+          console.warn('Could not record history:', hErr)
+        }
+
+        // Auditoria audit_logs
+        try {
+          await pb.collection('audit_logs').create({
+            user_email: userEmail,
+            user_name: userName,
+            user_role: userRole,
+            action: isResend ? 'RESEND_COMPLEMENT_TO_COMMERCIAL' : 'SEND_COMPLEMENT_TO_COMMERCIAL',
+            resource: 'load_complement_opportunities',
+            resource_id: opp.id,
+            previous_state: opp.commercial_status,
+            new_state: newStatus,
+            reason: isResend
+              ? `Reenvio autorizado: ${resendReason}`
+              : 'Envio de oportunidade de complemento para equipe comercial',
+            correlation_id: `COMM-ENVIO-${opp.opportunity_code}-${Date.now()}`,
+            payload: snapshot,
+          })
+        } catch {
+          /* ignore */
+        }
+
+        results.push({ id: oppId, opportunity_code: opp.opportunity_code, success: true })
+      } catch (err: any) {
+        results.push({ id: oppId, success: false, reason: err.message || 'Falha ao processar' })
+      }
+    }
+
+    const sentCount = results.filter((r) => r.success).length
+    const msg =
+      sentCount === 1
+        ? 'Oportunidades enviadas ao Comercial com sucesso.'
+        : `${sentCount} oportunidades enviadas ao Comercial com sucesso.`
+
+    return {
+      success: sentCount > 0,
+      sentCount,
+      message: msg,
+      results,
+    }
+  },
+
   async sendLoadComplementToCommercial(
     oppId: string,
     operatorEmail: string,
     operatorName: string,
+    userRole: string = 'gerente_carga',
+    isResend: boolean = false,
+    resendReason?: string,
   ): Promise<boolean> {
-    try {
-      const opp = await pb.collection('load_complement_opportunities').getOne(oppId)
-      const correlationId = `CRM-DEMAND-${opp.opportunity_code}-${Date.now()}`
-
-      // Integração via crmService
-      await crmService.sendComplementOpportunity({
-        cargoId: opp.load_proposal_id,
-        itineraryCode: opp.itinerary_id,
-        targetDate: opp.planned_dispatch_date,
-        residualCapacityKg: opp.missing_weight_kg,
-        candidateClients: [
-          {
-            customerCode: opp.customer_id || 'CLI-01',
-            customerName: opp.customer_name || 'Cliente Elegível',
-          },
-        ],
-        candidateOrders: [],
-        salesRep: opp.salesperson_id || 'Comercial CIAFAL',
-        opportunityReason: opp.ai_recommendation || 'Complemento de carga em rota ativa',
-        validityMinutes: 120,
-        correlationId,
-        sentBy: operatorName,
-      })
-
-      await pb.collection('load_complement_opportunities').update(oppId, {
-        commercial_status: 'Em análise comercial',
-      })
-
-      await pb.collection('audit_logs').create({
-        user_email: operatorEmail,
-        user_name: operatorName,
-        user_role: 'gerente_carga',
-        action: 'SEND_COMPLEMENT_DEMAND_TO_COMMERCIAL',
-        resource: 'load_complement_opportunities',
-        resource_id: oppId,
-        previous_state: opp.commercial_status,
-        new_state: 'Em análise comercial',
-        reason: 'Demanda de Complemento de Carga enviada para a equipe Comercial/CRM 360°',
-        correlation_id: correlationId,
-        payload: {
-          proposal_id: opp.load_proposal_id,
-          itinerary: opp.itinerary_id,
-          missing_weight_kg: opp.missing_weight_kg,
-        },
-      })
-      return true
-    } catch (err) {
-      console.error('Failed to send complement demand to commercial:', err)
-      return false
-    }
+    const res = await this.sendLoadComplementsBatchToCommercial({
+      opportunityIds: [oppId],
+      userEmail: operatorEmail,
+      userName: operatorName,
+      userRole,
+      isResend,
+      resendReason,
+    })
+    return res.success
   },
 
   /**
@@ -1705,28 +1997,48 @@ export const TmsService = {
 
       // Atualizar ou encerrar oportunidade de complemento vinculada
       try {
-        const opps = await pb.collection('load_complement_opportunities').getFullList({
-          filter: `load_proposal_id="${proposal.proposal_number}"`,
-        })
+        const opps = await pb
+          .collection('load_complement_opportunities')
+          .getFullList<import('@/domain/rules').LoadComplementOpportunityEntity>({
+            filter: `load_proposal_id="${proposal.proposal_number}"`,
+          })
         for (const opp of opps) {
-          if (newStatus === 'Carga dentro da faixa') {
-            await pb.collection('load_complement_opportunities').update(opp.id, {
-              commercial_status: 'Associado à carga',
-              sap_order_id: order.order_number,
-              missing_weight_kg: newMissing,
-              current_weight_kg: newWeight,
-              current_occupancy_pct: newOccupancy,
-              notes: `Carga atingiu meta máxima (${newOccupancy}%). Pedido SAP ${order.order_number} associado com sucesso.`,
+          const prevStatus = opp.commercial_status
+          const targetStatus: import('@/domain/rules').CommercialOpportunityStatus =
+            'Convertida em venda'
+          const updateNotes = `Venda confirmada no SAP: pedido ${order.order_number} (${(orderWeight / 1000).toFixed(1)}t) incorporado à carga via integração RFC/BAPI.`
+
+          await pb.collection('load_complement_opportunities').update(opp.id, {
+            commercial_status: targetStatus,
+            sap_order_id: order.order_number,
+            missing_weight_kg: newMissing,
+            current_weight_kg: newWeight,
+            current_occupancy_pct: newOccupancy,
+            notes: updateNotes,
+          })
+
+          // Registrar na timeline/histórico da oportunidade
+          try {
+            await pb.collection('load_complement_history').create({
+              opportunity_code: opp.opportunity_code,
+              opportunity_id: opp.id,
+              event_type: 'SAP_ORDER_CONVERTED',
+              event_title: 'Venda confirmada / Integração SAP',
+              user_email: operatorEmail || 'sap.integration@ciafal.com.br',
+              user_name: 'Integração SAP RFC/BAPI',
+              user_role: 'sistema',
+              previous_status: prevStatus,
+              new_status: targetStatus,
+              description: `Pedido de venda ${order.order_number} faturado/liberado no SAP pelo Comercial e correlacionado à carga ${proposal.proposal_number}.`,
+              metadata: {
+                sap_order_id: order.order_number,
+                load_proposal_number: proposal.proposal_number,
+                weight_kg: orderWeight,
+                new_occupancy_pct: newOccupancy,
+              },
             })
-          } else {
-            await pb.collection('load_complement_opportunities').update(opp.id, {
-              commercial_status: 'Pedido criado',
-              sap_order_id: order.order_number,
-              missing_weight_kg: newMissing,
-              current_weight_kg: newWeight,
-              current_occupancy_pct: newOccupancy,
-              notes: `Pedido SAP ${order.order_number} (${orderWeight} kg) incorporado. Novo saldo: ${newMissing} kg.`,
-            })
+          } catch {
+            /* ignore */
           }
         }
       } catch {

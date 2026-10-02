@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Layers,
   Sparkles,
@@ -6,19 +6,23 @@ import {
   Building,
   CheckCircle2,
   Clock,
-  ExternalLink,
   RefreshCw,
   AlertCircle,
   Truck,
   Package,
   Users,
   Search,
-  ChevronRight,
-  TrendingUp,
   HelpCircle,
-  Filter,
   Check,
   X,
+  History,
+  ShieldAlert,
+  ArrowRight,
+  UserCheck,
+  Calendar,
+  MapPin,
+  FileCheck2,
+  AlertTriangle,
 } from 'lucide-react'
 import {
   Card,
@@ -31,6 +35,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -39,7 +44,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { tmsService } from '@/services/tmsService'
@@ -47,8 +53,63 @@ import { formatWeight } from '@/lib/utils'
 import {
   LoadComplementOpportunityEntity,
   LoadComplementCandidateEntity,
+  LoadComplementHistoryEntity,
   CommercialOpportunityStatus,
 } from '@/domain/rules'
+
+// Status com Badge e estilo consistente CIAFAL
+export const renderStatusBadge = (status?: string) => {
+  switch (status) {
+    case 'Nova':
+    case 'Nova oportunidade':
+      return <Badge className="bg-sky-600 text-white text-[10px] font-semibold">NOVA</Badge>
+    case 'Selecionada':
+      return (
+        <Badge className="bg-indigo-600 text-white text-[10px] font-semibold">SELECIONADA</Badge>
+      )
+    case 'Enviada ao Comercial':
+      return (
+        <Badge className="bg-[#005596] text-white text-[10px] font-bold">
+          ENVIADA AO COMERCIAL
+        </Badge>
+      )
+    case 'Em análise comercial':
+    case 'Contato iniciado':
+    case 'Cliente interessado':
+      return (
+        <Badge className="bg-amber-600 text-white text-[10px] font-semibold">
+          EM ANÁLISE COMERCIAL
+        </Badge>
+      )
+    case 'Aceita pelo Comercial':
+      return (
+        <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
+          ACEITA PELO COMERCIAL
+        </Badge>
+      )
+    case 'Recusada pelo Comercial':
+    case 'Recusado pelo cliente':
+    case 'Descartado':
+      return (
+        <Badge className="bg-rose-600 text-white text-[10px] font-semibold">
+          RECUSADA PELO COMERCIAL
+        </Badge>
+      )
+    case 'Expirada':
+    case 'Expirado':
+      return <Badge className="bg-slate-500 text-white text-[10px] font-semibold">EXPIRADA</Badge>
+    case 'Convertida em venda':
+    case 'Associado à carga':
+    case 'Pedido criado':
+      return (
+        <Badge className="bg-emerald-700 text-white text-[10px] font-black">
+          CONVERTIDA EM VENDA
+        </Badge>
+      )
+    default:
+      return <Badge className="bg-slate-600 text-white text-[10px]">{status || 'INDEFINIDO'}</Badge>
+  }
+}
 
 export const ComplementCargosPage: React.FC = () => {
   const { user } = useAuth()
@@ -62,11 +123,43 @@ export const ComplementCargosPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'ativas' | 'excecoes' | 'todas'>('ativas')
 
+  // Filtros avançados
+  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterItinerary, setFilterItinerary] = useState<string>('all')
+  const [filterClient, setFilterClient] = useState<string>('all')
+  const [filterSalesRep, setFilterSalesRep] = useState<string>('all')
+  const [filterCityUf, setFilterCityUf] = useState<string>('all')
+  const [filterDispatchDate, setFilterDispatchDate] = useState<string>('')
+  const [filterSentCommercial, setFilterSentCommercial] = useState<string>('all') // all | sim | nao
+  const [filterConvertedSale, setFilterConvertedSale] = useState<string>('all') // all | sim | nao
+
+  // 1. SELEÇÃO DE OPORTUNIDADES (Estado elevado na página para persistir entre navegações)
+  const [selectedOppIds, setSelectedOppIds] = useState<string[]>([])
+
+  // 2. BOTÃO E MODAL "Enviar p/ Comercial" (Individual ou em Lote)
+  const [isBatchSendModalOpen, setIsBatchSendModalOpen] = useState(false)
+  const [isSendingBatch, setIsSendingBatch] = useState(false)
+
+  // Duplicidade e Reenvio
+  const [duplicateWarningOpp, setDuplicateWarningOpp] =
+    useState<LoadComplementOpportunityEntity | null>(null)
+  const [isResendModalOpen, setIsResendModalOpen] = useState(false)
+  const [resendReason, setResendReason] = useState('')
+  const [isResending, setIsResending] = useState(false)
+
+  // 7. HISTÓRICO DA OPORTUNIDADE (Timeline / Tabela de eventos auditáveis)
+  const [historyModalOpp, setHistoryModalOpp] = useState<LoadComplementOpportunityEntity | null>(
+    null,
+  )
+  const [oppHistoryList, setOppHistoryList] = useState<LoadComplementHistoryEntity[]>([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+
   // Modais de detalhamento e explicabilidade da IA
-  const [selectedOpp, setSelectedOpp] = useState<LoadComplementOpportunityEntity | null>(null)
+  const [detailOpp, setDetailOpp] = useState<LoadComplementOpportunityEntity | null>(null)
   const [selectedCandidateExplanation, setSelectedCandidateExplanation] =
     useState<LoadComplementCandidateEntity | null>(null)
-  const [isSendingToCommercial, setIsSendingToCommercial] = useState(false)
+
+  // Atualização manual de status comercial
   const [statusUpdateOpp, setStatusUpdateOpp] = useState<LoadComplementOpportunityEntity | null>(
     null,
   )
@@ -80,6 +173,11 @@ export const ComplementCargosPage: React.FC = () => {
     useState<LoadComplementOpportunityEntity | null>(null)
   const [simulatedSapOrders, setSimulatedSapOrders] = useState<any[]>([])
 
+  const userRole = user?.role || 'gerente_carga'
+  const canResend = ['admin_master', 'admin_tms', 'gestor_logistica', 'gerente_carga'].includes(
+    userRole,
+  )
+
   const fetchData = async () => {
     setIsLoading(true)
     try {
@@ -92,7 +190,7 @@ export const ComplementCargosPage: React.FC = () => {
 
       // Carregar candidatos de cada oportunidade
       const candMap: Record<string, LoadComplementCandidateEntity[]> = {}
-      for (const opp of opps.slice(0, 15)) {
+      for (const opp of opps.slice(0, 20)) {
         try {
           const list = await tmsService.getLoadComplementCandidates(opp.opportunity_code)
           candMap[opp.opportunity_code] = list
@@ -116,42 +214,297 @@ export const ComplementCargosPage: React.FC = () => {
     fetchData()
   }, [])
 
-  // Ação Comercial: Enviar para Comercial / CRM 360°
-  const handleSendToCommercial = async () => {
-    if (!selectedOpp) return
-    setIsSendingToCommercial(true)
+  // Carregar histórico quando abrir modal de timeline
+  const handleOpenHistory = async (opp: LoadComplementOpportunityEntity) => {
+    setHistoryModalOpp(opp)
+    setIsLoadingHistory(true)
     try {
-      const ok = await tmsService.sendLoadComplementToCommercial(
-        selectedOpp.id,
-        user?.email || 'operador@ciafal.com.br',
-        user?.name || 'Operador Logístico CIAFAL',
+      const hist = await tmsService.getLoadComplementHistory(opp.id || opp.opportunity_code)
+      setOppHistoryList(hist)
+    } catch (err) {
+      console.error('Failed to load history:', err)
+      setOppHistoryList([])
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }
+
+  // Listas para dropdowns de filtros
+  const filterOptions = useMemo(() => {
+    const itineraries = Array.from(
+      new Set(opportunities.map((o) => o.itinerary_id).filter(Boolean)),
+    )
+    const clients = Array.from(new Set(opportunities.map((o) => o.customer_name).filter(Boolean)))
+    const salesReps = Array.from(
+      new Set(
+        opportunities.map((o) => o.commercial_representative || o.salesperson_id).filter(Boolean),
+      ),
+    )
+    const cities = Array.from(
+      new Set(
+        opportunities
+          .map((o) =>
+            o.destination_city ? `${o.destination_city}/${o.destination_uf || 'BR'}` : '',
+          )
+          .filter(Boolean),
+      ),
+    )
+    return { itineraries, clients, salesReps, cities }
+  }, [opportunities])
+
+  // Filtragem combinada
+  const filteredOpps = useMemo(() => {
+    return opportunities.filter((opp) => {
+      const q = searchQuery.toLowerCase().trim()
+      const matchesSearch =
+        !q ||
+        opp.opportunity_code.toLowerCase().includes(q) ||
+        opp.load_proposal_id.toLowerCase().includes(q) ||
+        opp.itinerary_id.toLowerCase().includes(q) ||
+        (opp.customer_name && opp.customer_name.toLowerCase().includes(q)) ||
+        (opp.material_description && opp.material_description.toLowerCase().includes(q)) ||
+        (opp.destination_city && opp.destination_city.toLowerCase().includes(q))
+
+      if (!matchesSearch) return false
+
+      // Abas de visualização
+      if (activeTab === 'ativas') {
+        const isNotActive =
+          opp.commercial_status === 'Associado à carga' ||
+          opp.commercial_status === 'Convertida em venda' ||
+          opp.commercial_status === 'Descartado' ||
+          opp.commercial_status === 'Expirado' ||
+          opp.commercial_status === 'Expirada'
+        if (isNotActive) return false
+      } else if (activeTab === 'excecoes') {
+        const hasBlock =
+          opp.is_blocked ||
+          opp.credit_status?.includes('Bloqueado') ||
+          opp.stock_status?.includes('Indisponível')
+        if (!hasBlock) return false
+      }
+
+      // Filtro por status
+      if (filterStatus !== 'all' && opp.commercial_status !== filterStatus) return false
+
+      // Filtro por itinerário
+      if (filterItinerary !== 'all' && opp.itinerary_id !== filterItinerary) return false
+
+      // Filtro por cliente
+      if (filterClient !== 'all' && opp.customer_name !== filterClient) return false
+
+      // Filtro por vendedor/representante
+      if (
+        filterSalesRep !== 'all' &&
+        (opp.commercial_representative || opp.salesperson_id) !== filterSalesRep
       )
-      if (ok) {
+        return false
+
+      // Filtro por Cidade/UF
+      if (filterCityUf !== 'all') {
+        const cityUfStr = opp.destination_city
+          ? `${opp.destination_city}/${opp.destination_uf || 'BR'}`
+          : ''
+        if (cityUfStr !== filterCityUf) return false
+      }
+
+      // Filtro por Data da Programação
+      if (filterDispatchDate) {
+        if (
+          !opp.planned_dispatch_date ||
+          !opp.planned_dispatch_date.startsWith(filterDispatchDate)
+        ) {
+          return false
+        }
+      }
+
+      // Filtro Enviado ao Comercial (Sim / Não)
+      if (filterSentCommercial !== 'all') {
+        const isSent =
+          opp.commercial_status === 'Enviada ao Comercial' ||
+          opp.commercial_status === 'Em análise comercial' ||
+          opp.commercial_status === 'Aceita pelo Comercial' ||
+          opp.commercial_status === 'Convertida em venda' ||
+          Boolean(opp.commercial_sent_at)
+        if (filterSentCommercial === 'sim' && !isSent) return false
+        if (filterSentCommercial === 'nao' && isSent) return false
+      }
+
+      // Filtro Convertido em Venda (Sim / Não)
+      if (filterConvertedSale !== 'all') {
+        const isConverted =
+          opp.commercial_status === 'Convertida em venda' ||
+          opp.commercial_status === 'Associado à carga' ||
+          opp.commercial_status === 'Pedido criado'
+        if (filterConvertedSale === 'sim' && !isConverted) return false
+        if (filterConvertedSale === 'nao' && isConverted) return false
+      }
+
+      return true
+    })
+  }, [
+    opportunities,
+    searchQuery,
+    activeTab,
+    filterStatus,
+    filterItinerary,
+    filterClient,
+    filterSalesRep,
+    filterCityUf,
+    filterDispatchDate,
+    filterSentCommercial,
+    filterConvertedSale,
+  ])
+
+  // Oportunidades selecionadas elegíveis (calculadas a partir da seleção global)
+  const selectedOpportunities = useMemo(() => {
+    return opportunities.filter((o) => selectedOppIds.includes(o.id))
+  }, [opportunities, selectedOppIds])
+
+  // Lista dos registros visíveis atualmente na tela que NÃO estão bloqueados
+  const selectableVisibleOpps = useMemo(() => {
+    return filteredOpps.filter((o) => !o.is_blocked)
+  }, [filteredOpps])
+
+  const areAllVisibleSelected =
+    selectableVisibleOpps.length > 0 &&
+    selectableVisibleOpps.every((o) => selectedOppIds.includes(o.id))
+
+  const handleToggleSelectAllVisible = () => {
+    if (areAllVisibleSelected) {
+      // Desmarca apenas os visíveis selecionáveis
+      const visibleIds = new Set(selectableVisibleOpps.map((o) => o.id))
+      setSelectedOppIds((prev) => prev.filter((id) => !visibleIds.has(id)))
+    } else {
+      // Adiciona todos os visíveis selecionáveis à seleção persistente
+      const toAdd = selectableVisibleOpps.map((o) => o.id)
+      setSelectedOppIds((prev) => Array.from(new Set([...prev, ...toAdd])))
+    }
+  }
+
+  const handleToggleSelectOpp = (opp: LoadComplementOpportunityEntity) => {
+    if (opp.is_blocked) return
+    setSelectedOppIds((prev) =>
+      prev.includes(opp.id) ? prev.filter((id) => id !== opp.id) : [...prev, opp.id],
+    )
+  }
+
+  // Disparo ao clicar no botão "Enviar p/ Comercial" da área superior
+  const handleTriggerSendBatch = () => {
+    if (selectedOpportunities.length === 0) return
+
+    // 6. Verificação de Duplicidade antes de abrir popup geral
+    const alreadySentOne = selectedOpportunities.find(
+      (o) =>
+        (o.commercial_status === 'Enviada ao Comercial' ||
+          o.commercial_status === 'Em análise comercial') &&
+        Boolean(o.commercial_sent_at),
+    )
+
+    if (alreadySentOne && selectedOpportunities.length === 1) {
+      // Aviso específico de duplicidade com opção de reenvio
+      setDuplicateWarningOpp(alreadySentOne)
+      return
+    }
+
+    setIsBatchSendModalOpen(true)
+  }
+
+  // Confirmação do Envio em Lote / Unitário
+  const handleConfirmBatchSend = async () => {
+    if (selectedOpportunities.length === 0) return
+    setIsSendingBatch(true)
+
+    try {
+      const res = await tmsService.sendLoadComplementsBatchToCommercial({
+        opportunityIds: selectedOpportunities.map((o) => o.id),
+        userEmail: user?.email || 'operador@ciafal.com.br',
+        userName: user?.name || 'Operador Logístico CIAFAL',
+        userRole,
+        isResend: false,
+      })
+
+      if (res.success) {
         toast({
-          title: 'Demanda Enviada ao Comercial / CRM 360°',
-          description: `Oportunidade da proposta ${selectedOpp.load_proposal_id} despachada para atuação comercial.`,
+          title: 'Envio ao Comercial Concluído',
+          description: res.message,
         })
-        setSelectedOpp(null)
+        setIsBatchSendModalOpen(false)
+        setSelectedOppIds([])
         fetchData()
+      } else if (res.alreadySent) {
+        toast({
+          title: 'Oportunidade já enviada',
+          description: res.message,
+          variant: 'destructive',
+        })
+      } else if (res.isBlocked) {
+        toast({
+          title: 'Oportunidade Indisponível',
+          description: res.message,
+          variant: 'destructive',
+        })
       } else {
         toast({
+          title: 'Falha no envio',
+          description: res.message,
           variant: 'destructive',
-          title: 'Falha no despacho',
-          description: 'Não foi possível enviar a demanda para o comercial.',
         })
       }
     } catch (err: any) {
       toast({
+        title: 'Erro inesperado',
+        description: err?.message || 'Falha na comunicação com o backend.',
         variant: 'destructive',
-        title: 'Erro no envio',
-        description: err?.message || 'Erro inesperado.',
       })
     } finally {
-      setIsSendingToCommercial(false)
+      setIsSendingBatch(false)
     }
   }
 
-  // Atualização de Status Comercial
+  // Reenvio autorizado para duplicidade
+  const handleConfirmResend = async () => {
+    if (!duplicateWarningOpp) return
+    setIsResending(true)
+
+    try {
+      const res = await tmsService.sendLoadComplementsBatchToCommercial({
+        opportunityIds: [duplicateWarningOpp.id],
+        userEmail: user?.email || 'gestor@ciafal.com.br',
+        userName: user?.name || 'Gestor Logístico CIAFAL',
+        userRole,
+        isResend: true,
+        resendReason: resendReason || 'Reavaliação comercial deliberada pelo gestor logístico',
+      })
+
+      if (res.success) {
+        toast({
+          title: 'Reenvio ao Comercial Concluído',
+          description: `Oportunidade ${duplicateWarningOpp.opportunity_code} reenviada ao comercial com sucesso.`,
+        })
+        setIsResendModalOpen(false)
+        setDuplicateWarningOpp(null)
+        setResendReason('')
+        fetchData()
+      } else {
+        toast({
+          title: 'Falha no reenvio',
+          description: res.message,
+          variant: 'destructive',
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro no reenvio',
+        description: err?.message || 'Falha no servidor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsResending(false)
+    }
+  }
+
+  // Atualização manual de status comercial
   const handleUpdateStatus = async () => {
     if (!statusUpdateOpp) return
     try {
@@ -180,7 +533,7 @@ export const ComplementCargosPage: React.FC = () => {
     }
   }
 
-  // Correlação Automática de Novo Pedido SAP
+  // 4. Correlação Automática com Novo Pedido SAP
   const handleCorrelateSapOrder = async (orderId: string) => {
     try {
       const res = await tmsService.correlateSapOrderWithComplement(
@@ -190,7 +543,7 @@ export const ComplementCargosPage: React.FC = () => {
       )
       if (res.correlated) {
         toast({
-          title: 'Complemento comercial incorporado com sucesso.',
+          title: 'Venda confirmada / Integração SAP',
           description: res.message,
         })
         setIsSimulateOrderModalOpen(false)
@@ -211,691 +564,1179 @@ export const ComplementCargosPage: React.FC = () => {
     }
   }
 
-  // Filtragem
-  const filteredOpps = opportunities.filter((opp) => {
-    const q = searchQuery.toLowerCase()
-    const matchesSearch =
-      !q ||
-      opp.opportunity_code.toLowerCase().includes(q) ||
-      opp.load_proposal_id.toLowerCase().includes(q) ||
-      opp.itinerary_id.toLowerCase().includes(q) ||
-      (opp.customer_name && opp.customer_name.toLowerCase().includes(q)) ||
-      (opp.material_description && opp.material_description.toLowerCase().includes(q))
-
-    if (!matchesSearch) return false
-
-    if (activeTab === 'ativas') {
-      return (
-        opp.commercial_status !== 'Associado à carga' &&
-        opp.commercial_status !== 'Descartado' &&
-        opp.commercial_status !== 'Expirado'
-      )
-    }
-    if (activeTab === 'excecoes') {
-      return opp.credit_status?.includes('Bloqueado') || opp.stock_status?.includes('Indisponível')
-    }
-    return true
-  })
-
   return (
-    <div className="space-y-4 pb-16">
-      {/* HEADER DA CENTRAL DE OPORTUNIDADES */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div>
-          <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-100">
-              Complemento de Cargas — Central de Oportunidades Comerciais
-            </h1>
-            <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-              OPORTUNIDADE COMERCIAL
-            </Badge>
+    <TooltipProvider delayDuration={200}>
+      <div className="space-y-4 pb-16">
+        {/* HEADER DA CENTRAL DE OPORTUNIDADES */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-100">
+                Complemento de Cargas — Central de Oportunidades Comerciais
+              </h1>
+              <Badge className="bg-[#005596] text-white text-[10px] font-bold">
+                OPORTUNIDADE COMERCIAL
+              </Badge>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Motor determinístico: itinerário programado + clientes elegíveis + histórico real +
+              crédito + estoque DP34/PCP + capacidade residual.
+            </p>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Cruzamento determinístico: itinerário programado + clientes elegíveis + histórico real +
-            crédito + estoque DP34/PCP + capacidade residual.
+
+          {/* CONTROLES SUPERIORES: BOTÃO "Enviar p/ Comercial" E ATUALIZAR */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* CONTADOR DE SELEÇÃO VISÍVEL */}
+            {selectedOppIds.length > 0 && (
+              <Badge
+                variant="outline"
+                className="bg-blue-50 text-[#005596] border-[#005596]/30 text-xs px-2.5 py-1 font-semibold flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#005596]" />
+                <span>
+                  {selectedOppIds.length}{' '}
+                  {selectedOppIds.length === 1
+                    ? 'oportunidade selecionada'
+                    : 'oportunidades selecionadas'}
+                </span>
+                <button
+                  onClick={() => setSelectedOppIds([])}
+                  className="ml-1 hover:text-rose-600 text-[10px] font-bold"
+                  title="Limpar seleção"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
+            )}
+
+            {/* BOTÃO "Enviar p/ Comercial" */}
+            <Button
+              onClick={handleTriggerSendBatch}
+              disabled={selectedOpportunities.length === 0}
+              className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-9 px-4 font-semibold shadow-sm disabled:opacity-50 transition-all flex items-center gap-1.5"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>
+                Enviar p/ Comercial
+                {selectedOpportunities.length > 0 && ` (${selectedOpportunities.length})`}
+              </span>
+            </Button>
+
+            <Button
+              onClick={fetchData}
+              variant="outline"
+              size="sm"
+              className="text-xs h-9"
+              disabled={isLoading}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
+              Atualizar Central
+            </Button>
+          </div>
+        </div>
+
+        {/* BANNER INSTITUCIONAL CIAFAL */}
+        <div className="bg-[#005596]/10 border border-[#005596]/30 rounded-xl p-4 text-xs text-[#005596] dark:text-sky-300 space-y-1">
+          <div className="font-bold flex items-center space-x-1.5">
+            <Sparkles className="w-4 h-4 text-[#005596]" />
+            <span>MOTOR INTEGRADO DE RECOMENDAÇÃO (ANTI-ALUCINAÇÃO)</span>
+          </div>
+          <p className="text-[11px] leading-relaxed text-slate-700 dark:text-slate-300">
+            Todas as oportunidades nascem automaticamente das programações do{' '}
+            <strong>Roteirizador & Simulador</strong>. A IA analisa histórico de compras reais e
+            disponibilidade em estoque/PCP, nunca inserindo pedido manual na carga — a venda nasce
+            no SAP e o TMS correlaciona automaticamente via RFC/BAPI.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={fetchData}
-            variant="outline"
-            size="sm"
-            className="text-xs h-8"
-            disabled={isLoading}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-            Atualizar Central
-          </Button>
-        </div>
-      </div>
-
-      {/* BANNER INSTITUCIONAL CIAFAL */}
-      <div className="bg-[#005596]/10 border border-[#005596]/30 rounded-xl p-4 text-xs text-[#005596] dark:text-sky-300 space-y-1">
-        <div className="font-bold flex items-center space-x-1.5">
-          <Sparkles className="w-4 h-4 text-[#005596]" />
-          <span>MOTOR INTEGRADO DE RECOMENDAÇÃO (ANTI-ALUCINAÇÃO)</span>
-        </div>
-        <p className="text-[11px] leading-relaxed text-slate-700 dark:text-slate-300">
-          Todas as oportunidades nascem automaticamente das programações do{' '}
-          <strong>Roteirizador & Simulador</strong>. A IA analisa histórico de compras reais e
-          disponibilidade em estoque/PCP, nunca inserindo pedido manual na carga — a venda nasce no
-          SAP e o TMS correlaciona automaticamente via RFC/BAPI.
-        </p>
-      </div>
-
-      {/* BARRA DE FILTROS & ABAS */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <Tabs
-          value={activeTab}
-          onValueChange={(val: any) => setActiveTab(val)}
-          className="w-full sm:w-auto"
-        >
-          <TabsList className="grid grid-cols-3 w-full sm:w-auto">
-            <TabsTrigger value="ativas" className="text-xs">
-              Ativas (
-              {
-                opportunities.filter(
-                  (o) =>
-                    o.commercial_status !== 'Associado à carga' &&
-                    o.commercial_status !== 'Descartado',
-                ).length
-              }
-              )
-            </TabsTrigger>
-            <TabsTrigger value="excecoes" className="text-xs">
-              Exceções & Bloqueios
-            </TabsTrigger>
-            <TabsTrigger value="todas" className="text-xs">
-              Todas ({opportunities.length})
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <div className="relative w-full sm:w-72">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-          <Input
-            placeholder="Buscar por proposta, itinerário, cliente..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 text-xs h-8 bg-white dark:bg-slate-900"
-          />
-        </div>
-      </div>
-
-      {/* GRID DE CARGAS E OPORTUNIDADES */}
-      {filteredOpps.length === 0 ? (
-        <Card className="bg-white dark:bg-slate-900 border-slate-200 shadow-sm">
-          <CardContent className="p-10 text-center text-slate-400 text-xs">
-            Nenhuma oportunidade de complemento encontrada para os filtros atuais.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filteredOpps.map((opp) => {
-            const candidates = candidatesMap[opp.opportunity_code] || []
-            const primaryCandidates = candidates.filter((c) => !c.is_exception)
-            const exceptionCandidates = candidates.filter((c) => c.is_exception)
-
-            return (
-              <Card
-                key={opp.id}
-                className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all relative overflow-hidden flex flex-col justify-between"
-              >
-                <div className="h-1.5 w-full bg-[#005596]" />
-                <CardHeader className="p-4 pb-2 border-b border-slate-100 dark:border-slate-800">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <CardTitle className="text-sm font-bold text-slate-900 dark:text-slate-100 font-mono">
-                          PROPOSTA TMS {opp.load_proposal_id}
-                        </CardTitle>
-                        <Badge variant="outline" className="text-[10px] bg-slate-50 font-mono">
-                          Itinerário: {opp.itinerary_id}
-                        </Badge>
-                        <Badge className="bg-amber-600 text-white text-[10px]">
-                          OPORTUNIDADE COMERCIAL
-                        </Badge>
-                      </div>
-                      <CardDescription className="text-xs text-slate-500 mt-1">
-                        Saída prevista: <strong>{opp.planned_dispatch_date}</strong> • Veículo:{' '}
-                        {opp.vehicle_type || 'Carreta 5 Eixos'} (
-                        {(opp.vehicle_capacity_kg / 1000).toFixed(1)} t)
-                      </CardDescription>
-                    </div>
-
-                    <Badge
-                      className={`text-[10px] font-bold ${
-                        opp.commercial_status === 'Nova oportunidade'
-                          ? 'bg-blue-600 text-white'
-                          : opp.commercial_status === 'Em análise comercial'
-                            ? 'bg-amber-600 text-white'
-                            : opp.commercial_status === 'Associado à carga'
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-slate-600 text-white'
-                      }`}
-                    >
-                      {opp.commercial_status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="p-4 space-y-3 text-xs">
-                  {/* METRICAS EXATAS CONFORME ESPECIFICADO PELO USUÁRIO */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800 text-center">
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase block font-semibold">
-                        Programado
-                      </span>
-                      <strong className="text-slate-900 dark:text-slate-100 font-mono text-sm">
-                        {(opp.current_weight_kg / 1000).toFixed(1)} t
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase block font-semibold">
-                        Ocupação Atual
-                      </span>
-                      <strong className="text-blue-700 font-mono text-sm">
-                        {opp.current_occupancy_pct}%
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase block font-semibold">
-                        Meta Máxima
-                      </span>
-                      <strong className="text-slate-900 dark:text-slate-100 font-mono text-sm">
-                        {opp.maximum_occupancy_pct}%
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-amber-700 uppercase block font-semibold">
-                        Complemento Necessário
-                      </span>
-                      <strong className="text-amber-700 font-mono text-sm font-black">
-                        {(opp.missing_weight_kg / 1000).toFixed(1)} t
-                      </strong>
-                    </div>
-                  </div>
-
-                  {/* INDICADORES VISUAIS DE ADERÊNCIA */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] text-slate-600 dark:text-slate-400">
-                          Aderência Logística:
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] font-bold ${
-                            opp.logistic_adherence === 'Alta'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                              : 'bg-amber-50 text-amber-700 border-amber-300'
-                          }`}
-                        >
-                          {opp.logistic_adherence || 'Alta'}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] text-slate-600 dark:text-slate-400">
-                          Aderência Comercial:
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] font-bold ${
-                            opp.commercial_adherence === 'Alta'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                              : 'bg-amber-50 text-amber-700 border-amber-300'
-                          }`}
-                        >
-                          {opp.commercial_adherence || 'Alta'}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-[11px] h-6 text-indigo-700 hover:text-indigo-800"
-                      onClick={() => {
-                        setSelectedOpp(opp)
-                      }}
-                    >
-                      <HelpCircle className="w-3 h-3 mr-1" />
-                      Por que esta sugestão?
-                    </Button>
-                  </div>
-
-                  {/* CLIENTES E PRODUTOS RECOMENDADOS (RANKING COMBINADO) */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between font-semibold text-slate-800 dark:text-slate-200">
-                      <span className="flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5 text-[#005596]" />
-                        Clientes Comercialmente Elegíveis ({primaryCandidates.length}):
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        Ordenados por Ranking de Score
-                      </span>
-                    </div>
-
-                    {primaryCandidates.length === 0 ? (
-                      <div className="text-[11px] text-slate-500 italic p-2 bg-slate-50 rounded">
-                        Identificando clientes elegíveis com histórico e crédito disponível na
-                        rota...
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {primaryCandidates.slice(0, 3).map((cand) => (
-                          <div
-                            key={cand.customer_code}
-                            className="p-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] space-y-1"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-slate-900 dark:text-slate-100">
-                                {cand.customer_name} ({cand.customer_code})
-                              </span>
-                              <div className="flex items-center gap-1.5">
-                                <Badge
-                                  variant="outline"
-                                  className={`text-[9px] ${
-                                    cand.credit_status === 'Crédito OK'
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                      : 'bg-rose-50 text-rose-700 border-rose-300'
-                                  }`}
-                                >
-                                  {cand.credit_status}
-                                </Badge>
-                                <span className="font-mono font-bold text-indigo-700">
-                                  Score: {cand.ranking_score}/100
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-1 text-slate-600 dark:text-slate-400 text-[10px]">
-                              <span>
-                                Produto habitual:{' '}
-                                <strong>{cand.material_description || cand.material_code}</strong>
-                              </span>
-                              <span className="text-right">
-                                Compra média:{' '}
-                                <strong>
-                                  {(cand.historical_avg_qty_kg
-                                    ? cand.historical_avg_qty_kg / 1000
-                                    : 5
-                                  ).toFixed(1)}{' '}
-                                  t
-                                </strong>
-                              </span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
-                              <span>
-                                Estoque previsto: <strong>{cand.stock_status}</strong> (
-                                {(cand.stock_available_kg
-                                  ? cand.stock_available_kg / 1000
-                                  : 8.3
-                                ).toFixed(1)}{' '}
-                                t)
-                              </span>
-                              <Button
-                                variant="link"
-                                size="sm"
-                                className="h-5 p-0 text-[10px] text-indigo-600"
-                                onClick={() => setSelectedCandidateExplanation(cand)}
-                              >
-                                Ver justificativa
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* BLOCO DE EXCEÇÕES (Crédito ou Estoque) */}
-                  {exceptionCandidates.length > 0 && (
-                    <div className="border border-rose-200 bg-rose-50/40 rounded p-2 text-[11px] space-y-1">
-                      <span className="font-bold text-rose-800 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3 text-rose-600" />
-                        Clientes em Exceção ({exceptionCandidates.length}):
-                      </span>
-                      <div className="space-y-1 text-[10px] text-slate-600">
-                        {exceptionCandidates.slice(0, 2).map((exc) => (
-                          <div key={exc.customer_code} className="flex justify-between">
-                            <span>{exc.customer_name}:</span>
-                            <strong className="text-rose-700">{exc.exception_reason}</strong>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {opp.ai_recommendation && (
-                    <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded text-[11px] text-slate-700 dark:text-slate-300 border">
-                      <span className="font-bold block text-slate-800 dark:text-slate-200 mb-0.5">
-                        Diagnóstico Analítico do TMS:
-                      </span>
-                      {opp.ai_recommendation}
-                    </div>
-                  )}
-                </CardContent>
-
-                {/* AÇÕES DA OPORTUNIDADE */}
-                <CardFooter className="p-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50 dark:bg-slate-900/50">
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-8"
-                      onClick={() => {
-                        setStatusUpdateOpp(opp)
-                        setNewStatusSelected(opp.commercial_status)
-                      }}
-                    >
-                      Alterar Status
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-8 text-emerald-700 border-emerald-300"
-                      onClick={() => {
-                        setTargetOppForOrder(opp)
-                        setIsSimulateOrderModalOpen(true)
-                      }}
-                    >
-                      Correlacionar Pedido SAP
-                    </Button>
-                  </div>
-
-                  <Button
-                    size="sm"
-                    className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-8 font-semibold shadow-sm"
-                    onClick={() => {
-                      setSelectedOpp(opp)
-                    }}
-                  >
-                    <Send className="w-3.5 h-3.5 mr-1.5" />
-                    Enviar para Comercial
-                  </Button>
-                </CardFooter>
-              </Card>
-            )
-          })}
-        </div>
-      )}
-
-      {/* MODAL "POR QUE ESTA SUGESTÃO?" / ENVIAR AO COMERCIAL */}
-      <Dialog open={Boolean(selectedOpp)} onOpenChange={(open) => !open && setSelectedOpp(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2 text-[#005596]">
-              <Sparkles className="w-4 h-4 text-[#005596]" />
-              Demanda de Complemento Comercial — Proposta {selectedOpp?.load_proposal_id}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Detalhamento de elegibilidade e critérios auditados para envio ao CRM 360°.
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedOpp && (
-            <div className="space-y-3 text-xs">
-              <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border space-y-1.5">
-                <div className="flex justify-between font-semibold">
-                  <span>Itinerário SAP:</span>
-                  <span className="font-mono">{selectedOpp.itinerary_id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Saída Prevista:</span>
-                  <span>{selectedOpp.planned_dispatch_date}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Tonelagem Disponível:</span>
-                  <strong className="text-amber-700 font-mono">
-                    {formatWeight(selectedOpp.missing_weight_kg, { unit: 'kg' })}
-                  </strong>
-                </div>
-                <div className="flex justify-between">
-                  <span>Cliente Sugerido:</span>
-                  <span className="font-semibold">{selectedOpp.customer_name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Produto Recomendado:</span>
-                  <span>{selectedOpp.material_description || selectedOpp.material_id}</span>
-                </div>
-              </div>
-
-              <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded text-[11px] text-slate-700 space-y-1">
-                <span className="font-bold text-indigo-900 block">
-                  Fatores Considerados (Anti-alucinação):
-                </span>
-                <p>• Pertence ao mesmo itinerário SAP sem desvio logístico inviável.</p>
-                <p>• Situação financeira verificada via SAP RFC: {selectedOpp.credit_status}.</p>
-                <p>• Previsão física de estoque confirmada antes da saída.</p>
-                <p>• Veículo compatível com restrições de descarga do cliente.</p>
-              </div>
-
-              <p className="text-[11px] text-slate-500">
-                Ao confirmar, a demanda será registrada vinculada à proposta original e encaminhada
-                para atuação do representante comercial.
-              </p>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedOpp(null)}
-              disabled={isSendingToCommercial}
+        {/* BARRA DE FILTROS & ABAS */}
+        <div className="space-y-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <Tabs
+              value={activeTab}
+              onValueChange={(val: any) => setActiveTab(val)}
+              className="w-full sm:w-auto"
             >
-              Cancelar
-            </Button>
-            <Button
-              size="sm"
-              className="bg-[#005596] hover:bg-[#004478] text-white"
-              onClick={handleSendToCommercial}
-              disabled={isSendingToCommercial}
-            >
-              {isSendingToCommercial ? 'Enviando...' : 'Confirmar Envio ao Comercial'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <TabsList className="grid grid-cols-3 w-full sm:w-auto">
+                <TabsTrigger value="ativas" className="text-xs">
+                  Ativas (
+                  {
+                    opportunities.filter(
+                      (o) =>
+                        o.commercial_status !== 'Associado à carga' &&
+                        o.commercial_status !== 'Convertida em venda' &&
+                        o.commercial_status !== 'Descartado' &&
+                        o.commercial_status !== 'Expirada' &&
+                        o.commercial_status !== 'Expirado',
+                    ).length
+                  }
+                  )
+                </TabsTrigger>
+                <TabsTrigger value="excecoes" className="text-xs">
+                  Exceções & Bloqueios
+                </TabsTrigger>
+                <TabsTrigger value="todas" className="text-xs">
+                  Todas ({opportunities.length})
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-      {/* MODAL JUSTIFICATIVA INDIVIDUAL DO CANDIDATO */}
-      <Dialog
-        open={Boolean(selectedCandidateExplanation)}
-        onOpenChange={(open) => !open && setSelectedCandidateExplanation(null)}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <Building className="w-4 h-4 text-[#005596]" />
-              Justificativa do Cliente: {selectedCandidateExplanation?.customer_name}
-            </DialogTitle>
-          </DialogHeader>
-
-          {selectedCandidateExplanation && (
-            <div className="space-y-3 text-xs">
-              <div className="p-3 bg-slate-50 rounded border space-y-1.5">
-                <p className="text-[11px] text-slate-700 leading-relaxed font-medium">
-                  {selectedCandidateExplanation.recommendation_rationale}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <div className="p-2 border rounded">
-                  <span className="text-slate-400 block text-[10px]">Crédito no SAP</span>
-                  <strong className="text-emerald-700">
-                    {selectedCandidateExplanation.credit_status}
-                  </strong>
-                </div>
-                <div className="p-2 border rounded">
-                  <span className="text-slate-400 block text-[10px]">Estoque / PCP</span>
-                  <strong className="text-blue-700">
-                    {selectedCandidateExplanation.stock_status}
-                  </strong>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedCandidateExplanation(null)}
-            >
-              Fechar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* MODAL ATUALIZAR STATUS COMERCIAL */}
-      <Dialog
-        open={Boolean(statusUpdateOpp)}
-        onOpenChange={(open) => !open && setStatusUpdateOpp(null)}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold">
-              Atualizar Fluxo Comercial da Oportunidade
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Proposta {statusUpdateOpp?.load_proposal_id} • Registra usuário e data/hora para
-              auditoria.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 text-xs py-2">
-            <div>
-              <span className="text-[11px] font-semibold block mb-1">Novo Status:</span>
-              <select
-                value={newStatusSelected}
-                onChange={(e) => setNewStatusSelected(e.target.value as any)}
-                className="w-full h-9 border rounded p-2 text-xs bg-white dark:bg-slate-900"
-              >
-                <option value="Nova oportunidade">Nova oportunidade</option>
-                <option value="Em análise comercial">Em análise comercial</option>
-                <option value="Contato iniciado">Contato iniciado</option>
-                <option value="Cliente interessado">Cliente interessado</option>
-                <option value="Aguardando pedido SAP">Aguardando pedido SAP</option>
-                <option value="Pedido criado">Pedido criado</option>
-                <option value="Associado à carga">Associado à carga</option>
-                <option value="Recusado pelo cliente">Recusado pelo cliente</option>
-                <option value="Descartado">Descartado</option>
-                <option value="Expirado">Expirado</option>
-              </select>
-            </div>
-
-            <div>
-              <span className="text-[11px] font-semibold block mb-1">
-                Observações da Negociação:
-              </span>
+            <div className="relative w-full sm:w-80">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
               <Input
-                placeholder="Ex: Cliente aceitou antecipar compra de CA-50..."
-                value={statusNotes}
-                onChange={(e) => setStatusNotes(e.target.value)}
-                className="text-xs"
+                placeholder="Buscar por proposta, código, itinerário, cliente..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 text-xs h-8 bg-slate-50 dark:bg-slate-950"
               />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setStatusUpdateOpp(null)}>
-              Cancelar
-            </Button>
-            <Button size="sm" className="bg-[#005596] text-white" onClick={handleUpdateStatus}>
-              Salvar Alteração
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {/* 8. FILTROS ADICIONAIS CONFORME ESPECIFICADO */}
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 text-xs">
+            {/* Status */}
+            <div>
+              <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">
+                Status
+              </label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full h-8 text-[11px] rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2"
+              >
+                <option value="all">Todos</option>
+                <option value="Nova">Nova</option>
+                <option value="Selecionada">Selecionada</option>
+                <option value="Enviada ao Comercial">Enviada ao Comercial</option>
+                <option value="Em análise comercial">Em análise comercial</option>
+                <option value="Aceita pelo Comercial">Aceita pelo Comercial</option>
+                <option value="Recusada pelo Comercial">Recusada pelo Comercial</option>
+                <option value="Expirada">Expirada</option>
+                <option value="Convertida em venda">Convertida em venda</option>
+              </select>
+            </div>
 
-      {/* MODAL DE CORRELAÇÃO DE PEDIDO SAP COM CARGA */}
-      <Dialog open={isSimulateOrderModalOpen} onOpenChange={setIsSimulateOrderModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <Package className="w-4 h-4 text-emerald-600" />
-              Correlacionar Novo Pedido SAP à Carga {targetOppForOrder?.load_proposal_id}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Quando a venda nasce no SAP via RFC/BAPI, o TMS identifica a rota e incorpora à carga
-              recalculando peso e ocupação.
-            </DialogDescription>
-          </DialogHeader>
+            {/* Itinerário */}
+            <div>
+              <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">
+                Itinerário
+              </label>
+              <select
+                value={filterItinerary}
+                onChange={(e) => setFilterItinerary(e.target.value)}
+                className="w-full h-8 text-[11px] rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2"
+              >
+                <option value="all">Todos</option>
+                {filterOptions.itineraries.map((it) => (
+                  <option key={it} value={it}>
+                    {it}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="space-y-3 text-xs py-2">
-            <span className="font-semibold text-slate-700 block">
-              Pedidos da Carteira SAP no Itinerário {targetOppForOrder?.itinerary_id}:
-            </span>
+            {/* Cliente */}
+            <div>
+              <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1 truncate">
+                Cliente
+              </label>
+              <select
+                value={filterClient}
+                onChange={(e) => setFilterClient(e.target.value)}
+                className="w-full h-8 text-[11px] rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 truncate"
+              >
+                <option value="all">Todos</option>
+                {filterOptions.clients.map((cli) => (
+                  <option key={cli} value={cli}>
+                    {cli}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-50 dark:bg-slate-800 uppercase font-semibold border-b text-[10px]">
-                  <tr>
-                    <th className="p-2">Pedido</th>
-                    <th className="p-2">Cliente</th>
-                    <th className="p-2 text-right">Peso (t)</th>
-                    <th className="p-2">Crédito</th>
-                    <th className="p-2 text-right">Ação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y text-[11px]">
-                  {simulatedSapOrders
-                    .filter(
-                      (o) =>
-                        !targetOppForOrder?.itinerary_id ||
-                        o.itinerary_code === targetOppForOrder.itinerary_id ||
-                        o.uf === 'MG' ||
-                        o.uf === 'SP',
-                    )
-                    .slice(0, 6)
-                    .map((ord) => (
-                      <tr key={ord.id} className="hover:bg-slate-50">
-                        <td className="p-2 font-mono font-bold">{ord.order_number}</td>
-                        <td className="p-2">{ord.customer_name}</td>
-                        <td className="p-2 text-right font-mono font-bold">
-                          {((ord.weight_kg || 5000) / 1000).toFixed(1)} t
-                        </td>
-                        <td className="p-2">
-                          <Badge
-                            variant="outline"
-                            className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-300"
-                          >
-                            {ord.credit_status || 'Liberado'}
-                          </Badge>
-                        </td>
-                        <td className="p-2 text-right">
-                          <Button
-                            size="sm"
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] h-6"
-                            onClick={() => handleCorrelateSapOrder(ord.id)}
-                          >
-                            Associar à Carga
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+            {/* Vendedor / Representante */}
+            <div>
+              <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1 truncate">
+                Vendedor / Repr.
+              </label>
+              <select
+                value={filterSalesRep}
+                onChange={(e) => setFilterSalesRep(e.target.value)}
+                className="w-full h-8 text-[11px] rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 truncate"
+              >
+                <option value="all">Todos</option>
+                {filterOptions.salesReps.map((rep) => (
+                  <option key={rep} value={rep}>
+                    {rep}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Cidade / UF */}
+            <div>
+              <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1 truncate">
+                Cidade/UF
+              </label>
+              <select
+                value={filterCityUf}
+                onChange={(e) => setFilterCityUf(e.target.value)}
+                className="w-full h-8 text-[11px] rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 truncate"
+              >
+                <option value="all">Todas</option>
+                {filterOptions.cities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Data da Programação */}
+            <div>
+              <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">
+                Data Programação
+              </label>
+              <input
+                type="date"
+                value={filterDispatchDate}
+                onChange={(e) => setFilterDispatchDate(e.target.value)}
+                className="w-full h-8 text-[11px] rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2"
+              />
+            </div>
+
+            {/* Enviado ao Comercial */}
+            <div>
+              <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">
+                Env. Comercial?
+              </label>
+              <select
+                value={filterSentCommercial}
+                onChange={(e) => setFilterSentCommercial(e.target.value)}
+                className="w-full h-8 text-[11px] rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2"
+              >
+                <option value="all">Todos</option>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+              </select>
+            </div>
+
+            {/* Convertido em venda */}
+            <div>
+              <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">
+                Convertido Venda?
+              </label>
+              <select
+                value={filterConvertedSale}
+                onChange={(e) => setFilterConvertedSale(e.target.value)}
+                className="w-full h-8 text-[11px] rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2"
+              >
+                <option value="all">Todos</option>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+              </select>
             </div>
           </div>
+        </div>
 
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setIsSimulateOrderModalOpen(false)}>
-              Fechar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+        {/* CABEÇALHO DA LISTAGEM COM "SELECIONAR TODOS" VISÍVEIS */}
+        <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs">
+          <div className="flex items-center gap-2.5">
+            <Checkbox
+              id="select-all-visible"
+              checked={areAllVisibleSelected}
+              onCheckedChange={handleToggleSelectAllVisible}
+              disabled={selectableVisibleOpps.length === 0}
+              className="border-slate-400 data-[state=checked]:bg-[#005596] data-[state=checked]:border-[#005596]"
+            />
+            <label
+              htmlFor="select-all-visible"
+              className="text-slate-700 dark:text-slate-300 font-medium cursor-pointer select-none text-xs"
+            >
+              Selecionar todos os registros visíveis ({selectableVisibleOpps.length} aptos de{' '}
+              {filteredOpps.length})
+            </label>
+          </div>
+
+          <span className="text-[11px] text-slate-500">
+            Total filtrado: <strong>{filteredOpps.length}</strong> oportunidades
+          </span>
+        </div>
+
+        {/* GRID DE CARGAS E OPORTUNIDADES */}
+        {filteredOpps.length === 0 ? (
+          <Card className="bg-white dark:bg-slate-900 border-slate-200 shadow-sm">
+            <CardContent className="p-10 text-center text-slate-400 text-xs">
+              Nenhuma oportunidade de complemento encontrada para os filtros atuais.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {filteredOpps.map((opp) => {
+              const candidates = candidatesMap[opp.opportunity_code] || []
+              const primaryCandidates = candidates.filter((c) => !c.is_exception)
+              const exceptionCandidates = candidates.filter((c) => c.is_exception)
+              const isSelected = selectedOppIds.includes(opp.id)
+              const isBlocked =
+                opp.is_blocked ||
+                opp.credit_status?.includes('Bloqueado') ||
+                opp.stock_status?.includes('Indisponível')
+
+              return (
+                <Card
+                  key={opp.id}
+                  className={`bg-white dark:bg-slate-900 border shadow-sm hover:shadow-md transition-all relative overflow-hidden flex flex-col justify-between ${
+                    isSelected
+                      ? 'border-[#005596] ring-1 ring-[#005596]/30'
+                      : isBlocked
+                        ? 'border-rose-200 dark:border-rose-950/60'
+                        : 'border-slate-200 dark:border-slate-800'
+                  }`}
+                >
+                  <div
+                    className={`h-1.5 w-full ${
+                      isBlocked ? 'bg-rose-500' : isSelected ? 'bg-[#005596]' : 'bg-[#005596]/70'
+                    }`}
+                  />
+
+                  <CardHeader className="p-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2.5">
+                        {/* 1 e 9. CHECKBOX INDIVIDUAL COM TOOLTIP EM CASO DE BLOQUEIO */}
+                        {isBlocked ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="pt-0.5 cursor-not-allowed">
+                                <Checkbox
+                                  checked={false}
+                                  disabled={true}
+                                  className="border-slate-300 opacity-40 cursor-not-allowed"
+                                />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="top"
+                              className="max-w-xs text-xs bg-slate-900 text-white"
+                            >
+                              <span>
+                                Oportunidade indisponível para envio:{' '}
+                                {opp.block_reason || 'restrição impeditiva'}.
+                              </span>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <div className="pt-0.5">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => handleToggleSelectOpp(opp)}
+                              className="border-slate-400 data-[state=checked]:bg-[#005596] data-[state=checked]:border-[#005596]"
+                            />
+                          </div>
+                        )}
+
+                        <div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <CardTitle className="text-sm font-bold text-slate-900 dark:text-slate-100 font-mono">
+                              {opp.opportunity_code || `PROPOSTA ${opp.load_proposal_id}`}
+                            </CardTitle>
+                            <Badge variant="outline" className="text-[10px] bg-slate-50 font-mono">
+                              Itinerário: {opp.itinerary_id}
+                            </Badge>
+                            {isBlocked && (
+                              <Badge className="bg-rose-600 text-white text-[10px] flex items-center gap-1">
+                                <ShieldAlert className="w-3 h-3" />
+                                BLOQUEADA
+                              </Badge>
+                            )}
+                          </div>
+
+                          <CardDescription className="text-xs text-slate-500 mt-1">
+                            Saída prevista:{' '}
+                            <strong>
+                              {opp.planned_dispatch_date
+                                ? new Date(opp.planned_dispatch_date).toLocaleDateString('pt-BR')
+                                : 'A definir'}
+                            </strong>{' '}
+                            • Veículo: {opp.vehicle_type || 'Carreta 5 Eixos'} (
+                            {((opp.vehicle_capacity_kg || 27000) / 1000).toFixed(1)} t)
+                          </CardDescription>
+                        </div>
+                      </div>
+
+                      {/* 4. STATUS COM BADGE COMPLETA */}
+                      <div>{renderStatusBadge(opp.commercial_status)}</div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="p-4 space-y-3 text-xs">
+                    {/* METRICAS OPERACIONAIS */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800 text-center">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase block font-semibold">
+                          Programado
+                        </span>
+                        <strong className="text-slate-900 dark:text-slate-100 font-mono text-sm">
+                          {((opp.current_weight_kg || 0) / 1000).toFixed(1)} t
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase block font-semibold">
+                          Ocupação Atual
+                        </span>
+                        <strong className="text-blue-700 font-mono text-sm">
+                          {opp.current_occupancy_pct}%
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase block font-semibold">
+                          Meta Máxima
+                        </span>
+                        <strong className="text-slate-900 dark:text-slate-100 font-mono text-sm">
+                          {opp.maximum_occupancy_pct}%
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] text-amber-700 uppercase block font-semibold">
+                          Complemento Necessário
+                        </span>
+                        <strong className="text-amber-700 font-mono text-sm font-black">
+                          {((opp.missing_weight_kg || 0) / 1000).toFixed(1)} t
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* DADOS DA OPORTUNIDADE: CLIENTE E PRODUTO SUGERIDO */}
+                    <div className="p-2.5 bg-slate-50/70 dark:bg-slate-800/40 rounded-lg border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                          <Building className="w-3.5 h-3.5 text-[#005596]" />
+                          {opp.customer_name || 'Cliente Alvo na Rota'}
+                        </span>
+                        <Badge variant="outline" className="text-[10px] font-mono">
+                          Cód SAP: {opp.customer_sap_code || opp.customer_id || 'N/A'}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+                        <div>
+                          Produto sugerido:{' '}
+                          <strong className="text-slate-800 dark:text-slate-200">
+                            {opp.material_description || opp.material_id || 'Laminados CA-50'}
+                          </strong>
+                        </div>
+                        <div className="sm:text-right">
+                          Destino:{' '}
+                          <strong className="text-slate-800 dark:text-slate-200">
+                            {opp.destination_city || 'Destino na rota'}/{opp.destination_uf || 'BR'}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[10px] pt-1 border-t border-slate-200/60 dark:border-slate-800 text-slate-500">
+                        <div>
+                          Estoque: <strong>{opp.stock_status || 'DP34 liberado'}</strong>
+                        </div>
+                        <div>
+                          Crédito:{' '}
+                          <strong
+                            className={
+                              opp.credit_status?.includes('Bloqueado')
+                                ? 'text-rose-600'
+                                : 'text-emerald-700'
+                            }
+                          >
+                            {opp.credit_status || 'Liberado'}
+                          </strong>
+                        </div>
+                        <div className="sm:text-right truncate">
+                          Repr:{' '}
+                          <strong>
+                            {opp.commercial_representative ||
+                              opp.salesperson_id ||
+                              'Comercial CIAFAL'}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* REGISTRO DE ENVIO COMERCIAL CASO JÁ TENHA SIDO ENVIADA */}
+                    {opp.commercial_sent_at && (
+                      <div className="p-2 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded text-[11px] text-blue-950 dark:text-blue-200 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-[#005596]" />
+                          Enviada em {new Date(opp.commercial_sent_at).toLocaleString('pt-BR')} por{' '}
+                          <strong>{opp.commercial_sent_by || 'Operador Logístico'}</strong>
+                        </span>
+                        {opp.resend_count && opp.resend_count > 0 ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] bg-amber-50 text-amber-700 border-amber-300"
+                          >
+                            Reenviada {opp.resend_count}x
+                          </Badge>
+                        ) : null}
+                      </div>
+                    )}
+
+                    {/* BLOCO DE EXCEÇÃO VISÍVEL */}
+                    {isBlocked && (
+                      <div className="border border-rose-300 bg-rose-50/70 dark:bg-rose-950/30 rounded p-2 text-[11px] text-rose-800 dark:text-rose-300 space-y-1">
+                        <span className="font-bold flex items-center gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                          Regra Impeditiva:
+                        </span>
+                        <p className="text-[10px]">
+                          {opp.block_reason ||
+                            'Crédito bloqueado no SAP ou material indisponível para expedição nesta data.'}
+                        </p>
+                      </div>
+                    )}
+
+                    {opp.ai_recommendation && (
+                      <div className="bg-slate-50 dark:bg-slate-800/80 p-2 rounded text-[11px] text-slate-700 dark:text-slate-300 border">
+                        <span className="font-bold block text-slate-800 dark:text-slate-200 mb-0.5">
+                          Recomendação do Motor:
+                        </span>
+                        {opp.ai_recommendation}
+                      </div>
+                    )}
+                  </CardContent>
+
+                  {/* AÇÕES DA OPORTUNIDADE */}
+                  <CardFooter className="p-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {/* BOTÃO HISTÓRICO */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-8 text-slate-700 hover:text-slate-900"
+                        onClick={() => handleOpenHistory(opp)}
+                      >
+                        <History className="w-3.5 h-3.5 mr-1 text-[#005596]" />
+                        Histórico
+                      </Button>
+
+                      {/* ALTERAR STATUS MANUAL */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-8"
+                        onClick={() => {
+                          setStatusUpdateOpp(opp)
+                          setNewStatusSelected(opp.commercial_status)
+                        }}
+                      >
+                        Status
+                      </Button>
+
+                      {/* CORRELACIONAR SAP */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-8 text-emerald-700 border-emerald-300"
+                        onClick={() => {
+                          setTargetOppForOrder(opp)
+                          setIsSimulateOrderModalOpen(true)
+                        }}
+                      >
+                        Correlacionar SAP
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs h-8 text-[#005596]"
+                        onClick={() => setDetailOpp(opp)}
+                      >
+                        Ver Detalhes
+                      </Button>
+
+                      {/* ENVIO UNITÁRIO DIRETO DO CARD */}
+                      <Button
+                        size="sm"
+                        disabled={isBlocked}
+                        className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-8 font-semibold shadow-sm disabled:opacity-40"
+                        onClick={() => {
+                          if (opp.commercial_sent_at) {
+                            setDuplicateWarningOpp(opp)
+                          } else {
+                            setSelectedOppIds([opp.id])
+                            setIsBatchSendModalOpen(true)
+                          }
+                        }}
+                      >
+                        <Send className="w-3 h-3 mr-1" />
+                        Enviar p/ Comercial
+                      </Button>
+                    </div>
+                  </CardFooter>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+
+        {/* 2 e 3. POPUP DE CONFIRMAÇÃO: "Enviar oportunidades para o Comercial" */}
+        <Dialog open={isBatchSendModalOpen} onOpenChange={setIsBatchSendModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2 text-[#005596]">
+                <Send className="w-4 h-4 text-[#005596]" />
+                Enviar oportunidades para o Comercial
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-600 dark:text-slate-400">
+                Você está enviando <strong>{selectedOpportunities.length}</strong> oportunidade(s)
+                de complemento de carga para avaliação da equipe Comercial.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 py-2 text-xs">
+              <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                Resumo por oportunidade:
+              </span>
+
+              <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
+                {selectedOpportunities.map((item, idx) => (
+                  <div
+                    key={item.id}
+                    className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between font-mono font-bold text-[#005596] text-[11px]">
+                      <span>
+                        #{idx + 1} — {item.opportunity_code || `Proposta ${item.load_proposal_id}`}
+                      </span>
+                      <span>Itinerário: {item.itinerary_id}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700 dark:text-slate-300">
+                      <div>
+                        Cliente:{' '}
+                        <strong>
+                          {item.customer_name} (
+                          {item.customer_sap_code || item.customer_id || 'SAP'})
+                        </strong>
+                      </div>
+                      <div className="text-right">
+                        Destino:{' '}
+                        <strong>
+                          {item.destination_city || 'N/A'}/{item.destination_uf || 'BR'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700 dark:text-slate-300">
+                      <div>
+                        Produto: <strong>{item.material_description || item.material_id}</strong>
+                      </div>
+                      <div className="text-right">
+                        Quantidade Potencial:{' '}
+                        <strong className="text-amber-700">
+                          {(
+                            (item.suggested_quantity_kg || item.missing_weight_kg || 0) / 1000
+                          ).toFixed(1)}{' '}
+                          t
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-[10px] text-slate-500 pt-1 border-t border-slate-200/60 dark:border-slate-700">
+                      <div>
+                        Cap. Residual:{' '}
+                        <strong>{((item.missing_weight_kg || 0) / 1000).toFixed(1)} t</strong>
+                      </div>
+                      <div>
+                        Estoque:{' '}
+                        <strong className="text-blue-700">{item.stock_status || 'DP34 OK'}</strong>
+                      </div>
+                      <div className="text-right">
+                        Saída:{' '}
+                        <strong>
+                          {item.planned_dispatch_date
+                            ? new Date(item.planned_dispatch_date).toLocaleDateString('pt-BR')
+                            : 'Prevista'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 p-2 rounded border">
+                      <strong>Recomendação do Motor: </strong>
+                      {item.ai_recommendation ||
+                        item.adherence_explanation ||
+                        'Complemento com alta aderência de itinerário e histórico de compra.'}
+                    </div>
+
+                    <div className="text-[10px] text-slate-500">
+                      Responsável Comercial:{' '}
+                      <strong className="text-slate-700 dark:text-slate-300">
+                        {item.commercial_representative ||
+                          item.salesperson_id ||
+                          'Comercial CIAFAL'}
+                      </strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-2.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 rounded text-[11px] text-slate-700 dark:text-slate-300 space-y-1">
+                <strong>Processo Integrado CIAFAL:</strong>
+                <p>
+                  O envio registra o despacho para avaliação da equipe comercial e CRM 360º. Nenhum
+                  pedido manual é inserido na carga. Após fechamento comercial, o pedido entra no
+                  SAP e o TMS correlaciona automaticamente via RFC/BAPI.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsBatchSendModalOpen(false)}
+                disabled={isSendingBatch}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                className="bg-[#005596] hover:bg-[#004478] text-white"
+                onClick={handleConfirmBatchSend}
+                disabled={isSendingBatch}
+              >
+                {isSendingBatch ? 'Enviando...' : 'Confirmar Envio'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 6. MODAL DE AVISO DE DUPLICIDADE */}
+        <Dialog
+          open={Boolean(duplicateWarningOpp) && !isResendModalOpen}
+          onOpenChange={(open) => !open && setDuplicateWarningOpp(null)}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2 text-amber-600">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+                Oportunidade Já Enviada ao Comercial
+              </DialogTitle>
+            </DialogHeader>
+
+            {duplicateWarningOpp && (
+              <div className="space-y-3 text-xs py-2">
+                <p className="text-slate-700 dark:text-slate-300">
+                  Esta oportunidade já foi enviada ao Comercial{' '}
+                  {duplicateWarningOpp.commercial_sent_at
+                    ? `em ${new Date(duplicateWarningOpp.commercial_sent_at).toLocaleDateString('pt-BR')} às ${new Date(duplicateWarningOpp.commercial_sent_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                    : ''}{' '}
+                  por <strong>{duplicateWarningOpp.commercial_sent_by || 'outro usuário'}</strong>.
+                </p>
+
+                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded border text-[11px] space-y-1">
+                  <div>
+                    Oportunidade: <strong>{duplicateWarningOpp.opportunity_code}</strong>
+                  </div>
+                  <div>
+                    Cliente: <strong>{duplicateWarningOpp.customer_name}</strong>
+                  </div>
+                  <div>
+                    Status Atual: <strong>{duplicateWarningOpp.commercial_status}</strong>
+                  </div>
+                </div>
+
+                {!canResend ? (
+                  <p className="text-rose-600 text-[11px] font-medium">
+                    Apenas Administradores e Gestores possuem permissão para realizar o reenvio ao
+                    Comercial.
+                  </p>
+                ) : (
+                  <p className="text-slate-500 text-[11px]">
+                    Como usuário autorizado ({userRole}), você pode registrar uma nova notificação
+                    de reenvio fundamentado.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setDuplicateWarningOpp(null)}>
+                Voltar
+              </Button>
+              {canResend && (
+                <Button
+                  size="sm"
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={() => setIsResendModalOpen(true)}
+                >
+                  Reenviar
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 6. MODAL DE CONFIRMAÇÃO DE REENVIO AUTORIZADO */}
+        <Dialog open={isResendModalOpen} onOpenChange={setIsResendModalOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2 text-amber-600">
+                <RefreshCw className="w-4 h-4 text-amber-600" />
+                Reenviar Oportunidade ao Comercial
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                O reenvio será registrado no histórico auditável da oportunidade.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 text-xs py-2">
+              <div>
+                <label className="font-semibold block mb-1">
+                  Justificativa / Motivo do Reenvio:
+                </label>
+                <Input
+                  placeholder="Ex: Reforço de prazo de fechamento ou mudança na programação..."
+                  value={resendReason}
+                  onChange={(e) => setResendReason(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsResendModalOpen(false)}
+                disabled={isResending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={handleConfirmResend}
+                disabled={isResending}
+              >
+                {isResending ? 'Reenviando...' : 'Confirmar Reenvio'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 7. MODAL DE HISTÓRICO DA OPORTUNIDADE (TIMELINE / TABELA AUDITÁVEL) */}
+        <Dialog
+          open={Boolean(historyModalOpp)}
+          onOpenChange={(open) => !open && setHistoryModalOpp(null)}
+        >
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2 text-[#005596]">
+                <History className="w-4 h-4 text-[#005596]" />
+                Histórico da Oportunidade {historyModalOpp?.opportunity_code}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Timeline completa e auditável de eventos, usuários e transições de status.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2 text-xs">
+              {isLoadingHistory ? (
+                <div className="p-8 text-center text-slate-400">
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#005596]" />
+                  Carregando trilha de auditoria...
+                </div>
+              ) : oppHistoryList.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  Nenhum evento registrado até o momento.
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 dark:bg-slate-800 uppercase font-semibold text-[10px] border-b">
+                      <tr>
+                        <th className="p-2.5">Data/Hora</th>
+                        <th className="p-2.5">Evento</th>
+                        <th className="p-2.5">Usuário</th>
+                        <th className="p-2.5">Status</th>
+                        <th className="p-2.5">Descrição</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y text-[11px]">
+                      {oppHistoryList.map((item) => (
+                        <tr
+                          key={item.id}
+                          className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40"
+                        >
+                          <td className="p-2.5 whitespace-nowrap font-mono text-slate-500">
+                            {item.created ? new Date(item.created).toLocaleString('pt-BR') : 'N/A'}
+                          </td>
+                          <td className="p-2.5 font-semibold text-slate-800 dark:text-slate-200">
+                            {item.event_title}
+                          </td>
+                          <td className="p-2.5">
+                            <span className="font-medium text-slate-700 dark:text-slate-300 block">
+                              {item.user_name}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {item.user_role || 'operador'}
+                            </span>
+                          </td>
+                          <td className="p-2.5 whitespace-nowrap">
+                            {renderStatusBadge(item.new_status)}
+                          </td>
+                          <td className="p-2.5 text-slate-600 dark:text-slate-400 text-[10px]">
+                            {item.description || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setHistoryModalOpp(null)}>
+                Fechar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* MODAL DETALHE COMPLETO DA OPORTUNIDADE */}
+        <Dialog open={Boolean(detailOpp)} onOpenChange={(open) => !open && setDetailOpp(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2 text-[#005596]">
+                <Layers className="w-4 h-4 text-[#005596]" />
+                Detalhes da Oportunidade {detailOpp?.opportunity_code}
+              </DialogTitle>
+            </DialogHeader>
+
+            {detailOpp && (
+              <div className="space-y-3 text-xs py-1">
+                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border space-y-1.5">
+                  <div className="flex justify-between font-semibold">
+                    <span>Itinerário SAP:</span>
+                    <span className="font-mono">{detailOpp.itinerary_id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Proposta de Carga:</span>
+                    <span className="font-mono">{detailOpp.load_proposal_id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Saída Prevista:</span>
+                    <span>
+                      {detailOpp.planned_dispatch_date
+                        ? new Date(detailOpp.planned_dispatch_date).toLocaleDateString('pt-BR')
+                        : 'A definir'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Capacidade Residual:</span>
+                    <strong className="text-amber-700 font-mono">
+                      {formatWeight(detailOpp.missing_weight_kg, { unit: 'kg' })}
+                    </strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Cliente Sugerido:</span>
+                    <span className="font-semibold">{detailOpp.customer_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Cód. SAP Cliente:</span>
+                    <span className="font-mono">
+                      {detailOpp.customer_sap_code || detailOpp.customer_id}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Produto Recomendado:</span>
+                    <span>{detailOpp.material_description || detailOpp.material_id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Status Atual:</span>
+                    <span>{renderStatusBadge(detailOpp.commercial_status)}</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded text-[11px] text-slate-700 space-y-1">
+                  <span className="font-bold text-indigo-900 block">
+                    Critérios Auditados pelo Motor:
+                  </span>
+                  <p>• Rota programada sem desvio de itinerário.</p>
+                  <p>• Condição financeira verificada: {detailOpp.credit_status}.</p>
+                  <p>• Previsão física de estoque: {detailOpp.stock_status}.</p>
+                  <p>
+                    • Representante:{' '}
+                    {detailOpp.commercial_representative ||
+                      detailOpp.salesperson_id ||
+                      'Comercial CIAFAL'}
+                    .
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setDetailOpp(null)}>
+                Fechar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* MODAL ATUALIZAR STATUS COMERCIAL */}
+        <Dialog
+          open={Boolean(statusUpdateOpp)}
+          onOpenChange={(open) => !open && setStatusUpdateOpp(null)}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold">
+                Atualizar Fluxo Comercial da Oportunidade
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Proposta {statusUpdateOpp?.load_proposal_id} • Registra usuário e data/hora para
+                auditoria.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 text-xs py-2">
+              <div>
+                <span className="text-[11px] font-semibold block mb-1">Novo Status:</span>
+                <select
+                  value={newStatusSelected}
+                  onChange={(e) => setNewStatusSelected(e.target.value as any)}
+                  className="w-full h-9 border rounded p-2 text-xs bg-white dark:bg-slate-900"
+                >
+                  <option value="Nova">Nova</option>
+                  <option value="Selecionada">Selecionada</option>
+                  <option value="Enviada ao Comercial">Enviada ao Comercial</option>
+                  <option value="Em análise comercial">Em análise comercial</option>
+                  <option value="Aceita pelo Comercial">Aceita pelo Comercial</option>
+                  <option value="Recusada pelo Comercial">Recusada pelo Comercial</option>
+                  <option value="Expirada">Expirada</option>
+                  <option value="Convertida em venda">Convertida em venda</option>
+                  <option value="Contato iniciado">Contato iniciado</option>
+                  <option value="Cliente interessado">Cliente interessado</option>
+                  <option value="Aguardando pedido SAP">Aguardando pedido SAP</option>
+                  <option value="Pedido criado">Pedido criado</option>
+                  <option value="Associado à carga">Associado à carga</option>
+                  <option value="Descartado">Descartado</option>
+                </select>
+              </div>
+
+              <div>
+                <span className="text-[11px] font-semibold block mb-1">
+                  Observações da Negociação:
+                </span>
+                <Input
+                  placeholder="Ex: Cliente aceitou antecipar compra de CA-50..."
+                  value={statusNotes}
+                  onChange={(e) => setStatusNotes(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setStatusUpdateOpp(null)}>
+                Cancelar
+              </Button>
+              <Button size="sm" className="bg-[#005596] text-white" onClick={handleUpdateStatus}>
+                Salvar Alteração
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* MODAL DE CORRELAÇÃO DE PEDIDO SAP COM CARGA */}
+        <Dialog open={isSimulateOrderModalOpen} onOpenChange={setIsSimulateOrderModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <Package className="w-4 h-4 text-emerald-600" />
+                Correlacionar Novo Pedido SAP à Carga {targetOppForOrder?.load_proposal_id}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Quando a venda nasce no SAP via RFC/BAPI, o TMS identifica a rota e incorpora à
+                carga recalculando peso, ocupação e status para CONVERTIDA EM VENDA.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 text-xs py-2">
+              <span className="font-semibold text-slate-700 block">
+                Pedidos da Carteira SAP no Itinerário {targetOppForOrder?.itinerary_id}:
+              </span>
+
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 dark:bg-slate-800 uppercase font-semibold border-b text-[10px]">
+                    <tr>
+                      <th className="p-2">Pedido</th>
+                      <th className="p-2">Cliente</th>
+                      <th className="p-2 text-right">Peso (t)</th>
+                      <th className="p-2">Crédito</th>
+                      <th className="p-2 text-right">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y text-[11px]">
+                    {simulatedSapOrders
+                      .filter(
+                        (o) =>
+                          !targetOppForOrder?.itinerary_id ||
+                          o.itinerary_code === targetOppForOrder.itinerary_id ||
+                          o.uf === 'MG' ||
+                          o.uf === 'SP',
+                      )
+                      .slice(0, 6)
+                      .map((ord) => (
+                        <tr key={ord.id} className="hover:bg-slate-50">
+                          <td className="p-2 font-mono font-bold">{ord.order_number}</td>
+                          <td className="p-2">{ord.customer_name}</td>
+                          <td className="p-2 text-right font-mono font-bold">
+                            {((ord.weight_kg || 5000) / 1000).toFixed(1)} t
+                          </td>
+                          <td className="p-2">
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-300"
+                            >
+                              {ord.credit_status || 'Liberado'}
+                            </Badge>
+                          </td>
+                          <td className="p-2 text-right">
+                            <Button
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] h-6"
+                              onClick={() => handleCorrelateSapOrder(ord.id)}
+                            >
+                              Associar à Carga
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSimulateOrderModalOpen(false)}
+              >
+                Fechar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </TooltipProvider>
   )
 }
 
