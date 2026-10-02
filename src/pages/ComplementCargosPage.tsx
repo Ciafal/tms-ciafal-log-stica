@@ -43,6 +43,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { tmsService } from '@/services/tmsService'
+import { formatWeight } from '@/lib/utils'
 import {
   LoadComplementOpportunityEntity,
   LoadComplementCandidateEntity,
@@ -654,7 +655,7 @@ export const ComplementCargosPage: React.FC = () => {
                 <div className="flex justify-between">
                   <span>Tonelagem Disponível:</span>
                   <strong className="text-amber-700 font-mono">
-                    {(selectedOpp.missing_weight_kg / 1000).toFixed(1)} toneladas
+                    {formatWeight(selectedOpp.missing_weight_kg, { unit: 'kg' })}
                   </strong>
                 </div>
                 <div className="flex justify-between">

@@ -33,10 +33,12 @@ export interface SapStockCurrentEntity {
   material_description: string
   plant: string
   storage_location: string
+  storage_bin?: string // lgpbe (localização física no depósito, quando disponível)
   batch?: string
   quantity: number
   unit: string
   weight_kg: number
+  weight_tons?: number
   available_qty: number
   reserved_qty?: number
   blocked_qty?: number

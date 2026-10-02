@@ -188,8 +188,20 @@ export const SapReconciliationPage: React.FC = () => {
                     <td className="p-3 font-mono text-blue-700">{item.tmsOrderNumber}</td>
                     <td className="p-3 text-slate-700">{item.sapStatus}</td>
                     <td className="p-3 text-slate-700">{item.tmsStatus}</td>
-                    <td className="p-3 font-mono">{item.sapWeightTon.toFixed(1)} TON</td>
-                    <td className="p-3 font-mono">{item.tmsWeightTon.toFixed(1)} TON</td>
+                    <td className="p-3 font-mono">
+                      {item.sapWeightTon.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      t
+                    </td>
+                    <td className="p-3 font-mono">
+                      {item.tmsWeightTon.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      t
+                    </td>
                     <td className="p-3">
                       <Badge
                         className={

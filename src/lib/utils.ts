@@ -29,16 +29,51 @@ export function formatCurrency(value?: number | null): string {
 }
 
 /**
- * Formata massa conforme ABNT/SI (kg ou t com espaço)
- * Ex: 28 500 kg ou 28,50 t (nunca KG, Kg, TON)
+ * Opções de formatação de peso para o TMS CIAFAL
  */
-export function formatWeight(weightKg?: number | null, useTonsThreshold = 1000): string {
-  if (weightKg === null || weightKg === undefined || isNaN(weightKg)) return '0 kg'
-  if (weightKg >= useTonsThreshold) {
-    const tons = weightKg / 1000
-    return `${tons.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} t`
+export interface FormatWeightOptions {
+  unit?: 't' | 'kg' | 'auto' | string
+  forceTons?: boolean
+  decimals?: number
+}
+
+/**
+ * Helper centralizado de formatação de pesos para o padrão brasileiro do TMS CIAFAL:
+ * - Padrão pt-BR: milhar ponto, decimal vírgula (ex: 1.254,37 t, 5,00 t)
+ * - 2 casas decimais com sufixo " t"
+ * - Conversão automática de kg para t quando unidade for 'KG'/'kg' ou quando forceTons/auto
+ */
+export function formatWeight(
+  value?: number | null,
+  options?: FormatWeightOptions | number,
+): string {
+  if (value === null || value === undefined || isNaN(value)) {
+    return '0,00 t'
   }
-  return `${Math.round(weightKg).toLocaleString('pt-BR')} kg`
+
+  // Compatibilidade com assinatura anterior formatWeight(weightKg, useTonsThreshold)
+  if (typeof options === 'number') {
+    const threshold = options
+    if (value >= threshold) {
+      const tons = value / 1000
+      return `${tons.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} t`
+    }
+    return `${Math.round(value).toLocaleString('pt-BR')} kg`
+  }
+
+  const opts: FormatWeightOptions = options || {}
+  const decimals = opts.decimals !== undefined ? opts.decimals : 2
+  const unit = (opts.unit || 't').toUpperCase()
+
+  let tonsValue = value
+  if (unit === 'KG') {
+    tonsValue = value / 1000
+  }
+
+  return `${tonsValue.toLocaleString('pt-BR', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })} t`
 }
 
 /**

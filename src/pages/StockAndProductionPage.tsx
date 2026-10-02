@@ -46,6 +46,9 @@ import {
   PcpProductionOrderEntity,
   StockConfirmationRequestEntity,
 } from '@/domain/rules'
+import { calculateStockLotMetrics, getStockItemWeightTons } from '@/domain/stockIndicatorsEngine'
+import { StockLotDrillDownModal } from '@/components/StockLotDrillDownModal'
+import { formatWeight } from '@/lib/utils'
 
 export const StockAndProductionPage: React.FC = () => {
   const { user, permissions } = useAuth()
@@ -59,7 +62,20 @@ export const StockAndProductionPage: React.FC = () => {
   // Filters
   const [search, setSearch] = useState('')
   const [filterPlant, setFilterPlant] = useState('ALL')
+  const [filterStorageLocation, setFilterStorageLocation] = useState('ALL')
+  const [filterStatus, setFilterStatus] = useState<
+    'ALL' | 'DISPONIVEL' | 'BLOQUEADO' | 'RESERVADO'
+  >('ALL')
   const [filterPcpStatus, setFilterPcpStatus] = useState('ALL')
+
+  // Drill-down Modal State
+  const [drillDownOpen, setDrillDownOpen] = useState(false)
+  const [drillDownTitle, setDrillDownTitle] = useState('')
+  const [drillDownSubtitle, setDrillDownSubtitle] = useState('')
+  const [drillDownLots, setDrillDownLots] = useState<SapStockCurrentEntity[]>([])
+  const [drillDownModeDetails, setDrillDownModeDetails] = useState<
+    Array<{ weightTons: number; count: number }> | undefined
+  >(undefined)
 
   // Stock Confirmation Request Modal (Create)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
@@ -123,21 +139,62 @@ export const StockAndProductionPage: React.FC = () => {
     }
   }, [stocks, pcpOrders, stockRequests])
 
-  // Filtered Stock
+  // Filtered Stock (Recalcula dinamicamente sobre qualquer alteração de filtros)
   const filteredStock = useMemo(() => {
     return stocks.filter((s) => {
       if (search) {
         const q = search.toLowerCase()
         const match =
-          s.material_code.toLowerCase().includes(q) ||
-          s.material_description.toLowerCase().includes(q) ||
-          (s.batch && s.batch.toLowerCase().includes(q))
+          (s.material_code || '').toLowerCase().includes(q) ||
+          (s.material_description || '').toLowerCase().includes(q) ||
+          (s.batch && s.batch.toLowerCase().includes(q)) ||
+          (s.storage_bin && s.storage_bin.toLowerCase().includes(q))
         if (!match) return false
       }
       if (filterPlant !== 'ALL' && s.plant !== filterPlant) return false
+      if (filterStorageLocation !== 'ALL' && s.storage_location !== filterStorageLocation)
+        return false
+      if (filterStatus === 'DISPONIVEL' && (s.available_qty || 0) <= 0) return false
+      if (filterStatus === 'BLOQUEADO' && (s.blocked_qty || 0) <= 0) return false
+      if (filterStatus === 'RESERVADO' && (s.reserved_qty || 0) <= 0) return false
       return true
     })
-  }, [stocks, search, filterPlant])
+  }, [stocks, search, filterPlant, filterStorageLocation, filterStatus])
+
+  // 6 Indicadores Estatísticos Canônicos sobre os lotes filtrados
+  const stockMetrics = useMemo(() => {
+    return calculateStockLotMetrics(filteredStock)
+  }, [filteredStock])
+
+  // Lista única de Centros e Depósitos para os seletores de filtro
+  const availablePlants = useMemo(() => {
+    const set = new Set<string>()
+    stocks.forEach((s) => {
+      if (s.plant) set.add(s.plant)
+    })
+    return Array.from(set).sort()
+  }, [stocks])
+
+  const availableStorageLocations = useMemo(() => {
+    const set = new Set<string>()
+    stocks.forEach((s) => {
+      if (s.storage_location) set.add(s.storage_location)
+    })
+    return Array.from(set).sort()
+  }, [stocks])
+
+  const openDrillDown = (
+    title: string,
+    subtitle: string,
+    lots: SapStockCurrentEntity[],
+    modeDetails?: Array<{ weightTons: number; count: number }>,
+  ) => {
+    setDrillDownTitle(title)
+    setDrillDownSubtitle(subtitle)
+    setDrillDownLots(lots)
+    setDrillDownModeDetails(modeDetails)
+    setDrillDownOpen(true)
+  }
 
   // Filtered PCP
   const filteredPcp = useMemo(() => {
@@ -315,69 +372,293 @@ export const StockAndProductionPage: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {' '}
-        <Card className="bg-emerald-50/50 border-emerald-200 shadow-xs">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold text-emerald-800">
-                Estoque Disponível Agora (MB52)
-              </span>
-              <Boxes className="w-4 h-4 text-emerald-600" />
-            </div>
-            <div className="text-xl font-black font-mono text-emerald-950 mt-1">
-              {metrics.totalCurrentStockTons} t
-            </div>
-            <div className="text-[10px] text-emerald-700 mt-0.5">
-              Saldo físico pronto para expedição
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-sky-50/50 border-sky-200 shadow-xs">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold text-sky-800">
-                Estoque Futuro / PCP Robotizado
-              </span>
-              <Factory className="w-4 h-4 text-sky-600" />
-            </div>
-            <div className="text-xl font-black font-mono text-sky-950 mt-1">
-              {metrics.totalPcpTons} t
-            </div>
-            <div className="text-[10px] text-sky-700 mt-0.5">Programação confirmada D+1 / D+2</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-amber-50/50 border-amber-200 shadow-xs">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold text-amber-800">
-                Solicitações Pendentes
-              </span>
-              <Clock className="w-4 h-4 text-amber-600" />
-            </div>
-            <div className="text-xl font-black font-mono text-amber-950 mt-1">
-              {metrics.activeRequestsCount}
-            </div>
-            <div className="text-[10px] text-amber-700 mt-0.5">
-              Aguardando conferência física de pátio
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-slate-50 border-slate-200 shadow-xs">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold text-slate-600">
-                Itens Ativos em Estoque
-              </span>
-              <ShieldCheck className="w-4 h-4 text-slate-500" />
-            </div>
-            <div className="text-xl font-black font-mono text-slate-900 mt-1">
-              {metrics.readyItemsCount}
-            </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">Materiais com saldo positivo</div>
-          </CardContent>
-        </Card>
+      {/* SEÇÃO CANÔNICA DE FILTROS REATIVOS DO ESTOQUE */}
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs space-y-2.5">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black uppercase text-slate-800 tracking-wider">
+              Filtros da Visão do Estoque
+            </span>
+            <Badge variant="outline" className="text-[10px] font-mono text-slate-500">
+              sap_stock_current
+            </Badge>
+          </div>
+          {(search ||
+            filterPlant !== 'ALL' ||
+            filterStorageLocation !== 'ALL' ||
+            filterStatus !== 'ALL') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearch('')
+                setFilterPlant('ALL')
+                setFilterStorageLocation('ALL')
+                setFilterStatus('ALL')
+              }}
+              className="h-6 px-2 text-[10px] text-slate-500 hover:text-slate-900"
+            >
+              Limpar Filtros
+            </Button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+            <Input
+              placeholder="Material, descrição, lote ou posição..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 pl-8 text-xs bg-slate-50/50"
+            />
+          </div>
+
+          <Select value={filterPlant} onValueChange={setFilterPlant}>
+            <SelectTrigger className="h-8 text-xs bg-slate-50/50">
+              <SelectValue placeholder="Centro (WERKS)" />
+            </SelectTrigger>
+            <SelectContent className="text-xs">
+              <SelectItem value="ALL">Todos os Centros</SelectItem>
+              {availablePlants.map((plant) => (
+                <SelectItem key={plant} value={plant}>
+                  Centro: {plant}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filterStorageLocation} onValueChange={setFilterStorageLocation}>
+            <SelectTrigger className="h-8 text-xs bg-slate-50/50">
+              <SelectValue placeholder="Depósito (LGORT)" />
+            </SelectTrigger>
+            <SelectContent className="text-xs">
+              <SelectItem value="ALL">Todos os Depósitos</SelectItem>
+              {availableStorageLocations.map((lgort) => (
+                <SelectItem key={lgort} value={lgort}>
+                  Depósito: {lgort}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filterStatus} onValueChange={(val: any) => setFilterStatus(val)}>
+            <SelectTrigger className="h-8 text-xs bg-slate-50/50">
+              <SelectValue placeholder="Status do Estoque" />
+            </SelectTrigger>
+            <SelectContent className="text-xs">
+              <SelectItem value="ALL">Todos os Status</SelectItem>
+              <SelectItem value="DISPONIVEL">Apenas Disponível</SelectItem>
+              <SelectItem value="RESERVADO">Com Reserva</SelectItem>
+              <SelectItem value="BLOQUEADO">Com Bloqueio</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* 6 INDICADORES ESTATÍSTICOS RESPONSIVOS DE MESMA ALTURA — PADRÃO VISUAL CIAFAL */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[11px] font-extrabold uppercase tracking-wide text-slate-600">
+            Indicadores Consolidados de Lotes
+          </span>
+          <span className="text-[10px] text-slate-400">
+            Clique no card para abrir o detalhamento dos lotes (Drill-Down)
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2.5">
+          {/* 1. Lotes */}
+          <Card
+            onClick={() =>
+              openDrillDown(
+                'Lotes de Estoque',
+                'Todos os lotes válidos no conjunto filtrado atual.',
+                stockMetrics.allFilteredLots,
+              )
+            }
+            className="group cursor-pointer bg-white hover:bg-sky-50/50 border-slate-200 hover:border-[#005596] transition-all shadow-xs h-full flex flex-col justify-between"
+          >
+            <CardContent className="p-3 text-center flex flex-col justify-between h-full space-y-1">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-[#005596] transition-colors block">
+                  Lotes
+                </span>
+                <div className="text-2xl font-black font-mono text-slate-900 mt-1">
+                  {stockMetrics.lotCount}
+                </div>
+              </div>
+              <div className="text-[10px] text-slate-400 group-hover:text-[#005596] transition-colors pt-1 border-t border-slate-100">
+                {stockMetrics.lotCount === 0
+                  ? 'Nenhum lote'
+                  : stockMetrics.lotCount === 1
+                    ? '1 registro válido'
+                    : 'Registros válidos'}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 2. Peso total */}
+          <Card
+            onClick={() =>
+              openDrillDown(
+                'Peso Total dos Lotes',
+                'Composição de peso de todos os lotes filtrados.',
+                stockMetrics.allFilteredLots,
+              )
+            }
+            className="group cursor-pointer bg-white hover:bg-emerald-50/50 border-slate-200 hover:border-emerald-600 transition-all shadow-xs h-full flex flex-col justify-between"
+          >
+            <CardContent className="p-3 text-center flex flex-col justify-between h-full space-y-1">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-emerald-700 transition-colors block">
+                  Peso Total
+                </span>
+                <div className="text-2xl font-black font-mono text-emerald-950 mt-1 truncate">
+                  {stockMetrics.lotCount === 0
+                    ? '0,00 t'
+                    : formatWeight(stockMetrics.totalWeightTons, { unit: 't' })}
+                </div>
+              </div>
+              <div className="text-[10px] text-slate-400 group-hover:text-emerald-700 transition-colors pt-1 border-t border-slate-100">
+                Soma em toneladas
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 3. Peso médio */}
+          <Card
+            onClick={() =>
+              openDrillDown(
+                'Peso Médio dos Lotes',
+                'Relação entre o peso total e a quantidade de lotes filtrados.',
+                stockMetrics.allFilteredLots,
+              )
+            }
+            className="group cursor-pointer bg-white hover:bg-sky-50/50 border-slate-200 hover:border-[#005596] transition-all shadow-xs h-full flex flex-col justify-between"
+          >
+            <CardContent className="p-3 text-center flex flex-col justify-between h-full space-y-1">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-[#005596] transition-colors block">
+                  Peso Médio
+                </span>
+                <div className="text-2xl font-black font-mono text-slate-900 mt-1 truncate">
+                  {stockMetrics.lotCount === 0
+                    ? '0,00 t'
+                    : formatWeight(stockMetrics.avgWeightTons, { unit: 't' })}
+                </div>
+              </div>
+              <div className="text-[10px] text-slate-400 group-hover:text-[#005596] transition-colors pt-1 border-t border-slate-100">
+                Total ÷ Quantidade
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 4. Peso moda */}
+          <Card
+            onClick={() =>
+              openDrillDown(
+                stockMetrics.modeType === 'multimodal' ? 'Moda Multimodal' : 'Moda de Peso',
+                stockMetrics.modeType === 'multimodal'
+                  ? 'Mais de um peso apresentou a frequência máxima no conjunto filtrado.'
+                  : 'Lotes cujo peso possui a maior frequência estatística.',
+                stockMetrics.modeLots,
+                stockMetrics.modeFrequencies,
+              )
+            }
+            className={`group cursor-pointer bg-white transition-all shadow-xs h-full flex flex-col justify-between ${
+              stockMetrics.modeType === 'multimodal'
+                ? 'border-amber-300 hover:bg-amber-50/60 hover:border-amber-500'
+                : 'border-slate-200 hover:bg-purple-50/50 hover:border-purple-600'
+            }`}
+          >
+            <CardContent className="p-3 text-center flex flex-col justify-between h-full space-y-1">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-purple-700 transition-colors block">
+                  Peso Moda
+                </span>
+                <div className="mt-1 flex items-center justify-center">
+                  {stockMetrics.lotCount === 0 ? (
+                    <span className="text-2xl font-black font-mono text-slate-400">0,00 t</span>
+                  ) : stockMetrics.modeType === 'multimodal' ? (
+                    <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-2 py-0.5 tracking-wide uppercase">
+                      Multimodal
+                    </Badge>
+                  ) : (
+                    <span className="text-2xl font-black font-mono text-purple-950 truncate">
+                      {formatWeight(stockMetrics.modeWeightTons, { unit: 't' })}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-[10px] text-slate-400 group-hover:text-purple-700 transition-colors pt-1 border-t border-slate-100">
+                {stockMetrics.modeType === 'multimodal'
+                  ? `${stockMetrics.modeFrequencies.length} valores empatados`
+                  : 'Maior frequência'}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 5. Menor lote */}
+          <Card
+            onClick={() =>
+              openDrillDown(
+                'Menor Lote',
+                'Lote(s) com menor peso no conjunto filtrado atual.',
+                stockMetrics.minLots,
+              )
+            }
+            className="group cursor-pointer bg-white hover:bg-sky-50/50 border-slate-200 hover:border-[#005596] transition-all shadow-xs h-full flex flex-col justify-between"
+          >
+            <CardContent className="p-3 text-center flex flex-col justify-between h-full space-y-1">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-[#005596] transition-colors block">
+                  Menor Lote
+                </span>
+                <div className="text-2xl font-black font-mono text-slate-900 mt-1 truncate">
+                  {stockMetrics.lotCount === 0
+                    ? '0,00 t'
+                    : formatWeight(stockMetrics.minLotWeightTons, { unit: 't' })}
+                </div>
+              </div>
+              <div className="text-[10px] text-slate-400 group-hover:text-[#005596] transition-colors pt-1 border-t border-slate-100">
+                {stockMetrics.minLots.length > 1
+                  ? `${stockMetrics.minLots.length} lotes com peso mín.`
+                  : 'Peso mínimo'}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 6. Maior lote */}
+          <Card
+            onClick={() =>
+              openDrillDown(
+                'Maior Lote',
+                'Lote(s) com maior peso no conjunto filtrado atual.',
+                stockMetrics.maxLots,
+              )
+            }
+            className="group cursor-pointer bg-white hover:bg-sky-50/50 border-slate-200 hover:border-[#005596] transition-all shadow-xs h-full flex flex-col justify-between"
+          >
+            <CardContent className="p-3 text-center flex flex-col justify-between h-full space-y-1">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-[#005596] transition-colors block">
+                  Maior Lote
+                </span>
+                <div className="text-2xl font-black font-mono text-slate-900 mt-1 truncate">
+                  {stockMetrics.lotCount === 0
+                    ? '0,00 t'
+                    : formatWeight(stockMetrics.maxLotWeightTons, { unit: 't' })}
+                </div>
+              </div>
+              <div className="text-[10px] text-slate-400 group-hover:text-[#005596] transition-colors pt-1 border-t border-slate-100">
+                {stockMetrics.maxLots.length > 1
+                  ? `${stockMetrics.maxLots.length} lotes com peso máx.`
+                  : 'Peso máximo'}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -416,24 +697,23 @@ export const StockAndProductionPage: React.FC = () => {
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Input
-                    placeholder="Filtrar material, descrição, lote..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="h-8 text-xs w-64"
-                  />
+                  <Badge variant="outline" className="text-xs font-mono">
+                    {filteredStock.length} {filteredStock.length === 1 ? 'lote' : 'lotes'}
+                  </Badge>
                 </div>
               </div>
             </CardHeader>
 
             <CardContent className="p-0 overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse min-w-[900px]">
+              <table className="w-full text-left text-xs border-collapse min-w-[950px]">
                 <thead>
                   <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
-                    <th className="p-2.5">Código Material</th>
-                    <th className="p-2.5">Descrição do Material</th>
+                    <th className="p-2.5">Código Material (MATNR)</th>
+                    <th className="p-2.5">Descrição (MAKTX)</th>
                     <th className="p-2.5">Centro / Depósito</th>
-                    <th className="p-2.5">Lote SAP</th>
+                    <th className="p-2.5">Localização (LGPBE)</th>
+                    <th className="p-2.5">Lote SAP (CHARG)</th>
+                    <th className="p-2.5 text-right">Peso do Lote (t)</th>
                     <th className="p-2.5 text-right">Disponível Agora</th>
                     <th className="p-2.5 text-right">Reservado</th>
                     <th className="p-2.5 text-right">Bloqueado</th>
@@ -442,55 +722,79 @@ export const StockAndProductionPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {filteredStock.map((stk) => {
-                    const isAvailable = (stk.available_qty || 0) > 0
-                    return (
-                      <tr key={stk.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-2.5 font-mono font-bold text-[#005596]">
-                          {stk.material_code}
-                        </td>
-                        <td className="p-2.5 font-medium text-slate-900">
-                          {stk.material_description}
-                        </td>
-                        <td className="p-2.5 text-slate-600">
-                          {stk.plant} / {stk.storage_location}
-                        </td>
-                        <td className="p-2.5 font-mono text-slate-500">
-                          {stk.batch || 'LOTE-PADRÃO'}
-                        </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-emerald-700">
-                          {stk.available_qty.toFixed(1)} {stk.unit}
-                        </td>
-                        <td className="p-2.5 text-right font-mono text-amber-700">
-                          {(stk.reserved_qty || 0).toFixed(1)} {stk.unit}
-                        </td>
-                        <td className="p-2.5 text-right font-mono text-rose-700">
-                          {(stk.blocked_qty || 0).toFixed(1)} {stk.unit}
-                        </td>
-                        <td className="p-2.5 text-center">
-                          {isAvailable ? (
-                            <Badge className="bg-emerald-600 text-white text-[10px]">
-                              Disponível Agora
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-amber-500 text-white text-[10px]">
-                              Sem Saldo Imediato
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="p-2.5 text-center">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenNewRequestFromStock(stk)}
-                            className="h-6 px-2 text-[10px] text-[#005596] hover:bg-sky-50 font-semibold"
+                  {filteredStock.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="p-8 text-center text-slate-400">
+                        Nenhum lote encontrado para os filtros selecionados.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredStock.map((stk) => {
+                      const isAvailable = (stk.available_qty || 0) > 0
+                      const itemWeightTons = getStockItemWeightTons(stk)
+                      return (
+                        <tr key={stk.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-2.5 font-mono font-bold text-[#005596]">
+                            {stk.material_code}
+                          </td>
+                          <td
+                            className="p-2.5 font-medium text-slate-900 max-w-[200px] truncate"
+                            title={stk.material_description}
                           >
-                            Solicitar Confirmação
-                          </Button>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                            {stk.material_description}
+                          </td>
+                          <td className="p-2.5 text-slate-600 font-mono">
+                            {stk.plant} / {stk.storage_location}
+                          </td>
+                          <td className="p-2.5 text-slate-600 font-mono">
+                            {stk.storage_bin ? (
+                              <Badge variant="outline" className="text-[10px] font-mono">
+                                {stk.storage_bin}
+                              </Badge>
+                            ) : (
+                              <span className="text-slate-400 italic">---</span>
+                            )}
+                          </td>
+                          <td className="p-2.5 font-mono text-slate-700 font-semibold">
+                            {stk.batch || 'LOTE-PADRÃO'}
+                          </td>
+                          <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                            {formatWeight(itemWeightTons, { unit: 't' })}
+                          </td>
+                          <td className="p-2.5 text-right font-mono font-bold text-emerald-700">
+                            {formatWeight(stk.available_qty, { unit: 't' })}
+                          </td>
+                          <td className="p-2.5 text-right font-mono text-amber-700">
+                            {formatWeight(stk.reserved_qty || 0, { unit: 't' })}
+                          </td>
+                          <td className="p-2.5 text-right font-mono text-rose-700">
+                            {formatWeight(stk.blocked_qty || 0, { unit: 't' })}
+                          </td>
+                          <td className="p-2.5 text-center">
+                            {isAvailable ? (
+                              <Badge className="bg-emerald-600 text-white text-[10px]">
+                                Disponível Agora
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-amber-500 text-white text-[10px]">
+                                Sem Saldo Imediato
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="p-2.5 text-center">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenNewRequestFromStock(stk)}
+                              className="h-6 px-2 text-[10px] text-[#005596] hover:bg-sky-50 font-semibold"
+                            >
+                              Solicitar Confirmação
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
                 </tbody>
               </table>
             </CardContent>
@@ -991,6 +1295,16 @@ export const StockAndProductionPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* DRILL-DOWN MODAL DOS INDICADORES ESTATÍSTICOS */}
+      <StockLotDrillDownModal
+        isOpen={drillDownOpen}
+        onClose={() => setDrillDownOpen(false)}
+        indicatorTitle={drillDownTitle}
+        indicatorSubtitle={drillDownSubtitle}
+        lots={drillDownLots}
+        modeDetails={drillDownModeDetails}
+      />
     </div>
   )
 }

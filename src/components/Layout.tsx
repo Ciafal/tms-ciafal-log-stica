@@ -217,13 +217,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           badgeColor: 'bg-emerald-600',
           show: true,
         },
-        {
-          title: 'Fila do Pátio',
-          path: '/tms/fila',
-          badge: 'PORTA',
-          badgeColor: 'bg-sky-600',
-          show: true,
-        },
+
         {
           title: 'Mapa Carregamento (WMS)',
           path: '/tms/wms-mapa-carregamento',

@@ -105,6 +105,14 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/queue-dashboard"
+            element={
+              <Layout>
+                <QueueDashboard />
+              </Layout>
+            }
+          />
+          <Route
             path="/tms/disponibilidade-programada"
             element={<Navigate to="/tms/fila?tab=PROGRAMADOS" replace />}
           />

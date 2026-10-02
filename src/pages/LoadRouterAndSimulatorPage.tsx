@@ -733,10 +733,14 @@ export function LoadRouterAndSimulatorPage() {
 
           <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-3">
             <span className="text-[10px] font-semibold text-blue-700 uppercase block">
-              Ton. Roteirizadas
+              t Roteirizadas
             </span>
             <span className="text-2xl font-black text-blue-900 dark:text-blue-200">
-              {(globalResult.kpis.totalPlannedWeightKg / 1000).toFixed(1)}t
+              {((globalResult.kpis.totalPlannedWeightKg || 0) / 1000).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{' '}
+              t
             </span>
             <span className="text-[10px] text-blue-600 block">Peso em propostas</span>
           </Card>

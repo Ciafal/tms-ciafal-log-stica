@@ -40,6 +40,7 @@ import {
   calculateOrderPriorityScore,
 } from '@/domain/rules'
 import { exportToCsv } from '@/lib/exportUtils'
+import { formatWeight } from '@/lib/utils'
 
 // Mock inicial de fallback espelhando o formato SAP ECC RFC da CIAFAL
 const INITIAL_PREVIEW_RECORDS: Partial<SapSalesOrderEntity>[] = [
@@ -1230,7 +1231,7 @@ export const SalesWalletPage: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-slate-400 text-[10px] block">Quantidade Necessária</span>
-                  <strong>{(stockModalOrder.weight_kg / 1000).toFixed(1)} TON</strong>
+                  <strong>{formatWeight(stockModalOrder.weight_kg, { unit: 'kg' })}</strong>
                 </div>
                 <div>
                   <span className="text-slate-400 text-[10px] block">Estoque Total Informado</span>

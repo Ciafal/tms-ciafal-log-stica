@@ -374,7 +374,7 @@ export const ExpeditionManagementPage: React.FC = () => {
                   <p className="text-slate-600 text-[11px]">
                     <strong>Evidência Operacional:</strong>{' '}
                     {exp.delayEvidence ||
-                      'Motorista no pátio aguardando separação das últimas 2,8 toneladas.'}
+                      'Motorista no pátio aguardando separação das últimas 2,80 t.'}
                   </p>
 
                   <div className="flex items-center justify-between pt-1 border-t border-rose-200">
@@ -511,7 +511,11 @@ export const ExpeditionManagementPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="p-3 font-bold text-slate-800">
-                      {((item.weightTotalKg || 27000) / 1000).toFixed(1)} t
+                      {((item.weightTotalKg || 27000) / 1000).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      t
                     </td>
                     <td className="p-3">
                       <Badge className="bg-sky-50 text-[#005596] border-sky-200 font-bold text-[10px]">
@@ -606,7 +610,11 @@ export const ExpeditionManagementPage: React.FC = () => {
                 <div>
                   Peso Total:{' '}
                   <strong>
-                    {((selectedExpedition.weightTotalKg || 27000) / 1000).toFixed(1)} toneladas
+                    {((selectedExpedition.weightTotalKg || 27000) / 1000).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    t
                   </strong>
                 </div>
                 <div>
@@ -731,8 +739,8 @@ export const ExpeditionManagementPage: React.FC = () => {
               <div className="p-3 bg-sky-50 rounded-lg border border-sky-200 space-y-1 text-slate-800">
                 <strong className="text-[#005596] block">AÇÃO RECOMENDADA PELA IA:</strong>
                 <p>
-                  Acionar equipe de ponte do depósito 34 e solicitar priorização das últimas 2,8
-                  toneladas antes do início da próxima carga.
+                  Acionar equipe de ponte do depósito 34 e solicitar priorização das últimas 2,80 t
+                  antes do início da próxima carga.
                 </p>
               </div>
             </div>
