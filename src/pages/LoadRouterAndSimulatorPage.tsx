@@ -143,6 +143,20 @@ export function LoadRouterAndSimulatorPage() {
   const [weights, setWeights] = useState(DEFAULT_OPTIMIZATION_WEIGHTS)
 
   const [filterSearchQuery, setFilterSearchQuery] = useState<string>('')
+  const [sortBy, setSortBy] = useState<
+    | 'rank'
+    | 'customers_asc'
+    | 'discharges_asc'
+    | 'occupancy_desc'
+    | 'freight_asc'
+    | 'cost_ton_asc'
+    | 'distance_asc'
+    | 'expedition_date'
+  >('rank')
+  const [filterMaxCustomers, setFilterMaxCustomers] = useState<string>('ALL')
+  const [filterMaxDischarges, setFilterMaxDischarges] = useState<string>('ALL')
+  const [isWhyModalOpen, setIsWhyModalOpen] = useState(false)
+  const [selectedWhyCargo, setSelectedWhyCargo] = useState<ProposedCargoEntity | null>(null)
 
   // Utilitário para parse de percentual brasileiro ("70%", "85,50%", etc.)
   const parsePercentBr = (str: string): number => {
@@ -405,24 +419,84 @@ export function LoadRouterAndSimulatorPage() {
   // Itinerários identificados para o select
   const availableItineraries = globalResult?.discoveredItineraries || []
 
-  // Cargas filtradas por busca textual
+  // Cargas filtradas por busca textual, filtros avançados e ordenação
   const filteredProposedCargos = useMemo(() => {
     if (!globalResult) return []
-    if (!filterSearchQuery.trim()) return globalResult.allProposedCargos
-    const query = filterSearchQuery.toLowerCase()
-    return globalResult.allProposedCargos.filter(
-      (c) =>
-        c.cargoNumber.toLowerCase().includes(query) ||
-        c.itineraryCode.toLowerCase().includes(query) ||
-        (c.itineraryDescription && c.itineraryDescription.toLowerCase().includes(query)) ||
-        c.orders.some(
-          (o) =>
-            o.order_number.toLowerCase().includes(query) ||
-            o.customer_name.toLowerCase().includes(query) ||
-            (o.destination_city && o.destination_city.toLowerCase().includes(query)),
-        ),
-    )
-  }, [globalResult, filterSearchQuery])
+    let list = [...globalResult.allProposedCargos]
+
+    // Filtro por quantidade máxima de clientes
+    if (filterMaxCustomers !== 'ALL') {
+      const maxC = parseInt(filterMaxCustomers, 10)
+      if (!isNaN(maxC)) {
+        list = list.filter((c) => c.customersCount <= maxC)
+      }
+    }
+
+    // Filtro por quantidade máxima de descargas
+    if (filterMaxDischarges !== 'ALL') {
+      const maxD = parseInt(filterMaxDischarges, 10)
+      if (!isNaN(maxD)) {
+        list = list.filter((c) => c.dischargesCount <= maxD)
+      }
+    }
+
+    // Busca textual ampla
+    if (filterSearchQuery.trim()) {
+      const query = filterSearchQuery.toLowerCase()
+      list = list.filter(
+        (c) =>
+          c.cargoNumber.toLowerCase().includes(query) ||
+          c.itineraryCode.toLowerCase().includes(query) ||
+          (c.itineraryDescription && c.itineraryDescription.toLowerCase().includes(query)) ||
+          (c.vehicleType && c.vehicleType.toLowerCase().includes(query)) ||
+          (c.uf && c.uf.toLowerCase().includes(query)) ||
+          c.orders.some(
+            (o) =>
+              o.order_number.toLowerCase().includes(query) ||
+              o.customer_name.toLowerCase().includes(query) ||
+              (o.customer_code && o.customer_code.toLowerCase().includes(query)) ||
+              (o.destination_city && o.destination_city.toLowerCase().includes(query)) ||
+              (o.material && o.material.toLowerCase().includes(query)) ||
+              (o.material_description && o.material_description.toLowerCase().includes(query)),
+          ),
+      )
+    }
+
+    // Ordenação
+    list.sort((a, b) => {
+      if (sortBy === 'customers_asc') {
+        if (a.customersCount !== b.customersCount) return a.customersCount - b.customersCount
+        return a.priorityRanking - b.priorityRanking
+      }
+      if (sortBy === 'discharges_asc') {
+        if (a.dischargesCount !== b.dischargesCount) return a.dischargesCount - b.dischargesCount
+        return a.priorityRanking - b.priorityRanking
+      }
+      if (sortBy === 'occupancy_desc') {
+        if (b.occupancyPct !== a.occupancyPct) return b.occupancyPct - a.occupancyPct
+        return a.priorityRanking - b.priorityRanking
+      }
+      if (sortBy === 'freight_asc') {
+        if (a.estimatedCost !== b.estimatedCost) return a.estimatedCost - b.estimatedCost
+        return a.priorityRanking - b.priorityRanking
+      }
+      if (sortBy === 'cost_ton_asc') {
+        if (a.costPerTon !== b.costPerTon) return a.costPerTon - b.costPerTon
+        return a.priorityRanking - b.priorityRanking
+      }
+      if (sortBy === 'distance_asc') {
+        if (a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm
+        return a.priorityRanking - b.priorityRanking
+      }
+      if (sortBy === 'expedition_date') {
+        return (a.plannedExpeditionDate || '').localeCompare(b.plannedExpeditionDate || '')
+      }
+      // Padrão: melhor aderência logística (Rank #1 a #N pelo motor lexicográfico)
+      return a.priorityRanking - b.priorityRanking
+    })
+
+    return list
+  }, [globalResult, filterSearchQuery, sortBy, filterMaxCustomers, filterMaxDischarges])
 
   return (
     <div className="space-y-6 pb-16">
@@ -633,14 +707,18 @@ export function LoadRouterAndSimulatorPage() {
       {/* BLOCO PRINCIPAL: CARDS EXECUTIVOS DAS CARGAS PROPOSTAS PELO TMS */}
       {globalResult && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          <Card className="border-indigo-200 bg-indigo-50/50 dark:bg-indigo-950/20 p-3">
-            <span className="text-[10px] font-semibold text-indigo-700 uppercase block">
-              Cargas Propostas
+          <Card
+            className="border-indigo-200 bg-indigo-50/50 dark:bg-indigo-950/20 p-3 cursor-pointer hover:border-indigo-400 hover:shadow-md transition-all"
+            onClick={() => setActiveTab('proposed_cargos')}
+          >
+            <span className="text-[10px] font-semibold text-indigo-700 uppercase block flex items-center justify-between">
+              <span>Cargas Propostas</span>
+              <Sparkles className="h-3 w-3 text-indigo-600" />
             </span>
             <span className="text-2xl font-black text-indigo-900 dark:text-indigo-200">
               {globalResult.kpis.totalProposedCargos}
             </span>
-            <span className="text-[10px] text-indigo-600 block">Calculadas pelo TMS</span>
+            <span className="text-[10px] text-indigo-600 block">Soluções calculadas</span>
           </Card>
 
           <Card className="border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 p-3">
@@ -797,18 +875,60 @@ export function LoadRouterAndSimulatorPage() {
             </TabsList>
           </div>
 
-          {/* Campo de Busca em container flex-shrink-0 sem competir espaço com as abas */}
-          <div className="flex items-center gap-2 px-2 shrink-0 self-end lg:self-center w-full lg:w-auto">
-            <div className="relative w-full lg:w-72">
+          {/* Controles de Busca, Ordenação e Filtros Lexicográficos */}
+          <div className="flex flex-wrap items-center gap-2 px-2 shrink-0 self-end lg:self-center w-full lg:w-auto">
+            <div className="relative w-full sm:w-64">
               <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <Input
                 type="text"
-                placeholder="Buscar por carga, cliente, cidade..."
+                placeholder="Buscar por carga, cliente, cidade, pedido, placa..."
                 value={filterSearchQuery}
                 onChange={(e) => setFilterSearchQuery(e.target.value)}
                 className="h-8.5 pl-8 text-xs w-full bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
               />
             </div>
+
+            <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+              <SelectTrigger className="h-8.5 text-xs w-full sm:w-48 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <SelectValue placeholder="Ordenar por..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="rank">⭐ Melhor Aderência Logística (Rank)</SelectItem>
+                <SelectItem value="customers_asc">👥 Menor Nº de Clientes</SelectItem>
+                <SelectItem value="discharges_asc">📦 Menor Nº de Descargas</SelectItem>
+                <SelectItem value="occupancy_desc">📈 Maior Ocupação (%)</SelectItem>
+                <SelectItem value="freight_asc">💰 Menor Frete Total (R$)</SelectItem>
+                <SelectItem value="cost_ton_asc">⚖️ Menor Custo por Tonelada (R$/t)</SelectItem>
+                <SelectItem value="distance_asc">🛣️ Menor Distância (km)</SelectItem>
+                <SelectItem value="expedition_date">📅 Data de Expedição</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterMaxCustomers} onValueChange={setFilterMaxCustomers}>
+              <SelectTrigger className="h-8.5 text-xs w-full sm:w-36 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <SelectValue placeholder="Clientes máx." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Clientes: Todos</SelectItem>
+                <SelectItem value="1">Até 1 Cliente</SelectItem>
+                <SelectItem value="2">Até 2 Clientes</SelectItem>
+                <SelectItem value="3">Até 3 Clientes</SelectItem>
+                <SelectItem value="4">Até 4 Clientes</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterMaxDischarges} onValueChange={setFilterMaxDischarges}>
+              <SelectTrigger className="h-8.5 text-xs w-full sm:w-36 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <SelectValue placeholder="Descargas máx." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Descargas: Todas</SelectItem>
+                <SelectItem value="1">Até 1 Descarga</SelectItem>
+                <SelectItem value="2">Até 2 Descargas</SelectItem>
+                <SelectItem value="3">Até 3 Descargas</SelectItem>
+                <SelectItem value="5">Até 5 Descargas</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -831,23 +951,26 @@ export function LoadRouterAndSimulatorPage() {
               </p>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredProposedCargos.map((cargo) => (
                 <Card
                   key={cargo.id}
-                  className={`border flex flex-col justify-between transition-all hover:shadow-md ${
-                    cargo.readinessLabel === 'SAÍDA IMEDIATA'
-                      ? 'border-emerald-300 dark:border-emerald-800 bg-white dark:bg-slate-900'
-                      : cargo.readinessLabel === 'AGUARDANDO COMPLEMENTO'
-                        ? 'border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-900'
-                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+                  className={`border flex flex-col justify-between transition-all hover:shadow-lg ${
+                    cargo.occupancyAlert?.includes('abaixo do mínimo ANTT')
+                      ? 'border-rose-400 dark:border-rose-800 bg-rose-50/20'
+                      : cargo.readinessLabel === 'SAÍDA IMEDIATA'
+                        ? 'border-emerald-300 dark:border-emerald-800 bg-white dark:bg-slate-900'
+                        : cargo.readinessLabel === 'AGUARDANDO COMPLEMENTO'
+                          ? 'border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-900'
+                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
                   }`}
                 >
                   <div>
+                    {/* Header do Card com badges ricos */}
                     <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                             <Badge
                               variant="outline"
                               className="font-mono text-[10px] font-bold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
@@ -868,6 +991,12 @@ export function LoadRouterAndSimulatorPage() {
                               {cargo.readinessLabel}
                             </Badge>
 
+                            {cargo.occupancyAlert?.includes('abaixo do mínimo ANTT') && (
+                              <Badge className="bg-rose-600 text-white text-[9px] font-bold animate-pulse">
+                                Alerta ANTT Infracional
+                              </Badge>
+                            )}
+
                             {cargo.isSuggestedItinerary && (
                               <Badge className="bg-purple-600 text-white text-[9px]">
                                 Itinerário Sugerido TMS
@@ -876,10 +1005,10 @@ export function LoadRouterAndSimulatorPage() {
                           </div>
 
                           <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
-                            {cargo.cargoNumber} • {cargo.itineraryCode}
+                            {cargo.cargoNumber}
                           </CardTitle>
-                          <CardDescription className="text-xs text-slate-500 line-clamp-1">
-                            {cargo.itineraryDescription} ({cargo.uf})
+                          <CardDescription className="text-xs text-slate-500 line-clamp-1 font-medium">
+                            {cargo.itineraryCode} • {cargo.itineraryDescription} ({cargo.uf})
                           </CardDescription>
                         </div>
 
@@ -888,7 +1017,7 @@ export function LoadRouterAndSimulatorPage() {
                             Ocupação
                           </span>
                           <span
-                            className={`text-xl font-black ${
+                            className={`text-2xl font-black ${
                               cargo.occupancyPct >= 95
                                 ? 'text-emerald-600'
                                 : cargo.occupancyPct >= 80
@@ -902,22 +1031,20 @@ export function LoadRouterAndSimulatorPage() {
                       </div>
                     </CardHeader>
 
-                    <CardContent className="p-4 space-y-3">
-                      {/* Linha de Indicadores da Carga */}
-                      <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-md text-xs">
+                    <CardContent className="p-4 space-y-3.5">
+                      {/* Grid de Métricas Principais */}
+                      <div className="grid grid-cols-4 gap-2 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg text-xs">
                         <div>
-                          <span className="text-slate-500 block text-[10px]">Peso / Cap.</span>
+                          <span className="text-slate-500 block text-[10px]">Carga / Cap.</span>
                           <span className="font-bold text-slate-800 dark:text-slate-200">
                             {(cargo.totalWeightKg / 1000).toFixed(1)}t /{' '}
                             {(cargo.vehicleCapacityKg / 1000).toFixed(1)}t
                           </span>
                         </div>
                         <div>
-                          <span className="text-slate-500 block text-[10px]">
-                            Pedidos / Clientes
-                          </span>
+                          <span className="text-slate-500 block text-[10px]">Clientes</span>
                           <span className="font-bold text-slate-800 dark:text-slate-200">
-                            {cargo.ordersCount} ped ({cargo.customersCount} cli)
+                            {cargo.customersCount} cli
                           </span>
                         </div>
                         <div>
@@ -926,36 +1053,107 @@ export function LoadRouterAndSimulatorPage() {
                             {cargo.dischargesCount} entregas
                           </span>
                         </div>
-                      </div>
-
-                      {/* Explicabilidade do TMS: "Por que o TMS propôs esta carga?" */}
-                      <div className="text-xs bg-indigo-50/70 dark:bg-indigo-950/30 p-2.5 rounded border border-indigo-100 dark:border-indigo-900 text-slate-700 dark:text-slate-300">
-                        <span className="font-semibold text-indigo-900 dark:text-indigo-300 flex items-center gap-1 mb-0.5">
-                          <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
-                          Por que o TMS propôs esta carga?
-                        </span>
-                        <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
-                          {cargo.whyProposed}
-                        </p>
-                      </div>
-
-                      {/* Veículo & Custo ANTT */}
-                      <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100 dark:border-slate-800">
                         <div>
-                          <span className="text-[10px] text-slate-400 block">Veículo Sugerido</span>
+                          <span className="text-slate-500 block text-[10px]">Pedidos SAP</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {cargo.ordersCount} ped
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Status Operacionais dos Pedidos (Estoque, Crédito, PCP) */}
+                      <div className="grid grid-cols-3 gap-2 text-[11px] pt-1 border-t border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                          <span className="text-slate-600 dark:text-slate-400">Estoque:</span>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {cargo.readinessStatus === 'PLANEJAMENTO_FUTURO'
+                              ? 'Saldo PCP'
+                              : 'DP34 100%'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                          <span className="text-slate-600 dark:text-slate-400">Crédito:</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {cargo.readinessStatus === 'PROGRAMACAO_IMPACTADA_REANALISE_NECESSARIA'
+                              ? 'Em Análise'
+                              : 'Liberado'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                          <span className="text-slate-600 dark:text-slate-400">PCP:</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {cargo.isFutureMatch ? 'Programado' : 'Expedição'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Custos ANTT e Parâmetros Regulatórios */}
+                      <div className="bg-slate-50/80 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 space-y-1.5 text-xs">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500 text-[11px]">Veículo Indicado:</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
                             {cargo.vehicleType}
                           </span>
                         </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">
-                            Frete ANTT + Pedágio
-                          </span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500 text-[11px]">Distância + Pedágio:</span>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">
-                            R$ {cargo.estimatedCost.toLocaleString('pt-BR')} (R$ {cargo.costPerTon}
-                            /t)
+                            {cargo.distanceKm} km • R$ {cargo.tollsValue.toLocaleString('pt-BR')}
                           </span>
                         </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500 text-[11px]">Piso Regulatório ANTT:</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            R$ {cargo.anttFloorValue.toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1 border-t border-slate-200 dark:border-slate-700">
+                          <span className="text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                            Frete Estimado Total:
+                          </span>
+                          <span className="font-black text-indigo-700 dark:text-indigo-400 text-sm">
+                            R$ {cargo.estimatedCost.toLocaleString('pt-BR')}
+                            <span className="text-[10px] font-normal text-slate-500 ml-1">
+                              (R$ {cargo.costPerTon}/t)
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Alerta Regulatório ANTT se houver inconformidade */}
+                      {cargo.occupancyAlert?.includes('abaixo do mínimo ANTT') && (
+                        <div className="text-xs bg-rose-50 border border-rose-300 text-rose-800 p-2 rounded flex items-start gap-1.5">
+                          <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                          <span>{cargo.occupancyAlert}</span>
+                        </div>
+                      )}
+
+                      {/* Explicabilidade Resumida */}
+                      <div className="text-xs bg-indigo-50/70 dark:bg-indigo-950/30 p-2.5 rounded-lg border border-indigo-100 dark:border-indigo-900 text-slate-700 dark:text-slate-300">
+                        <span className="font-semibold text-indigo-900 dark:text-indigo-300 flex items-center justify-between mb-1">
+                          <span className="flex items-center gap-1">
+                            <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                            Racional Lexicográfico
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 px-1.5 text-[10px] text-indigo-700 hover:text-indigo-900 font-bold"
+                            onClick={() => {
+                              setSelectedWhyCargo(cargo)
+                              setIsWhyModalOpen(true)
+                            }}
+                          >
+                            Por que esta carga?
+                            <HelpCircle className="h-3 w-3 ml-1 text-indigo-600" />
+                          </Button>
+                        </span>
+                        <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300 line-clamp-2">
+                          {cargo.whyProposed}
+                        </p>
                       </div>
                     </CardContent>
                   </div>
@@ -968,12 +1166,13 @@ export function LoadRouterAndSimulatorPage() {
                       onClick={() => setSelectedCargoDetail(cargo)}
                     >
                       <Eye className="h-3.5 w-3.5 mr-1" />
-                      Ver Pedidos ({cargo.ordersCount})
+                      Pedidos ({cargo.ordersCount})
                     </Button>
 
                     <Button
                       size="sm"
                       className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
+                      disabled={cargo.occupancyAlert?.includes('abaixo do mínimo ANTT')}
                       onClick={() => {
                         setSelectedCargoForApproval(cargo)
                         setIsConfirmModalOpen(true)
@@ -1506,6 +1705,156 @@ export function LoadRouterAndSimulatorPage() {
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE EXPLICABILIDADE LEXICOGRÁFICA: POR QUE ESTA CARGA? */}
+      <Dialog open={isWhyModalOpen} onOpenChange={setIsWhyModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200">
+              <Sparkles className="h-5 w-5 text-indigo-600" />
+              Por que esta carga foi proposta pelo Motor Lexicográfico?
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Racional determinístico detalhado dos critérios de viabilidade e priorização
+              hierárquica (P1 a P8).
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedWhyCargo && (
+            <div className="space-y-4 py-2 text-xs">
+              {/* Racional principal */}
+              <div className="bg-indigo-50/80 dark:bg-indigo-950/40 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 space-y-2">
+                <span className="font-bold text-sm text-indigo-950 dark:text-indigo-200 block">
+                  {selectedWhyCargo.cargoNumber} — Rank #{selectedWhyCargo.priorityRanking}
+                </span>
+                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                  {selectedWhyCargo.whyProposed}
+                </p>
+              </div>
+
+              {/* Parâmetros Operacionais */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 dark:bg-slate-800/80 p-3 rounded-lg border">
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Itinerário</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {selectedWhyCargo.itineraryCode}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Carga Total</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {(selectedWhyCargo.totalWeightKg / 1000).toFixed(1)} t (
+                    {selectedWhyCargo.occupancyPct}%)
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Clientes / Descargas</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {selectedWhyCargo.customersCount} cli / {selectedWhyCargo.dischargesCount} desc
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Custo por Tonelada</span>
+                  <span className="font-bold text-indigo-700 dark:text-indigo-400">
+                    R$ {selectedWhyCargo.costPerTon} / t
+                  </span>
+                </div>
+              </div>
+
+              {/* Racional ANTT e Regulatório */}
+              <div className="border rounded-lg p-3 space-y-2 bg-white dark:bg-slate-900">
+                <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                  Conformidade Regulatória & Tabela Oficial ANTT:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                  <div className="bg-slate-50 dark:bg-slate-800 p-2 rounded border">
+                    <span className="text-slate-400 block text-[10px]">Piso ANTT Mínimo:</span>
+                    <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                      R$ {selectedWhyCargo.anttFloorValue.toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-800 p-2 rounded border">
+                    <span className="text-slate-400 block text-[10px]">Pedágio Estimado:</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300">
+                      R$ {selectedWhyCargo.tollsValue.toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-800 p-2 rounded border">
+                    <span className="text-slate-400 block text-[10px]">Frete Logístico Total:</span>
+                    <span className="font-bold text-indigo-700 dark:text-indigo-400">
+                      R$ {selectedWhyCargo.estimatedCost.toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedWhyCargo.occupancyAlert?.includes('abaixo do mínimo ANTT') ? (
+                  <div className="bg-rose-50 border border-rose-300 text-rose-800 p-2.5 rounded text-xs flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+                    <span>{selectedWhyCargo.occupancyAlert}</span>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500">
+                    O frete sugerido cumpre 100% da resolução vigente da ANTT com margem de
+                    segurança regulatória.
+                  </p>
+                )}
+              </div>
+
+              {/* Pedidos Selecionados nesta Carga */}
+              <div className="space-y-1.5">
+                <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                  Pedidos Selecionados ({selectedWhyCargo.orders.length}):
+                </span>
+                <div className="border rounded-md divide-y max-h-40 overflow-y-auto bg-white dark:bg-slate-900">
+                  {selectedWhyCargo.orders.map((o) => (
+                    <div key={o.id} className="p-2 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-bold">{o.order_number}</span> — {o.customer_name} (
+                        {o.destination_city}/{o.uf})
+                      </div>
+                      <div className="font-semibold text-slate-700 dark:text-slate-300">
+                        {((o.weight_kg || 0) / 1000).toFixed(1)} t
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Racional de Pedidos Não Selecionados na Carteira */}
+              <div className="space-y-1.5">
+                <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                  Por que outros pedidos deste itinerário não foram inseridos nesta proposta?
+                </span>
+                <div className="border rounded-md p-2.5 bg-slate-50 dark:bg-slate-800/50 space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+                  <div className="flex items-start gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Critério P3 (Menor número de clientes):</strong> Adicionar outros
+                      clientes fragmentaria a rota e aumentaria o número de paradas, desvio de km e
+                      tempo de descarregamento em pátios terceiros.
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Critério de Capacidade:</strong> O peso atual (
+                      {(selectedWhyCargo.totalWeightKg / 1000).toFixed(1)}t) já atinge{' '}
+                      {selectedWhyCargo.occupancyPct}% da capacidade física do veículo (
+                      {(selectedWhyCargo.vehicleCapacityKg / 1000).toFixed(1)}t).
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsWhyModalOpen(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

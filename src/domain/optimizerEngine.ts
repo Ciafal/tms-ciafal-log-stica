@@ -9,6 +9,22 @@ import {
   VehicleEntity,
 } from './rules'
 import { routingService, tollService, anttService } from './rules'
+import {
+  runLexicographicOptimizerForItinerary,
+  compareCombinationsLexicographically,
+  calculateCandidateLogistics,
+} from './lexicographicOptimizationEngine'
+export {
+  runLexicographicOptimizerForItinerary,
+  compareCombinationsLexicographically,
+  calculateCandidateLogistics,
+} from './lexicographicOptimizationEngine'
+export type {
+  CandidateLoadCombination,
+  LexicographicOptimizationInput,
+  LexicographicOptimizationResult,
+  EvaluatedOrder,
+} from './lexicographicOptimizationEngine'
 
 export type OperationalReadinessStatus =
   | 'PRONTA_SAIDA_IMEDIATA'
@@ -1063,111 +1079,67 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
       }
     }
 
-    // ALGORITMO DE AGRUPAMENTO E MONTAGEM DE CARGAS DETERMINÍSTICO:
-    // Passo A: Agrupar pedidos totalmente aptos (DP34 + Crédito Liberado) em cargas completas
-    const readyItems = eligibleOrders.filter(
-      (e) => e.dp34Check.isDp34Available && e.creditCheck.classification === 'LIBERADO',
-    )
-
-    // Ordenar prioritariamente por pedidos atrasados e peso
-    const sortedReady = [...readyItems].sort((a, b) => {
-      if (b.dateCheck.isOverdue && !a.dateCheck.isOverdue) return 1
-      if (!b.dateCheck.isOverdue && a.dateCheck.isOverdue) return -1
-      if (b.dateCheck.overdueDays !== a.dateCheck.overdueDays) {
-        return b.dateCheck.overdueDays - a.dateCheck.overdueDays
-      }
-      return (b.order.weight_kg || 0) - (a.order.weight_kg || 0)
+    // MOTOR DE OTIMIZAÇÃO LEXICOGRÁFICO DETERMINÍSTICO (P1 a P8):
+    // 1 Itinerário -> 1 Veículo -> Mínimo possível de Clientes -> Mínimo de Descargas -> Custo ANTT
+    const lexicoResult = runLexicographicOptimizerForItinerary({
+      itineraryCode: itin,
+      itineraryDescription: itinDescription,
+      uf: itinUf,
+      region: itinRegion,
+      plannedDate,
+      orders: itinOrders,
+      stocks,
+      pcpOrders,
+      queueEntries,
+      vehicleCapacityKg,
+      vehicleType,
+      minOccupancyPct,
+      maxOccupancyPct,
+      occupancyBands,
     })
 
-    // Montar cargas com capacidade do veículo (Bin-packing First-Fit Decreasing)
-    const currentBatches: SapSalesOrderEntity[][] = []
-    let currentBatch: SapSalesOrderEntity[] = []
-    let currentWeight = 0
-
-    sortedReady.forEach((item) => {
-      const ordWeight = item.order.weight_kg || 0
-      if (currentWeight + ordWeight <= vehicleCapacityKg) {
-        currentBatch.push(item.order)
-        currentWeight += ordWeight
-      } else {
-        if (currentBatch.length > 0) {
-          currentBatches.push(currentBatch)
-        }
-        currentBatch = [item.order]
-        currentWeight = ordWeight
-      }
-    })
-    if (currentBatch.length > 0) {
-      currentBatches.push(currentBatch)
-    }
-
-    currentBatches.forEach((batch) => {
-      const prop = buildCargoProposal(batch, 'IMMEDIATE')
-      allProposedCargos.push(prop)
-      batch.forEach((o) => {
-        assignedOrderIds.add(o.id)
-        orderRoutingStatusMap.set(o.id, {
-          status: prop.occupancyPct >= 80 ? 'ROTEIRIZADO_IMEDIATO' : 'AGUARDANDO_COMPLEMENTO',
-          label:
-            prop.occupancyPct >= 80 ? 'Roteirizado (Saída Imediata)' : 'Aguardando Complemento',
-          detail: `Alocado na proposta ${prop.cargoNumber} (${prop.occupancyPct}% ocupação).`,
-          assignedCargoId: prop.cargoNumber,
-          reasons: prop.reasons,
-        })
-      })
-    })
-
-    // Passo B: Pedidos com crédito a aprovar ou estoque PCP/outro depósito não contemplados
-    const remainingEligible = eligibleOrders.filter((e) => !assignedOrderIds.has(e.order.id))
-    if (remainingEligible.length > 0) {
-      // Tentar formar cargas de Programação Futura ou Complemento
-      let futureBatch: SapSalesOrderEntity[] = []
-      let futureWeight = 0
-
-      remainingEligible.forEach((item) => {
-        const ordWeight = item.order.weight_kg || 0
-        if (futureWeight + ordWeight <= vehicleCapacityKg) {
-          futureBatch.push(item.order)
-          futureWeight += ordWeight
-        } else {
-          if (futureBatch.length > 0) {
-            const fProp = buildCargoProposal(
-              futureBatch,
-              'FUTURE_PCP',
-              `Carga sugerida para programação futura: aguarda saldo DP34/PCP ou liberação de crédito.`,
-            )
-            allProposedCargos.push(fProp)
-            futureBatch.forEach((o) => {
-              assignedOrderIds.add(o.id)
-              orderRoutingStatusMap.set(o.id, {
-                status: 'PROGRAMACAO_FUTURA',
-                label: 'Programação Futura',
-                detail: `Alocado na proposta futura ${fProp.cargoNumber}.`,
-                assignedCargoId: fProp.cargoNumber,
-                reasons: fProp.reasons,
-              })
-            })
-          }
-          futureBatch = [item.order]
-          futureWeight = ordWeight
-        }
-      })
-
-      if (futureBatch.length > 0) {
-        const fProp = buildCargoProposal(
-          futureBatch,
-          'FUTURE_PCP',
-          `Carga sugerida para programação futura: aguarda saldo DP34/PCP ou liberação de crédito.`,
-        )
-        allProposedCargos.push(fProp)
-        futureBatch.forEach((o) => {
+    if (lexicoResult.topProposals.length > 0) {
+      lexicoResult.topProposals.forEach((prop) => {
+        allProposedCargos.push(prop)
+        prop.orders.forEach((o) => {
           assignedOrderIds.add(o.id)
           orderRoutingStatusMap.set(o.id, {
-            status: 'PROGRAMACAO_FUTURA',
-            label: 'Programação Futura',
-            detail: `Alocado na proposta futura ${fProp.cargoNumber}.`,
-            assignedCargoId: fProp.cargoNumber,
-            reasons: fProp.reasons,
+            status:
+              prop.readinessLabel === 'SAÍDA IMEDIATA'
+                ? 'ROTEIRIZADO_IMEDIATO'
+                : prop.readinessLabel === 'AGUARDANDO COMPLEMENTO'
+                  ? 'AGUARDANDO_COMPLEMENTO'
+                  : 'PROGRAMACAO_FUTURA',
+            label:
+              prop.readinessLabel === 'SAÍDA IMEDIATA'
+                ? 'Roteirizado (Saída Imediata)'
+                : prop.readinessLabel === 'AGUARDANDO COMPLEMENTO'
+                  ? 'Aguardando Complemento'
+                  : 'Programação Futura',
+            detail: `Alocado na proposta ${prop.cargoNumber} (${prop.occupancyPct}% ocupação, ${prop.customersCount} cli, ${prop.dischargesCount} desc).`,
+            assignedCargoId: prop.cargoNumber,
+            reasons: prop.reasons,
+          })
+        })
+      })
+    } else {
+      // Fallback contingencial caso não forme combinações: pedidos elegíveis
+      const readyItems = eligibleOrders.filter(
+        (e) => e.dp34Check.isDp34Available && e.creditCheck.classification === 'LIBERADO',
+      )
+      if (readyItems.length > 0) {
+        const batch = readyItems.map((r) => r.order)
+        const prop = buildCargoProposal(batch, 'IMMEDIATE')
+        allProposedCargos.push(prop)
+        batch.forEach((o) => {
+          assignedOrderIds.add(o.id)
+          orderRoutingStatusMap.set(o.id, {
+            status: prop.occupancyPct >= 80 ? 'ROTEIRIZADO_IMEDIATO' : 'AGUARDANDO_COMPLEMENTO',
+            label:
+              prop.occupancyPct >= 80 ? 'Roteirizado (Saída Imediata)' : 'Aguardando Complemento',
+            detail: `Alocado na proposta ${prop.cargoNumber}.`,
+            assignedCargoId: prop.cargoNumber,
+            reasons: prop.reasons,
           })
         })
       }
