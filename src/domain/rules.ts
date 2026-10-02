@@ -309,7 +309,8 @@ export interface QueueEntryEntity {
   exit_time?: string
   calculated_logistics_date?: string // Data logística calculada (regra corte 12:00 ou data futura)
   scheduled_arrival_date?: string // Para PROGRAMADOS
-  preferred_itinerary?: string // Código SAP do itinerário
+  preferred_itinerary?: string // Código SAP do itinerário (ex: TVROT ou SEM_PREFERENCIA)
+  preferred_itinerary_name?: string // Descrição oficial do itinerário TVROT
   driver_notes?: string
   latitude?: number
   longitude?: number
@@ -348,6 +349,7 @@ export interface PreRegistrationEntity {
   origin: QueueGroup
   status: PreRegistrationStatus
   preferred_itinerary?: string
+  preferred_itinerary_name?: string
   scheduled_arrival_date?: string
   driver_notes?: string
   latitude?: number
