@@ -1,3 +1,4 @@
+// Instância canônica do cliente PocketBase para o Relatório Geral
 import { pb } from '@/lib/pocketbase/client'
 import {
   GeneralTransportRecord,
