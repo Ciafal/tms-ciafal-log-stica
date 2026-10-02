@@ -54,7 +54,7 @@ export const TowerFilterBar: React.FC<TowerFilterBarProps> = React.memo(
       [filters, onChange],
     )
 
-    const isFiltered = useMemo(
+    const isFiltered = React.useMemo(
       () =>
         filters.company !== 'TODAS' ||
         filters.plant !== 'TODOS' ||

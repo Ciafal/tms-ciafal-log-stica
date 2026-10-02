@@ -53,12 +53,12 @@ export const ScoreGovernanceAndCalibrationPage: React.FC = () => {
   // Permissão RBAC (Admin Master / Gestor de Contratação)
   const isAuthorized =
     permissions.canManageSystemParameters ||
-    permissions.canApproveSpecialFreight ||
+    (permissions as any).canApproveSpecialFreight ||
     user?.role === 'admin_master' ||
     user?.role === 'admin_tms' ||
     user?.role === 'gestor_logistica' ||
     user?.email?.includes('admin') ||
-    user?.matricula === 'EXP-1044'
+    (user as any)?.matricula === 'EXP-1044'
 
   // Estados principais
   const [activeRule, setActiveRule] = useState<ScoreRuleVersion | null>(null)

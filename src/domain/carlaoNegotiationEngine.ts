@@ -216,11 +216,14 @@ export function evaluateDriverEligibility(
     type?: 'PORTA' | 'FORA' | 'PROGRAMADO'
     status?: string
     distanceKm?: number
+    preferred_itinerary?: string
+    preferred_itinerary_name?: string
   },
   cargoReqs: {
     weightKg: number
     requiredVehicleType?: string
     destinationRegion?: string
+    itineraryCode?: string
   },
   historicalDriverData?: {
     punctualityPct?: number
@@ -296,7 +299,14 @@ export function evaluateDriverEligibility(
 
   // 6. Experiência na rota (max 10)
   const trips = historicalDriverData?.tripsInRegion ?? 5
-  const routeExperienceScore = trips >= 5 ? 10 : trips >= 2 ? 7 : 4
+  let routeExperienceScore = trips >= 5 ? 10 : trips >= 2 ? 7 : 4
+
+  // Bônus de aderência por itinerário preferencial no ranking
+  const driverPref = (queueEntry.preferred_itinerary || '').trim().toUpperCase()
+  const cargoItin = (cargoReqs.itineraryCode || '').trim().toUpperCase()
+  if (driverPref && driverPref !== 'SEM_PREFERENCIA' && cargoItin && driverPref === cargoItin) {
+    routeExperienceScore = Math.min(10, routeExperienceScore + 2)
+  }
 
   // 7. Custo Sustentável (max 10)
   const sci = historicalDriverData?.sustainableCostIndex ?? 92
@@ -485,6 +495,8 @@ export function calculateCargoDriverFitness(params: {
     type?: 'PORTA' | 'FORA' | 'PROGRAMADO'
     status?: string
     distanceKm?: number
+    preferred_itinerary?: string
+    preferred_itinerary_name?: string
   }
   cargo: {
     cargoId: string
@@ -568,6 +580,21 @@ export function calculateCargoDriverFitness(params: {
   else if (routeTrips >= 8) subRoute = 88
   else if (routeTrips >= 3) subRoute = 75
   else if (routeTrips >= 1) subRoute = 60
+
+  // Bônus de aderência por itinerário preferencial informado na fila:
+  // Se coincidir com o itinerário da carga: bônus positivo (+15 pontos no subscore de rota, limitado a 100)
+  // Se SEM_PREFERENCIA ou preferência diferente: neutro (sem penalidade, sem bloqueio, sem exclusão)
+  const driverPrefItin = (queue.preferred_itinerary || '').trim().toUpperCase()
+  const cargoItin = (cargo.itineraryCode || '').trim().toUpperCase()
+  const hasMatchingPreference =
+    Boolean(driverPrefItin) &&
+    driverPrefItin !== 'SEM_PREFERENCIA' &&
+    Boolean(cargoItin) &&
+    driverPrefItin === cargoItin
+
+  if (hasMatchingPreference) {
+    subRoute = Math.min(100, subRoute + 15)
+  }
 
   // 4. Experiência no Cliente (0 a 100)
   const custTrips = stats?.tripsWithCustomer ?? 4

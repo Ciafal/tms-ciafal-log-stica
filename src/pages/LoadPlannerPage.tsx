@@ -839,6 +839,46 @@ export const LoadPlannerPage: React.FC = () => {
                       <div className="text-[10px] text-slate-600 truncate">
                         {v.driver_name_cached} • {v.vehicle_type_cached}
                       </div>
+                      <div className="pt-0.5">
+                        {(() => {
+                          const pItin = (v.preferred_itinerary || '').trim().toUpperCase()
+                          const targetItin = (filterItinerary || '').trim().toUpperCase()
+                          if (
+                            pItin &&
+                            pItin !== 'SEM_PREFERENCIA' &&
+                            targetItin &&
+                            targetItin !== 'ALL' &&
+                            pItin === targetItin
+                          ) {
+                            return (
+                              <Badge
+                                title="Itinerário informado pelo motorista na entrada da fila coincide com esta carga (maior aderência de aceite)."
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] px-1.5 py-0 font-semibold cursor-help"
+                              >
+                                ★ Preferência: {v.preferred_itinerary}
+                              </Badge>
+                            )
+                          }
+                          if (!pItin || pItin === 'SEM_PREFERENCIA') {
+                            return (
+                              <Badge
+                                variant="outline"
+                                className="text-slate-600 bg-slate-100 border-slate-300 text-[9px] px-1.5 py-0 font-normal"
+                              >
+                                Sem preferência de rota
+                              </Badge>
+                            )
+                          }
+                          return (
+                            <Badge
+                              title="Preferência informada para outra rota, porém elegível para alocação."
+                              className="bg-amber-500 hover:bg-amber-600 text-white text-[9px] px-1.5 py-0 font-medium cursor-help"
+                            >
+                              Pref: {v.preferred_itinerary}
+                            </Badge>
+                          )
+                        })()}
+                      </div>
                     </div>
                   ))
                 )}
@@ -877,6 +917,46 @@ export const LoadPlannerPage: React.FC = () => {
                       </div>
                       <div className="text-[10px] text-slate-600 truncate">
                         {v.driver_name_cached} ({v.distance_km} km)
+                      </div>
+                      <div className="pt-0.5">
+                        {(() => {
+                          const pItin = (v.preferred_itinerary || '').trim().toUpperCase()
+                          const targetItin = (filterItinerary || '').trim().toUpperCase()
+                          if (
+                            pItin &&
+                            pItin !== 'SEM_PREFERENCIA' &&
+                            targetItin &&
+                            targetItin !== 'ALL' &&
+                            pItin === targetItin
+                          ) {
+                            return (
+                              <Badge
+                                title="Itinerário informado pelo motorista na entrada da fila coincide com esta carga (maior aderência de aceite)."
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] px-1.5 py-0 font-semibold cursor-help"
+                              >
+                                ★ Preferência: {v.preferred_itinerary}
+                              </Badge>
+                            )
+                          }
+                          if (!pItin || pItin === 'SEM_PREFERENCIA') {
+                            return (
+                              <Badge
+                                variant="outline"
+                                className="text-slate-600 bg-slate-100 border-slate-300 text-[9px] px-1.5 py-0 font-normal"
+                              >
+                                Sem preferência de rota
+                              </Badge>
+                            )
+                          }
+                          return (
+                            <Badge
+                              title="Preferência informada para outra rota, porém elegível para alocação."
+                              className="bg-amber-500 hover:bg-amber-600 text-white text-[9px] px-1.5 py-0 font-medium cursor-help"
+                            >
+                              Pref: {v.preferred_itinerary}
+                            </Badge>
+                          )
+                        })()}
                       </div>
                     </div>
                   ))

@@ -12,9 +12,11 @@ export interface ItineraryOption {
 }
 
 interface ItinerarySearchSelectProps {
-  valueCode: string // '' or 'SEM_PREFERENCIA' or official code
-  onChange: (code: string, name: string) => void
-  itineraries: Array<{
+  valueCode?: string // '' or 'SEM_PREFERENCIA' or official code
+  value?: string // alias for valueCode for backwards compatibility
+  onChange?: (code: string, name: string) => void
+  onSelect?: (code: string, name: string) => void // alias for onChange
+  itineraries?: Array<{
     id?: string
     code?: string
     name?: string
@@ -28,12 +30,19 @@ interface ItinerarySearchSelectProps {
 
 export const ItinerarySearchSelect: React.FC<ItinerarySearchSelectProps> = ({
   valueCode,
+  value,
   onChange,
-  itineraries,
+  onSelect,
+  itineraries = [],
   disabled = false,
   className,
   placeholder = 'Selecione o itinerário ou Sem preferência...',
 }) => {
+  const effectiveValueCode = valueCode ?? value ?? ''
+  const effectiveOnChange = (code: string, name: string) => {
+    if (onChange) onChange(code, name)
+    if (onSelect) onSelect(code, name)
+  }
   const [open, setOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -73,15 +82,15 @@ export const ItinerarySearchSelect: React.FC<ItinerarySearchSelectProps> = ({
   }, [options, searchTerm])
 
   const selectedOption = useMemo(() => {
-    if (!valueCode) return null
-    return options.find((opt) => opt.code === valueCode) || null
-  }, [options, valueCode])
+    if (!effectiveValueCode) return null
+    return options.find((opt) => opt.code === effectiveValueCode) || null
+  }, [options, effectiveValueCode])
 
   const handleSelect = (opt: ItineraryOption) => {
     if (opt.code === 'SEM_PREFERENCIA') {
-      onChange('SEM_PREFERENCIA', 'Sem preferência')
+      effectiveOnChange('SEM_PREFERENCIA', 'Sem preferência')
     } else {
-      onChange(opt.code, opt.name)
+      effectiveOnChange(opt.code, opt.name)
     }
     setOpen(false)
     setSearchTerm('')

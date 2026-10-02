@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { SapZsd004Record } from '@/domain/zsd004Engine'
+import { TmsService } from '@/services/tmsService'
 import {
   Truck,
   User,
@@ -23,6 +24,9 @@ import {
   XCircle,
   Eye,
   EyeOff,
+  Navigation,
+  Clock,
+  History,
 } from 'lucide-react'
 
 interface Zsd004DetailModalProps {
@@ -39,6 +43,123 @@ export const Zsd004DetailModal: React.FC<Zsd004DetailModalProps> = ({
   canViewFullSensitiveData,
 }) => {
   const [showSensitive, setShowSensitive] = React.useState(false)
+  const [activeQueueEntry, setActiveQueueEntry] = React.useState<any | null>(null)
+  const [isLoadingQueue, setIsLoadingQueue] = React.useState(false)
+  const [itineraryHistory, setItineraryHistory] = React.useState<
+    Array<{
+      id: string
+      date: string
+      channel: string
+      preferredItinerary: string
+      preferredItineraryName: string
+      justification?: string
+      source: 'Fila Operacional' | 'Pré-Cadastro'
+    }>
+  >([])
+
+  React.useEffect(() => {
+    if (!isOpen || !record) return
+
+    let isMounted = true
+    setIsLoadingQueue(true)
+
+    const cleanPlaca = (record.plate || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+    const cleanDoc = (record.driver_cpf || record.driver_document || '').replace(/\D/g, '')
+
+    Promise.all([
+      TmsService.getOperationalQueue().catch(() => []),
+      TmsService.getPreRegistrations().catch(() => []),
+    ])
+      .then(([queueEntries, preRegs]) => {
+        if (!isMounted) return
+
+        // 1. Disponibilidade Atual na fila (status disponível ou em validação)
+        const currentEntry = queueEntries.find((q: any) => {
+          const qPlate = (q.vehicle_plate_cached || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+          const qDoc = (q.driver_doc_cached || '').replace(/\D/g, '')
+          const matchesPlate = Boolean(cleanPlaca && qPlate && qPlate === cleanPlaca)
+          const matchesDoc = Boolean(cleanDoc && qDoc && qDoc === cleanDoc)
+          const isActive = !['removido', 'bloqueado', 'atribuido'].includes(q.status)
+          return (matchesPlate || matchesDoc) && isActive
+        })
+        setActiveQueueEntry(currentEntry || null)
+
+        // 2. Histórico de itinerários informados (queue_entries + pre_registrations)
+        const historyList: Array<{
+          id: string
+          date: string
+          channel: string
+          preferredItinerary: string
+          preferredItineraryName: string
+          justification?: string
+          source: 'Fila Operacional' | 'Pré-Cadastro'
+        }> = []
+
+        // De queue_entries
+        queueEntries.forEach((q: any) => {
+          const qPlate = (q.vehicle_plate_cached || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+          const qDoc = (q.driver_doc_cached || '').replace(/\D/g, '')
+          const matchesPlate = Boolean(cleanPlaca && qPlate && qPlate === cleanPlaca)
+          const matchesDoc = Boolean(cleanDoc && qDoc && qDoc === cleanDoc)
+          if (matchesPlate || matchesDoc) {
+            const itin = q.preferred_itinerary || 'SEM_PREFERENCIA'
+            const itinName =
+              q.preferred_itinerary_name || (itin === 'SEM_PREFERENCIA' ? 'Sem preferência' : '')
+            let channel = q.last_operator?.includes('Totem') ? 'Totem' : 'Link Público'
+            if (q.type === 'PORTA') channel = 'Totem'
+            if (q.last_operator?.includes('@')) channel = 'Operador HUB'
+            if (q.last_operator?.toLowerCase().includes('portaria')) channel = 'Portaria'
+
+            historyList.push({
+              id: `q-${q.id}`,
+              date: q.entry_time || q.created || '',
+              channel,
+              preferredItinerary: itin,
+              preferredItineraryName: itinName,
+              justification:
+                q.reason || (q.last_event?.includes('alterado') ? q.last_event : undefined),
+              source: 'Fila Operacional',
+            })
+          }
+        })
+
+        // De pre_registrations
+        preRegs.forEach((pr: any) => {
+          const prPlate = (pr.plate || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+          const prDoc = (pr.document || '').replace(/\D/g, '')
+          const matchesPlate = Boolean(cleanPlaca && prPlate && prPlate === cleanPlaca)
+          const matchesDoc = Boolean(cleanDoc && prDoc && prDoc === cleanDoc)
+          if (matchesPlate || matchesDoc) {
+            const itin = pr.preferred_itinerary || 'SEM_PREFERENCIA'
+            const itinName =
+              pr.preferred_itinerary_name || (itin === 'SEM_PREFERENCIA' ? 'Sem preferência' : '')
+            const channel = pr.origin === 'PORTA' ? 'Totem' : 'Link Público'
+
+            historyList.push({
+              id: `pr-${pr.id}`,
+              date: pr.created || '',
+              channel,
+              preferredItinerary: itin,
+              preferredItineraryName: itinName,
+              justification: pr.driver_notes || pr.reviewer_notes || undefined,
+              source: 'Pré-Cadastro',
+            })
+          }
+        })
+
+        // Ordenar por data decrescente (mais recente primeiro)
+        historyList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        setItineraryHistory(historyList)
+        setIsLoadingQueue(false)
+      })
+      .catch(() => {
+        if (isMounted) setIsLoadingQueue(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [isOpen, record])
 
   if (!record) return null
 
@@ -139,6 +260,217 @@ export const Zsd004DetailModal: React.FC<Zsd004DetailModalProps> = ({
             </p>
           </div>
         )}
+
+        {/* Bloco Aditivo: Disponibilidade Atual na Fila */}
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2 mt-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Navigation className="w-4 h-4 text-[#005596]" />
+              <span className="font-bold text-xs text-slate-800 uppercase tracking-wide">
+                Disponibilidade Atual (Fila Operacional)
+              </span>
+            </div>
+            {isLoadingQueue && (
+              <span className="text-[10px] text-slate-400">Consultando fila...</span>
+            )}
+          </div>
+
+          {activeQueueEntry ? (
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1 text-xs">
+              <div className="bg-white p-2 rounded border border-slate-100">
+                <span className="text-[10px] text-slate-400 block uppercase font-bold">
+                  Situação na Fila
+                </span>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <Badge
+                    className={
+                      activeQueueEntry.type === 'PORTA'
+                        ? 'bg-blue-600 text-white'
+                        : activeQueueEntry.type === 'FORA'
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-purple-600 text-white'
+                    }
+                  >
+                    {activeQueueEntry.type || 'PORTA'}
+                  </Badge>
+                  <span className="text-[11px] text-slate-500 capitalize">
+                    {activeQueueEntry.status || 'Disponível'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-white p-2 rounded border border-slate-100">
+                <span className="text-[10px] text-slate-400 block uppercase font-bold">
+                  Data/Hora Entrada
+                </span>
+                <span className="text-slate-800 font-mono text-xs flex items-center gap-1 mt-1">
+                  <Clock className="w-3 h-3 text-slate-400" />
+                  {activeQueueEntry.entry_time
+                    ? new Date(activeQueueEntry.entry_time).toLocaleString('pt-BR')
+                    : 'Não informada'}
+                </span>
+              </div>
+
+              <div className="bg-white p-2 rounded border border-slate-100">
+                <span className="text-[10px] text-slate-400 block uppercase font-bold">
+                  Localização / Distância
+                </span>
+                <span className="text-slate-800 font-medium text-xs mt-1 block">
+                  {activeQueueEntry.distance_km != null
+                    ? `${activeQueueEntry.distance_km} km da base`
+                    : activeQueueEntry.location_city
+                      ? `${activeQueueEntry.location_city} (${activeQueueEntry.location_state || 'UF'})`
+                      : 'Na Portaria Hub'}
+                </span>
+              </div>
+
+              <div className="bg-white p-2 rounded border border-slate-100">
+                <span className="text-[10px] text-slate-400 block uppercase font-bold">
+                  Itinerário Preferencial
+                </span>
+                <div className="mt-1">
+                  {(() => {
+                    const pref = (activeQueueEntry.preferred_itinerary || '').trim()
+                    if (!pref) {
+                      return (
+                        <Badge
+                          variant="outline"
+                          className="text-slate-500 bg-slate-50 border-slate-200 text-[10px]"
+                        >
+                          Não informado
+                        </Badge>
+                      )
+                    }
+                    if (pref.toUpperCase() === 'SEM_PREFERENCIA') {
+                      return (
+                        <Badge
+                          variant="outline"
+                          className="text-slate-600 bg-slate-100 border-slate-300 text-[10px]"
+                        >
+                          Sem preferência
+                        </Badge>
+                      )
+                    }
+                    return (
+                      <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-[10px]">
+                        [{pref}]
+                        {activeQueueEntry.preferred_itinerary_name
+                          ? ` — ${activeQueueEntry.preferred_itinerary_name}`
+                          : ''}
+                      </Badge>
+                    )
+                  })()}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white p-3 rounded border border-dashed border-slate-200 text-center text-xs text-slate-500">
+              Não está na fila atualmente
+            </div>
+          )}
+        </div>
+
+        {/* Bloco Aditivo: Últimos Itinerários Informados */}
+        <div className="bg-white border border-slate-200 rounded-lg p-3.5 space-y-2 mt-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <History className="w-4 h-4 text-slate-700" />
+              <span className="font-bold text-xs text-slate-800 uppercase tracking-wide">
+                Últimos Itinerários Informados (Fila & Pré-Cadastros)
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-400">
+              Somente leitura • {itineraryHistory.length} registro(s)
+            </span>
+          </div>
+
+          {itineraryHistory.length === 0 ? (
+            <div className="text-center py-3 text-xs text-slate-400 italic bg-slate-50 rounded">
+              Nenhum registro anterior de itinerário encontrado para este documento/placa.
+            </div>
+          ) : (
+            <div className="overflow-x-auto max-h-48 border border-slate-100 rounded">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200 text-[10px] text-slate-500 uppercase font-bold sticky top-0">
+                  <tr>
+                    <th className="p-2">Data Entrada</th>
+                    <th className="p-2">Canal</th>
+                    <th className="p-2">Origem</th>
+                    <th className="p-2">Itinerário Informado</th>
+                    <th className="p-2">Justificativa / Observação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {itineraryHistory.slice(0, 10).map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50/60">
+                      <td className="p-2 font-mono text-[11px] text-slate-700 whitespace-nowrap">
+                        {item.date ? new Date(item.date).toLocaleString('pt-BR') : '—'}
+                      </td>
+                      <td className="p-2 whitespace-nowrap">
+                        <Badge
+                          variant="outline"
+                          className={
+                            item.channel === 'Totem'
+                              ? 'border-indigo-300 text-indigo-700 bg-indigo-50 text-[10px]'
+                              : item.channel === 'Portaria'
+                                ? 'border-emerald-300 text-emerald-700 bg-emerald-50 text-[10px]'
+                                : item.channel === 'Operador HUB'
+                                  ? 'border-amber-300 text-amber-700 bg-amber-50 text-[10px]'
+                                  : 'border-blue-300 text-blue-700 bg-blue-50 text-[10px]'
+                          }
+                        >
+                          {item.channel}
+                        </Badge>
+                      </td>
+                      <td className="p-2 text-slate-500 text-[11px] whitespace-nowrap">
+                        {item.source}
+                      </td>
+                      <td className="p-2">
+                        {(() => {
+                          const pref = (item.preferredItinerary || '').trim()
+                          if (!pref) {
+                            return (
+                              <Badge
+                                variant="outline"
+                                className="text-slate-400 bg-slate-50 border-slate-200 text-[9px]"
+                              >
+                                Não informado
+                              </Badge>
+                            )
+                          }
+                          if (pref.toUpperCase() === 'SEM_PREFERENCIA') {
+                            return (
+                              <Badge
+                                variant="outline"
+                                className="text-slate-600 bg-slate-100 border-slate-300 text-[9px]"
+                              >
+                                Sem preferência
+                              </Badge>
+                            )
+                          }
+                          return (
+                            <Badge className="bg-blue-600 text-white text-[9px]">
+                              [{pref}]
+                              {item.preferredItineraryName
+                                ? ` — ${item.preferredItineraryName}`
+                                : ''}
+                            </Badge>
+                          )
+                        })()}
+                      </td>
+                      <td
+                        className="p-2 text-slate-600 text-[11px] max-w-xs truncate"
+                        title={item.justification}
+                      >
+                        {item.justification || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         <Tabs defaultValue="veiculo" className="w-full mt-2">
           <TabsList className="grid grid-cols-4 lg:grid-cols-7 bg-slate-100 p-1 rounded-lg text-xs">
