@@ -46,9 +46,15 @@ import {
   PcpProductionOrderEntity,
   StockConfirmationRequestEntity,
 } from '@/domain/rules'
-import { calculateStockLotMetrics, getStockItemWeightTons } from '@/domain/stockIndicatorsEngine'
+import {
+  calculateStockLotMetrics,
+  getStockItemWeightTons,
+  groupStockByMaterial,
+  ConsolidatedMaterialStockRow,
+} from '@/domain/stockIndicatorsEngine'
 import { StockLotDrillDownModal } from '@/components/StockLotDrillDownModal'
 import { formatWeight } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 export const StockAndProductionPage: React.FC = () => {
   const { user, permissions } = useAuth()
@@ -73,6 +79,8 @@ export const StockAndProductionPage: React.FC = () => {
   const [drillDownTitle, setDrillDownTitle] = useState('')
   const [drillDownSubtitle, setDrillDownSubtitle] = useState('')
   const [drillDownLots, setDrillDownLots] = useState<SapStockCurrentEntity[]>([])
+  const [drillDownMaterialCode, setDrillDownMaterialCode] = useState<string | undefined>(undefined)
+  const [drillDownMaterialDesc, setDrillDownMaterialDesc] = useState<string | undefined>(undefined)
   const [drillDownModeDetails, setDrillDownModeDetails] = useState<
     Array<{ weightTons: number; count: number }> | undefined
   >(undefined)
@@ -161,9 +169,14 @@ export const StockAndProductionPage: React.FC = () => {
     })
   }, [stocks, search, filterPlant, filterStorageLocation, filterStatus])
 
-  // 6 Indicadores Estatísticos Canônicos sobre os lotes filtrados
+  // 6 Indicadores Estatísticos Canônicos sobre os lotes filtrados (Cards superiores)
   const stockMetrics = useMemo(() => {
     return calculateStockLotMetrics(filteredStock)
+  }, [filteredStock])
+
+  // Grid consolidado por Material + Centro + Depósito (1 linha = 1 material)
+  const consolidatedStockRows = useMemo(() => {
+    return groupStockByMaterial(filteredStock)
   }, [filteredStock])
 
   // Lista única de Centros e Depósitos para os seletores de filtro
@@ -188,12 +201,27 @@ export const StockAndProductionPage: React.FC = () => {
     subtitle: string,
     lots: SapStockCurrentEntity[],
     modeDetails?: Array<{ weightTons: number; count: number }>,
+    materialCode?: string,
+    materialDesc?: string,
   ) => {
     setDrillDownTitle(title)
     setDrillDownSubtitle(subtitle)
     setDrillDownLots(lots)
     setDrillDownModeDetails(modeDetails)
+    setDrillDownMaterialCode(materialCode)
+    setDrillDownMaterialDesc(materialDesc)
     setDrillDownOpen(true)
+  }
+
+  const handleOpenMaterialDrillDown = (row: ConsolidatedMaterialStockRow) => {
+    openDrillDown(
+      `Lotes do Material ${row.material_code}`,
+      `Composição analítica de todos os lotes que integram este material no ${row.plant} / ${row.storage_location}.`,
+      row.lots,
+      row.modeFrequencies,
+      row.material_code,
+      row.material_description,
+    )
   }
 
   // Filtered PCP
@@ -580,6 +608,10 @@ export const StockAndProductionPage: React.FC = () => {
                 <div className="mt-1 flex items-center justify-center">
                   {stockMetrics.lotCount === 0 ? (
                     <span className="text-2xl font-black font-mono text-slate-400">0,00 t</span>
+                  ) : stockMetrics.modeType === 'no_mode' ? (
+                    <Badge className="bg-slate-400 hover:bg-slate-500 text-white font-black text-xs px-2 py-0.5 tracking-wide uppercase">
+                      Sem moda
+                    </Badge>
                   ) : stockMetrics.modeType === 'multimodal' ? (
                     <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-2 py-0.5 tracking-wide uppercase">
                       Multimodal
@@ -592,9 +624,11 @@ export const StockAndProductionPage: React.FC = () => {
                 </div>
               </div>
               <div className="text-[10px] text-slate-400 group-hover:text-purple-700 transition-colors pt-1 border-t border-slate-100">
-                {stockMetrics.modeType === 'multimodal'
-                  ? `${stockMetrics.modeFrequencies.length} valores empatados`
-                  : 'Maior frequência'}
+                {stockMetrics.modeType === 'no_mode'
+                  ? 'Todos os pesos distintos'
+                  : stockMetrics.modeType === 'multimodal'
+                    ? `${stockMetrics.modeFrequencies.length} valores empatados`
+                    : 'Maior frequência'}
               </div>
             </CardContent>
           </Card>
@@ -689,114 +723,281 @@ export const StockAndProductionPage: React.FC = () => {
                 <div>
                   <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-                    Posição Física de Estoque (SAP RFC_READ_TABLE)
+                    Posição Física de Estoque por Material (SAP RFC_READ_TABLE)
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Materiais disponíveis imediatamente para faturamento e carregamento sem
-                    dependência de produção.
+                    Grid consolidado por material (1 linha = 1 material) com métricas estatísticas
+                    dos lotes e saldo físico imediato.
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs font-mono">
-                    {filteredStock.length} {filteredStock.length === 1 ? 'lote' : 'lotes'}
+                    {consolidatedStockRows.length}{' '}
+                    {consolidatedStockRows.length === 1 ? 'material' : 'materiais'}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs font-mono text-slate-500">
+                    {filteredStock.length}{' '}
+                    {filteredStock.length === 1 ? 'lote total' : 'lotes totais'}
                   </Badge>
                 </div>
               </div>
             </CardHeader>
 
             <CardContent className="p-0 overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse min-w-[950px]">
-                <thead>
-                  <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
-                    <th className="p-2.5">Código Material (MATNR)</th>
-                    <th className="p-2.5">Descrição (MAKTX)</th>
-                    <th className="p-2.5">Centro / Depósito</th>
-                    <th className="p-2.5">Localização (LGPBE)</th>
-                    <th className="p-2.5">Lote SAP (CHARG)</th>
-                    <th className="p-2.5 text-right">Peso do Lote (t)</th>
-                    <th className="p-2.5 text-right">Disponível Agora</th>
-                    <th className="p-2.5 text-right">Reservado</th>
-                    <th className="p-2.5 text-right">Bloqueado</th>
-                    <th className="p-2.5 text-center">Status / Previsão</th>
-                    <th className="p-2.5 text-center">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {filteredStock.length === 0 ? (
-                    <tr>
-                      <td colSpan={11} className="p-8 text-center text-slate-400">
-                        Nenhum lote encontrado para os filtros selecionados.
-                      </td>
+              <TooltipProvider delayDuration={150}>
+                <table className="w-full text-left text-xs border-collapse min-w-[1280px]">
+                  <thead className="sticky top-0 bg-slate-100 z-10 shadow-2xs">
+                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
+                      <th className="p-2.5 whitespace-nowrap">Material</th>
+                      <th className="p-2.5 min-w-[180px]">Descrição</th>
+                      <th className="p-2.5 whitespace-nowrap">Centro / Depósito</th>
+                      <th className="p-2.5 whitespace-nowrap">Localização</th>
+                      <th className="p-2.5 text-right whitespace-nowrap">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dotted border-slate-400">
+                              Qtd. Lotes
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs max-w-xs">
+                            Quantidade de lotes únicos: COUNT DISTINCT(CHARG) do material. Clique
+                            para abrir o drill-down dos lotes.
+                          </TooltipContent>
+                        </Tooltip>
+                      </th>
+                      <th className="p-2.5 text-right whitespace-nowrap">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dotted border-slate-400">
+                              Peso Total
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs max-w-xs">
+                            Soma dos pesos de todos os lotes que compõem este material (em
+                            toneladas).
+                          </TooltipContent>
+                        </Tooltip>
+                      </th>
+                      <th className="p-2.5 text-right whitespace-nowrap">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dotted border-slate-400">
+                              Peso Médio
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs max-w-xs">
+                            Peso médio por lote = Peso Total ÷ Quantidade de lotes (em toneladas).
+                          </TooltipContent>
+                        </Tooltip>
+                      </th>
+                      <th className="p-2.5 text-right whitespace-nowrap">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dotted border-slate-400">
+                              Peso Moda
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs max-w-xs">
+                            Peso de lote com maior frequência. Se empate: "Multimodal". Se todos
+                            distintos: "Sem moda".
+                          </TooltipContent>
+                        </Tooltip>
+                      </th>
+                      <th className="p-2.5 text-right whitespace-nowrap">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dotted border-slate-400">
+                              Menor Lote
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs max-w-xs">
+                            Menor peso individual de lote encontrado neste material (MIN).
+                          </TooltipContent>
+                        </Tooltip>
+                      </th>
+                      <th className="p-2.5 text-right whitespace-nowrap">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dotted border-slate-400">
+                              Maior Lote
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs max-w-xs">
+                            Maior peso individual de lote encontrado neste material (MAX).
+                          </TooltipContent>
+                        </Tooltip>
+                      </th>
+                      <th className="p-2.5 text-right whitespace-nowrap">Disponível agora</th>
+                      <th className="p-2.5 text-right whitespace-nowrap">Reservado</th>
+                      <th className="p-2.5 text-right whitespace-nowrap">Bloqueado</th>
+                      <th className="p-2.5 text-center whitespace-nowrap">Status / Previsão</th>
+                      <th className="p-2.5 text-center whitespace-nowrap">Ações</th>
                     </tr>
-                  ) : (
-                    filteredStock.map((stk) => {
-                      const isAvailable = (stk.available_qty || 0) > 0
-                      const itemWeightTons = getStockItemWeightTons(stk)
-                      return (
-                        <tr key={stk.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-2.5 font-mono font-bold text-[#005596]">
-                            {stk.material_code}
-                          </td>
-                          <td
-                            className="p-2.5 font-medium text-slate-900 max-w-[200px] truncate"
-                            title={stk.material_description}
-                          >
-                            {stk.material_description}
-                          </td>
-                          <td className="p-2.5 text-slate-600 font-mono">
-                            {stk.plant} / {stk.storage_location}
-                          </td>
-                          <td className="p-2.5 text-slate-600 font-mono">
-                            {stk.storage_bin ? (
-                              <Badge variant="outline" className="text-[10px] font-mono">
-                                {stk.storage_bin}
-                              </Badge>
-                            ) : (
-                              <span className="text-slate-400 italic">---</span>
-                            )}
-                          </td>
-                          <td className="p-2.5 font-mono text-slate-700 font-semibold">
-                            {stk.batch || 'LOTE-PADRÃO'}
-                          </td>
-                          <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-                            {formatWeight(itemWeightTons, { unit: 't' })}
-                          </td>
-                          <td className="p-2.5 text-right font-mono font-bold text-emerald-700">
-                            {formatWeight(stk.available_qty, { unit: 't' })}
-                          </td>
-                          <td className="p-2.5 text-right font-mono text-amber-700">
-                            {formatWeight(stk.reserved_qty || 0, { unit: 't' })}
-                          </td>
-                          <td className="p-2.5 text-right font-mono text-rose-700">
-                            {formatWeight(stk.blocked_qty || 0, { unit: 't' })}
-                          </td>
-                          <td className="p-2.5 text-center">
-                            {isAvailable ? (
-                              <Badge className="bg-emerald-600 text-white text-[10px]">
-                                Disponível Agora
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-amber-500 text-white text-[10px]">
-                                Sem Saldo Imediato
-                              </Badge>
-                            )}
-                          </td>
-                          <td className="p-2.5 text-center">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenNewRequestFromStock(stk)}
-                              className="h-6 px-2 text-[10px] text-[#005596] hover:bg-sky-50 font-semibold"
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {consolidatedStockRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={15} className="p-8 text-center text-slate-400">
+                          Nenhum material encontrado para os filtros selecionados.
+                        </td>
+                      </tr>
+                    ) : (
+                      consolidatedStockRows.map((row) => {
+                        const isAvailable = (row.available_qty || 0) > 0
+                        return (
+                          <tr key={row.groupKey} className="hover:bg-slate-50 transition-colors">
+                            {/* Material */}
+                            <td className="p-2.5 font-mono font-bold text-[#005596] whitespace-nowrap">
+                              {row.material_code}
+                            </td>
+
+                            {/* Descrição */}
+                            <td
+                              className="p-2.5 font-medium text-slate-900 max-w-[220px] truncate"
+                              title={row.material_description}
                             >
-                              Solicitar Confirmação
-                            </Button>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
+                              {row.material_description}
+                            </td>
+
+                            {/* Centro / Depósito */}
+                            <td className="p-2.5 text-slate-600 font-mono whitespace-nowrap">
+                              {row.plant} / {row.storage_location}
+                            </td>
+
+                            {/* Localização */}
+                            <td className="p-2.5 text-slate-600 font-mono whitespace-nowrap">
+                              {row.storage_bin ? (
+                                <Badge variant="outline" className="text-[10px] font-mono">
+                                  {row.storage_bin}
+                                </Badge>
+                              ) : (
+                                <span className="text-slate-400 italic">---</span>
+                              )}
+                            </td>
+
+                            {/* Qtd. Lotes (clicável para drill-down) */}
+                            <td className="p-2.5 text-right font-mono font-bold whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenMaterialDrillDown(row)}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[#005596] hover:bg-sky-100/70 hover:underline transition-colors cursor-pointer"
+                                title="Clique para ver os lotes deste material"
+                              >
+                                <span>{row.lotCount}</span>
+                                <span className="text-[10px] font-normal text-slate-400">
+                                  {row.lotCount === 1 ? 'lote' : 'lotes'}
+                                </span>
+                              </button>
+                            </td>
+
+                            {/* Peso Total */}
+                            <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                              {formatWeight(row.totalWeightTons, { unit: 't' })}
+                            </td>
+
+                            {/* Peso Médio */}
+                            <td className="p-2.5 text-right font-mono text-slate-800 whitespace-nowrap">
+                              {formatWeight(row.avgWeightTons, { unit: 't' })}
+                            </td>
+
+                            {/* Peso Moda */}
+                            <td className="p-2.5 text-right font-mono whitespace-nowrap">
+                              {row.modeType === 'no_mode' ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] bg-slate-50 text-slate-500 border-slate-200"
+                                >
+                                  Sem moda
+                                </Badge>
+                              ) : row.modeType === 'multimodal' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenMaterialDrillDown(row)}
+                                  className="cursor-pointer"
+                                  title="Clique para ver os valores empatados no drill-down"
+                                >
+                                  <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-bold">
+                                    Multimodal
+                                  </Badge>
+                                </button>
+                              ) : row.modeType === 'empty' ? (
+                                <span className="text-slate-400">0,00 t</span>
+                              ) : (
+                                <span className="font-semibold text-purple-950">
+                                  {formatWeight(row.modeWeightTons, { unit: 't' })}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Menor Lote */}
+                            <td className="p-2.5 text-right font-mono text-slate-700 whitespace-nowrap">
+                              {formatWeight(row.minLotWeightTons, { unit: 't' })}
+                            </td>
+
+                            {/* Maior Lote */}
+                            <td className="p-2.5 text-right font-mono text-slate-700 whitespace-nowrap">
+                              {formatWeight(row.maxLotWeightTons, { unit: 't' })}
+                            </td>
+
+                            {/* Disponível agora */}
+                            <td className="p-2.5 text-right font-mono font-bold text-emerald-700 whitespace-nowrap">
+                              {formatWeight(row.available_qty, { unit: 't' })}
+                            </td>
+
+                            {/* Reservado */}
+                            <td className="p-2.5 text-right font-mono text-amber-700 whitespace-nowrap">
+                              {formatWeight(row.reserved_qty || 0, { unit: 't' })}
+                            </td>
+
+                            {/* Bloqueado */}
+                            <td className="p-2.5 text-right font-mono text-rose-700 whitespace-nowrap">
+                              {formatWeight(row.blocked_qty || 0, { unit: 't' })}
+                            </td>
+
+                            {/* Status / Previsão */}
+                            <td className="p-2.5 text-center whitespace-nowrap">
+                              {isAvailable ? (
+                                <Badge className="bg-emerald-600 text-white text-[10px]">
+                                  Disponível Agora
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-amber-500 text-white text-[10px]">
+                                  Sem Saldo Imediato
+                                </Badge>
+                              )}
+                            </td>
+
+                            {/* Ações */}
+                            <td className="p-2.5 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleOpenMaterialDrillDown(row)}
+                                  className="h-6 px-2 text-[10px] text-slate-700 hover:text-[#005596] hover:bg-sky-50 font-semibold"
+                                  title="Visualizar detalhamento de todos os lotes que compõem este material"
+                                >
+                                  Ver lotes
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    handleOpenNewRequestFromStock(row.representativeStock)
+                                  }
+                                  className="h-6 px-2 text-[10px] text-[#005596] hover:bg-sky-50 font-semibold"
+                                >
+                                  Solicitar Confirmação
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </TooltipProvider>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1299,11 +1500,17 @@ export const StockAndProductionPage: React.FC = () => {
       {/* DRILL-DOWN MODAL DOS INDICADORES ESTATÍSTICOS */}
       <StockLotDrillDownModal
         isOpen={drillDownOpen}
-        onClose={() => setDrillDownOpen(false)}
+        onClose={() => {
+          setDrillDownOpen(false)
+          setDrillDownMaterialCode(undefined)
+          setDrillDownMaterialDesc(undefined)
+        }}
         indicatorTitle={drillDownTitle}
         indicatorSubtitle={drillDownSubtitle}
         lots={drillDownLots}
         modeDetails={drillDownModeDetails}
+        materialCode={drillDownMaterialCode}
+        materialDescription={drillDownMaterialDesc}
       />
     </div>
   )

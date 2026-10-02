@@ -21,6 +21,8 @@ export interface StockLotDrillDownModalProps {
   indicatorSubtitle?: string
   lots: SapStockCurrentEntity[]
   modeDetails?: Array<{ weightTons: number; count: number }>
+  materialCode?: string
+  materialDescription?: string
 }
 
 export const StockLotDrillDownModal: React.FC<StockLotDrillDownModalProps> = ({
@@ -30,6 +32,8 @@ export const StockLotDrillDownModal: React.FC<StockLotDrillDownModalProps> = ({
   indicatorSubtitle,
   lots,
   modeDetails,
+  materialCode,
+  materialDescription,
 }) => {
   const totalWeight = lots.reduce((acc, curr) => acc + getStockItemWeightTons(curr), 0)
 
@@ -52,8 +56,14 @@ export const StockLotDrillDownModal: React.FC<StockLotDrillDownModalProps> = ({
               </div>
               <DialogDescription className="text-xs text-slate-500">
                 {indicatorSubtitle || 'Detalhamento dos lotes SAP que compõem este indicador.'}
+                {materialCode && (
+                  <span className="block mt-0.5 text-slate-700 font-medium">
+                    Material: <strong className="font-mono text-[#005596]">{materialCode}</strong>
+                    {materialDescription ? ` • ${materialDescription}` : ''}
+                  </span>
+                )}
               </DialogDescription>
-            </div>
+            </div>{' '}
             <div className="text-right hidden sm:block shrink-0">
               <span className="text-[10px] uppercase font-bold text-slate-400 block">
                 Peso Consolidado
@@ -96,14 +106,15 @@ export const StockLotDrillDownModal: React.FC<StockLotDrillDownModalProps> = ({
                 <table className="w-full text-left text-xs border-collapse min-w-[750px]">
                   <thead>
                     <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
-                      <th className="p-2.5">Material (MATNR)</th>
-                      <th className="p-2.5">Descrição (MAKTX)</th>
-                      <th className="p-2.5">Lote (CHARG)</th>
+                      <th className="p-2.5">Lote SAP (CHARG)</th>
                       <th className="p-2.5 text-right">Peso (t)</th>
-                      <th className="p-2.5">Centro (WERKS) / Dep. (LGORT)</th>
+                      <th className="p-2.5">Centro (WERKS)</th>
+                      <th className="p-2.5">Depósito (LGORT)</th>
                       <th className="p-2.5">Localização (LGPBE)</th>
-                      <th className="p-2.5 text-center">Status Estoque</th>
-                      <th className="p-2.5 text-right">Origem & Atualização</th>
+                      <th className="p-2.5 text-right">Disponível (t)</th>
+                      <th className="p-2.5 text-right">Reservado (t)</th>
+                      <th className="p-2.5 text-right">Bloqueado (t)</th>
+                      <th className="p-2.5 text-center">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -115,23 +126,15 @@ export const StockLotDrillDownModal: React.FC<StockLotDrillDownModalProps> = ({
 
                       return (
                         <tr key={lot.id || idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-2.5 font-mono font-bold text-[#005596]">
-                            {lot.material_code || '---'}
-                          </td>
-                          <td
-                            className="p-2.5 font-medium text-slate-900 max-w-[200px] truncate"
-                            title={lot.material_description}
-                          >
-                            {lot.material_description || 'Material Siderúrgico'}
-                          </td>
-                          <td className="p-2.5 font-mono font-semibold text-slate-800">
+                          <td className="p-2.5 font-mono font-bold text-slate-900 whitespace-nowrap">
                             {lot.batch || 'LOTE-PADRÃO'}
                           </td>
                           <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
                             {formatWeight(weightTons, { unit: 't' })}
                           </td>
-                          <td className="p-2.5 font-mono text-slate-600">
-                            {lot.plant || '---'} / {lot.storage_location || '---'}
+                          <td className="p-2.5 font-mono text-slate-700">{lot.plant || '---'}</td>
+                          <td className="p-2.5 font-mono text-slate-700">
+                            {lot.storage_location || '---'}
                           </td>
                           <td className="p-2.5 font-mono text-slate-600">
                             {lot.storage_bin ? (
@@ -142,36 +145,33 @@ export const StockLotDrillDownModal: React.FC<StockLotDrillDownModalProps> = ({
                               <span className="text-slate-400 italic">Não inf.</span>
                             )}
                           </td>
-                          <td className="p-2.5 text-center">
+                          <td className="p-2.5 text-right font-mono font-semibold text-emerald-700 whitespace-nowrap">
+                            {formatWeight(lot.available_qty ?? 0, { unit: 't' })}
+                          </td>
+                          <td className="p-2.5 text-right font-mono text-amber-700 whitespace-nowrap">
+                            {formatWeight(lot.reserved_qty ?? 0, { unit: 't' })}
+                          </td>
+                          <td className="p-2.5 text-right font-mono text-rose-700 whitespace-nowrap">
+                            {formatWeight(lot.blocked_qty ?? 0, { unit: 't' })}
+                          </td>
+                          <td className="p-2.5 text-center whitespace-nowrap">
                             {hasBlocked ? (
                               <Badge className="bg-rose-600 text-white text-[9px] font-bold">
-                                Bloqueado ({(lot.blocked_qty || 0).toFixed(1)} t)
+                                Bloqueado
                               </Badge>
                             ) : hasReserved ? (
                               <Badge className="bg-amber-500 text-white text-[9px] font-bold">
-                                Reservado ({(lot.reserved_qty || 0).toFixed(1)} t)
+                                Reservado
                               </Badge>
                             ) : isAvailable ? (
                               <Badge className="bg-emerald-600 text-white text-[9px] font-bold">
-                                Disponível ({lot.available_qty.toFixed(1)} t)
+                                Disponível
                               </Badge>
                             ) : (
                               <Badge className="bg-slate-400 text-white text-[9px] font-bold">
                                 Sem Saldo
                               </Badge>
                             )}
-                          </td>
-                          <td className="p-2.5 text-right text-[10px] text-slate-500 whitespace-nowrap">
-                            <div className="font-semibold text-slate-700">
-                              {lot.source || 'SAP MB52'}
-                            </div>
-                            <div className="text-[9px] text-slate-400">
-                              {lot.read_timestamp
-                                ? formatDateTime(lot.read_timestamp)
-                                : lot.updated
-                                  ? formatDateTime(lot.updated)
-                                  : 'Online RFC'}
-                            </div>
                           </td>
                         </tr>
                       )
