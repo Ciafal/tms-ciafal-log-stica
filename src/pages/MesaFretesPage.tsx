@@ -16,6 +16,13 @@ import {
   DEFAULT_SELECTION_WEIGHTS,
 } from '@/domain/carlaoNegotiationEngine'
 import {
+  getDriverHiringSupport,
+  CarrierOperationalRecord,
+  CarrierComplaintRecord,
+  CarrierComplimentRecord,
+} from '@/domain/carrierHistoryEngine'
+import { carrierHistoryService } from '@/services/carrierHistoryService'
+import {
   BadgeDollarSign,
   TrendingDown,
   Clock,
@@ -369,6 +376,31 @@ export const MesaFretesPage: React.FC = () => {
       })
     }
   }
+
+  // Histórico e Apoio à Contratação para apoio na Mesa de Fretes
+  const [carrierHistoryData, setCarrierHistoryData] = useState<CarrierOperationalRecord[]>([])
+  const [carrierComplaintsData, setCarrierComplaintsData] = useState<CarrierComplaintRecord[]>([])
+  const [carrierComplimentsData, setCarrierComplimentsData] = useState<CarrierComplimentRecord[]>(
+    [],
+  )
+
+  useEffect(() => {
+    const fetchSupportHistory = async () => {
+      try {
+        const [hist, comp, compl] = await Promise.all([
+          carrierHistoryService.getOperationalHistory({ perPage: 100 }),
+          carrierHistoryService.getComplaints(),
+          carrierHistoryService.getCompliments(),
+        ])
+        setCarrierHistoryData(hist.items)
+        setCarrierComplaintsData(comp)
+        setCarrierComplimentsData(compl)
+      } catch (e) {
+        console.warn('Histórico para apoio à contratação indisponível:', e)
+      }
+    }
+    fetchSupportHistory()
+  }, [])
 
   // Disparar negociação do Carlão com o motorista selecionado
   const handleStartCarlaoNegotiation = async () => {
@@ -1567,6 +1599,53 @@ export const MesaFretesPage: React.FC = () => {
                           </Button>
                         </div>
                       </div>
+
+                      {/* Card de Apoio à Contratação (Histórico e Qualidade) */}
+                      {(() => {
+                        const support = getDriverHiringSupport(
+                          cand.driverName,
+                          carrierHistoryData,
+                          carrierComplaintsData,
+                          carrierComplimentsData,
+                        )
+                        return (
+                          <div className="mt-2 p-2 bg-sky-50/70 border border-sky-100 rounded-md text-[11px] flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-[#005596]">Histórico CIAFAL:</span>
+                              <span className="text-slate-700">
+                                {support.totalTransports} transportes • Avaliação{' '}
+                                <strong className="text-sky-800">
+                                  {support.avgRating ? `${support.avgRating.toFixed(1)}/5` : 'Novo'}
+                                </strong>{' '}
+                                •{' '}
+                                {support.onTimePct
+                                  ? `${support.onTimePct.toFixed(0)}% pontual`
+                                  : 'Sem viagens'}{' '}
+                                • {support.complaintsProcedenteCount} rec. proc. •{' '}
+                                {support.complimentsCount} elogios
+                              </span>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={
+                                support.recommendation === 'ALTAMENTE_RECOMENDADO'
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300 text-[9px]'
+                                  : support.recommendation === 'ATENCAO_OPERACIONAL'
+                                    ? 'bg-rose-100 text-rose-800 border-rose-300 text-[9px]'
+                                    : 'bg-white text-slate-700 border-slate-300 text-[9px]'
+                              }
+                            >
+                              {support.recommendation === 'ALTAMENTE_RECOMENDADO'
+                                ? 'Alta Confiança Histórica'
+                                : support.recommendation === 'ATENCAO_OPERACIONAL'
+                                  ? 'Atenção Histórica'
+                                  : support.recommendation === 'NOVO_SEM_HISTORICO'
+                                    ? 'Prestador Novo'
+                                    : 'Recomendado'}
+                            </Badge>
+                          </div>
+                        )
+                      })()}
 
                       {/* Linha da Justificativa da IA e Linha de Explicabilidade Detalhada */}
                       <div className="mt-2.5 pt-2 border-t border-slate-200/80 bg-slate-50 p-2.5 rounded-lg space-y-2">

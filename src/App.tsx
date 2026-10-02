@@ -48,6 +48,8 @@ import { CollectorPage } from '@/pages/CollectorPage'
 import { StandaloneCollectorPage } from '@/pages/StandaloneCollectorPage'
 import { FreightIntelligencePage } from '@/pages/FreightIntelligencePage'
 import { AiAutonomyAndRulesPage } from '@/pages/AiAutonomyAndRulesPage'
+import { DriverVehicleHistoryPage } from '@/pages/DriverVehicleHistoryPage'
+import { CarrierEvaluationPage } from '@/pages/CarrierEvaluationPage'
 import PrintMonitorPage from '@/pages/PrintMonitorPage'
 import CargoDetailPage from '@/pages/CargoDetailPage'
 import ProfitabilityDashboardPage from '@/pages/ProfitabilityDashboardPage'
@@ -254,6 +256,14 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <FreightIntelligencePage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/avaliacao-veiculo-motorista"
+            element={
+              <Layout>
+                <CarrierEvaluationPage />
               </Layout>
             }
           />
@@ -623,6 +633,22 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <DriverPerformanceManagementPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/historico-motoristas-veiculos"
+            element={
+              <Layout>
+                <DriverVehicleHistoryPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/analises/historico-motoristas-veiculos"
+            element={
+              <Layout>
+                <DriverVehicleHistoryPage />
               </Layout>
             }
           />

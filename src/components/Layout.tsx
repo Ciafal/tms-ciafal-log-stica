@@ -185,6 +185,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: permissions.canViewFreightIntelligence,
         },
         {
+          title: 'Avaliação Veículo/Motorista',
+          path: '/tms/avaliacao-veiculo-motorista',
+          badge: 'Qualidade',
+          badgeColor: 'bg-emerald-600',
+          show: true,
+        },
+        {
           title: 'Tabela ANTT Oficial',
           path: '/tms/tabela-antt',
           badge: 'Oficial',
@@ -324,6 +331,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           badge: 'IA',
           badgeColor: 'bg-amber-600',
           show: permissions.canViewFreightIntelligence,
+        },
+        {
+          title: 'Histórico Motoristas/Veículos',
+          path: '/tms/historico-motoristas-veiculos',
+          badge: '360°',
+          badgeColor: 'bg-[#005596]',
+          show: true,
         },
         {
           title: 'IA x Humano & Carlão',

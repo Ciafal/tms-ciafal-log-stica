@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T11:59:09.201Z",
+  "generatedAt": "2026-10-02T12:26:04.122Z",
   "collections": [
     {
       "name": "users",
@@ -11917,6 +11917,1129 @@
       "indexes": [
         "CREATE INDEX idx_lol_exec ON load_optimization_logs (executed_at)",
         "CREATE INDEX idx_lol_status ON load_optimization_logs (status)"
+      ]
+    },
+    {
+      "name": "carrier_evaluations",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "transport_order_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "target_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "MOTORISTA",
+            "VEICULO",
+            "MOTORISTA_VEICULO",
+            "TRANSPORTADORA",
+            "TRANSPORTE"
+          ]
+        },
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_document",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "carrier_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "CLIENTE",
+            "TRANSPORTE_LOGISTICA",
+            "EXPEDICAO",
+            "FATURAMENTO",
+            "PORTARIA",
+            "COMERCIAL",
+            "REPRESENTANTE_VENDEDOR",
+            "SEGURANCA",
+            "MOTORISTA",
+            "GESTOR",
+            "SISTEMA_IA"
+          ]
+        },
+        {
+          "name": "origin_user_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin_user_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evaluation_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "operational_moment",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "DURANTE_OPERACAO",
+            "APOS_CARREGAMENTO",
+            "APOS_ENTREGA",
+            "RETORNO_CLIENTE",
+            "APOS_OCORRENCIA",
+            "CONSULTA_HISTORICA"
+          ]
+        },
+        {
+          "name": "driver_pontualidade",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_cumprimento_orientacoes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_relacionamento_interno",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_relacionamento_cliente",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_comunicacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_disponibilidade",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_colaboracao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_postura_profissional",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_cuidado_carga",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_cumprimento_itinerario",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_qualidade_atendimento",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_tratamento_ocorrencias",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_regras_seguranca",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_documentacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_qualidade_geral",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_avg_score",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_recommendation",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["SIM", "SIM_COM_RESSALVAS", "NAO"]
+        },
+        {
+          "name": "vehicle_conservacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_limpeza",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_condicoes_aparentes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_adequacao_carga",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_carroceria",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_protecao_carga",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_lona",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_amarracao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_capacidade",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_documentacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_condicoes_operacionais",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_regras_internas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_avg_score",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "justification_critical",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "general_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tags_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_careval_driver ON carrier_evaluations (driver_id)",
+        "CREATE INDEX idx_careval_plate ON carrier_evaluations (vehicle_plate)",
+        "CREATE INDEX idx_careval_sap ON carrier_evaluations (sap_transport_number)",
+        "CREATE INDEX idx_careval_target ON carrier_evaluations (target_type)",
+        "CREATE INDEX idx_careval_origin ON carrier_evaluations (origin_type)"
+      ]
+    },
+    {
+      "name": "carrier_complaints",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "complaint_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "transport_order_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "category",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "RECLAMACAO_CLIENTE",
+            "TRANSPORTE",
+            "EXPEDICAO",
+            "FATURAMENTO",
+            "PORTARIA",
+            "COMERCIAL",
+            "SEGURANCA",
+            "COMPORTAMENTO",
+            "ATRASO",
+            "COMUNICACAO",
+            "CARGA",
+            "ENTREGA",
+            "DOCUMENTACAO",
+            "VEICULO",
+            "AVARIA",
+            "OUTRO"
+          ]
+        },
+        {
+          "name": "severity",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["BAIXA", "MEDIA", "ALTA", "CRITICA"]
+        },
+        {
+          "name": "target_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["MOTORISTA", "VEICULO", "MOTORISTA_VEICULO", "TRANSPORTADORA"]
+        },
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "carrier_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "CLIENTE",
+            "TRANSPORTE_LOGISTICA",
+            "EXPEDICAO",
+            "FATURAMENTO",
+            "PORTARIA",
+            "COMERCIAL",
+            "REPRESENTANTE_VENDEDOR",
+            "SEGURANCA",
+            "MOTORISTA",
+            "GESTOR",
+            "SISTEMA_IA"
+          ]
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "registered_by_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "registered_by_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "occurrence_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "REGISTRADA",
+            "EM_ANALISE",
+            "PROCEDENTE",
+            "PARCIALMENTE_PROCEDENTE",
+            "IMPROCEDENTE",
+            "ACAO_NECESSARIA",
+            "TRATADA",
+            "ENCERRADA"
+          ]
+        },
+        {
+          "name": "analyst_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "analyst_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "analysis_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_carrier_manifestation",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conclusion",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "action_taken",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resolved_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evidences_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "audit_trail_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_carcomp_num ON carrier_complaints (complaint_number)",
+        "CREATE INDEX idx_carcomp_status ON carrier_complaints (status)",
+        "CREATE INDEX idx_carcomp_driver ON carrier_complaints (driver_id)",
+        "CREATE INDEX idx_carcomp_plate ON carrier_complaints (vehicle_plate)",
+        "CREATE INDEX idx_carcomp_sap ON carrier_complaints (sap_transport_number)"
+      ]
+    },
+    {
+      "name": "carrier_compliments",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "compliment_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "carrier_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "category",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "ELOGIO_CLIENTE",
+            "ELOGIO_EXPEDICAO",
+            "BOA_ATUACAO_OCORRENCIA",
+            "DISPONIBILIDADE_EXTRAORDINARIA",
+            "EXCELENTE_COMUNICACAO",
+            "ANTECIPACAO_PROBLEMA",
+            "CUMPRIMENTO_EXCEPCIONAL",
+            "COMPORTAMENTO_COLABORATIVO",
+            "OUTRO"
+          ]
+        },
+        {
+          "name": "origin_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "CLIENTE",
+            "EXPEDICAO",
+            "COMERCIAL",
+            "TRANSPORTE_LOGISTICA",
+            "GESTOR",
+            "PORTARIA"
+          ]
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "registered_by_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "compliment_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_carcomp_cnum ON carrier_compliments (compliment_number)",
+        "CREATE INDEX idx_carcomp_cdriver ON carrier_compliments (driver_id)",
+        "CREATE INDEX idx_carcomp_cplate ON carrier_compliments (vehicle_plate)"
+      ]
+    },
+    {
+      "name": "carrier_operational_history",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "transport_order_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "transport_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "driver_document_masked",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_document_full",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "carrier_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "trailer_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin_plant",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination_city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination_uf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "region",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customers_summary",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "discharges_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_ton",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "products_summary",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "scheduled_entry",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "actual_entry",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "loading_start",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "loading_end",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "invoicing_start",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "invoicing_end",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "actual_exit",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "loading_duration_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "invoicing_duration_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "internal_waiting_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_internal_dwell_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "internal_responsibility_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "carrier_responsibility_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "route_estimated_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "route_actual_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delivery_estimated_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delivery_actual_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_on_time",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delay_minutes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "occurrences_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "occurrences_summary",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "freight_cost_driver",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "toll_cost",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "other_costs",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_cost",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "freight_billed_customer",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "margin_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "margin_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_rating",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_rating",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complaints_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complaints_procedente_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "compliments_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "non_conformities_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "final_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "CONCLUIDO",
+            "EM_VIAGEM",
+            "EM_EXPEDICAO",
+            "CANCELADO",
+            "ENCERRADO_COM_OCORRENCIA"
+          ]
+        },
+        {
+          "name": "is_sidercentro",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadata_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_carhist_ord ON carrier_operational_history (transport_order_number)",
+        "CREATE INDEX idx_carhist_sap ON carrier_operational_history (sap_transport_number)",
+        "CREATE INDEX idx_carhist_drv ON carrier_operational_history (driver_id)",
+        "CREATE INDEX idx_carhist_plt ON carrier_operational_history (vehicle_plate)",
+        "CREATE INDEX idx_carhist_drv_plt ON carrier_operational_history (driver_id, vehicle_plate)",
+        "CREATE INDEX idx_carhist_itin ON carrier_operational_history (itinerary_code)",
+        "CREATE INDEX idx_carhist_date ON carrier_operational_history (transport_date DESC)",
+        "CREATE INDEX idx_carhist_status ON carrier_operational_history (final_status)"
       ]
     }
   ]
