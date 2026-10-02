@@ -36,6 +36,7 @@ import {
   ExternalLink,
   Shield,
   ShieldAlert,
+  ShieldCheck,
   ArrowRight,
   Eye,
   XCircle,
@@ -1600,7 +1601,7 @@ export const MesaFretesPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Card de Apoio à Contratação (Histórico e Qualidade) */}
+                      {/* Card de Apoio à Contratação (Histórico e Qualidade com Confiabilidade Amostral) */}
                       {(() => {
                         const support = getDriverHiringSupport(
                           cand.driverName,
@@ -1608,41 +1609,70 @@ export const MesaFretesPage: React.FC = () => {
                           carrierComplaintsData,
                           carrierComplimentsData,
                         )
+                        const confidenceLabel =
+                          support.totalTransports >= 15
+                            ? 'Alta'
+                            : support.totalTransports >= 5
+                              ? 'Média'
+                              : 'Baixa'
+
                         return (
-                          <div className="mt-2 p-2 bg-sky-50/70 border border-sky-100 rounded-md text-[11px] flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-[#005596]">Histórico CIAFAL:</span>
-                              <span className="text-slate-700">
-                                {support.totalTransports} transportes • Avaliação{' '}
-                                <strong className="text-sky-800">
-                                  {support.avgRating ? `${support.avgRating.toFixed(1)}/5` : 'Novo'}
-                                </strong>{' '}
-                                •{' '}
-                                {support.onTimePct
-                                  ? `${support.onTimePct.toFixed(0)}% pontual`
-                                  : 'Sem viagens'}{' '}
-                                • {support.complaintsProcedenteCount} rec. proc. •{' '}
-                                {support.complimentsCount} elogios
-                              </span>
+                          <div className="mt-2 p-2.5 bg-blue-50/80 border border-blue-200 rounded-md text-[11px] space-y-1.5 shadow-2xs">
+                            <div className="flex flex-wrap items-center justify-between gap-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-[#005596] flex items-center gap-1">
+                                  <ShieldCheck className="w-3.5 h-3.5 text-[#005596]" />
+                                  Score:{' '}
+                                  <strong className="text-base text-slate-900 ml-0.5">
+                                    {support.scoreFinal}/100
+                                  </strong>
+                                </span>
+                                <Badge
+                                  className={
+                                    confidenceLabel === 'Alta'
+                                      ? 'bg-emerald-600 text-white text-[9px]'
+                                      : confidenceLabel === 'Média'
+                                        ? 'bg-amber-600 text-white text-[9px]'
+                                        : 'bg-slate-500 text-white text-[9px]'
+                                  }
+                                >
+                                  Confiabilidade: {confidenceLabel}
+                                </Badge>
+                                <span className="text-slate-600">
+                                  • Transportes: <strong>{support.totalTransports}</strong>•
+                                  Avaliação:{' '}
+                                  <strong>
+                                    {support.avgRating
+                                      ? `${support.avgRating.toFixed(1)}/5`
+                                      : 'N/A'}
+                                  </strong>
+                                  • Pontualidade:{' '}
+                                  <strong>
+                                    {support.onTimePct ? `${support.onTimePct.toFixed(0)}%` : 'N/A'}
+                                  </strong>
+                                  • Reclamações procedentes:{' '}
+                                  <strong>{support.complaintsProcedenteCount}</strong>
+                                  {support.topItineraryCode && (
+                                    <span>
+                                      {' '}
+                                      • Itinerário atual realizado anteriormente:{' '}
+                                      <strong>{support.topItineraryCount} vezes</strong>
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                              <Link
+                                to="/tms/historico-motoristas-veiculos"
+                                className="text-[10px] font-bold text-[#005596] hover:underline flex items-center gap-0.5"
+                              >
+                                Ver histórico completo →
+                              </Link>
                             </div>
-                            <Badge
-                              variant="outline"
-                              className={
-                                support.recommendation === 'ALTAMENTE_RECOMENDADO'
-                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300 text-[9px]'
-                                  : support.recommendation === 'ATENCAO_OPERACIONAL'
-                                    ? 'bg-rose-100 text-rose-800 border-rose-300 text-[9px]'
-                                    : 'bg-white text-slate-700 border-slate-300 text-[9px]'
-                              }
-                            >
-                              {support.recommendation === 'ALTAMENTE_RECOMENDADO'
-                                ? 'Alta Confiança Histórica'
-                                : support.recommendation === 'ATENCAO_OPERACIONAL'
-                                  ? 'Atenção Histórica'
-                                  : support.recommendation === 'NOVO_SEM_HISTORICO'
-                                    ? 'Prestador Novo'
-                                    : 'Recomendado'}
-                            </Badge>
+                            <div className="text-[10px] text-slate-500 italic">
+                              * Diretriz de Governança: Nenhuma contratação é bloqueada
+                              automaticamente por IA ou Score. A decisão é prerrogativa humana do
+                              operador/gestor.
+                            </div>
                           </div>
                         )
                       })()}

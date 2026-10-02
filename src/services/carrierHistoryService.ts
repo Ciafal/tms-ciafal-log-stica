@@ -1,301 +1,533 @@
-import pb from '@/lib/pocketbase/client'
+import { pb } from '@/lib/pocketbase/client'
 import {
   CarrierOperationalRecord,
   CarrierEvaluationRecord,
   CarrierComplaintRecord,
   CarrierComplimentRecord,
 } from '@/domain/carrierHistoryEngine'
+import {
+  SmartAlertItem,
+  detectSmartAlerts,
+  DEFAULT_ALERT_RULES,
+  SmartAlertRuleConfig,
+} from '@/domain/smartAlertsEngine'
+import { ScoreRuleVersion, DEFAULT_SCORE_WEIGHTS } from '@/domain/scoreGovernanceEngine'
 
-export class CarrierHistoryService {
+export interface AuditLogPayload {
+  action_type: string
+  entity_name: string
+  record_id?: string
+  user_email: string
+  user_name: string
+  before_data?: any
+  after_data?: any
+  justification?: string
+}
+
+class CarrierHistoryService {
   /**
-   * Busca registros operacionais históricos com paginação e filtros
+   * Registra log de auditoria oficial
    */
-  async getOperationalHistory(params?: {
-    filter?: string
-    sort?: string
-    page?: number
-    perPage?: number
-  }): Promise<{ items: CarrierOperationalRecord[]; totalItems: number }> {
+  async logAudit(payload: AuditLogPayload): Promise<void> {
     try {
-      const res = await pb
-        .collection('carrier_operational_history')
-        .getList<CarrierOperationalRecord>(params?.page || 1, params?.perPage || 100, {
-          filter: params?.filter || '',
-          sort: params?.sort || '-transport_date',
-        })
-      return { items: res.items, totalItems: res.totalItems }
-    } catch (err) {
-      console.warn('Falha ao listar carrier_operational_history:', err)
-      return { items: [], totalItems: 0 }
-    }
-  }
-
-  /**
-   * Salva ou cria registro histórico operacional
-   */
-  async saveOperationalRecord(
-    record: Partial<CarrierOperationalRecord>,
-  ): Promise<CarrierOperationalRecord> {
-    if (record.id) {
-      return await pb
-        .collection('carrier_operational_history')
-        .update<CarrierOperationalRecord>(record.id, record)
-    }
-    return await pb
-      .collection('carrier_operational_history')
-      .create<CarrierOperationalRecord>(record)
-  }
-
-  /**
-   * Lista avaliações estruturadas
-   */
-  async getEvaluations(filter?: string): Promise<CarrierEvaluationRecord[]> {
-    try {
-      return await pb.collection('carrier_evaluations').getFullList<CarrierEvaluationRecord>({
-        filter: filter || '',
-        sort: '-created',
+      await pb.collection('audit_logs').create({
+        action: payload.action_type,
+        user_email: payload.user_email || 'admin.master@ciafal.com.br',
+        details: JSON.stringify({
+          entity: payload.entity_name,
+          record_id: payload.record_id,
+          user_name: payload.user_name,
+          before: payload.before_data,
+          after: payload.after_data,
+          justification: payload.justification,
+          timestamp: new Date().toISOString(),
+        }),
       })
+    } catch (e) {
+      console.warn('Falha ao gravar audit_logs:', e)
+    }
+  }
+
+  /**
+   * Busca registros operacionais reais da coleção carrier_operational_history
+   */
+  async getOperationalHistory(
+    optionsOrLimit?: { perPage?: number; page?: number } | number,
+  ): Promise<
+    CarrierOperationalRecord[] & { items: CarrierOperationalRecord[]; totalItems: number }
+  > {
+    const limit =
+      typeof optionsOrLimit === 'number' ? optionsOrLimit : optionsOrLimit?.perPage || 200
+    try {
+      const records = await pb
+        .collection('carrier_operational_history')
+        .getList<CarrierOperationalRecord>(1, limit, {
+          sort: '-transport_date',
+        })
+      const arr = [...records.items] as any
+      arr.items = records.items
+      arr.totalItems = records.totalItems
+      return arr
     } catch (err) {
-      console.warn('Falha ao listar carrier_evaluations:', err)
+      console.warn('Erro ao carregar carrier_operational_history:', err)
+      const empty = [] as any
+      empty.items = []
+      empty.totalItems = 0
+      return empty
+    }
+  }
+
+  /**
+   * Busca avaliações reais
+   */
+  async getEvaluations(limit = 200): Promise<CarrierEvaluationRecord[]> {
+    try {
+      const records = await pb
+        .collection('carrier_evaluations')
+        .getList<CarrierEvaluationRecord>(1, limit, {
+          sort: '-evaluation_date',
+        })
+      return records.items
+    } catch (err) {
+      console.warn('Erro ao carregar carrier_evaluations:', err)
       return []
     }
   }
 
   /**
-   * Cria nova avaliação com auditoria
+   * Busca reclamações reais
+   */
+  async getComplaints(limit = 200): Promise<CarrierComplaintRecord[]> {
+    try {
+      const records = await pb
+        .collection('carrier_complaints')
+        .getList<CarrierComplaintRecord>(1, limit, {
+          sort: '-occurrence_date',
+        })
+      return records.items
+    } catch (err) {
+      console.warn('Erro ao carregar carrier_complaints:', err)
+      return []
+    }
+  }
+
+  /**
+   * Busca elogios reais
+   */
+  async getCompliments(limit = 200): Promise<CarrierComplimentRecord[]> {
+    try {
+      const records = await pb
+        .collection('carrier_compliments')
+        .getList<CarrierComplimentRecord>(1, limit, {
+          sort: '-compliment_date',
+        })
+      return records.items
+    } catch (err) {
+      console.warn('Erro ao carregar carrier_compliments:', err)
+      return []
+    }
+  }
+
+  /**
+   * Salva avaliação com auditoria
    */
   async createEvaluation(
-    evaluation: CarrierEvaluationRecord,
-    userEmail?: string,
-    userName?: string,
+    data: Partial<CarrierEvaluationRecord>,
+    userEmail = 'admin.master@ciafal.com.br',
+    userName = 'Administrador Master',
   ): Promise<CarrierEvaluationRecord> {
-    const created = await pb.collection('carrier_evaluations').create<CarrierEvaluationRecord>({
-      ...evaluation,
-      origin_user_email: userEmail || evaluation.origin_user_email,
-      origin_user_name: userName || evaluation.origin_user_name,
-      evaluation_date: evaluation.evaluation_date || new Date().toISOString(),
+    const created = await pb.collection('carrier_evaluations').create<CarrierEvaluationRecord>(data)
+    await this.logAudit({
+      action_type: 'CARRIER_EVALUATION_CREATE',
+      entity_name: 'carrier_evaluations',
+      record_id: created.id,
+      user_email: userEmail,
+      user_name: userName,
+      after_data: data,
+      justification: 'Registro de avaliação formal de prestador',
     })
-
-    // Registrar em audit_logs
-    try {
-      await pb.collection('audit_logs').create({
-        user_email: userEmail || 'operador@ciafal.com.br',
-        user_name: userName || 'Operador TMS',
-        user_role: 'operador_logistica',
-        action: 'CRIAR_AVALIACAO_PRESTADOR',
-        resource: 'carrier_evaluations',
-        resource_id: created.id,
-        new_state: JSON.stringify({
-          target: created.target_type,
-          driver: created.driver_name,
-          plate: created.vehicle_plate,
-          rating_driver: created.driver_avg_score,
-          rating_vehicle: created.vehicle_avg_score,
-        }),
-        reason: 'Registro de avaliação de qualidade operacional de prestador',
-        correlation_id: `EVAL-${Date.now()}`,
-      })
-    } catch {
-      /* intentionally ignored */
-    }
-
     return created
   }
 
   /**
-   * Lista reclamações
-   */
-  async getComplaints(filter?: string): Promise<CarrierComplaintRecord[]> {
-    try {
-      return await pb.collection('carrier_complaints').getFullList<CarrierComplaintRecord>({
-        filter: filter || '',
-        sort: '-created',
-      })
-    } catch (err) {
-      console.warn('Falha ao listar carrier_complaints:', err)
-      return []
-    }
-  }
-
-  /**
-   * Registra nova reclamação
+   * Salva reclamação com auditoria
    */
   async createComplaint(
-    complaint: Omit<CarrierComplaintRecord, 'id'>,
-    userEmail?: string,
-    userName?: string,
+    data: Partial<CarrierComplaintRecord>,
+    userEmail = 'admin.master@ciafal.com.br',
+    userName = 'Administrador Master',
   ): Promise<CarrierComplaintRecord> {
-    const complaintNumber = `REC-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`
-    const payload = {
-      ...complaint,
-      complaint_number: complaint.complaint_number || complaintNumber,
-      status: complaint.status || 'REGISTRADA',
-      registered_by_email: userEmail || complaint.registered_by_email,
-      registered_by_name: userName || complaint.registered_by_name,
-      occurrence_date: complaint.occurrence_date || new Date().toISOString(),
-      audit_trail_json: [
-        {
-          date: new Date().toISOString(),
-          user: userName || 'Operador',
-          action: 'REGISTRO_INICIAL',
-          new_status: 'REGISTRADA',
-        },
-      ],
-    }
-
-    const created = await pb
-      .collection('carrier_complaints')
-      .create<CarrierComplaintRecord>(payload)
-
-    // Audit log
-    try {
-      await pb.collection('audit_logs').create({
-        user_email: userEmail || 'operador@ciafal.com.br',
-        user_name: userName || 'Operador TMS',
-        user_role: 'operador_logistica',
-        action: 'REGISTRAR_RECLAMACAO_PRESTADOR',
-        resource: 'carrier_complaints',
-        resource_id: created.id,
-        new_state: JSON.stringify({
-          number: created.complaint_number,
-          category: created.category,
-          severity: created.severity,
-          driver: created.driver_name,
-          plate: created.vehicle_plate,
-        }),
-        reason: 'Registro formal de reclamação operacional',
-        correlation_id: `COMP-${Date.now()}`,
-      })
-    } catch {
-      /* intentionally ignored */
-    }
-
+    const created = await pb.collection('carrier_complaints').create<CarrierComplaintRecord>(data)
+    await this.logAudit({
+      action_type: 'CARRIER_COMPLAINT_CREATE',
+      entity_name: 'carrier_complaints',
+      record_id: created.id,
+      user_email: userEmail,
+      user_name: userName,
+      after_data: data,
+      justification: 'Registro de ocorrência/reclamação de prestador',
+    })
     return created
   }
 
   /**
-   * Tratamento / Atualização de Reclamação por responsável autorizado (Supervisor / Gestor)
+   * Salva elogio com auditoria
+   */
+  async createCompliment(
+    data: Partial<CarrierComplimentRecord>,
+    userEmail = 'admin.master@ciafal.com.br',
+    userName = 'Administrador Master',
+  ): Promise<CarrierComplimentRecord> {
+    const created = await pb.collection('carrier_compliments').create<CarrierComplimentRecord>(data)
+    await this.logAudit({
+      action_type: 'CARRIER_COMPLIMENT_CREATE',
+      entity_name: 'carrier_compliments',
+      record_id: created.id,
+      user_email: userEmail,
+      user_name: userName,
+      after_data: data,
+      justification: 'Registro formal de elogio de cliente/operação',
+    })
+    return created
+  }
+
+  /**
+   * Atualiza status/tratamento de uma reclamação
    */
   async updateComplaintTreatment(
     id: string,
-    data: {
-      status: CarrierComplaintRecord['status']
-      analysis_notes?: string
-      driver_carrier_manifestation?: string
-      conclusion?: string
-      action_taken?: string
-      analyst_email: string
-      analyst_name: string
-    },
+    data: Partial<CarrierComplaintRecord>,
+    userEmail = 'supervisor@ciafal.com.br',
+    userName = 'Supervisor Logística',
   ): Promise<CarrierComplaintRecord> {
-    const existing = await pb.collection('carrier_complaints').getOne<CarrierComplaintRecord>(id)
-    const auditTrail = Array.isArray(existing.audit_trail_json)
-      ? [...existing.audit_trail_json]
-      : []
-
-    auditTrail.push({
-      date: new Date().toISOString(),
-      user: data.analyst_name,
-      action: `TRATAMENTO_STATUS_${data.status}`,
-      previous_status: existing.status,
-      new_status: data.status,
-    })
-
-    const payload = {
-      ...data,
-      resolved_at: [
-        'PROCEDENTE',
-        'IMPROCEDENTE',
-        'PARCIALMENTE_PROCEDENTE',
-        'TRATADA',
-        'ENCERRADA',
-      ].includes(data.status)
-        ? new Date().toISOString()
-        : existing.resolved_at,
-      audit_trail_json: auditTrail,
-    }
-
     const updated = await pb
       .collection('carrier_complaints')
-      .update<CarrierComplaintRecord>(id, payload)
-
-    // Log de auditoria
-    try {
-      await pb.collection('audit_logs').create({
-        user_email: data.analyst_email,
-        user_name: data.analyst_name,
-        user_role: 'supervisor',
-        action: 'TRATAMENTO_RECLAMACAO',
-        resource: 'carrier_complaints',
-        resource_id: id,
-        previous_state: existing.status,
-        new_state: data.status,
-        reason: data.conclusion || data.analysis_notes || 'Tratamento de reclamação de prestador',
-        correlation_id: `TREAT-${id}-${Date.now()}`,
-      })
-    } catch {
-      /* intentionally ignored */
-    }
-
+      .update<CarrierComplaintRecord>(id, data)
+    await this.logAudit({
+      action_type: 'CARRIER_COMPLAINT_UPDATE_TREATMENT',
+      entity_name: 'carrier_complaints',
+      record_id: id,
+      user_email: userEmail,
+      user_name: userName,
+      after_data: data,
+      justification: `Tratamento formal de reclamação: ${data.status} - ${data.conclusion || ''}`,
+    })
     return updated
   }
 
+  // =========================================================================
+  // GESTÃO DE ALERTAS INTELIGENTES
+  // =========================================================================
+
   /**
-   * Lista elogios
+   * Carrega alertas do banco ou calcula dinamicamente com base nas coleções reais
    */
-  async getCompliments(filter?: string): Promise<CarrierComplimentRecord[]> {
+  async getSmartAlerts(
+    ruleConfig: SmartAlertRuleConfig = DEFAULT_ALERT_RULES,
+  ): Promise<SmartAlertItem[]> {
     try {
-      return await pb.collection('carrier_compliments').getFullList<CarrierComplimentRecord>({
-        filter: filter || '',
+      const persisted = await pb.collection('carrier_smart_alerts').getList<any>(1, 100, {
+        sort: '-detection_date',
+      })
+      if (persisted.items.length > 0) {
+        return persisted.items.map((it) => ({
+          ...it,
+          related_transports_json: Array.isArray(it.related_transports_json)
+            ? it.related_transports_json
+            : typeof it.related_transports_json === 'string'
+              ? JSON.parse(it.related_transports_json || '[]')
+              : [],
+          related_complaints_json: Array.isArray(it.related_complaints_json)
+            ? it.related_complaints_json
+            : typeof it.related_complaints_json === 'string'
+              ? JSON.parse(it.related_complaints_json || '[]')
+              : [],
+          audit_trail_json: Array.isArray(it.audit_trail_json)
+            ? it.audit_trail_json
+            : typeof it.audit_trail_json === 'string'
+              ? JSON.parse(it.audit_trail_json || '[]')
+              : [],
+        }))
+      }
+    } catch (err) {
+      console.warn('Erro ao listar carrier_smart_alerts do banco:', err)
+    }
+
+    // Se ainda não persistido no banco, calcula em tempo de execução pelos dados reais
+    const [history, evaluations, complaints] = await Promise.all([
+      this.getOperationalHistory(),
+      this.getEvaluations(),
+      this.getComplaints(),
+    ])
+
+    return detectSmartAlerts(history, evaluations, complaints, ruleConfig)
+  }
+
+  /**
+   * Atualiza status ou tratamento de um alerta com auditoria
+   */
+  async updateAlertTreatment(
+    alertCode: string,
+    updateData: Partial<SmartAlertItem>,
+    userEmail: string,
+    userName: string,
+    justification?: string,
+  ): Promise<SmartAlertItem> {
+    try {
+      // Localiza registro no banco
+      const existing = await pb
+        .collection('carrier_smart_alerts')
+        .getFirstListItem<any>(`alert_code = "${alertCode}"`)
+      const currentAuditTrail = Array.isArray(existing.audit_trail_json)
+        ? existing.audit_trail_json
+        : JSON.parse(existing.audit_trail_json || '[]')
+
+      currentAuditTrail.push({
+        date: new Date().toISOString(),
+        user: `${userName} (${userEmail})`,
+        action: `Alteração de status para ${updateData.status || existing.status}`,
+        notes: justification || updateData.action_plan || 'Tratamento de alerta registrado',
+      })
+
+      const payload = {
+        ...updateData,
+        audit_trail_json: currentAuditTrail,
+      }
+
+      const updated = await pb.collection('carrier_smart_alerts').update<any>(existing.id, payload)
+
+      await this.logAudit({
+        action_type: 'CARRIER_SMART_ALERT_UPDATE',
+        entity_name: 'carrier_smart_alerts',
+        record_id: existing.id,
+        user_email: userEmail,
+        user_name: userName,
+        before_data: { status: existing.status, plan: existing.action_plan },
+        after_data: updateData,
+        justification: justification || 'Tratamento de anomalia logística',
+      })
+
+      return updated
+    } catch (_) {
+      // Se ainda não estava persistido, cria agora
+      const created = await pb.collection('carrier_smart_alerts').create<any>({
+        ...updateData,
+        alert_code: alertCode,
+        audit_trail_json: [
+          {
+            date: new Date().toISOString(),
+            user: `${userName} (${userEmail})`,
+            action: `Criação e tratamento inicial (${updateData.status})`,
+            notes: justification,
+          },
+        ],
+      })
+
+      await this.logAudit({
+        action_type: 'CARRIER_SMART_ALERT_PERSIST_AND_UPDATE',
+        entity_name: 'carrier_smart_alerts',
+        record_id: created.id,
+        user_email: userEmail,
+        user_name: userName,
+        after_data: updateData,
+        justification: justification || 'Registro formal de tratamento em carrier_smart_alerts',
+      })
+
+      return created
+    }
+  }
+
+  // =========================================================================
+  // GESTÃO E VERSIONAMENTO DE REGRAS DE SCORE
+  // =========================================================================
+
+  /**
+   * Obtém a versão vigente do Score Operacional
+   */
+  async getActiveScoreRule(): Promise<ScoreRuleVersion> {
+    try {
+      const record = await pb
+        .collection('carrier_score_rule_versions')
+        .getFirstListItem<any>('lifecycle_status = "VIGENTE"', {
+          sort: '-effective_start_date',
+        })
+      return {
+        id: record.id,
+        version_code: record.version_code,
+        rule_name: record.rule_name,
+        lifecycle_status: record.lifecycle_status,
+        weights: {
+          servicesEvaluationPct: record.weight_services_evaluation_pct,
+          punctualityPct: record.weight_punctuality_pct,
+          procedenteComplaintsPct: record.weight_procedente_complaints_pct,
+          occurrencesPct: record.weight_occurrences_pct,
+          communicationPct: record.weight_communication_pct,
+          deliveryHistoryPct: record.weight_delivery_history_pct,
+          complimentsPct: record.weight_compliments_pct,
+        },
+        target_coverage_pct: record.target_coverage_pct || 80,
+        min_transports_for_high_confidence: record.min_transports_for_high_confidence || 15,
+        min_transports_for_medium_confidence: record.min_transports_for_medium_confidence || 5,
+        effective_start_date: record.effective_start_date,
+        effective_end_date: record.effective_end_date,
+        justification: record.justification,
+        created_by_user_email: record.created_by_user_email,
+        created_by_user_name: record.created_by_user_name,
+        homologated_by_user_email: record.homologated_by_user_email,
+        homologated_by_user_name: record.homologated_by_user_name,
+        homologated_at: record.homologated_at,
+        previous_values_json: record.previous_values_json,
+        simulation_impact_json: record.simulation_impact_json,
+      }
+    } catch (_) {
+      // Fallback para padrão
+      return {
+        version_code: 'REG-SCORE-v1.0.0',
+        rule_name: 'Matriz de Score Operacional Padrão CIAFAL 2026',
+        lifecycle_status: 'VIGENTE',
+        weights: DEFAULT_SCORE_WEIGHTS,
+        target_coverage_pct: 80,
+        min_transports_for_high_confidence: 15,
+        min_transports_for_medium_confidence: 5,
+        justification: 'Regra canônica padrão CIAFAL',
+      }
+    }
+  }
+
+  /**
+   * Lista todas as versões de regras cadastradas (histórico imutável)
+   */
+  async listScoreRuleVersions(): Promise<ScoreRuleVersion[]> {
+    try {
+      const list = await pb.collection('carrier_score_rule_versions').getList<any>(1, 50, {
         sort: '-created',
       })
-    } catch (err) {
-      console.warn('Falha ao listar carrier_compliments:', err)
+      return list.items.map((record) => ({
+        id: record.id,
+        version_code: record.version_code,
+        rule_name: record.rule_name,
+        lifecycle_status: record.lifecycle_status,
+        weights: {
+          servicesEvaluationPct: record.weight_services_evaluation_pct,
+          punctualityPct: record.weight_punctuality_pct,
+          procedenteComplaintsPct: record.weight_procedente_complaints_pct,
+          occurrencesPct: record.weight_occurrences_pct,
+          communicationPct: record.weight_communication_pct,
+          deliveryHistoryPct: record.weight_delivery_history_pct,
+          complimentsPct: record.weight_compliments_pct,
+        },
+        target_coverage_pct: record.target_coverage_pct,
+        min_transports_for_high_confidence: record.min_transports_for_high_confidence,
+        min_transports_for_medium_confidence: record.min_transports_for_medium_confidence,
+        effective_start_date: record.effective_start_date,
+        effective_end_date: record.effective_end_date,
+        justification: record.justification,
+        created_by_user_email: record.created_by_user_email,
+        created_by_user_name: record.created_by_user_name,
+        homologated_by_user_email: record.homologated_by_user_email,
+        homologated_by_user_name: record.homologated_by_user_name,
+        homologated_at: record.homologated_at,
+        previous_values_json: record.previous_values_json,
+        simulation_impact_json: record.simulation_impact_json,
+      }))
+    } catch (_) {
       return []
     }
   }
 
   /**
-   * Cria novo elogio
+   * Salva nova versão de regra de score (Rascunho ou Homologada) com auditoria
    */
-  async createCompliment(
-    compliment: Omit<CarrierComplimentRecord, 'id'>,
-    userName?: string,
-  ): Promise<CarrierComplimentRecord> {
-    const complimentNumber = `ELOG-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`
+  async createScoreRuleVersion(
+    version: ScoreRuleVersion,
+    userEmail: string,
+    userName: string,
+  ): Promise<ScoreRuleVersion> {
     const payload = {
-      ...compliment,
-      compliment_number: compliment.compliment_number || complimentNumber,
-      registered_by_name: userName || compliment.registered_by_name || 'Operador TMS',
-      compliment_date: compliment.compliment_date || new Date().toISOString(),
+      version_code: version.version_code,
+      rule_name: version.rule_name,
+      lifecycle_status: version.lifecycle_status,
+      weight_services_evaluation_pct: version.weights.servicesEvaluationPct,
+      weight_punctuality_pct: version.weights.punctualityPct,
+      weight_procedente_complaints_pct: version.weights.procedenteComplaintsPct,
+      weight_occurrences_pct: version.weights.occurrencesPct,
+      weight_communication_pct: version.weights.communicationPct,
+      weight_delivery_history_pct: version.weights.deliveryHistoryPct,
+      weight_compliments_pct: version.weights.complimentsPct,
+      weights_sum_pct: 100,
+      target_coverage_pct: version.target_coverage_pct,
+      min_transports_for_high_confidence: version.min_transports_for_high_confidence,
+      min_transports_for_medium_confidence: version.min_transports_for_medium_confidence,
+      effective_start_date: version.effective_start_date || new Date().toISOString(),
+      justification: version.justification,
+      created_by_user_email: userEmail,
+      created_by_user_name: userName,
+      homologated_by_user_email: version.homologated_by_user_email,
+      homologated_by_user_name: version.homologated_by_user_name,
+      homologated_at: version.homologated_at,
+      previous_values_json: version.previous_values_json,
+      simulation_impact_json: version.simulation_impact_json,
     }
 
-    const created = await pb
-      .collection('carrier_compliments')
-      .create<CarrierComplimentRecord>(payload)
+    const created = await pb.collection('carrier_score_rule_versions').create<any>(payload)
 
-    // Audit log
+    await this.logAudit({
+      action_type: 'CARRIER_SCORE_RULE_CREATE',
+      entity_name: 'carrier_score_rule_versions',
+      record_id: created.id,
+      user_email: userEmail,
+      user_name: userName,
+      after_data: payload,
+      justification: version.justification,
+    })
+
+    return {
+      ...version,
+      id: created.id,
+    }
+  }
+
+  /**
+   * Ativa uma regra homologada tornando-a VIGENTE e arquivando a anterior
+   */
+  async activateScoreRuleVersion(
+    ruleId: string,
+    userEmail: string,
+    userName: string,
+    justification: string,
+  ): Promise<void> {
+    // 1. Arquiva a regra vigente atual
     try {
-      await pb.collection('audit_logs').create({
-        user_email: 'operador@ciafal.com.br',
-        user_name: userName || 'Operador TMS',
-        user_role: 'operador_logistica',
-        action: 'REGISTRAR_ELOGIO_PRESTADOR',
-        resource: 'carrier_compliments',
-        resource_id: created.id,
-        new_state: JSON.stringify({
-          number: created.compliment_number,
-          category: created.category,
-          driver: created.driver_name,
-        }),
-        reason: 'Registro de ocorrência positiva / elogio',
-        correlation_id: `COMPL-${Date.now()}`,
-      })
+      const activeCurrent = await pb
+        .collection('carrier_score_rule_versions')
+        .getFirstListItem<any>('lifecycle_status = "VIGENTE"')
+      if (activeCurrent && activeCurrent.id !== ruleId) {
+        await pb.collection('carrier_score_rule_versions').update(activeCurrent.id, {
+          lifecycle_status: 'ARQUIVADO',
+          effective_end_date: new Date().toISOString(),
+        })
+      }
     } catch {
       /* intentionally ignored */
     }
 
-    return created
+    // 2. Torna vigente a nova
+    await pb.collection('carrier_score_rule_versions').update(ruleId, {
+      lifecycle_status: 'VIGENTE',
+      effective_start_date: new Date().toISOString(),
+      homologated_by_user_email: userEmail,
+      homologated_by_user_name: userName,
+      homologated_at: new Date().toISOString(),
+    })
+
+    await this.logAudit({
+      action_type: 'CARRIER_SCORE_RULE_ACTIVATE',
+      entity_name: 'carrier_score_rule_versions',
+      record_id: ruleId,
+      user_email: userEmail,
+      user_name: userName,
+      justification,
+    })
   }
 }
 

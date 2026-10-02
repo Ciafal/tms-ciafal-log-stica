@@ -49,6 +49,8 @@ import {
   VehicleConsolidatedMetrics,
   ItineraryHistoricalAnalysis,
 } from '@/domain/carrierHistoryEngine'
+import { SmartAlertItem } from '@/domain/smartAlertsEngine'
+import { SmartAlertsTab } from '@/components/SmartAlertsTab'
 import { carrierHistoryService } from '@/services/carrierHistoryService'
 
 export const DriverVehicleHistoryPage: React.FC = () => {
@@ -59,6 +61,7 @@ export const DriverVehicleHistoryPage: React.FC = () => {
   const [evaluations, setEvaluations] = useState<CarrierEvaluationRecord[]>([])
   const [complaints, setComplaints] = useState<CarrierComplaintRecord[]>([])
   const [compliments, setCompliments] = useState<CarrierComplimentRecord[]>([])
+  const [smartAlerts, setSmartAlerts] = useState<SmartAlertItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   // Filtros Combináveis
@@ -87,17 +90,19 @@ export const DriverVehicleHistoryPage: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true)
     try {
-      const [histRes, evalsRes, compRes, complRes] = await Promise.all([
-        carrierHistoryService.getOperationalHistory({ perPage: 200 }),
-        carrierHistoryService.getEvaluations(),
-        carrierHistoryService.getComplaints(),
-        carrierHistoryService.getCompliments(),
+      const [histRes, evalsRes, compRes, complRes, alertsRes] = await Promise.all([
+        carrierHistoryService.getOperationalHistory(200),
+        carrierHistoryService.getEvaluations(200),
+        carrierHistoryService.getComplaints(200),
+        carrierHistoryService.getCompliments(200),
+        carrierHistoryService.getSmartAlerts(),
       ])
 
-      setHistoryList(histRes.items)
+      setHistoryList(histRes)
       setEvaluations(evalsRes)
       setComplaints(compRes)
       setCompliments(complRes)
+      setSmartAlerts(alertsRes)
     } catch (err) {
       console.error('Erro ao carregar histórico operacional:', err)
     } finally {
@@ -505,6 +510,13 @@ export const DriverVehicleHistoryPage: React.FC = () => {
             Consulta Histórica de Ordens ({filteredRecords.length})
           </TabsTrigger>
           <TabsTrigger
+            value="alertas"
+            className="text-xs data-[state=active]:bg-[#005596] data-[state=active]:text-white font-bold"
+          >
+            <AlertTriangle className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
+            Alertas Inteligentes ({smartAlerts.length})
+          </TabsTrigger>
+          <TabsTrigger
             value="tempos"
             className="text-xs data-[state=active]:bg-[#005596] data-[state=active]:text-white"
           >
@@ -533,6 +545,22 @@ export const DriverVehicleHistoryPage: React.FC = () => {
             Motoristas & Score Explicável
           </TabsTrigger>
         </TabsList>
+
+        {/* ABA: ALERTAS INTELIGENTES DETERMINÍSTICOS (PARTE 1 DO ESCOPO) */}
+        <TabsContent value="alertas" className="space-y-4 pt-2">
+          <SmartAlertsTab
+            alerts={smartAlerts}
+            onRefresh={loadData}
+            userEmail={user?.email || 'admin.master@ciafal.com.br'}
+            userName={user?.name || 'Administrador Master'}
+            onOpenTransportDetail={(ord) => {
+              const rec = historyList.find((r) => r.transport_order_number === ord)
+              if (rec) setSelectedRecordForDetail(rec)
+            }}
+            onOpenDriver360={handleOpenDriver360}
+            onOpenVehicle360={handleOpenVehicle360}
+          />
+        </TabsContent>
 
         {/* ========================================================================= */}
         {/* ABA 1: CONSULTA HISTÓRICA DE ORDENS DE TRANSPORTE                         */}

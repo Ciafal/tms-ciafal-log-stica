@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T12:26:04.122Z",
+  "generatedAt": "2026-10-02T12:49:17.983Z",
   "collections": [
     {
       "name": "users",
@@ -13040,6 +13040,526 @@
         "CREATE INDEX idx_carhist_itin ON carrier_operational_history (itinerary_code)",
         "CREATE INDEX idx_carhist_date ON carrier_operational_history (transport_date DESC)",
         "CREATE INDEX idx_carhist_status ON carrier_operational_history (final_status)"
+      ]
+    },
+    {
+      "name": "carrier_smart_alerts",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "alert_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "alert_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "QUEDA_AVALIACAO",
+            "QTD_RECLAMACOES",
+            "REINCIDENCIA_CATEGORIA",
+            "QUEDA_PONTUALIDADE",
+            "AUMENTO_TEMPO_ROTA",
+            "AUMENTO_TEMPO_INTERNO",
+            "VEICULO_REINCIDENCIA",
+            "MOTORISTA_NOVO",
+            "VEICULO_NOVO",
+            "DIVERGENCIA_SCORE_COMPORTAMENTO"
+          ]
+        },
+        {
+          "name": "severity",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["INFORMATIVO", "ATENCAO", "IMPORTANTE", "CRITICO"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "NOVO",
+            "EM_ANALISE",
+            "ACAO_NECESSARIA",
+            "EM_TRATAMENTO",
+            "RESOLVIDO",
+            "ENCERRADO",
+            "DESCARTADO",
+            "FALSO_POSITIVO"
+          ]
+        },
+        {
+          "name": "target_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "carrier_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "transport_order_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "detection_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evidence_summary",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "historical_value",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_value",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "triggered_criteria",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "internal_external_origin",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsible_handler_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsible_handler_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "action_plan",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "action_deadline",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resolution_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "discard_justification",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resolved_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "related_transports_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "related_evaluations_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "related_complaints_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "attachments_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "audit_trail_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadata_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_smrtalt_code ON carrier_smart_alerts (alert_code)",
+        "CREATE INDEX idx_smrtalt_type ON carrier_smart_alerts (alert_type)",
+        "CREATE INDEX idx_smrtalt_status ON carrier_smart_alerts (status)",
+        "CREATE INDEX idx_smrtalt_sev ON carrier_smart_alerts (severity)",
+        "CREATE INDEX idx_smrtalt_drv ON carrier_smart_alerts (driver_id)",
+        "CREATE INDEX idx_smrtalt_plt ON carrier_smart_alerts (vehicle_plate)",
+        "CREATE INDEX idx_smrtalt_sap ON carrier_smart_alerts (sap_transport_number)"
+      ]
+    },
+    {
+      "name": "carrier_score_rule_versions",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "version_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "rule_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "lifecycle_status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["RASCUNHO", "SIMULADO", "HOMOLOGADO", "VIGENTE", "ARQUIVADO"]
+        },
+        {
+          "name": "weight_services_evaluation_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "weight_punctuality_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "weight_procedente_complaints_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "weight_occurrences_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "weight_communication_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "weight_delivery_history_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "weight_compliments_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "weights_sum_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "target_coverage_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "min_transports_for_high_confidence",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "min_transports_for_medium_confidence",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "effective_start_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "effective_end_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "justification",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created_by_user_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_by_user_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "homologated_by_user_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "homologated_by_user_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "homologated_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "previous_values_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "simulation_impact_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_scrrul_ver ON carrier_score_rule_versions (version_code)",
+        "CREATE INDEX idx_scrrul_status ON carrier_score_rule_versions (lifecycle_status)"
+      ]
+    },
+    {
+      "name": "carrier_score_snapshots",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "snapshot_period",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "target_type",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "target_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "target_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "rule_version_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "score_final",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "confidence_level",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["BAIXA", "MEDIA", "ALTA"]
+        },
+        {
+          "name": "transports_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evaluations_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score_breakdown_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "input_metrics_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_scrsnap_period ON carrier_score_snapshots (snapshot_period)",
+        "CREATE INDEX idx_scrsnap_target ON carrier_score_snapshots (target_id, target_type)",
+        "CREATE INDEX idx_scrsnap_ver ON carrier_score_snapshots (rule_version_code)"
       ]
     }
   ]

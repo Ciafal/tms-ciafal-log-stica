@@ -50,6 +50,8 @@ import { FreightIntelligencePage } from '@/pages/FreightIntelligencePage'
 import { AiAutonomyAndRulesPage } from '@/pages/AiAutonomyAndRulesPage'
 import { DriverVehicleHistoryPage } from '@/pages/DriverVehicleHistoryPage'
 import { CarrierEvaluationPage } from '@/pages/CarrierEvaluationPage'
+import { ProviderExecutiveDashboardPage } from '@/pages/ProviderExecutiveDashboardPage'
+import { ScoreGovernanceAndCalibrationPage } from '@/pages/ScoreGovernanceAndCalibrationPage'
 import PrintMonitorPage from '@/pages/PrintMonitorPage'
 import CargoDetailPage from '@/pages/CargoDetailPage'
 import ProfitabilityDashboardPage from '@/pages/ProfitabilityDashboardPage'
@@ -264,6 +266,14 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <CarrierEvaluationPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/avaliacao-veiculo-motorista/configuracao-score"
+            element={
+              <Layout>
+                <ScoreGovernanceAndCalibrationPage />
               </Layout>
             }
           />
@@ -649,6 +659,14 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <DriverVehicleHistoryPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/analises/dashboard-prestadores"
+            element={
+              <Layout>
+                <ProviderExecutiveDashboardPage />
               </Layout>
             }
           />

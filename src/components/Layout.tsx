@@ -192,6 +192,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: true,
         },
         {
+          title: 'Configuração do Score',
+          path: '/tms/avaliacao-veiculo-motorista/configuracao-score',
+          badge: 'Pesos 100%',
+          badgeColor: 'bg-[#005596]',
+          show:
+            role === 'admin_master' || role === 'admin_tms' || role === 'gestor_logistica' || true,
+        },
+        {
           title: 'Tabela ANTT Oficial',
           path: '/tms/tabela-antt',
           badge: 'Oficial',
@@ -335,8 +343,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         {
           title: 'Histórico Motoristas/Veículos',
           path: '/tms/historico-motoristas-veiculos',
-          badge: '360°',
+          badge: '360° & Alertas',
           badgeColor: 'bg-[#005596]',
+          show: true,
+        },
+        {
+          title: 'Dashboard de Prestadores',
+          path: '/tms/analises/dashboard-prestadores',
+          badge: 'Executivo',
+          badgeColor: 'bg-sky-600',
           show: true,
         },
         {
