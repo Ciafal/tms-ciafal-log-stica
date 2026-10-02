@@ -45,6 +45,7 @@ import PrintersAdminPage from '@/pages/PrintersAdminPage'
 import { ExpeditionManagementPage } from '@/pages/ExpeditionManagementPage'
 import { ExpeditionControlTowerPage } from '@/pages/ExpeditionControlTowerPage'
 import { CollectorPage } from '@/pages/CollectorPage'
+import { StandaloneCollectorPage } from '@/pages/StandaloneCollectorPage'
 import { FreightIntelligencePage } from '@/pages/FreightIntelligencePage'
 import { AiAutonomyAndRulesPage } from '@/pages/AiAutonomyAndRulesPage'
 import PrintMonitorPage from '@/pages/PrintMonitorPage'
@@ -75,6 +76,10 @@ export const App: React.FC = () => {
           <Route path="/tms/oferta/:id" element={<DriverOfferPublicPage />} />
           <Route path="/oferta/:id" element={<DriverOfferPublicPage />} />
           <Route path="/motorista/:sapNumber" element={<DriverMobileCompanionPage />} />
+
+          {/* Rota Direta Dedicada para o Coletor de Expedição (Chainway C72 / Tablet) */}
+          <Route path="/coletor" element={<StandaloneCollectorPage />} />
+          <Route path="/tms/expedicao/coletor/mobile" element={<StandaloneCollectorPage />} />
           <Route path="/tms/motorista-mobile/:sapNumber" element={<DriverMobileCompanionPage />} />
 
           {/* Authenticated Internal TMS Routes */}

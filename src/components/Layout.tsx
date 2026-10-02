@@ -50,6 +50,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { getRoleLabel } from '@/domain/rules'
 import ciafalLogo from '@/assets/logo-ciafal-0e4b2.png'
+import { CollectorAccessModal } from '@/components/CollectorAccessModal'
 
 interface MenuGroup {
   id: string
@@ -69,6 +70,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const { user, role, permissions, logout, setSimulatedRole } = useAuth()
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [collectorModalOpen, setCollectorModalOpen] = useState(false)
 
   // Collapsible menu groups state (auto-abre se a rota ativa pertencer ao grupo)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
@@ -477,6 +479,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 <span className="font-semibold">Totem PORTA</span>
                 <ExternalLink className="w-3 h-3 text-sky-200" />
               </Link>
+
+              <button
+                type="button"
+                onClick={() => setCollectorModalOpen(true)}
+                className="text-white hover:bg-white/20 bg-emerald-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5 border border-emerald-400/40 transition cursor-pointer"
+                title="Acessar Coletor de Expedição C72"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-emerald-300" />
+                <span className="font-semibold">Coletor C72</span>
+              </button>
             </div>
 
             {/* Role Simulation Switcher & User Avatar */}
@@ -730,6 +742,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         {/* Main Content Area */}
         <main className="flex-1 min-w-0 overflow-x-hidden">{children}</main>
       </div>
+
+      {/* Modal de Acesso ao Coletor */}
+      <CollectorAccessModal open={collectorModalOpen} onOpenChange={setCollectorModalOpen} />
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-3 text-center text-xs text-slate-500">

@@ -39,7 +39,9 @@ import {
   Zap,
   Info,
   ChevronRight,
+  Smartphone,
 } from 'lucide-react'
+import { CollectorAccessModal } from '@/components/CollectorAccessModal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -77,6 +79,7 @@ export const CollectorPage: React.FC = () => {
     | 'FINALIZACAO'
 
   const [activeScreen, setActiveScreen] = useState<CollectorScreen>('INICIO')
+  const [accessModalOpen, setAccessModalOpen] = useState(false)
 
   // Estado Geral
   const [sapConnected, setSapConnected] = useState(false)
@@ -821,11 +824,11 @@ export const CollectorPage: React.FC = () => {
       {activeScreen === 'INICIO' && (
         <Card className="border-slate-300 shadow-sm bg-white overflow-hidden">
           <CardHeader className="bg-[#005596] text-white p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2.5">
-                <Scan className="w-6 h-6 text-sky-200" />
+                <Scan className="w-6 h-6 text-sky-200 shrink-0" />
                 <div>
-                  <CardTitle className="text-lg font-black tracking-tight">
+                  <CardTitle className="text-lg font-black tracking-tight leading-tight">
                     COLETOR DE EXPEDIÇÃO
                   </CardTitle>
                   <p className="text-[11px] text-sky-100 font-medium">
@@ -833,9 +836,22 @@ export const CollectorPage: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <Badge className="bg-white/20 text-white text-[10px] font-bold">
-                Linha EXP • DP34
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAccessModalOpen(true)}
+                  className="bg-white/10 hover:bg-white/20 text-white border-white/30 h-8 px-2.5 text-xs font-bold gap-1.5 shadow-none"
+                  title="Abrir no Coletor Chainway C72 (Link e QR Code)"
+                >
+                  <Smartphone className="w-3.5 h-3.5 text-sky-200" />
+                  <span>Abrir no Coletor</span>
+                </Button>
+                <Badge className="bg-white/20 text-white text-[10px] font-bold shrink-0">
+                  Linha EXP • DP34
+                </Badge>
+              </div>
             </div>
           </CardHeader>
 
@@ -1781,6 +1797,9 @@ export const CollectorPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Acesso Direto / QR Code para o Chainway C72 */}
+      <CollectorAccessModal open={accessModalOpen} onOpenChange={setAccessModalOpen} />
     </div>
   )
 }
