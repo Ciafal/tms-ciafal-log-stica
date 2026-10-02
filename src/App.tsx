@@ -58,6 +58,7 @@ import ProfitabilityDashboardPage from '@/pages/ProfitabilityDashboardPage'
 import ExpeditionPerformancePage from '@/pages/ExpeditionPerformancePage'
 import WmsLoadingMapPage from '@/pages/WmsLoadingMapPage'
 import SalesWalletPage from '@/pages/SalesWalletPage'
+import GeneralTransportReportPage from '@/pages/GeneralTransportReportPage'
 import SapSyncStatusPage from '@/pages/SapSyncStatusPage'
 import AiPlannerParamsPage from '@/pages/AiPlannerParamsPage'
 import { FredControlTowerPage } from '@/pages/FredControlTowerPage'
@@ -667,6 +668,22 @@ export const App: React.FC = () => {
             element={
               <Layout>
                 <ProviderExecutiveDashboardPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/relatorio-geral-transporte"
+            element={
+              <Layout>
+                <GeneralTransportReportPage />
+              </Layout>
+            }
+          />
+          <Route
+            path="/tms/analises/relatorio-geral-transporte"
+            element={
+              <Layout>
+                <GeneralTransportReportPage />
               </Layout>
             }
           />

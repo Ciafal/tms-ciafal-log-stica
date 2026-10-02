@@ -361,6 +361,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           badgeColor: 'bg-sky-600',
           show: true,
         },
+        {
+          title: 'Relatório Geral Transporte',
+          path: '/tms/relatorio-geral-transporte',
+          badge: '43 Colunas',
+          badgeColor: 'bg-[#005596]',
+          show: true,
+        },
       ],
     },
     {

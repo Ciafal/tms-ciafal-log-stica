@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T14:21:29.870Z",
+  "generatedAt": "2026-10-02T15:12:48.697Z",
   "collections": [
     {
       "name": "users",
@@ -13041,6 +13041,222 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "center_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "center_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_user",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "external_id_1",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "scale_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "has_scale_log",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gross_weight_ton",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tare_weight_ton",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "net_weight_ton",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nf_weight_ton",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "diff_weight_ton",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "diff_weight_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "expedition_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "transport_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "distance_km",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "freight_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sales_organization",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "invoicing_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "start_time_str",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tare_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tare_time_str",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "initial_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "initial_time_str",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "end_date_1",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "end_time_1_str",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "collection_time_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "end_date_2",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "end_time_2_str",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_time_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_capacity_ton",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wheel_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "body_type_desc",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "axles_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "occupancy_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fractions_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rfid_code",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
