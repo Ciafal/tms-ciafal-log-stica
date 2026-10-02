@@ -43,6 +43,7 @@ import {
   SapItineraryEntity,
   QueueGroup,
 } from '@/domain/rules'
+import { ItinerarySearchSelect } from '@/components/common/ItinerarySearchSelect'
 
 export const ExternalCheckin: React.FC = () => {
   const { toast } = useToast()
@@ -90,7 +91,8 @@ export const ExternalCheckin: React.FC = () => {
 
   // Itinerary and Future Scheduling
   const [itineraries, setItineraries] = useState<SapItineraryEntity[]>([])
-  const [selectedItinerary, setSelectedItinerary] = useState('')
+  const [selectedItinerary, setSelectedItinerary] = useState<string>('SEM_PREFERENCIA')
+  const [selectedItineraryName, setSelectedItineraryName] = useState<string>('Sem preferência')
   const [scheduledArrivalDate, setScheduledArrivalDate] = useState('')
   const [driverNotes, setDriverNotes] = useState('')
 
@@ -109,9 +111,6 @@ export const ExternalCheckin: React.FC = () => {
       try {
         const itins = await TmsService.getSapItineraries(true)
         setItineraries(itins)
-        if (itins.length > 0) {
-          setSelectedItinerary(itins[0].sap_code)
-        }
       } catch (err) {
         console.error('Error fetching itineraries:', err)
       }
@@ -235,14 +234,9 @@ export const ExternalCheckin: React.FC = () => {
       return
     }
 
-    if (!selectedItinerary) {
-      toast({
-        title: 'Itinerário Obrigatório',
-        description: 'Selecione seu itinerário de preferência na lista oficial SAP.',
-        variant: 'destructive',
-      })
-      return
-    }
+    const finalItinerary = selectedItinerary || 'SEM_PREFERENCIA'
+    const finalItineraryName =
+      selectedItineraryName || (finalItinerary === 'SEM_PREFERENCIA' ? 'Sem preferência' : '')
 
     if (assignedGroup === 'PROGRAMADO' && !scheduledArrivalDate) {
       toast({
@@ -264,12 +258,14 @@ export const ExternalCheckin: React.FC = () => {
         vehicleType,
         carrierName,
         declaredCapacityKg,
-        preferredItinerary: selectedItinerary,
+        preferredItinerary: finalItinerary,
+        preferredItineraryName: finalItineraryName,
         scheduledArrivalDate,
         driverNotes,
         latitude: coords.lat,
         longitude: coords.lon,
         accuracy: coords.accuracy,
+        channel: 'LINK_PUBLICO',
       })
 
       setSubmissionResult(res)
@@ -728,26 +724,23 @@ export const ExternalCheckin: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-4 space-y-4 text-xs">
-              {/* Itinerário Dropdown */}
+              {/* Itinerário Dropdown Canônico */}
               <div className="space-y-1.5">
                 <label className="font-bold text-slate-700 block">
                   Itinerário de Preferência (Fonte TVROT SAP):
                 </label>
-                <Select value={selectedItinerary} onValueChange={setSelectedItinerary}>
-                  <SelectTrigger className="bg-white border-slate-300 text-slate-900 text-xs h-10">
-                    <SelectValue placeholder="Selecione o itinerário SAP" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white text-slate-900 border-slate-200 max-h-60">
-                    {itineraries.map((it) => (
-                      <SelectItem key={it.sap_code} value={it.sap_code}>
-                        <strong>{it.sap_code}</strong> — {it.description} ({it.uf})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ItinerarySearchSelect
+                  value={selectedItinerary}
+                  onSelect={(code, desc) => {
+                    setSelectedItinerary(code)
+                    setSelectedItineraryName(desc)
+                  }}
+                  placeholder="Buscar itinerário SAP por código, descrição ou UF..."
+                  className="bg-white border-slate-300"
+                />
                 <p className="text-[11px] text-slate-500">
-                  A escolha do itinerário alimenta o Planejador de Cargas e a Matriz de
-                  Disponibilidade da CIAFAL.
+                  A preferência é opcional e prioriza cargas do seu trajeto no Planejador de Cargas
+                  sem bloquear outras oportunidades.
                 </p>
               </div>
 

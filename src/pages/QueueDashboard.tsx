@@ -25,8 +25,11 @@ import {
   FileSpreadsheet,
   Route,
   UserCheck,
+  Plus,
+  Compass,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { ItinerarySearchSelect } from '@/components/common/ItinerarySearchSelect'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -116,6 +119,25 @@ export const QueueDashboard: React.FC = () => {
   const [operatorNotes, setOperatorNotes] = useState('')
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
 
+  // Edit Preferred Itinerary Dialog
+  const [editItineraryEntry, setEditItineraryEntry] = useState<QueueEntryEntity | null>(null)
+  const [editItineraryCode, setEditItineraryCode] = useState<string>('SEM_PREFERENCIA')
+  const [editItineraryName, setEditItineraryName] = useState<string>('Sem preferência')
+  const [editItineraryReason, setEditItineraryReason] = useState<string>('')
+  const [isUpdatingItinerary, setIsUpdatingItinerary] = useState(false)
+
+  // Manual Inclusion Dialog (Operador / Portaria)
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false)
+  const [manualPlate, setManualPlate] = useState('')
+  const [manualDoc, setManualDoc] = useState('')
+  const [manualPhone, setManualPhone] = useState('')
+  const [manualGroup, setManualGroup] = useState<QueueGroup>('PORTA')
+  const [manualVehicleType, setManualVehicleType] = useState('Carreta LS')
+  const [manualItinerary, setManualItinerary] = useState<string>('SEM_PREFERENCIA')
+  const [manualItineraryName, setManualItineraryName] = useState<string>('Sem preferência')
+  const [manualNotes, setManualNotes] = useState('')
+  const [isSubmittingManual, setIsSubmittingManual] = useState(false)
+
   const publicQueueUrl = `${window.location.origin}/tms/fila-publica`
 
   const fetchData = async () => {
@@ -152,15 +174,28 @@ export const QueueDashboard: React.FC = () => {
     })
   }
 
+  // Filter helper supporting SEM_PREFERENCIA, specific SAP codes and LEGACY (null/empty)
+  const matchesItineraryFilter = (itineraryCode?: string | null) => {
+    if (selectedItineraryFilter === 'ALL') return true
+    if (selectedItineraryFilter === 'SEM_PREFERENCIA') {
+      return itineraryCode === 'SEM_PREFERENCIA'
+    }
+    if (selectedItineraryFilter === 'NAO_INFORMADO') {
+      return !itineraryCode || itineraryCode.trim() === ''
+    }
+    return itineraryCode === selectedItineraryFilter
+  }
+
   // Filtered lists
   const portaEntries = useMemo(() => {
     return queueEntries.filter(
       (e) =>
         e.type === 'PORTA' &&
-        (selectedItineraryFilter === 'ALL' || e.preferred_itinerary === selectedItineraryFilter) &&
+        matchesItineraryFilter(e.preferred_itinerary) &&
         (searchTerm === '' ||
           (e.driver_name_cached || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (e.vehicle_plate_cached || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (e.preferred_itinerary_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (e.preferred_itinerary || '').toLowerCase().includes(searchTerm.toLowerCase())),
     )
   }, [queueEntries, selectedItineraryFilter, searchTerm])
@@ -169,10 +204,11 @@ export const QueueDashboard: React.FC = () => {
     return queueEntries.filter(
       (e) =>
         e.type === 'FORA' &&
-        (selectedItineraryFilter === 'ALL' || e.preferred_itinerary === selectedItineraryFilter) &&
+        matchesItineraryFilter(e.preferred_itinerary) &&
         (searchTerm === '' ||
           (e.driver_name_cached || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (e.vehicle_plate_cached || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (e.preferred_itinerary_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (e.preferred_itinerary || '').toLowerCase().includes(searchTerm.toLowerCase())),
     )
   }, [queueEntries, selectedItineraryFilter, searchTerm])
@@ -181,10 +217,11 @@ export const QueueDashboard: React.FC = () => {
     return queueEntries.filter(
       (e) =>
         e.type === 'PROGRAMADO' &&
-        (selectedItineraryFilter === 'ALL' || e.preferred_itinerary === selectedItineraryFilter) &&
+        matchesItineraryFilter(e.preferred_itinerary) &&
         (searchTerm === '' ||
           (e.driver_name_cached || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (e.vehicle_plate_cached || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (e.preferred_itinerary_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (e.preferred_itinerary || '').toLowerCase().includes(searchTerm.toLowerCase())),
     )
   }, [queueEntries, selectedItineraryFilter, searchTerm])
@@ -255,6 +292,110 @@ export const QueueDashboard: React.FC = () => {
 
     return rows.sort((a, b) => a.date.localeCompare(b.date))
   }, [queueEntries])
+
+  // Inclusão Manual por Operador / Portaria
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!manualPlate.trim() || !manualDoc.trim()) {
+      toast({
+        title: 'Dados obrigatórios',
+        description: 'Informe placa e documento para cadastrar entrada.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSubmittingManual(true)
+    try {
+      const channel = user?.role === 'portaria' ? 'PORTARIA' : 'OPERADOR_HUB'
+      const res = await TmsService.submitDriverAvailability({
+        plate: manualPlate,
+        document: manualDoc,
+        whatsapp: manualPhone,
+        vehicleType: manualVehicleType,
+        type: manualGroup,
+        preferredItinerary: manualItinerary,
+        preferredItineraryName: manualItineraryName,
+        driverNotes: manualNotes,
+        channel,
+        operatorEmail: user?.email || 'operador@ciafal.com.br',
+        operatorName: user?.name || 'Operador Portaria',
+        latitude: manualGroup === 'PORTA' ? -19.892 : undefined,
+        longitude: manualGroup === 'PORTA' ? -44.053 : undefined,
+      })
+
+      if (res.success) {
+        toast({
+          title: res.isPreReg ? 'Pré-Cadastro Registrado' : 'Entrada Registrada com Sucesso!',
+          description: res.message,
+        })
+        setIsManualModalOpen(false)
+        setManualPlate('')
+        setManualDoc('')
+        setManualPhone('')
+        setManualNotes('')
+        setManualItinerary('SEM_PREFERENCIA')
+        setManualItineraryName('Sem preferência')
+        fetchData()
+      } else {
+        toast({
+          title: 'Não foi possível registrar',
+          description: res.message,
+          variant: 'destructive',
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro de inclusão',
+        description: err?.message || 'Falha ao registrar entrada manual.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmittingManual(false)
+    }
+  }
+
+  // Alteração de Itinerário Preferencial
+  const handleUpdatePreferredItinerary = async () => {
+    if (!editItineraryEntry) return
+    setIsUpdatingItinerary(true)
+    try {
+      const channel = user?.role === 'portaria' ? 'PORTARIA' : 'OPERADOR_HUB'
+      const ok = await TmsService.updateQueuePreferredItinerary(
+        editItineraryEntry.id,
+        editItineraryCode,
+        editItineraryName,
+        user?.email || 'operador@ciafal.com.br',
+        user?.name || 'Operador HUB CIAFAL',
+        channel,
+        editItineraryReason,
+      )
+
+      if (ok) {
+        toast({
+          title: 'Itinerário Atualizado!',
+          description: `Preferência alterada para ${editItineraryCode} com registro na trilha de auditoria.`,
+        })
+        setEditItineraryEntry(null)
+        setEditItineraryReason('')
+        fetchData()
+      } else {
+        toast({
+          title: 'Falha ao alterar',
+          description: 'Não foi possível salvar o itinerário.',
+          variant: 'destructive',
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: err?.message || 'Erro inesperado.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsUpdatingItinerary(false)
+    }
+  }
 
   // Handle status update
   const handleUpdateStatus = async () => {
@@ -384,6 +525,17 @@ export const QueueDashboard: React.FC = () => {
                     <DropdownMenuLabel>Ações Operacionais</DropdownMenuLabel>
                     <DropdownMenuItem
                       onClick={() => {
+                        setEditItineraryEntry(entry)
+                        setEditItineraryCode(entry.preferred_itinerary || 'SEM_PREFERENCIA')
+                        setEditItineraryName(entry.preferred_itinerary_name || 'Sem preferência')
+                        setEditItineraryReason('')
+                      }}
+                    >
+                      <Compass className="w-3.5 h-3.5 mr-2 text-[#005596]" />
+                      Alterar Itinerário Preferencial
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
                         setSelectedEntry(entry)
                         setNewStatus('disponivel')
                       }}
@@ -443,13 +595,37 @@ export const QueueDashboard: React.FC = () => {
             </div>
 
             <div>
-              <span className="text-slate-400 block font-bold">Itinerário Escolhido:</span>
-              <strong className="text-[#005596] font-mono text-xs">
-                {entry.preferred_itinerary || 'Não informado'}
-              </strong>
-              <div className="text-slate-500 text-[10px]">
-                {itineraries.find((i) => i.sap_code === entry.preferred_itinerary)?.description ||
-                  'Fonte SAP TVROT'}
+              <span className="text-slate-400 block font-bold">Itinerário Preferencial:</span>
+              {/* Badge Dinâmico e Resiliente a Legados */}
+              {!entry.preferred_itinerary || entry.preferred_itinerary.trim() === '' ? (
+                <Badge
+                  variant="outline"
+                  className="bg-slate-100 text-slate-500 border-slate-300 text-[10px] font-medium"
+                >
+                  Não informado
+                </Badge>
+              ) : entry.preferred_itinerary === 'SEM_PREFERENCIA' ? (
+                <Badge
+                  variant="outline"
+                  className="bg-slate-100 text-slate-700 border-slate-300 text-[10px] font-semibold"
+                >
+                  Sem preferência
+                </Badge>
+              ) : (
+                <Badge
+                  className="bg-[#005596] text-white text-[10px] font-mono font-bold max-w-full truncate"
+                  title={entry.preferred_itinerary_name || entry.preferred_itinerary}
+                >
+                  [{entry.preferred_itinerary}]{' '}
+                  {entry.preferred_itinerary_name ? `— ${entry.preferred_itinerary_name}` : ''}
+                </Badge>
+              )}
+              <div className="text-slate-500 text-[10px] truncate mt-0.5">
+                {entry.preferred_itinerary_name ||
+                  itineraries.find((i) => i.sap_code === entry.preferred_itinerary)?.description ||
+                  (entry.preferred_itinerary === 'SEM_PREFERENCIA'
+                    ? 'Qualquer rota'
+                    : 'Fonte SAP TVROT')}
               </div>
             </div>
           </div>
@@ -610,14 +786,16 @@ export const QueueDashboard: React.FC = () => {
           </div>
 
           <Select value={selectedItineraryFilter} onValueChange={setSelectedItineraryFilter}>
-            <SelectTrigger className="w-52 text-xs h-9">
+            <SelectTrigger className="w-56 text-xs h-9">
               <SelectValue placeholder="Filtrar por Itinerário SAP" />
             </SelectTrigger>
             <SelectContent className="text-xs">
-              <SelectItem value="ALL">Todos os Itinerários SAP</SelectItem>
+              <SelectItem value="ALL">Todos os Itinerários</SelectItem>
+              <SelectItem value="SEM_PREFERENCIA">Sem Preferência (Qualquer rota)</SelectItem>
+              <SelectItem value="NAO_INFORMADO">Não Informado (Registros legados)</SelectItem>
               {itineraries.map((it) => (
                 <SelectItem key={it.sap_code} value={it.sap_code}>
-                  {it.sap_code} — {it.description}
+                  [{it.sap_code}] {it.description} ({it.uf})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -625,6 +803,17 @@ export const QueueDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-2">
+          {permissions.canManageQueueStatus && (
+            <Button
+              onClick={() => setIsManualModalOpen(true)}
+              size="sm"
+              className="bg-[#005596] hover:bg-[#004275] text-white text-xs h-9 shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Inclusão Manual Portaria
+            </Button>
+          )}
+
           <Button
             onClick={fetchData}
             variant="outline"
@@ -911,6 +1100,220 @@ export const QueueDashboard: React.FC = () => {
               className="bg-[#005596] text-white"
             >
               Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Inclusão Manual por Operador / Portaria */}
+      <Dialog open={isManualModalOpen} onOpenChange={setIsManualModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Building className="w-5 h-5 text-[#005596]" />
+              Inclusão Manual na Fila (Portaria / Operador HUB)
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Registra motorista na fila operacional com auditoria completa de canal e usuário.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleManualSubmit} className="space-y-3.5 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 block">Placa do Veículo:</label>
+                <Input
+                  placeholder="Ex: ABC1D23"
+                  value={manualPlate}
+                  onChange={(e) => setManualPlate(e.target.value.toUpperCase())}
+                  required
+                  className="font-mono text-xs uppercase"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 block">CPF / CNPJ:</label>
+                <Input
+                  placeholder="Apenas números ou formatado"
+                  value={manualDoc}
+                  onChange={(e) => setManualDoc(e.target.value)}
+                  required
+                  className="font-mono text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 block">WhatsApp:</label>
+                <Input
+                  placeholder="(31) 98765-4321"
+                  value={manualPhone}
+                  onChange={(e) => setManualPhone(e.target.value)}
+                  className="font-mono text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 block">Grupo de Entrada:</label>
+                <Select value={manualGroup} onValueChange={(v) => setManualGroup(v as QueueGroup)}>
+                  <SelectTrigger className="text-xs h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="text-xs">
+                    <SelectItem value="PORTA">🏢 PORTA (No Pátio)</SelectItem>
+                    <SelectItem value="FORA">📍 FORA (≤ 60 km)</SelectItem>
+                    <SelectItem value="PROGRAMADO">📅 PROGRAMADO (&gt; 60 km / Futuro)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-bold text-slate-700 block">Tipo de Veículo:</label>
+              <Select value={manualVehicleType} onValueChange={setManualVehicleType}>
+                <SelectTrigger className="text-xs h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="text-xs">
+                  <SelectItem value="Carreta LS">Carreta LS</SelectItem>
+                  <SelectItem value="Carreta Grade Baixa">Carreta Grade Baixa</SelectItem>
+                  <SelectItem value="Bitrem">Bitrem</SelectItem>
+                  <SelectItem value="Rodotrem">Rodotrem</SelectItem>
+                  <SelectItem value="Truck">Truck</SelectItem>
+                  <SelectItem value="Toco">Toco</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Seletor Canônico de Itinerário */}
+            <div className="space-y-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <label className="font-bold text-slate-800 block text-xs">
+                Itinerário de Preferência (TVROT SAP):
+              </label>
+              <ItinerarySearchSelect
+                value={manualItinerary}
+                onSelect={(code, desc) => {
+                  setManualItinerary(code)
+                  setManualItineraryName(desc)
+                }}
+                placeholder="Buscar código SAP, cidade ou UF..."
+                className="w-full text-xs"
+              />
+              <span className="text-[11px] text-slate-500 block">
+                Selecionado: <strong>{manualItineraryName}</strong> ({manualItinerary})
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-bold text-slate-700 block">Observações do Atendimento:</label>
+              <Textarea
+                placeholder="Ex: Motorista compareceu à guarita, aguardando triagem documental..."
+                value={manualNotes}
+                onChange={(e) => setManualNotes(e.target.value)}
+                className="text-xs h-16 resize-none"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsManualModalOpen(false)}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSubmittingManual}
+                className="bg-[#005596] hover:bg-[#004275] text-white text-xs font-bold"
+              >
+                {isSubmittingManual ? 'Gravando Entrada...' : 'Registrar na Fila e Auditar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Alteração de Itinerário de Preferência */}
+      <Dialog
+        open={!!editItineraryEntry}
+        onOpenChange={(open) => !open && setEditItineraryEntry(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Compass className="w-5 h-5 text-[#005596]" />
+              Alterar Itinerário de Preferência
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Atualize a rota preferencial da disponibilidade na fila. Fator multicritério de
+              ponderação.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editItineraryEntry && (
+            <div className="space-y-3.5 text-xs py-1">
+              <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 space-y-1">
+                <div className="font-bold text-slate-900">
+                  {editItineraryEntry.driver_name_cached} ({editItineraryEntry.vehicle_plate_cached}
+                  )
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  Itinerário Atual:{' '}
+                  <strong className="text-[#005596]">
+                    {editItineraryEntry.preferred_itinerary || 'Não informado'}
+                  </strong>{' '}
+                  {editItineraryEntry.preferred_itinerary_name
+                    ? `(${editItineraryEntry.preferred_itinerary_name})`
+                    : ''}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-700 block">Novo Itinerário SAP:</label>
+                <ItinerarySearchSelect
+                  value={editItineraryCode}
+                  onSelect={(code, desc) => {
+                    setEditItineraryCode(code)
+                    setEditItineraryName(desc)
+                  }}
+                  className="w-full text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 block">Motivo da Alteração:</label>
+                <Input
+                  placeholder="Ex: Motorista solicitou mudança para rota de retorno ao domicílio"
+                  value={editItineraryReason}
+                  onChange={(e) => setEditItineraryReason(e.target.value)}
+                  className="text-xs h-9"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditItineraryEntry(null)}
+              className="text-xs"
+              disabled={isUpdatingItinerary}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleUpdatePreferredItinerary}
+              disabled={isUpdatingItinerary}
+              className="bg-[#005596] hover:bg-[#004275] text-white text-xs font-bold"
+            >
+              {isUpdatingItinerary ? 'Salvando...' : 'Confirmar Alteração'}
             </Button>
           </DialogFooter>
         </DialogContent>

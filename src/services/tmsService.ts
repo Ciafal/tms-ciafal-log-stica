@@ -53,12 +53,16 @@ export interface CreateQueueEntryParams {
   declaredCapacityKg?: number
   type?: QueueGroup // PORTA | FORA | PROGRAMADO
   preferredItinerary?: string
+  preferredItineraryName?: string
   scheduledArrivalDate?: string
   driverNotes?: string
   latitude?: number
   longitude?: number
   accuracy?: number
   clientIp?: string
+  channel?: 'LINK_PUBLICO' | 'TOTEM' | 'PORTARIA' | 'OPERADOR_HUB'
+  operatorEmail?: string
+  operatorName?: string
 }
 
 export interface PlateLookupResult {
@@ -460,6 +464,12 @@ export const TmsService = {
     // 5. IF DRIVER OR VEHICLE NOT FOUND -> AUTOMATIC PRE-REGISTRATION (Marcar 'Não localizado na ZSD004')
     if (!driver) {
       try {
+        const preItinerary = params.preferredItinerary || 'SEM_PREFERENCIA'
+        const preItineraryName =
+          params.preferredItineraryName ||
+          (preItinerary === 'SEM_PREFERENCIA' ? 'Sem preferência' : '')
+        const channelUsed = params.channel || (assignedGroup === 'PORTA' ? 'TOTEM' : 'LINK_PUBLICO')
+
         const pre = await pb.collection('pre_registrations').create({
           document: cleanDoc,
           name: params.carrierName ? `Motorista (${params.carrierName})` : 'Motorista Pré-Cadastro',
@@ -471,7 +481,7 @@ export const TmsService = {
           declared_capacity_kg: params.declaredCapacityKg || 0,
           origin: assignedGroup,
           status: 'novo',
-          preferred_itinerary: params.preferredItinerary || '',
+          preferred_itinerary: preItinerary,
           scheduled_arrival_date: params.scheduledArrivalDate || null,
           driver_notes: params.driverNotes || '',
           latitude: params.latitude,
@@ -481,9 +491,9 @@ export const TmsService = {
 
         // Audit Pre-Registration
         await pb.collection('audit_logs').create({
-          user_email: 'public@ciafal.logistica',
-          user_name: 'Motorista Autoatendimento',
-          user_role: 'portaria',
+          user_email: params.operatorEmail || 'public@ciafal.logistica',
+          user_name: params.operatorName || 'Motorista Autoatendimento',
+          user_role: params.operatorEmail ? 'operador_logistica' : 'portaria',
           action: 'CREATE_PRE_REGISTRATION',
           resource: 'pre_registrations',
           resource_id: pre.id,
@@ -495,7 +505,10 @@ export const TmsService = {
             document: cleanDoc,
             origin: assignedGroup,
             distance_km: distanceKm,
-            itinerary: params.preferredItinerary,
+            itinerary: preItinerary,
+            preferred_itinerary: preItinerary,
+            preferred_itinerary_name: preItineraryName,
+            channel: channelUsed,
             zsd004_status: 'NAO_LOCALIZADO_NA_ZSD004',
           },
         })
@@ -591,6 +604,11 @@ export const TmsService = {
     // 9. Create Entry in queue_entries
     try {
       const entryTimeStr = realEntryTime.toISOString()
+      const itinCode = params.preferredItinerary || 'SEM_PREFERENCIA'
+      const itinName =
+        params.preferredItineraryName || (itinCode === 'SEM_PREFERENCIA' ? 'Sem preferência' : '')
+      const entryChannel = params.channel || (assignedGroup === 'PORTA' ? 'TOTEM' : 'LINK_PUBLICO')
+
       const entry = await pb.collection('queue_entries').create({
         driver: driver.id,
         vehicle: vehicleId || null,
@@ -599,7 +617,9 @@ export const TmsService = {
         entry_time: entryTimeStr,
         calculated_logistics_date: calculatedLogisticsDate,
         scheduled_arrival_date: params.scheduledArrivalDate || null,
-        preferred_itinerary: params.preferredItinerary || '',
+        preferred_itinerary: itinCode,
+        preferred_itinerary_code: itinCode,
+        preferred_itinerary_name: itinName,
         driver_notes: params.driverNotes || '',
         latitude: params.latitude,
         longitude: params.longitude,
@@ -614,27 +634,33 @@ export const TmsService = {
         vehicle_capacity_kg_cached: vehicle?.capacity_kg || params.declaredCapacityKg || 0,
         reason: `Disponibilidade registrada no grupo ${assignedGroup}`,
         last_event: `Entrada na Fila (${assignedGroup})`,
-        last_operator: 'Motorista via Web App',
+        last_operator:
+          params.operatorName ||
+          (entryChannel === 'TOTEM' ? 'Totem PORTA' : 'Motorista via Web App'),
       })
 
       // Audit Queue Entry
       await pb.collection('audit_logs').create({
-        user_email: 'public@ciafal.logistica',
-        user_name: driver.name,
-        user_role: 'portaria',
+        user_email: params.operatorEmail || 'public@ciafal.logistica',
+        user_name: params.operatorName || driver.name,
+        user_role: params.operatorEmail ? 'operador_logistica' : 'portaria',
         action: 'CREATE_QUEUE_ENTRY',
         resource: 'queue_entries',
         resource_id: entry.id,
+        previous_state: null,
         new_state: assignedGroup,
         reason: `Check-in de disponibilidade grupo ${assignedGroup} (Data Logística: ${calculatedLogisticsDate})`,
         correlation_id: `QUEUE-${Date.now()}`,
         payload: {
           driver_id: driver.id,
-          plate: cleanPlate,
+          driver_name: driver.name,
+          vehicle_plate: cleanPlate,
           group: assignedGroup,
           distance_km: distanceKm,
           calculated_logistics_date: calculatedLogisticsDate,
-          preferred_itinerary: params.preferredItinerary,
+          preferred_itinerary: itinCode,
+          preferred_itinerary_name: itinName,
+          channel: entryChannel,
         },
       })
 
@@ -705,6 +731,63 @@ export const TmsService = {
       return true
     } catch (err) {
       console.error('Failed to update system parameter:', err)
+      return false
+    }
+  },
+
+  async updateQueuePreferredItinerary(
+    entryId: string,
+    preferredItinerary: string,
+    preferredItineraryName: string,
+    operatorEmail: string,
+    operatorName: string,
+    channel: 'LINK_PUBLICO' | 'TOTEM' | 'PORTARIA' | 'OPERADOR_HUB' = 'OPERADOR_HUB',
+    reason?: string,
+  ): Promise<boolean> {
+    try {
+      const entry = await pb.collection('queue_entries').getOne<QueueEntryEntity>(entryId)
+      const prevItinerary = entry.preferred_itinerary || 'SEM_PREFERENCIA'
+      const prevItineraryName = entry.preferred_itinerary_name || ''
+
+      const cleanCode = preferredItinerary || 'SEM_PREFERENCIA'
+      const cleanName =
+        preferredItineraryName || (cleanCode === 'SEM_PREFERENCIA' ? 'Sem preferência' : '')
+
+      await pb.collection('queue_entries').update(entryId, {
+        preferred_itinerary: cleanCode,
+        preferred_itinerary_code: cleanCode,
+        preferred_itinerary_name: cleanName,
+        last_event: `Itinerário preferencial alterado de ${prevItinerary} para ${cleanCode}`,
+        last_operator: `${operatorName} (${operatorEmail})`,
+      })
+
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: channel === 'PORTARIA' ? 'portaria' : 'operador_logistica',
+        action: 'UPDATE_PREFERRED_ITINERARY',
+        resource: 'queue_entries',
+        resource_id: entryId,
+        previous_state: prevItinerary,
+        new_state: cleanCode,
+        reason: reason || `Alteração do itinerário de preferência para ${cleanCode} (${cleanName})`,
+        correlation_id: `AUDIT-ITIN-${Date.now()}`,
+        payload: {
+          driver: entry.driver_name_cached,
+          doc: entry.driver_doc_cached,
+          vehicle_plate: entry.vehicle_plate_cached,
+          group: entry.type,
+          channel,
+          previous_itinerary: prevItinerary,
+          previous_itinerary_name: prevItineraryName,
+          new_itinerary: cleanCode,
+          new_itinerary_name: cleanName,
+        },
+      })
+
+      return true
+    } catch (err) {
+      console.error('Error updating preferred itinerary:', err)
       return false
     }
   },
@@ -800,6 +883,8 @@ export const TmsService = {
           candidate_name: prev.name,
           document: prev.document,
           plate: prev.plate,
+          preferred_itinerary: prev.preferred_itinerary || 'SEM_PREFERENCIA',
+          channel: prev.origin === 'PORTA' ? 'TOTEM' : 'LINK_PUBLICO',
         },
       })
 
@@ -807,6 +892,162 @@ export const TmsService = {
     } catch (err) {
       console.error('Failed to update pre-registration:', err)
       return false
+    }
+  },
+
+  /**
+   * Homologa o pré-cadastro e cria entrada correspondente na fila com herança
+   * do itinerário de preferência original e auditoria completa.
+   */
+  async promotePreRegistrationToQueue(
+    preRegId: string,
+    operatorEmail: string,
+    operatorName: string,
+    notes?: string,
+  ): Promise<{ success: boolean; queueEntryId?: string; message: string }> {
+    try {
+      const preReg = await pb
+        .collection('pre_registrations')
+        .getOne<PreRegistrationEntity>(preRegId)
+      const cleanPlate = (preReg.plate || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+      const cleanDoc = (preReg.document || '').replace(/\D/g, '')
+
+      // Buscar ou criar motorista operacional
+      let driverRecord: any = null
+      try {
+        const driversFound = await pb.collection('drivers').getList(1, 1, {
+          filter: `document = "${cleanDoc}"`,
+        })
+        if (driversFound.items.length > 0) {
+          driverRecord = driversFound.items[0]
+        }
+      } catch {
+        /* ignore */
+      }
+
+      if (!driverRecord) {
+        try {
+          driverRecord = await pb.collection('drivers').create({
+            name: preReg.name || `Motorista (${cleanPlate})`,
+            document: cleanDoc,
+            whatsapp: preReg.whatsapp || '',
+            phone: preReg.whatsapp || '',
+            carrier_name: preReg.carrier_name || '',
+            status: 'ativo',
+            origin: 'HOMOLOGACAO_PRE_CADASTRO',
+          })
+        } catch {
+          // Fallback se não conseguir criar novo registro mestre
+          const allDrivers = await pb.collection('drivers').getList(1, 1)
+          driverRecord = allDrivers.items[0]
+        }
+      }
+
+      // Buscar ou associar veículo
+      let vehicleId: string | null = null
+      try {
+        const vehiclesFound = await pb.collection('vehicles').getList(1, 1, {
+          filter: `plate = "${cleanPlate}"`,
+        })
+        if (vehiclesFound.items.length > 0) {
+          vehicleId = vehiclesFound.items[0].id
+        }
+      } catch {
+        /* ignore */
+      }
+
+      const assignedGroup: QueueGroup = (preReg.origin as QueueGroup) || 'PORTA'
+      const itinCode = preReg.preferred_itinerary || 'SEM_PREFERENCIA'
+      let itinName = (preReg as any).preferred_itinerary_name || ''
+      if (!itinName) {
+        if (itinCode === 'SEM_PREFERENCIA') {
+          itinName = 'Sem preferência'
+        } else {
+          try {
+            const sapItins = await pb.collection('sap_itineraries').getList(1, 1, {
+              filter: `sap_code = "${itinCode}"`,
+            })
+            if (sapItins.items.length > 0) {
+              const it = sapItins.items[0] as any
+              itinName = `${it.description || itinCode} (${it.uf || ''})`
+            }
+          } catch {
+            itinName = itinCode
+          }
+        }
+      }
+
+      const now = new Date()
+      const entry = await pb.collection('queue_entries').create({
+        driver: driverRecord?.id || null,
+        vehicle: vehicleId,
+        type: assignedGroup,
+        status: 'disponivel',
+        entry_time: now.toISOString(),
+        calculated_logistics_date: now.toISOString().split('T')[0],
+        scheduled_arrival_date: preReg.scheduled_arrival_date || null,
+        preferred_itinerary: itinCode,
+        preferred_itinerary_code: itinCode,
+        preferred_itinerary_name: itinName,
+        driver_notes: preReg.driver_notes || notes || '',
+        latitude: preReg.latitude,
+        longitude: preReg.longitude,
+        distance_km: 0,
+        location_status: 'validada',
+        driver_name_cached: preReg.name,
+        driver_doc_cached: cleanDoc,
+        driver_whatsapp_cached: preReg.whatsapp,
+        vehicle_plate_cached: cleanPlate,
+        vehicle_type_cached: preReg.vehicle_type || 'Carreta LS',
+        carrier_name_cached: preReg.carrier_name || '',
+        vehicle_capacity_kg_cached: preReg.declared_capacity_kg || 0,
+        reason: `Entrada promovida após homologação de pré-cadastro (${preReg.id})`,
+        last_event: `Entrada promovida da homologação (${assignedGroup})`,
+        last_operator: `${operatorName} (${operatorEmail})`,
+      })
+
+      // Atualizar o pré-cadastro para cadastro_confirmado
+      await pb.collection('pre_registrations').update(preRegId, {
+        status: 'cadastro_confirmado',
+        reviewer_user: operatorEmail,
+        reviewer_notes: notes || 'Cadastro homologado e promovido para a fila operacional.',
+      })
+
+      // Registrar auditoria completa com canal e itinerário herdado
+      await pb.collection('audit_logs').create({
+        user_email: operatorEmail,
+        user_name: operatorName,
+        user_role: 'operador_logistica',
+        action: 'PROMOTE_PRE_REGISTRATION_TO_QUEUE',
+        resource: 'queue_entries',
+        resource_id: entry.id,
+        previous_state: preReg.status,
+        new_state: 'disponivel',
+        reason: `Homologação de pré-cadastro ${preRegId} promovido para fila com itinerário herdado ${itinCode}`,
+        correlation_id: `PROMOTE-PREREG-${Date.now()}`,
+        payload: {
+          pre_registration_id: preRegId,
+          queue_entry_id: entry.id,
+          driver_name: preReg.name,
+          vehicle_plate: cleanPlate,
+          preferred_itinerary: itinCode,
+          preferred_itinerary_name: itinName,
+          channel: preReg.origin === 'PORTA' ? 'TOTEM' : 'LINK_PUBLICO',
+          group: assignedGroup,
+        },
+      })
+
+      return {
+        success: true,
+        queueEntryId: entry.id,
+        message: `Pré-cadastro homologado e inserido na fila (${assignedGroup}) com itinerário ${itinCode}.`,
+      }
+    } catch (err: any) {
+      console.error('Error promoting pre-registration to queue:', err)
+      return {
+        success: false,
+        message: err?.message || 'Falha ao promover pré-cadastro para a fila.',
+      }
     }
   },
 

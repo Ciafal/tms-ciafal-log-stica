@@ -12,11 +12,21 @@ import {
   UserCheck,
   Info,
   ShieldAlert,
+  Route,
+  Compass,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -27,6 +37,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { TmsService } from '@/services/tmsService'
 import { isValidDocument } from '@/domain/rules'
+import { ItinerarySearchSelect } from '@/components/common/ItinerarySearchSelect'
 
 export const TotemEntry: React.FC = () => {
   const { toast } = useToast()
@@ -35,6 +46,9 @@ export const TotemEntry: React.FC = () => {
   const [whatsapp, setWhatsapp] = useState('')
   const [plate, setPlate] = useState('')
   const [vehicleType, setVehicleType] = useState('Carreta LS')
+  const [preferredItinerary, setPreferredItinerary] = useState<string>('SEM_PREFERENCIA')
+  const [preferredItineraryName, setPreferredItineraryName] = useState<string>('Sem preferência')
+  const [isItineraryModalOpen, setIsItineraryModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [result, setResult] = useState<{
     success: boolean
@@ -68,6 +82,9 @@ export const TotemEntry: React.FC = () => {
         plate,
         vehicleType,
         type: 'PORTA',
+        preferredItinerary,
+        preferredItineraryName,
+        channel: 'TOTEM',
       })
 
       setResult(response)
@@ -234,6 +251,62 @@ export const TotemEntry: React.FC = () => {
                 </div>
               </div>
 
+              {/* SELETOR DE ITINERÁRIO TOUCH (ALTO CONTRASTE) */}
+              <div className="p-3.5 bg-slate-100 rounded-xl border border-slate-300 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-slate-800 uppercase flex items-center gap-1.5 text-xs">
+                    <Route className="w-4 h-4 text-[#005596]" />
+                    Itinerário de Preferência
+                  </span>
+                  <Badge
+                    className={
+                      preferredItinerary === 'SEM_PREFERENCIA'
+                        ? 'bg-slate-200 text-slate-800 text-[11px] font-semibold'
+                        : 'bg-[#005596] text-white text-[11px] font-mono'
+                    }
+                  >
+                    {preferredItinerary === 'SEM_PREFERENCIA'
+                      ? 'Sem Preferência'
+                      : preferredItinerary}
+                  </Badge>
+                </div>
+
+                <div className="text-[11px] text-slate-600 font-medium truncate">
+                  Rota: <strong className="text-slate-800">{preferredItineraryName}</strong>
+                </div>
+
+                {/* Botões Touch Grandes: Atalho Sem Preferência + Modal de Busca */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setPreferredItinerary('SEM_PREFERENCIA')
+                      setPreferredItineraryName('Sem preferência')
+                    }}
+                    className={`h-11 text-xs font-bold border-2 transition-all ${
+                      preferredItinerary === 'SEM_PREFERENCIA'
+                        ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm'
+                        : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    ✓ Sem Preferência
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={() => setIsItineraryModalOpen(true)}
+                    className={`h-11 text-xs font-bold border-2 transition-all ${
+                      preferredItinerary !== 'SEM_PREFERENCIA'
+                        ? 'bg-[#005596] text-white border-[#003d6d] shadow-sm'
+                        : 'bg-white text-[#005596] border-sky-300 hover:bg-sky-50'
+                    }`}
+                  >
+                    <Compass className="w-4 h-4 mr-1" />
+                    {preferredItinerary !== 'SEM_PREFERENCIA' ? 'Trocar Rota' : 'Buscar Rota SAP'}
+                  </Button>
+                </div>
+              </div>
+
               {/* Submit Button */}
               <Button
                 type="submit"
@@ -246,6 +319,57 @@ export const TotemEntry: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal Touch para Seleção de Itinerário SAP */}
+      <Dialog open={isItineraryModalOpen} onOpenChange={setIsItineraryModalOpen}>
+        <DialogContent className="sm:max-w-md p-5">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Route className="w-5 h-5 text-[#005596]" />
+              Itinerário de Preferência (TVROT SAP)
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Selecione o trajeto oficial desejado ou mantenha sem preferência.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-3 space-y-2">
+            <ItinerarySearchSelect
+              value={preferredItinerary}
+              onSelect={(code, desc) => {
+                setPreferredItinerary(code)
+                setPreferredItineraryName(desc)
+              }}
+              placeholder="Buscar rota SAP por código, cidade ou UF..."
+              className="w-full text-xs"
+            />
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setPreferredItinerary('SEM_PREFERENCIA')
+                setPreferredItineraryName('Sem preferência')
+                setIsItineraryModalOpen(false)
+              }}
+              className="text-xs font-semibold text-slate-700"
+            >
+              Sem Preferência
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setIsItineraryModalOpen(false)}
+              className="text-xs font-bold bg-[#005596] text-white"
+            >
+              Confirmar Escolha
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Footer */}
       <div className="text-center text-[10px] text-slate-400 py-4">

@@ -183,27 +183,51 @@ export const PreRegistrationsPage: React.FC = () => {
 
     setIsSubmitting(true)
     try {
-      const ok = await TmsService.updatePreRegistrationStatus(
-        selectedItem.id,
-        targetStatus,
-        user?.email || 'operador@ciafal.com.br',
-        reviewerNotes,
-        rejectionReason,
-      )
+      if (targetStatus === 'cadastro_confirmado') {
+        const promoteRes = await TmsService.promotePreRegistrationToQueue(
+          selectedItem.id,
+          user?.email || 'operador@ciafal.com.br',
+          user?.name || 'Operador HUB CIAFAL',
+          reviewerNotes,
+        )
 
-      if (ok) {
-        toast({
-          title: 'Status atualizado com sucesso',
-          description: `Pré-cadastro avançado para ${targetStatus.toUpperCase()}. Trilha auditada.`,
-        })
-        setSelectedItem(null)
-        loadData(true)
+        if (promoteRes.success) {
+          toast({
+            title: 'Pré-cadastro Homologado!',
+            description: promoteRes.message,
+          })
+          setSelectedItem(null)
+          loadData(true)
+        } else {
+          toast({
+            title: 'Falha ao homologar e promover',
+            description: promoteRes.message,
+            variant: 'destructive',
+          })
+        }
       } else {
-        toast({
-          title: 'Falha ao atualizar',
-          description: 'Não foi possível salvar a alteração.',
-          variant: 'destructive',
-        })
+        const ok = await TmsService.updatePreRegistrationStatus(
+          selectedItem.id,
+          targetStatus,
+          user?.email || 'operador@ciafal.com.br',
+          reviewerNotes,
+          rejectionReason,
+        )
+
+        if (ok) {
+          toast({
+            title: 'Status atualizado com sucesso',
+            description: `Pré-cadastro avançado para ${targetStatus.toUpperCase()}. Trilha auditada.`,
+          })
+          setSelectedItem(null)
+          loadData(true)
+        } else {
+          toast({
+            title: 'Falha ao atualizar',
+            description: 'Não foi possível salvar a alteração.',
+            variant: 'destructive',
+          })
+        }
       }
     } catch (err: any) {
       toast({
@@ -500,6 +524,14 @@ export const PreRegistrationsPage: React.FC = () => {
                   </div>
                   <div>
                     Origem: <strong>{selectedItem.origin}</strong>
+                  </div>
+                  <div className="col-span-2 pt-1 border-t border-slate-200">
+                    Itinerário Preferencial Solicitado:{' '}
+                    <span className="font-bold font-mono text-[#005596]">
+                      {selectedItem.preferred_itinerary === 'SEM_PREFERENCIA'
+                        ? 'Sem preferência (Qualquer rota)'
+                        : selectedItem.preferred_itinerary || 'Não informado'}
+                    </span>
                   </div>
                 </div>
               </div>
