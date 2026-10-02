@@ -4487,6 +4487,34 @@ export const TmsService = {
     }
   },
 
+  async getDrivers() {
+    try {
+      return await pb.collection('drivers').getFullList<import('@/domain/rules').DriverEntity>()
+    } catch {
+      return []
+    }
+  },
+
+  async createFreightOffer(data: {
+    cargo_id: string
+    cargo_description: string
+    origin: string
+    destination: string
+    weight_kg: number
+    required_vehicle_type: string
+    current_group: 'PORTA' | 'FORA' | 'PROGRAMADO' | 'PUBLICO' | 'ENCERRADO'
+    status: import('@/domain/rules').FreightOfferStatus
+    floor_value: number
+    correlation_id?: string
+  }) {
+    try {
+      return await pb.collection('freight_offers').create(data)
+    } catch (err) {
+      console.error('Error creating freight offer:', err)
+      throw err
+    }
+  },
+
   async getCargos(): Promise<any[]> {
     try {
       return await pb.collection('freight_offers').getFullList({ sort: '-created' })

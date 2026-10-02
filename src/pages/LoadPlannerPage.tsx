@@ -18,6 +18,7 @@ import {
   ArrowRight,
   ShieldCheck,
   RefreshCw,
+  Link2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,9 +39,16 @@ import {
   SapItineraryEntity,
   QueueEntryEntity,
   VehicleEntity,
+  DriverEntity,
+  SapStockCurrentEntity,
+  PcpProductionOrderEntity,
+  FreightRuleParameterEntity,
   avaliar_montagem_carga,
   identificar_oportunidade_complemento,
 } from '@/domain/rules'
+import { EncontrosDrawer } from '@/components/load-planner/EncontrosDrawer'
+import { runVehicleLoadMatchingEngine } from '@/domain/vehicleLoadMatchingEngine'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export const LoadPlannerPage: React.FC = () => {
   const { user } = useAuth()
@@ -49,6 +57,12 @@ export const LoadPlannerPage: React.FC = () => {
   const [orders, setOrders] = useState<SapSalesOrderEntity[]>([])
   const [itineraries, setItineraries] = useState<SapItineraryEntity[]>([])
   const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
+  const [stockCurrent, setStockCurrent] = useState<SapStockCurrentEntity[]>([])
+  const [pcpOrders, setPcpOrders] = useState<PcpProductionOrderEntity[]>([])
+  const [vehicles, setVehicles] = useState<VehicleEntity[]>([])
+  const [drivers, setDrivers] = useState<DriverEntity[]>([])
+  const [freightRuleParams, setFreightRuleParams] = useState<FreightRuleParameterEntity[]>([])
+  const [isEncontrosOpen, setIsEncontrosOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [walletMeta, setWalletMeta] = useState<{
     source: 'SAP_RFC'
@@ -111,16 +125,27 @@ export const LoadPlannerPage: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const [ordData, itinData, qData, metaData] = await Promise.all([
-        TmsService.getUnifiedSalesWallet(),
-        TmsService.getSapItineraries(),
-        TmsService.getOperationalQueue(),
-        TmsService.getLatestWalletMetadata(),
-      ])
+      const [ordData, itinData, qData, metaData, stockData, pcpData, vehData, drvData, ruleData] =
+        await Promise.all([
+          TmsService.getUnifiedSalesWallet(),
+          TmsService.getSapItineraries(),
+          TmsService.getOperationalQueue(),
+          TmsService.getLatestWalletMetadata(),
+          TmsService.getStockCurrent(),
+          TmsService.getPcpProductionOrders(),
+          TmsService.getVehicles(),
+          TmsService.getDrivers(),
+          TmsService.getFreightRuleParameters(),
+        ])
       setOrders(ordData)
       setItineraries(itinData)
       setQueueEntries(qData)
       setWalletMeta(metaData)
+      setStockCurrent(stockData)
+      setPcpOrders(pcpData)
+      setVehicles(vehData)
+      setDrivers(drvData)
+      setFreightRuleParams(ruleData)
 
       toast({
         title: 'Carteira SAP Sincronizada',
@@ -140,6 +165,45 @@ export const LoadPlannerPage: React.FC = () => {
   useEffect(() => {
     fetchData()
   }, [])
+
+  // Inscrições Realtime para manter o contador de Encontros sincronizado ao vivo
+  useRealtime('queue_entries', () => {
+    TmsService.getOperationalQueue()
+      .then(setQueueEntries)
+      .catch(() => {})
+  })
+
+  useRealtime('sap_sales_orders', () => {
+    TmsService.getUnifiedSalesWallet()
+      .then(setOrders)
+      .catch(() => {})
+  })
+
+  useRealtime('sap_stock_current', () => {
+    TmsService.getStockCurrent()
+      .then(setStockCurrent)
+      .catch(() => {})
+  })
+
+  useRealtime('pcp_production_orders', () => {
+    TmsService.getPcpProductionOrders()
+      .then(setPcpOrders)
+      .catch(() => {})
+  })
+
+  // Cálculo reativo da contagem de Encontros Viáveis em tempo real
+  const viableMatchesCount = useMemo(() => {
+    const res = runVehicleLoadMatchingEngine({
+      queueEntries,
+      salesOrders: orders,
+      stockCurrent,
+      pcpOrders,
+      vehicles,
+      drivers,
+      freightRuleParameters: freightRuleParams,
+    })
+    return res.viableMatchesCount
+  }, [queueEntries, orders, stockCurrent, pcpOrders, vehicles, drivers, freightRuleParams])
 
   // Filtered Orders (Esquerda)
   const availableOrders = useMemo(() => {
@@ -283,6 +347,20 @@ export const LoadPlannerPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Botão ENCONTROS VEÍCULO × CARGA — Azul Institucional CIAFAL (#005596) */}
+            <Button
+              onClick={() => setIsEncontrosOpen(true)}
+              size="sm"
+              className="bg-[#005596] hover:bg-[#004275] text-white text-xs h-8 font-bold shadow-xs flex items-center gap-1.5"
+            >
+              <Link2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">ENCONTROS VEÍCULO × CARGA</span>
+              <span className="sm:hidden">ENCONTROS</span>
+              <Badge className="bg-white/20 hover:bg-white/30 text-white font-mono text-[10px] px-1.5 py-0 border-none font-extrabold">
+                ENCONTROS {viableMatchesCount}
+              </Badge>
+            </Button>
+
             <Button
               onClick={handleRunAiPlanner}
               disabled={isAiLoading}
@@ -290,7 +368,8 @@ export const LoadPlannerPage: React.FC = () => {
               className="bg-purple-700 hover:bg-purple-800 text-white text-xs h-8 font-bold"
             >
               <Sparkles className={`w-3.5 h-3.5 mr-1.5 ${isAiLoading ? 'animate-spin' : ''}`} />
-              {isAiLoading ? 'IA Analisando...' : 'AGENTE IA — PLANEJADOR'}
+              <span className="hidden md:inline">AGENTE IA — PLANEJADOR</span>
+              <span className="md:hidden">AGENTE IA</span>
             </Button>
 
             <Button
@@ -301,7 +380,7 @@ export const LoadPlannerPage: React.FC = () => {
               disabled={isLoading}
             >
               <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-              Atualizar agora
+              <span className="hidden sm:inline">Atualizar agora</span>
             </Button>
           </div>
         </div>
@@ -1003,6 +1082,30 @@ export const LoadPlannerPage: React.FC = () => {
           </Card>
         </div>
       </div>
+      {/* Drawer amplo de ENCONTROS VEÍCULO × CARGA */}
+      <EncontrosDrawer
+        open={isEncontrosOpen}
+        onOpenChange={setIsEncontrosOpen}
+        queueEntries={queueEntries}
+        salesOrders={orders}
+        stockCurrent={stockCurrent}
+        pcpOrders={pcpOrders}
+        vehicles={vehicles}
+        drivers={drivers}
+        freightRuleParameters={freightRuleParams}
+        onRefreshData={fetchData}
+        onInjectIntoSimulator={(match) => {
+          // Seleciona pedidos do match para montagem
+          setSelectedOrders(match.candidateLoad.orders)
+          setSelectedQueueVehicle(match.queueVehicle)
+          setCargoName(match.candidateLoad.title)
+          setFilterItinerary(match.candidateLoad.itineraryCode)
+          toast({
+            title: 'Carga Carregada na Montagem',
+            description: `${match.candidateLoad.title} vinculada ao veículo ${match.vehiclePlate}.`,
+          })
+        }}
+      />
     </div>
   )
 }

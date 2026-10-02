@@ -310,6 +310,7 @@ export interface QueueEntryEntity {
   calculated_logistics_date?: string // Data logística calculada (regra corte 12:00 ou data futura)
   scheduled_arrival_date?: string // Para PROGRAMADOS
   preferred_itinerary?: string // Código SAP do itinerário (ex: TVROT ou SEM_PREFERENCIA)
+  preferred_itinerary_code?: string // Código SAP do itinerário preferencial
   preferred_itinerary_name?: string // Descrição oficial do itinerário TVROT
   driver_notes?: string
   latitude?: number
