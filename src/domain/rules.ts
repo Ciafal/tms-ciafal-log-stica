@@ -1624,6 +1624,744 @@ export function getUserPermissions(role?: UserRole): Permissions {
 
 // ----------------------------------------------------
 // MOTOR DETERMINÍSTICO DE MONTAGEM DE CARGA (PLANEJADOR)
+// ----------------------------------------------------
+
+export type LoadAssemblyDecision = 'permitida' | 'exige_aprovacao' | 'recusada'
+
+export interface LoadAssemblyRuleResult {
+  decision: LoadAssemblyDecision
+  reasons: string[] // Retorna TODOS os motivos (não apenas o primeiro)
+  details: {
+    weightValid: boolean
+    volumeValid: boolean
+    itineraryValid: boolean
+    vehicleTypeValid: boolean
+    creditValid: boolean
+    productionReady: boolean
+    hasObservations: boolean
+  }
+  calculatedWeightKg: number
+  capacityKg?: number
+  balanceKg?: number
+}
+
+export interface AssembleLoadInput {
+  orders: SapSalesOrderEntity[]
+  vehicle: VehicleEntity | null
+  targetItineraryCode: string
+  maxVolumeM3?: number
+}
+
+/**
+ * Deterministic Load Assembly Engine
+ * Analisa: Peso, Volume, Itinerário, Tipo de Veículo, Tipo de Descarga, Saldo, Crédito (por valor), Produção.
+ * Observações SAP são texto informativo para leitura do operador — não decidem automaticamente.
+ */
+export function avaliar_montagem_carga(input: AssembleLoadInput): LoadAssemblyRuleResult {
+  const reasons: string[] = []
+  const { orders, vehicle, targetItineraryCode, maxVolumeM3 } = input
+
+  const totalWeight = orders.reduce((acc, o) => acc + (o.weight_kg || 0), 0)
+  const totalVolume = orders.reduce((acc, o) => acc + (o.volume_m3 || 0), 0)
+  const vehicleCapacity = vehicle?.capacity_kg
+
+  // 1. Validação de Itinerário
+  const wrongItineraryOrders = orders.filter((o) => o.itinerary_code !== targetItineraryCode)
+  const itineraryValid = wrongItineraryOrders.length === 0
+  if (!itineraryValid) {
+    const wrongCodes = Array.from(new Set(wrongItineraryOrders.map((o) => o.itinerary_code))).join(
+      ', ',
+    )
+    reasons.push(
+      `Pedidos com itinerário incompatível (${wrongCodes}). Itinerário da carga: ${targetItineraryCode}.`,
+    )
+  }
+
+  // 2. Validação de Capacidade de Peso (usar capacidade do cadastro, sem hardcode)
+  let weightValid = true
+  let balanceKg: number | undefined
+  if (vehicleCapacity !== undefined && vehicleCapacity !== null && vehicleCapacity > 0) {
+    balanceKg = vehicleCapacity - totalWeight
+    if (totalWeight > vehicleCapacity) {
+      weightValid = false
+      reasons.push(
+        `Peso total (${totalWeight.toLocaleString('pt-BR')} kg) excede a capacidade do veículo (${vehicleCapacity.toLocaleString('pt-BR')} kg) em ${Math.abs(balanceKg).toLocaleString('pt-BR')} kg.`,
+      )
+    }
+  } else if (vehicle) {
+    // Veículo sem capacidade informada
+    reasons.push('Veículo sem capacidade de peso cadastrada no sistema.')
+  }
+
+  // 3. Validação de Volume
+  let volumeValid = true
+  if (maxVolumeM3 && maxVolumeM3 > 0 && totalVolume > maxVolumeM3) {
+    volumeValid = false
+    reasons.push(
+      `Volume total (${totalVolume.toFixed(1)} m³) excede o volume máximo da carroceria (${maxVolumeM3} m³).`,
+    )
+  }
+
+  // 4. Validação de Tipo de Veículo Exigido
+  let vehicleTypeValid = true
+  if (vehicle) {
+    const incompatibleVehicleOrders = orders.filter((o) => {
+      if (!o.required_vehicle_type) return false
+      const req = o.required_vehicle_type.toLowerCase()
+      const vType = (vehicle.type || '').toLowerCase()
+      return !vType.includes(req) && !req.includes(vType)
+    })
+    if (incompatibleVehicleOrders.length > 0) {
+      vehicleTypeValid = false
+      const reqs = Array.from(
+        new Set(incompatibleVehicleOrders.map((o) => o.required_vehicle_type)),
+      ).join(', ')
+      reasons.push(
+        `Tipo de veículo do cadastro (${vehicle.type}) incompatível com exigência do(s) pedido(s): ${reqs}.`,
+      )
+    }
+  }
+
+  // 5. Validação de Crédito do Cliente (analisado por VALOR do pedido no financeiro)
+  const blockedCreditOrders = orders.filter((o) => o.credit_status === 'Bloqueado')
+  const inAnalysisCreditOrders = orders.filter((o) => o.credit_status === 'Em Análise')
+  const creditValid = blockedCreditOrders.length === 0
+
+  if (blockedCreditOrders.length > 0) {
+    const ordNums = blockedCreditOrders.map((o) => o.order_number).join(', ')
+    reasons.push(`Pedido(s) ${ordNums} com CRÉDITO BLOQUEADO no SAP pelo financeiro.`)
+  }
+
+  // 6. Validação de Status de Produção (PCP)
+  const notReadyOrders = orders.filter((o) => o.production_status !== 'Pronto')
+  const productionReady = notReadyOrders.length === 0
+  if (!productionReady) {
+    const pDetails = notReadyOrders
+      .map((o) => `${o.order_number} (${o.production_status})`)
+      .join(', ')
+    reasons.push(`Material não está totalmente pronto no PCP: ${pDetails}.`)
+  }
+
+  // 7. Observações Informativas SAP (STXH/STXL)
+  const ordersWithObs = orders.filter((o) => !!o.sap_notes && o.sap_notes.trim().length > 0)
+  const hasObservations = ordersWithObs.length > 0
+
+  // DECISION MATRIX
+  let decision: LoadAssemblyDecision = 'permitida'
+
+  if (!itineraryValid || !weightValid || !creditValid) {
+    decision = 'recusada'
+  } else if (
+    !productionReady ||
+    !vehicleTypeValid ||
+    !volumeValid ||
+    inAnalysisCreditOrders.length > 0 ||
+    hasObservations
+  ) {
+    decision = 'exige_aprovacao'
+    if (inAnalysisCreditOrders.length > 0) {
+      reasons.push('Pedido(s) com crédito em análise no financeiro requerem aprovação gerencial.')
+    }
+  }
+
+  return {
+    decision,
+    reasons,
+    details: {
+      weightValid,
+      volumeValid,
+      itineraryValid,
+      vehicleTypeValid,
+      creditValid,
+      productionReady,
+      hasObservations,
+    },
+    calculatedWeightKg: totalWeight,
+    capacityKg: vehicleCapacity,
+    balanceKg,
+  }
+}
+=======
+      canTakeoverFredConversation: false,
+      canViewFredControlTower: false,
+      canSendFredProactiveAlert: false,
+      canViewFredEvidences: false,
+      canUseCollector: false,
+      canCancelCollectorPicking: false,
+    }
+  }
+  return { ...ROLE_PERMISSIONS[role] }
+}
+
+// ----------------------------------------------------
+// MOTOR DETERMINÍSTICO DE MONTAGEM DE CARGA (PLANEJADOR)
+// ----------------------------------------------------
+
+export type LoadAssemblyDecision = 'permitida' | 'exige_aprovacao' | 'recusada'
+
+export interface LoadAssemblyRuleResult {
+  decision: LoadAssemblyDecision
+  reasons: string[] // Retorna TODOS os motivos (não apenas o primeiro)
+  details: {
+    weightValid: boolean
+    volumeValid: boolean
+    itineraryValid: boolean
+    vehicleTypeValid: boolean
+    creditValid: boolean
+    productionReady: boolean
+    hasObservations: boolean
+  }
+  calculatedWeightKg: number
+  capacityKg?: number
+  balanceKg?: number
+}
+
+export interface AssembleLoadInput {
+  orders: SapSalesOrderEntity[]
+  vehicle: VehicleEntity | null
+  targetItineraryCode: string
+  maxVolumeM3?: number
+}
+
+/**
+ * Deterministic Load Assembly Engine
+ * Analisa: Peso, Volume, Itinerário, Tipo de Veículo, Tipo de Descarga, Saldo, Crédito (por valor), Produção.
+ * Observações SAP são texto informativo para leitura do operador — não decidem automaticamente.
+ */
+export function avaliar_montagem_carga(input: AssembleLoadInput): LoadAssemblyRuleResult {
+  const reasons: string[] = []
+  const { orders, vehicle, targetItineraryCode, maxVolumeM3 } = input
+
+  const totalWeight = orders.reduce((acc, o) => acc + (o.weight_kg || 0), 0)
+  const totalVolume = orders.reduce((acc, o) => acc + (o.volume_m3 || 0), 0)
+  const vehicleCapacity = vehicle?.capacity_kg
+
+  // 1. Validação de Itinerário
+  const wrongItineraryOrders = orders.filter((o) => o.itinerary_code !== targetItineraryCode)
+  const itineraryValid = wrongItineraryOrders.length === 0
+  if (!itineraryValid) {
+    const wrongCodes = Array.from(new Set(wrongItineraryOrders.map((o) => o.itinerary_code))).join(
+      ', ',
+    )
+    reasons.push(
+      `Pedidos com itinerário incompatível (${wrongCodes}). Itinerário da carga: ${targetItineraryCode}.`,
+    )
+  }
+
+  // 2. Validação de Capacidade de Peso (usar capacidade do cadastro, sem hardcode)
+  let weightValid = true
+  let balanceKg: number | undefined
+  if (vehicleCapacity !== undefined && vehicleCapacity !== null && vehicleCapacity > 0) {
+    balanceKg = vehicleCapacity - totalWeight
+    if (totalWeight > vehicleCapacity) {
+      weightValid = false
+      reasons.push(
+        `Peso total (${totalWeight.toLocaleString('pt-BR')} kg) excede a capacidade do veículo (${vehicleCapacity.toLocaleString('pt-BR')} kg) em ${Math.abs(balanceKg).toLocaleString('pt-BR')} kg.`,
+      )
+    }
+  } else if (vehicle) {
+    // Veículo sem capacidade informada
+    reasons.push('Veículo sem capacidade de peso cadastrada no sistema.')
+  }
+
+  // 3. Validação de Volume
+  let volumeValid = true
+  if (maxVolumeM3 && maxVolumeM3 > 0 && totalVolume > maxVolumeM3) {
+    volumeValid = false
+    reasons.push(
+      `Volume total (${totalVolume.toFixed(1)} m³) excede o volume máximo da carroceria (${maxVolumeM3} m³).`,
+    )
+  }
+
+  // 4. Validação de Tipo de Veículo Exigido
+  let vehicleTypeValid = true
+  if (vehicle) {
+    const incompatibleVehicleOrders = orders.filter((o) => {
+      if (!o.required_vehicle_type) return false
+      const req = o.required_vehicle_type.toLowerCase()
+      const vType = (vehicle.type || '').toLowerCase()
+      return !vType.includes(req) && !req.includes(vType)
+    })
+    if (incompatibleVehicleOrders.length > 0) {
+      vehicleTypeValid = false
+      const reqs = Array.from(
+        new Set(incompatibleVehicleOrders.map((o) => o.required_vehicle_type)),
+      ).join(', ')
+      reasons.push(
+        `Tipo de veículo do cadastro (${vehicle.type}) incompatível com exigência do(s) pedido(s): ${reqs}.`,
+      )
+    }
+  }
+
+  // 5. Validação de Crédito do Cliente (analisado por VALOR do pedido no financeiro)
+  const blockedCreditOrders = orders.filter((o) => o.credit_status === 'Bloqueado')
+  const inAnalysisCreditOrders = orders.filter((o) => o.credit_status === 'Em Análise')
+  const creditValid = blockedCreditOrders.length === 0
+
+  if (blockedCreditOrders.length > 0) {
+    const ordNums = blockedCreditOrders.map((o) => o.order_number).join(', ')
+    reasons.push(`Pedido(s) ${ordNums} com CRÉDITO BLOQUEADO no SAP pelo financeiro.`)
+  }
+
+  // 6. Validação de Status de Produção (PCP)
+  const notReadyOrders = orders.filter((o) => o.production_status !== 'Pronto')
+  const productionReady = notReadyOrders.length === 0
+  if (!productionReady) {
+    const pDetails = notReadyOrders
+      .map((o) => `${o.order_number} (${o.production_status})`)
+      .join(', ')
+    reasons.push(`Material não está totalmente pronto no PCP: ${pDetails}.`)
+  }
+
+  // 7. Observações Informativas SAP (STXH/STXL)
+  const ordersWithObs = orders.filter((o) => !!o.sap_notes && o.sap_notes.trim().length > 0)
+  const hasObservations = ordersWithObs.length > 0
+
+  // DECISION MATRIX
+  let decision: LoadAssemblyDecision = 'permitida'
+
+  if (!itineraryValid || !weightValid || !creditValid) {
+    decision = 'recusada'
+  } else if (
+    !productionReady ||
+    !vehicleTypeValid ||
+    !volumeValid ||
+    inAnalysisCreditOrders.length > 0 ||
+    hasObservations
+  ) {
+    decision = 'exige_aprovacao'
+    if (inAnalysisCreditOrders.length > 0) {
+      reasons.push('Pedido(s) com crédito em análise no financeiro requerem aprovação gerencial.')
+    }
+  }
+
+  return {
+    decision,
+    reasons,
+    details: {
+      weightValid,
+      volumeValid,
+      itineraryValid,
+      vehicleTypeValid,
+      creditValid,
+      productionReady,
+      hasObservations,
+    },
+    calculatedWeightKg: totalWeight,
+    capacityKg: vehicleCapacity,
+    balanceKg,
+  }
+}
+    canManageQueueStatus: false,
+    canRemoveDriver: false,
+    canBlockDriver: false,
+    canManagePreRegistrations: false,
+    canImportSap: false,
+    canViewAuditLogs: false,
+    canManageSystemParameters: false,
+    canViewFullSensitiveData: false,
+    canPlanLoads: false,
+    canManageItineraries: false,
+    canViewRouter: true,
+    canSimulateRouter: false,
+    canApproveScenario: false,
+    canRequestStockConfirmation: false,
+    canRespondStockConfirmation: false,
+    canRequestCreditReassessment: false,
+    canRespondCreditReassessment: false,
+    canRequestComplement: true,
+    canRespondComplement: false,
+    canAdminAntt: false,
+    canAdminRoutingProviders: false,
+    canViewPrinters: false,
+    canManagePrinters: false,
+    canPrintTransport: false,
+    canReprintTransport: false,
+    canExecuteAiPlanner: false,
+    canApproveAiPlanner: false,
+    canManageAiPlannerParams: false,
+    canViewProfitability: true,
+    canViewProfitabilityDetail: false,
+    canExportProfitability: false,
+    canViewExpeditionPerformance: true,
+    canAnalyzeExpeditionAi: false,
+    canViewWmsLoadingMap: false,
+    canConfirmWmsLoading: false,
+    canSyncSapWallet: false,
+    canNegotiateFreights: false,
+    canSuperviseCarlao: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+    canUseCollector: false,
+    canCancelCollectorPicking: false,
+  },
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+    canManageQueueStatus: false,
+    canRemoveDriver: false,
+    canBlockDriver: false,
+    canManagePreRegistrations: false,
+    canImportSap: false,
+    canViewAuditLogs: true,
+    canManageSystemParameters: false,
+    canViewFullSensitiveData: true,
+    canPlanLoads: false,
+    canManageItineraries: false,
+    canViewRouter: true,
+    canSimulateRouter: false,
+    canApproveScenario: false,
+    canRequestStockConfirmation: false,
+    canRespondStockConfirmation: false,
+    canRequestCreditReassessment: false,
+    canRespondCreditReassessment: false,
+    canRequestComplement: false,
+    canRespondComplement: false,
+    canAdminAntt: true,
+    canAdminRoutingProviders: false,
+    canViewPrinters: true,
+    canManagePrinters: false,
+    canPrintTransport: false,
+    canReprintTransport: false,
+    canExecuteAiPlanner: false,
+    canApproveAiPlanner: false,
+    canManageAiPlannerParams: false,
+    canViewProfitability: true,
+    canViewProfitabilityDetail: true,
+    canExportProfitability: true,
+    canViewExpeditionPerformance: true,
+    canAnalyzeExpeditionAi: true,
+    canViewWmsLoadingMap: true,
+    canConfirmWmsLoading: false,
+    canSyncSapWallet: false,
+    canNegotiateFreights: false,
+    canSuperviseCarlao: true,
+    canManageCarlaoAutonomy: false,
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true,
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: true,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: true,
+  },
+}
+
+export function getRoleLabel(role: UserRole): string {
+  const labels: Record<UserRole, string> = {
+    admin_master: 'Administrador Master HUB',
+    admin_tms: 'Administrador TMS',
+    gestor_logistica: 'Gestor de Logística',
+    gerente_carga: 'Gerente de Carga',
+    operador_logistica: 'Operador de Logística',
+    expedidor: 'Expedidor (Coletor C72)',
+    supervisor_expedicao: 'Supervisor de Expedição',
+    portaria: 'Portaria e Acesso',
+    financeiro: 'Financeiro / Controladoria',
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+  if (!role || !ROLE_PERMISSIONS[role]) {
+    return {
+      canViewQueue: false,
+      canManageQueueStatus: false,
+      canRemoveDriver: false,
+      canBlockDriver: false,
+      canManagePreRegistrations: false,
+      canImportSap: false,
+      canViewAuditLogs: false,
+      canManageSystemParameters: false,
+      canViewFullSensitiveData: false,
+      canPlanLoads: false,
+      canManageItineraries: false,
+      canViewRouter: false,
+      canSimulateRouter: false,
+      canApproveScenario: false,
+      canRequestStockConfirmation: false,
+      canRespondStockConfirmation: false,
+      canRequestCreditReassessment: false,
+      canRespondCreditReassessment: false,
+      canRequestComplement: false,
+      canRespondComplement: false,
+      canAdminAntt: false,
+      canAdminRoutingProviders: false,
+      canViewPrinters: false,
+      canManagePrinters: false,
+      canPrintTransport: false,
+      canReprintTransport: false,
+      canExecuteAiPlanner: false,
+      canApproveAiPlanner: false,
+      canManageAiPlannerParams: false,
+      canViewProfitability: false,
+      canViewProfitabilityDetail: false,
+      canExportProfitability: false,
+      canViewExpeditionPerformance: false,
+      canAnalyzeExpeditionAi: false,
+      canViewWmsLoadingMap: false,
+      canConfirmWmsLoading: false,
+      canSyncSapWallet: false,
+      canNegotiateFreights: false,
+      canSuperviseCarlao: false,
+      canManageCarlaoAutonomy: false,
+      canManageExpeditionWorkflow: false,
+      canConfigureExpeditionSla: false,
+      canViewFreightIntelligence: false,
+      canTrackFred: false,
+      canTakeoverFredConversation: false,
+      canViewFredControlTower: false,
+      canSendFredProactiveAlert: false,
+      canViewFredEvidences: false,
+      canUseCollector: false,
+      canCancelCollectorPicking: false,
+    }
+  }
+  return { ...ROLE_PERMISSIONS[role] }
+}
+
+// ----------------------------------------------------
+// MOTOR DETERMINÍSTICO DE MONTAGEM DE CARGA (PLANEJADOR)
+// ----------------------------------------------------
+
+export type LoadAssemblyDecision = 'permitida' | 'exige_aprovacao' | 'recusada'
+  auditor: {
+    canViewQueue: true,
+    canManageQueueStatus: false,
+    canRemoveDriver: false,
+    canBlockDriver: false,
+    canManagePreRegistrations: false,
+    canImportSap: false,
+    canViewAuditLogs: true,
+    canManageSystemParameters: false,
+    canViewFullSensitiveData: true,
+    canPlanLoads: false,
+    canManageItineraries: false,
+    canViewRouter: true,
+    canSimulateRouter: false,
+    canApproveScenario: false,
+    canRequestStockConfirmation: false,
+    canRespondStockConfirmation: false,
+    canRequestCreditReassessment: false,
+    canRespondCreditReassessment: false,
+    canRequestComplement: false,
+    canRespondComplement: false,
+    canAdminAntt: true,
+    canAdminRoutingProviders: false,
+    canViewPrinters: true,
+    canManagePrinters: false,
+    canPrintTransport: false,
+    canReprintTransport: false,
+    canExecuteAiPlanner: false,
+    canApproveAiPlanner: false,
+    canManageAiPlannerParams: false,
+    canViewProfitability: true,
+    canViewProfitabilityDetail: true,
+    canExportProfitability: true,
+    canViewExpeditionPerformance: true,
+    canAnalyzeExpeditionAi: true,
+    canViewWmsLoadingMap: true,
+    canConfirmWmsLoading: false,
+    canSyncSapWallet: false,
+    canNegotiateFreights: false,
+    canSuperviseCarlao: true,
+    canManageCarlaoAutonomy: false,
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true,
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: true,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: true,
+  },
+}
+
+export function getRoleLabel(role: UserRole): string {
+  const labels: Record<UserRole, string> = {
+    admin_master: 'Administrador Master HUB',
+    admin_tms: 'Administrador TMS',
+    gestor_logistica: 'Gestor de Logística',
+    gerente_carga: 'Gerente de Carga',
+    operador_logistica: 'Operador de Logística',
+    expedidor: 'Expedidor (Coletor C72)',
+    supervisor_expedicao: 'Supervisor de Expedição',
+    portaria: 'Portaria e Acesso',
+    financeiro: 'Financeiro / Controladoria',
+    comercial: 'Comercial / Representante',
+    auditor: 'Auditoria & Compliance',
+  }
+  return labels[role] || role
+}
+
+export function getUserPermissions(role?: UserRole): Permissions {
+  if (!role || !ROLE_PERMISSIONS[role]) {
+    return {
+      canViewQueue: false,
+      canManageQueueStatus: false,
+      canRemoveDriver: false,
+      canBlockDriver: false,
+      canManagePreRegistrations: false,
+      canImportSap: false,
+      canViewAuditLogs: false,
+      canManageSystemParameters: false,
+      canViewFullSensitiveData: false,
+      canPlanLoads: false,
+      canManageItineraries: false,
+      canViewRouter: false,
+      canSimulateRouter: false,
+      canApproveScenario: false,
+      canRequestStockConfirmation: false,
+      canRespondStockConfirmation: false,
+      canRequestCreditReassessment: false,
+      canRespondCreditReassessment: false,
+      canRequestComplement: false,
+      canRespondComplement: false,
+      canAdminAntt: false,
+      canAdminRoutingProviders: false,
+      canViewPrinters: false,
+      canManagePrinters: false,
+      canPrintTransport: false,
+      canReprintTransport: false,
+      canExecuteAiPlanner: false,
+      canApproveAiPlanner: false,
+      canManageAiPlannerParams: false,
+      canViewProfitability: false,
+      canViewProfitabilityDetail: false,
+      canExportProfitability: false,
+      canViewExpeditionPerformance: false,
+      canAnalyzeExpeditionAi: false,
+      canViewWmsLoadingMap: false,
+      canConfirmWmsLoading: false,
+      canSyncSapWallet: false,
+      canNegotiateFreights: false,
+      canSuperviseCarlao: false,
+      canManageCarlaoAutonomy: false,
+      canManageExpeditionWorkflow: false,
+      canConfigureExpeditionSla: false,
+      canViewFreightIntelligence: false,
+      canTrackFred: false,
+      canTakeoverFredConversation: false,
+      canViewFredControlTower: false,
+      canSendFredProactiveAlert: false,
+      canViewFredEvidences: false,
+      canUseCollector: false,
+      canCancelCollectorPicking: false,
+    }
+  }
+  return { ...ROLE_PERMISSIONS[role] }
+}
+=======
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+=======
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+=======
+    canManageCarlaoAutonomy: false,
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+  auditor: {
+    canViewQueue: true,
+=======
+  auditor: {
+    canViewQueue: true,
+=======
+    canManageExpeditionWorkflow: false,
+    canConfigureExpeditionSla: false,
+    canViewFreightIntelligence: true,
+    canTrackFred: true, // Comercial consulta o Fred pelo CRM
+    canTakeoverFredConversation: false,
+    canViewFredControlTower: false,
+    canSendFredProactiveAlert: false,
+    canViewFredEvidences: false,
+  },
+=======
+      canUseCollector: false,
+      canCancelCollectorPicking: false,
+    }
+  }
+  return { ...ROLE_PERMISSIONS[role] }
+}
+
+// ----------------------------------------------------
+// MOTOR DETERMINÍSTICO DE MONTAGEM DE CARGA (PLANEJADOR)
+// ----------------------------------------------------
 =======
   comercial: {
     canViewQueue: true,
