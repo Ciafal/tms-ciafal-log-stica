@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Layers,
   Truck,
@@ -20,6 +20,7 @@ import {
   MessageSquare,
   ShieldCheck,
   Send,
+  Compass,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,14 @@ import { Badge } from '@/components/ui/badge'
 import { KpiCard, IntegrationCard, SectionHeader } from '@/components/ui-custom'
 import { useAuth } from '@/contexts/AuthContext'
 import { TmsService } from '@/services/tmsService'
+import {
+  ControlTowerService,
+  TowerTimePeriod,
+  TowerSummaryResponse,
+} from '@/services/controlTowerService'
+import { TowerTimePeriodFilter } from '@/components/control-tower/TowerTimePeriodFilter'
+import { TowerCargoFlowSection } from '@/components/control-tower/TowerCargoFlowSection'
+import { useRealtime } from '@/hooks/use-realtime'
 import {
   QueueEntryEntity,
   SapSalesOrderEntity,
@@ -42,27 +51,114 @@ export const TmsDashboard: React.FC = () => {
   const [cargos, setCargos] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [ordersData, queueData, oppsData, cargosData] = await Promise.all([
-          TmsService.getSapSalesOrders(),
-          TmsService.getOperationalQueue(),
-          TmsService.getComplementOpportunities(),
-          TmsService.getCargos(),
-        ])
-        setOrders(ordersData || [])
-        setQueueEntries(queueData || [])
-        setOpportunities(oppsData || [])
-        setCargos(cargosData || [])
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err)
-      } finally {
-        setIsLoading(false)
-      }
+  // Estado do Filtro Temporal da Torre de Controle (Default: 'today' / HOJE)
+  const [selectedPeriod, setSelectedPeriod] = useState<TowerTimePeriod>('today')
+  const [isRefreshingTower, setIsRefreshingTower] = useState(false)
+  const [towerData, setTowerData] = useState<TowerSummaryResponse>({
+    period: 'today',
+    period_label: new Date().toLocaleDateString('pt-BR'),
+    range: { start: '', end: '' },
+    fluxo_cargas: {
+      em_negociacao: {
+        loads: 0,
+        tons: 0,
+        loads_formatted: '0 cargas',
+        tons_formatted: '0,00 t',
+        items: [],
+      },
+      com_contraproposta: {
+        loads: 0,
+        tons: 0,
+        loads_formatted: '0 cargas',
+        tons_formatted: '0,00 t',
+        items: [],
+      },
+      recusadas: {
+        loads: 0,
+        tons: 0,
+        loads_formatted: '0 cargas',
+        tons_formatted: '0,00 t',
+        items: [],
+      },
+      em_expedicao: {
+        loads: 0,
+        tons: 0,
+        loads_formatted: '0 cargas',
+        tons_formatted: '0,00 t',
+        items: [],
+      },
+      faturadas: {
+        loads: 0,
+        tons: 0,
+        loads_formatted: '0 cargas',
+        tons_formatted: '0,00 t',
+        items: [],
+      },
+    },
+    timestamp: new Date().toISOString(),
+  })
+
+  // Carregar dados gerais do TMS
+  const fetchGeneralData = useCallback(async () => {
+    try {
+      const [ordersData, queueData, oppsData, cargosData] = await Promise.all([
+        TmsService.getSapSalesOrders(),
+        TmsService.getOperationalQueue(),
+        TmsService.getComplementOpportunities(),
+        TmsService.getCargos(),
+      ])
+      setOrders(ordersData || [])
+      setQueueEntries(queueData || [])
+      setOpportunities(oppsData || [])
+      setCargos(cargosData || [])
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err)
+    } finally {
+      setIsLoading(false)
     }
-    fetchData()
   }, [])
+
+  // Carregar dados agregados do Fluxo das Cargas para o período selecionado
+  const fetchTowerSummary = useCallback(async (period: TowerTimePeriod) => {
+    setIsRefreshingTower(true)
+    try {
+      const summary = await ControlTowerService.getTowerSummary(period)
+      setTowerData(summary)
+    } catch (err) {
+      console.error('Error fetching tower summary:', err)
+    } finally {
+      setIsRefreshingTower(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchGeneralData()
+  }, [fetchGeneralData])
+
+  useEffect(() => {
+    fetchTowerSummary(selectedPeriod)
+  }, [selectedPeriod, fetchTowerSummary])
+
+  // Inscrições Realtime para recálculo automático sem necessidade de F5
+  useRealtime('negociacoes', () => {
+    fetchTowerSummary(selectedPeriod)
+  })
+  useRealtime('chicao_freight_offers', () => {
+    fetchTowerSummary(selectedPeriod)
+  })
+  useRealtime('carrier_operational_history', () => {
+    fetchTowerSummary(selectedPeriod)
+  })
+  useRealtime('expedition_tracking', () => {
+    fetchTowerSummary(selectedPeriod)
+  })
+  useRealtime('queue_entries', () => {
+    fetchGeneralData()
+  })
+  useRealtime('sap_sales_orders', () => {
+    fetchGeneralData()
+  })
+
   const portaDrivers = queueEntries.filter(
     (q) => q.type === 'PORTA' && !['removido', 'bloqueado'].includes(q.status),
   )
@@ -96,26 +192,26 @@ export const TmsDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
+      {/* Top Banner - TORRE DE CONTROLE */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <div className="space-y-0.5">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-wrap">
             <h1 className="text-xl font-black tracking-tight text-slate-900">
-              Painel Geral de Transporte & Logística
+              TORRE DE CONTROLE — TRANSPORTE & LOGÍSTICA
             </h1>
-            <Badge className="bg-[#005596] text-white text-[10px] font-bold">TMS CIAFAL</Badge>
+            <Badge className="bg-[#005596] text-white text-[10px] font-bold">HUB CIAFAL</Badge>
           </div>
           <p className="text-xs text-slate-500">
-            Visão unificada: Disponibilidade de Transporte → Planejamento de Cargas → Gestão de
-            Fretes → Execução.
+            Visão integrada da disponibilidade, planejamento, negociação, expedição, faturamento e
+            execução dos transportes.
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 shrink-0">
           <Link to="/tms/planejador-cargas">
             <Button
               size="sm"
-              className="bg-[#005596] hover:bg-sky-700 text-white text-xs font-bold"
+              className="bg-[#005596] hover:bg-sky-700 text-white text-xs font-bold shadow-sm"
             >
               <Package className="w-3.5 h-3.5 mr-1" />
               Abrir Planejador de Cargas
@@ -124,7 +220,19 @@ export const TmsDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* SEÇÃO 1: VISÃO HOJE */}
+      {/* FILTRO TEMPORAL PRINCIPAL: [ HOJE ] [ ONTEM ] [ SEMANA ] [ MÊS ] [ ANO ] */}
+      <TowerTimePeriodFilter
+        selectedPeriod={selectedPeriod}
+        onSelectPeriod={(p) => setSelectedPeriod(p)}
+        periodLabel={towerData.period_label}
+        isRefreshing={isRefreshingTower}
+        onRefresh={() => {
+          fetchTowerSummary(selectedPeriod)
+          fetchGeneralData()
+        }}
+      />
+
+      {/* SEÇÃO 1: INDICADORES OPERACIONAIS EXISTENTES (PRESERVADOS INTEGRALMENTE) */}
       <div className="space-y-3">
         <SectionHeader
           title="Operação Hoje (Disponibilidade & Montagem)"
@@ -210,7 +318,10 @@ export const TmsDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* SEÇÃO 2: VISÃO AMANHÃ & FUTURO */}
+      {/* SEÇÃO 2: NOVA SEÇÃO — FLUXO DAS CARGAS (5 CARDS CLICÁVEIS COM HISTÓRICO REAL POR EVENTO) */}
+      <TowerCargoFlowSection periodLabel={towerData.period_label} fluxo={towerData.fluxo_cargas} />
+
+      {/* SEÇÃO 3: VISÃO AMANHÃ & FUTURO (PRESERVADA) */}
       <div className="space-y-3">
         <SectionHeader
           title="Visão Futura (Programação D+1 e Capacidade Declarada)"
@@ -259,7 +370,7 @@ export const TmsDashboard: React.FC = () => {
             variant="sky"
           />
 
-          {/* Card 4: GAPS DIAGNOSTICADOS (Corrigido com texto e layout seguros) */}
+          {/* Card 4: Gaps Diagnosticados */}
           <KpiCard
             title="Gaps Diagnosticados"
             value="Equilibrado"
@@ -288,7 +399,7 @@ export const TmsDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* SEÇÃO 3: STATUS DAS INTEGRAÇÕES CORPORATIVAS */}
+      {/* SEÇÃO 4: STATUS DAS INTEGRAÇÕES CORPORATIVAS (PRESERVADA) */}
       <div className="space-y-3">
         <SectionHeader
           title="Monitor de Integrações & Sistemas Conectados"
@@ -376,3 +487,4 @@ export const TmsDashboard: React.FC = () => {
     </div>
   )
 }
+export default TmsDashboard

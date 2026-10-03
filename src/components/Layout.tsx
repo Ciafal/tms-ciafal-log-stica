@@ -672,7 +672,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               </div>
             </div>
 
-            {/* HOME Link */}
+            {/* TORRE DE CONTROLE (HOME) Link */}
             <Link
               to="/tms/dashboard"
               className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${
@@ -689,7 +689,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                       : 'text-[#005596]'
                   }`}
                 />
-                <span className="truncate">HOME: Dashboard TMS</span>
+                <span className="truncate">TORRE DE CONTROLE</span>
               </div>
             </Link>
 
