@@ -48,6 +48,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
+import { LoadingState } from '@/components/ui-custom/FeedbackStates'
 import { tmsService } from '@/services/tmsService'
 import { formatWeight } from '@/lib/utils'
 import {
@@ -567,73 +569,70 @@ export const ComplementCargosPage: React.FC = () => {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-4 pb-16">
-        {/* HEADER DA CENTRAL DE OPORTUNIDADES */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-100">
-                Complemento de Cargas — Central de Oportunidades Comerciais
-              </h1>
-              <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-                OPORTUNIDADE COMERCIAL
-              </Badge>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Motor determinístico: itinerário programado + clientes elegíveis + histórico real +
-              crédito + estoque DP34/PCP + capacidade residual.
-            </p>
-          </div>
-
-          {/* CONTROLES SUPERIORES: BOTÃO "Enviar p/ Comercial" E ATUALIZAR */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* CONTADOR DE SELEÇÃO VISÍVEL */}
-            {selectedOppIds.length > 0 && (
-              <Badge
-                variant="outline"
-                className="bg-blue-50 text-[#005596] border-[#005596]/30 text-xs px-2.5 py-1 font-semibold flex items-center gap-1.5"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#005596]" />
-                <span>
-                  {selectedOppIds.length}{' '}
-                  {selectedOppIds.length === 1
-                    ? 'oportunidade selecionada'
-                    : 'oportunidades selecionadas'}
-                </span>
-                <button
-                  onClick={() => setSelectedOppIds([])}
-                  className="ml-1 hover:text-rose-600 text-[10px] font-bold"
-                  title="Limpar seleção"
+        <PageHeader
+          title="Complemento de Cargas — Central de Oportunidades Comerciais"
+          subtitle="Motor determinístico: itinerário programado + clientes elegíveis + histórico real + crédito + estoque DP34/PCP + capacidade residual."
+          icon={Layers}
+          breadcrumbs={[
+            { label: 'TMS CIAFAL', href: '/tms' },
+            { label: 'Complemento de Cargas' },
+          ]}
+          badge={
+            <Badge className="bg-[#005596] text-white text-[10px] font-bold">
+              OPORTUNIDADE COMERCIAL
+            </Badge>
+          }
+          actions={
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* CONTADOR DE SELEÇÃO VISÍVEL */}
+              {selectedOppIds.length > 0 && (
+                <Badge
+                  variant="outline"
+                  className="bg-blue-50 text-[#005596] border-[#005596]/30 text-xs px-2.5 py-1 font-semibold flex items-center gap-1.5"
                 >
-                  <X className="w-3 h-3" />
-                </button>
-              </Badge>
-            )}
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#005596]" />
+                  <span>
+                    {selectedOppIds.length}{' '}
+                    {selectedOppIds.length === 1
+                      ? 'oportunidade selecionada'
+                      : 'oportunidades selecionadas'}
+                  </span>
+                  <button
+                    onClick={() => setSelectedOppIds([])}
+                    className="ml-1 hover:text-rose-600 text-[10px] font-bold"
+                    title="Limpar seleção"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              )}
 
-            {/* BOTÃO "Enviar p/ Comercial" */}
-            <Button
-              onClick={handleTriggerSendBatch}
-              disabled={selectedOpportunities.length === 0}
-              className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-9 px-4 font-semibold shadow-sm disabled:opacity-50 transition-all flex items-center gap-1.5"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>
-                Enviar p/ Comercial
-                {selectedOpportunities.length > 0 && ` (${selectedOpportunities.length})`}
-              </span>
-            </Button>
+              {/* BOTÃO "Enviar p/ Comercial" */}
+              <Button
+                onClick={handleTriggerSendBatch}
+                disabled={selectedOpportunities.length === 0}
+                className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-9 px-4 font-semibold shadow-sm disabled:opacity-50 transition-all flex items-center gap-1.5"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>
+                  Enviar p/ Comercial
+                  {selectedOpportunities.length > 0 && ` (${selectedOpportunities.length})`}
+                </span>
+              </Button>
 
-            <Button
-              onClick={fetchData}
-              variant="outline"
-              size="sm"
-              className="text-xs h-9"
-              disabled={isLoading}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-              Atualizar Central
-            </Button>
-          </div>
-        </div>
+              <Button
+                onClick={fetchData}
+                variant="outline"
+                size="sm"
+                className="text-xs h-9"
+                disabled={isLoading}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
+                Atualizar Central
+              </Button>
+            </div>
+          }
+        />
 
         {/* BANNER INSTITUCIONAL CIAFAL */}
         <div className="bg-[#005596]/10 border border-[#005596]/30 rounded-xl p-4 text-xs text-[#005596] dark:text-sky-300 space-y-1">

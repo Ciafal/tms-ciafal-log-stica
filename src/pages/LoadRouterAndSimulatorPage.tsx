@@ -71,6 +71,8 @@ import {
   CardTitle,
   CardFooter,
 } from '../components/ui/card'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
+import { LoadingState } from '@/components/ui-custom/FeedbackStates'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import {
   Dialog,
@@ -500,13 +502,16 @@ export function LoadRouterAndSimulatorPage() {
 
   return (
     <div className="space-y-6 pb-16">
-      {/* HEADER PRINCIPAL */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              Roteirizador & Simulador de Cargas Multicritério
-            </h1>
+      <PageHeader
+        title="Roteirizador & Simulador de Cargas Multicritério"
+        subtitle="O TMS analisa a carteira e entrega as melhores cargas para sua decisão. Motor determinístico CIAFAL: Ocupação Máxima • Saída Imediata (DP34 + Crédito + PORTA) • Pedidos Atrasados • Menor Custo."
+        icon={Truck}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Roteirizador & Simulador' },
+        ]}
+        badge={
+          <div className="flex items-center gap-1.5">
             <Badge
               variant="outline"
               className="bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold"
@@ -520,43 +525,39 @@ export function LoadRouterAndSimulatorPage() {
               Fonte: SAP ECC 6.0 (RFC) ({orders.length} pedidos)
             </Badge>
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-            <strong>O TMS analisa a carteira e entrega as melhores cargas para sua decisão.</strong>{' '}
-            Motor determinístico CIAFAL: Ocupação Máxima • Saída Imediata (DP34 + Crédito + PORTA) •
-            Pedidos Atrasados • Menor Custo.
-          </p>
-        </div>
+        }
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => setIsWeightsModalOpen(true)}
+            >
+              <Sliders className="h-3.5 w-3.5 mr-1.5 text-slate-600" />
+              Configurar Pesos & Faixas
+            </Button>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs"
-            onClick={() => setIsWeightsModalOpen(true)}
-          >
-            <Sliders className="h-3.5 w-3.5 mr-1.5 text-slate-600" />
-            Configurar Pesos & Faixas
-          </Button>
-
-          <Button
-            variant="default"
-            size="sm"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm"
-            disabled={optimizing}
-            onClick={() => {
-              runOptimization()
-              toast({
-                title: 'Otimização Recalculada',
-                description:
-                  'Motor determinístico executou a reavaliação de toda a Carteira Única.',
-              })
-            }}
-          >
-            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${optimizing ? 'animate-spin' : ''}`} />
-            Reotimizar Cargas
-          </Button>
-        </div>
-      </div>
+            <Button
+              variant="default"
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm"
+              disabled={optimizing}
+              onClick={() => {
+                runOptimization()
+                toast({
+                  title: 'Otimização Recalculada',
+                  description:
+                    'Motor determinístico executou a reavaliação de toda a Carteira Única.',
+                })
+              }}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${optimizing ? 'animate-spin' : ''}`} />
+              Reotimizar Cargas
+            </Button>
+          </div>
+        }
+      />
 
       {/* BANNER DE PROCESSAMENTO DO MOTOR */}
       {optimizing && (

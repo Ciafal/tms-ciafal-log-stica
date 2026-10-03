@@ -23,6 +23,8 @@ import { customerLogisticInfoService } from '@/services/customerLogisticInfoServ
 import { CustomerLogisticDetailModal } from '@/components/CustomerLogisticDetailModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
+import { LoadingState } from '@/components/ui-custom/FeedbackStates'
 import {
   Users,
   AlertOctagon,
@@ -267,50 +269,48 @@ export const CustomerLogisticInfoPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho Fixo & Integração SAP */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-[#002F6C]">
-              Informações Clientes
-            </h1>
-            <Badge variant="outline" className="text-xs bg-blue-50 border-blue-200 text-[#002F6C]">
-              Base Corporativa SAP ECC
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Inteligência e restrições logísticas por cliente/recebedor • Origem: SAP RFC (
-            {sapConfig.rfc} / {sapConfig.table})
-          </p>
-        </div>
+      <PageHeader
+        title="Informações Clientes"
+        subtitle={`Inteligência e restrições logísticas por cliente/recebedor • Origem: SAP RFC (${sapConfig.rfc} / ${sapConfig.table})`}
+        icon={Users}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Informações Clientes' },
+        ]}
+        badge={
+          <Badge variant="outline" className="text-xs bg-blue-50 border-blue-200 text-[#002F6C]">
+            Base Corporativa SAP ECC
+          </Badge>
+        }
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="text-right">
+              <span className="text-[11px] text-muted-foreground block">
+                Última sincronização SAP:
+              </span>
+              <span className="text-xs font-semibold text-slate-800">
+                {lastSyncText || 'Aguardando...'}
+              </span>
+            </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="text-right">
-            <span className="text-[11px] text-muted-foreground block">
-              Última sincronização SAP:
-            </span>
-            <span className="text-xs font-semibold text-slate-800">
-              {lastSyncText || 'Aguardando...'}
-            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSyncSap}
+              disabled={syncing || !canSyncSap}
+              className="border-[#002F6C] text-[#002F6C] hover:bg-blue-50 text-xs font-semibold"
+              title={
+                !canSyncSap
+                  ? 'Apenas gestores autorizados podem sincronizar com o SAP'
+                  : 'Atualizar restrições via RFC'
+              }
+            >
+              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Sincronizando RFC...' : 'Atualizar informações SAP'}
+            </Button>
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSyncSap}
-            disabled={syncing || !canSyncSap}
-            className="border-[#002F6C] text-[#002F6C] hover:bg-blue-50 text-xs font-semibold"
-            title={
-              !canSyncSap
-                ? 'Apenas gestores autorizados podem sincronizar com o SAP'
-                : 'Atualizar restrições via RFC'
-            }
-          >
-            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Sincronizando RFC...' : 'Atualizar informações SAP'}
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* 6 Cards Superiores Conforme Requisito 14 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">

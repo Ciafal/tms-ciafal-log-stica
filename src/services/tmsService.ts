@@ -3450,9 +3450,15 @@ export const TmsService = {
   // WHATSAPP GATEWAY & COMMUNICATION LOGS
   // ----------------------------------------------------
 
+  // Verificação explícita do gateway WhatsApp
   async getWhatsAppStatus(): Promise<{
     configured: boolean
-    status: 'Conectado' | 'Não configurado' | 'Erro de autenticação' | 'Webhook pendente' | 'Webhook ativo'
+    status:
+      | 'Conectado'
+      | 'Não configurado'
+      | 'Erro de autenticação'
+      | 'Webhook pendente'
+      | 'Webhook ativo'
     webhookStatus: string
     endpoint: string
     message: string
@@ -3471,9 +3477,10 @@ export const TmsService = {
       status: 'Não configurado',
       webhookStatus: 'Webhook pendente',
       endpoint: 'https://graph.facebook.com/v20.0',
-      message: 'WhatsApp Business ainda não configurado. A arquitetura está preparada e aguardando credenciais.',
+      message:
+        'WhatsApp Business ainda não configurado. A arquitetura está preparada e aguardando credenciais.',
     }
-  }
+  },
 
   async sendWhatsAppMessage(payload: {
     driver_name?: string
@@ -3509,20 +3516,24 @@ export const TmsService = {
       success: true,
       delivered_externally: false,
       status: 'PREPARADO',
-      message: 'WhatsApp Business ainda não configurado. A oferta foi registrada no TMS, mas não foi enviada externamente.',
+      message:
+        'WhatsApp Business ainda não configurado. A oferta foi registrada no TMS, mas não foi enviada externamente.',
     }
-  }
+  },
 
   async getWhatsAppCommunicationLogs(filter = '', sort = '-created', limit = 50): Promise<any[]> {
     try {
-      return await pb.collection('whatsapp_communication_logs').getList(1, limit, {
-        filter,
-        sort,
-      }).then((res) => res.items)
+      return await pb
+        .collection('whatsapp_communication_logs')
+        .getList(1, limit, {
+          filter,
+          sort,
+        })
+        .then((res) => res.items)
     } catch {
       return []
     }
-  }
+  },
 
   // ----------------------------------------------------
   // SPRINT 4: INTEGRATION SERVICES, BLUEPRINT & METRICS
@@ -3726,7 +3737,7 @@ export const TmsService = {
         category: 'Mensageria Oficial',
         protocol: 'WhatsApp Business Cloud API / Webhook',
         environment: env,
-        status: whatsappApiStatus?.configured ? 'Conectado' : 'Não configurado',
+        status: whatsappApiStatus?.configured ? 'Conectado' : 'Aguardando configuração',
         maskedEndpointOrDest: whatsappApiStatus?.endpoint || 'https://graph.facebook.com/v20.0/***',
         isContractConfigured: true,
         isCredentialConfigured: Boolean(whatsappApiStatus?.configured),
@@ -3739,7 +3750,7 @@ export const TmsService = {
         isCircuitOpen: false,
         failureCount: 0,
         technicalOwner: 'Comunicação Digital & TI CIAFAL',
-        homologationStatus: whatsappApiStatus?.configured ? 'Homologada' : 'Não configurado',
+        homologationStatus: whatsappApiStatus?.configured ? 'Homologada' : 'Configuração pendente',
         description:
           whatsappApiStatus?.message ||
           'WhatsApp Business ainda não configurado. A arquitetura está preparada e aguardando credenciais.',

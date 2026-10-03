@@ -46,6 +46,8 @@ import {
   avaliar_montagem_carga,
   identificar_oportunidade_complemento,
 } from '@/domain/rules'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
+import { LoadingState, EmptyState } from '@/components/ui-custom/FeedbackStates'
 import { EncontrosDrawer } from '@/components/load-planner/EncontrosDrawer'
 import { runVehicleLoadMatchingEngine } from '@/domain/vehicleLoadMatchingEngine'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -379,44 +381,40 @@ export const LoadPlannerPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Header com Indicador da Carteira SAP RFC */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <div className="flex items-center flex-wrap gap-2">
-              <h1 className="text-xl font-black tracking-tight text-slate-900">
-                Planejador de Cargas
-              </h1>
-              <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-                REPOSITÓRIO ÚNICO
-              </Badge>
-              <Badge
-                variant="outline"
-                className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 border-emerald-300"
-              >
-                Carteira SAP RFC Online
-              </Badge>
-            </div>
-            <p className="text-xs text-slate-500">
-              Carteira SAP atualizada em:{' '}
-              <strong className="text-slate-700">
-                {walletMeta.lastSyncDate
-                  ? new Date(walletMeta.lastSyncDate).toLocaleString('pt-BR', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })
-                  : '—'}
-              </strong>{' '}
-              · Integrando estoque DP34, limites de crédito, PCP, fila de veículos e motor
-              determinístico.
-            </p>
+      <PageHeader
+        title="Planejador de Cargas"
+        subtitle={`Carteira SAP atualizada em ${
+          walletMeta.lastSyncDate
+            ? new Date(walletMeta.lastSyncDate).toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : '—'
+        } · Integrando estoque DP34, limites de crédito, PCP, fila e motor determinístico.`}
+        icon={Layers}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Planejamento Logístico', href: '/tms/planejador-cargas' },
+          { label: 'Planejador de Cargas' },
+        ]}
+        badge={
+          <div className="flex items-center gap-1.5">
+            <Badge className="bg-[#005596] text-white text-[10px] font-bold">
+              REPOSITÓRIO ÚNICO
+            </Badge>
+            <Badge
+              variant="outline"
+              className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 border-emerald-300"
+            >
+              Carteira SAP RFC Online
+            </Badge>
           </div>
-
+        }
+        actions={
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Botão ENCONTROS VEÍCULO × CARGA — Azul Institucional CIAFAL (#005596) */}
             <Button
               onClick={() => setIsEncontrosOpen(true)}
               size="sm"
@@ -452,51 +450,51 @@ export const LoadPlannerPage: React.FC = () => {
               <span className="hidden sm:inline">Atualizar agora</span>
             </Button>
           </div>
+        }
+      />
+
+      {/* Indicador Visual Detalhado da Carteira SAP RFC */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-white p-3 rounded-xl border border-slate-200 text-xs shadow-xs">
+        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Fonte Canônica:
+          </span>
+          <span className="font-bold text-slate-800 truncate text-[11px]">SAP ECC 6.0 (RFC)</span>
         </div>
 
-        {/* Indicador Visual Detalhado da Carteira SAP RFC */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-xs">
-          <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Fonte Canônica:
-            </span>
-            <span className="font-bold text-slate-800 truncate text-[11px]">SAP ECC 6.0 (RFC)</span>
-          </div>
+        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Posição Válida:
+          </span>
+          <span className="font-mono text-slate-800 text-[11px]">
+            {walletMeta.lastSyncDate
+              ? new Date(walletMeta.lastSyncDate).toLocaleString('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : '—'}
+          </span>
+        </div>
 
-          <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Posição Válida:
-            </span>
-            <span className="font-mono text-slate-800 text-[11px]">
-              {walletMeta.lastSyncDate
-                ? new Date(walletMeta.lastSyncDate).toLocaleString('pt-BR', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : '—'}
-            </span>
-          </div>
+        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Status Conexão:
+          </span>
+          <span className="font-bold text-blue-700 truncate text-[11px]">
+            AGUARDANDO_CONEXAO_RFC
+          </span>
+        </div>
 
-          <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Status Conexão:
-            </span>
-            <span className="font-bold text-blue-700 truncate text-[11px]">
-              AGUARDANDO_CONEXAO_RFC
-            </span>
-          </div>
-
-          <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Total Carteira:
-            </span>
-            <span className="font-bold text-emerald-700 text-[11px]">
-              {orders.length} itens / {new Set(orders.map((o) => o.order_number)).size} pedidos
-            </span>
-          </div>
+        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Total Carteira:
+          </span>
+          <span className="font-bold text-emerald-700 text-[11px]">
+            {orders.length} itens / {new Set(orders.map((o) => o.order_number)).size} pedidos
+          </span>
         </div>
       </div>
 
@@ -655,10 +653,14 @@ export const LoadPlannerPage: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3 space-y-2 flex-1 overflow-y-auto max-h-[600px]">
-              {availableOrders.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 text-xs">
-                  Nenhum pedido compatível com os filtros selecionados.
-                </div>
+              {isLoading ? (
+                <LoadingState message="Carregando pedidos da carteira SAP..." rows={3} />
+              ) : availableOrders.length === 0 ? (
+                <EmptyState
+                  title="Nenhum pedido compatível"
+                  description="Não há pedidos na carteira SAP para os filtros atuais."
+                  className="py-6"
+                />
               ) : (
                 availableOrders.map((order) => (
                   <div

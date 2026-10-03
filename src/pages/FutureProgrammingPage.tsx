@@ -50,6 +50,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
+import { LoadingState } from '@/components/ui-custom/FeedbackStates'
 import { tmsService } from '@/services/tmsService'
 import { useAuth } from '@/contexts/AuthContext'
 import { Link, useNavigate } from 'react-router-dom'
@@ -589,12 +591,16 @@ export const FutureProgrammingPage: React.FC = () => {
       {/* ========================================================
           1. HEADER E BARRA SUPERIOR DE DATA DE PROGRAMAÇÃO D+1
          ======================================================== */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-            <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-100">
-              Torre de Programação Logística D+1
-            </h1>
+      <PageHeader
+        title="Torre de Programação Logística D+1"
+        subtitle="Planejamento operacional determinístico com estoque projetado livre, carteira SAP real sem remessas e gestão de capacidade."
+        icon={Calendar}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Programação Futura D+1' },
+        ]}
+        badge={
+          <div className="flex items-center gap-1.5 flex-wrap">
             <Badge className="bg-[#005596] text-white text-[11px] font-bold px-2 py-0.5">
               TMS CIAFAL
             </Badge>
@@ -607,86 +613,82 @@ export const FutureProgrammingPage: React.FC = () => {
               Fonte: SAP + PCP Robotizado + TMS
             </Badge>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Planejamento operacional determinístico com estoque projetado livre, carteira SAP real
-            sem remessas e gestão de capacidade.
-          </p>
-        </div>
-
-        {/* CONTROLES SUPERIORES: DATA, ATUALIZAR E EXPORTAR */}
-        <div className="flex items-center space-x-2 flex-wrap gap-y-2">
-          {/* DATA DE PROGRAMAÇÃO */}
-          <div className="flex items-center space-x-1.5 bg-slate-50 dark:bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
-            <Calendar className="w-4 h-4 text-[#005596]" />
-            <label
-              htmlFor="prog-date-input"
-              className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-            >
-              Data de Programação:
-            </label>
-            <Input
-              id="prog-date-input"
-              type="date"
-              value={programmingDate}
-              onChange={(e) => {
-                setProgrammingDate(e.target.value)
-                setProvisionalReservations(new Map()) // reinicia reservas para a nova data
-              }}
-              className="h-8 text-xs w-36 bg-white dark:bg-slate-900 font-mono"
-            />
-            {isD1 ? (
-              <Badge className="bg-emerald-600 text-white text-[10px] font-bold">[D+1]</Badge>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-[10px] text-[#005596] px-1.5 hover:bg-sky-50 font-semibold"
-                onClick={() => setProgrammingDate(getDefaultD1Date())}
+        }
+        actions={
+          <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+            {/* DATA DE PROGRAMAÇÃO */}
+            <div className="flex items-center space-x-1.5 bg-slate-50 dark:bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+              <Calendar className="w-4 h-4 text-[#005596]" />
+              <label
+                htmlFor="prog-date-input"
+                className="text-xs font-semibold text-slate-700 dark:text-slate-300"
               >
-                Voltar p/ D+1
-              </Button>
-            )}
+                Data:
+              </label>
+              <Input
+                id="prog-date-input"
+                type="date"
+                value={programmingDate}
+                onChange={(e) => {
+                  setProgrammingDate(e.target.value)
+                  setProvisionalReservations(new Map())
+                }}
+                className="h-8 text-xs w-36 bg-white dark:bg-slate-900 font-mono"
+              />
+              {isD1 ? (
+                <Badge className="bg-emerald-600 text-white text-[10px] font-bold">[D+1]</Badge>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-[10px] text-[#005596] px-1.5 hover:bg-sky-50 font-semibold"
+                  onClick={() => setProgrammingDate(getDefaultD1Date())}
+                >
+                  Voltar p/ D+1
+                </Button>
+              )}
+            </div>
+
+            {/* BOTÃO ATUALIZAR */}
+            <Button
+              onClick={() => fetchData(true)}
+              variant="outline"
+              size="sm"
+              className="text-xs h-9 font-semibold text-slate-700 dark:text-slate-200 hover:text-[#005596] border-slate-300"
+              disabled={isLoading || isRefreshing}
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 mr-1.5 ${isRefreshing ? 'animate-spin text-[#005596]' : ''}`}
+              />
+              ATUALIZAR
+            </Button>
+
+            {/* EXPORTAR */}
+            <Button
+              onClick={handleExportCsv}
+              variant="outline"
+              size="sm"
+              className="text-xs h-9 text-slate-700 dark:text-slate-200"
+              title="Exportar dados do grid para CSV"
+            >
+              <Download className="w-3.5 h-3.5 mr-1" />
+              Exportar
+            </Button>
+
+            {/* ATALHO PARA CENTRAL DE COMPLEMENTO */}
+            <Button
+              asChild
+              variant="default"
+              size="sm"
+              className="text-xs h-9 bg-[#005596] hover:bg-[#004275] text-white"
+            >
+              <Link to="/tms/complemento-cargas">
+                Central Comercial <ChevronRight className="w-3.5 h-3.5 ml-1" />
+              </Link>
+            </Button>
           </div>
-
-          {/* BOTÃO ATUALIZAR */}
-          <Button
-            onClick={() => fetchData(true)}
-            variant="outline"
-            size="sm"
-            className="text-xs h-9 font-semibold text-slate-700 dark:text-slate-200 hover:text-[#005596] border-slate-300"
-            disabled={isLoading || isRefreshing}
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 mr-1.5 ${isRefreshing ? 'animate-spin text-[#005596]' : ''}`}
-            />
-            ATUALIZAR
-          </Button>
-
-          {/* EXPORTAR */}
-          <Button
-            onClick={handleExportCsv}
-            variant="outline"
-            size="sm"
-            className="text-xs h-9 text-slate-700 dark:text-slate-200"
-            title="Exportar dados do grid para CSV"
-          >
-            <Download className="w-3.5 h-3.5 mr-1" />
-            Exportar
-          </Button>
-
-          {/* ATALHO PARA CENTRAL DE COMPLEMENTO */}
-          <Button
-            asChild
-            variant="default"
-            size="sm"
-            className="text-xs h-9 bg-[#005596] hover:bg-[#004275] text-white"
-          >
-            <Link to="/tms/complemento-cargas">
-              Central Comercial <ChevronRight className="w-3.5 h-3.5 ml-1" />
-            </Link>
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* METADADOS DE SINCRONIZAÇÃO */}
       <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">

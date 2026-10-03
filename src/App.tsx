@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { Toaster } from '@/components/ui/toaster'
 import { Layout } from '@/components/Layout'
+import { GlobalErrorBoundary } from '@/components/GlobalErrorBoundary'
 
 // Existing & New Pages
 import { QueueDashboard } from '@/pages/QueueDashboard'
@@ -72,9 +73,10 @@ import NotFound from '@/pages/NotFound'
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
+    <GlobalErrorBoundary>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
           {/* Public Driver Routes (Acesso Celular sem Login Corporativo) */}
           <Route path="/tms/fila-publica" element={<ExternalCheckin />} />
           <Route path="/checkin-externo" element={<ExternalCheckin />} />
@@ -871,8 +873,9 @@ export const App: React.FC = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster />
-      </BrowserRouter>
-    </AuthProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </GlobalErrorBoundary>
   )
 }
 export default App

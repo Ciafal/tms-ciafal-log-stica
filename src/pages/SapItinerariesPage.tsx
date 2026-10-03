@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { TmsService } from '@/services/tmsService'
@@ -112,34 +113,32 @@ export const SapItinerariesPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <div>
-          <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-black tracking-tight text-slate-900">
-              Itinerários SAP (Cadastro Mestre TVROT)
-            </h1>
-            <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-              FONTE OFICIAL SAP
-            </Badge>
-          </div>
-          <p className="text-xs text-slate-500">
-            Origem corporativa SAP ECC 6.0 (Tabela TVROT). Usuários podem adicionar metadados
-            operacionais, mas NÃO alterar código SAP arbitrariamente.
-          </p>
-        </div>
-
-        <Button
-          onClick={fetchData}
-          variant="outline"
-          size="sm"
-          className="text-xs h-8"
-          disabled={isLoading}
-        >
-          <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-          Sincronizar SAP TVROT
-        </Button>
-      </div>
+      <PageHeader
+        title="Itinerários SAP (Cadastro Mestre TVROT)"
+        subtitle="Origem corporativa SAP ECC 6.0 (Tabela TVROT). Metadados operacionais auditados no TMS preservando a chave oficial do SAP."
+        icon={MapPin}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Itinerários SAP' },
+        ]}
+        badge={
+          <Badge className="bg-[#005596] text-white text-[10px] font-bold">
+            FONTE OFICIAL SAP
+          </Badge>
+        }
+        actions={
+          <Button
+            onClick={fetchData}
+            variant="outline"
+            size="sm"
+            className="text-xs h-8"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
+            Sincronizar SAP TVROT
+          </Button>
+        }
+      />
 
       {/* Search and Filters */}
       <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
