@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
 import { SapZsd004Record, Zsd004DataSourceMode, Zsd004AuditSummary } from '@/domain/zsd004Engine'
 import { zsd004Datasource } from '@/domain/zsd004Datasource'
 import { Zsd004DetailModal } from '@/components/Zsd004DetailModal'
@@ -216,49 +217,43 @@ export const DriversVehiclesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
-      {/* Header Institucional */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-        <div>
-          <div className="flex items-center space-x-2.5">
-            <div className="p-2 bg-blue-50 text-[#005596] rounded-lg">
-              <Truck className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                Motoristas & Veículos Cadastrados
-              </h1>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Espelho operacional fiel da tabela <strong>SAP ZSD004</strong> (Centro:{' '}
-                <strong>WSTL</strong>).
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="text-right hidden sm:block">
+      {/* Header Padronizado */}
+      <PageHeader
+        title="Motoristas & Veículos Cadastrados"
+        subtitle="Espelho operacional fiel da tabela SAP ZSD004 (Centro: WSTL)."
+        icon={Truck}
+        badge={<Badge className="bg-[#005596] text-white text-xs">SAP ZSD004</Badge>}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Cadastros Mestres' },
+          { label: 'Motoristas & Veículos' },
+        ]}
+        meta={
+          <div className="text-right hidden sm:block mr-2">
             <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">
-              Última sincronização SAP:
+              Última sincronização:
             </span>
             <span className="text-xs font-semibold text-slate-700">
               {formatDateDisplay(lastSyncDate)}
             </span>
           </div>
-
+        }
+        actions={
           <Button
             variant="outline"
             size="sm"
             onClick={handleSync}
             disabled={isSyncing}
-            className="text-xs text-slate-700 border-slate-300 gap-1.5 hover:bg-blue-50 hover:text-[#005596] hover:border-blue-200 transition-colors"
+            className="text-xs text-slate-700 border-slate-300 gap-1.5 hover:bg-blue-50 hover:text-[#005596] hover:border-blue-200 transition-colors h-9"
           >
             <RefreshCw
               className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-[#005596]' : ''}`}
             />
-            {isSyncing ? 'Atualizando dados da ZSD004...' : 'Atualizar Dados'}
+            {isSyncing ? 'Atualizando...' : 'Atualizar Dados'}
           </Button>
-        </div>
-      </div>
+        }
+        className="bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm mb-0"
+      />
 
       {/* Alerta de SAP/RFC Indisponível (Sem tela em branco) */}
       {isSapUnavailable && (

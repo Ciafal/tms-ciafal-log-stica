@@ -23,9 +23,15 @@ routerAdd('POST', '/backend/v1/tms/chicao/dispatch', (c) => {
 
   // Helper inline: checar credenciais WhatsApp
   const apiKey =
-    $os.getenv('WHATSAPP_API_KEY') || $os.getenv('EVOLUTION_API_KEY') || $os.getenv('Z_API_KEY')
+    $os.getenv('WHATSAPP_TOKEN') ||
+    $os.getenv('WHATSAPP_API_KEY') ||
+    $os.getenv('EVOLUTION_API_KEY') ||
+    $os.getenv('Z_API_KEY')
   const apiUrl =
-    $os.getenv('WHATSAPP_API_URL') || $os.getenv('EVOLUTION_API_URL') || $os.getenv('Z_API_URL')
+    $os.getenv('WHATSAPP_API_URL') ||
+    $os.getenv('EVOLUTION_API_URL') ||
+    $os.getenv('Z_API_URL') ||
+    ($os.getenv('WHATSAPP_PHONE_NUMBER_ID') ? 'https://graph.facebook.com/v20.0' : '')
   const waConnected = Boolean(apiKey && apiUrl)
 
   // Helper inline: alçada

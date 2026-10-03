@@ -54,6 +54,7 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
 
 // Defined Kanban columns for Sprint 1.1
 const KANBAN_STAGES: { id: PreRegistrationStatus; label: string; color: string; bg: string }[] = [
@@ -242,46 +243,48 @@ export const PreRegistrationsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-        <div>
-          <div className="flex items-center space-x-2">
-            <UserCheck className="w-6 h-6 text-[#005596]" />
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              Painel de Triagem de Pré-Cadastros
-            </h1>
-            <Badge className="bg-[#005596] text-white text-xs">Kanban Operacional</Badge>
+      {/* Header Padronizado */}
+      <PageHeader
+        title="Painel de Triagem de Pré-Cadastros"
+        subtitle="Gestão de motoristas sem cadastro SAP ativo que tentaram entrada no Totem ou Check-in Externo."
+        icon={UserCheck}
+        badge={<Badge className="bg-[#005596] text-white text-xs">Kanban Operacional</Badge>}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Cadastros' },
+          { label: 'Pré-cadastros' },
+        ]}
+        actions={
+          <div className="flex items-center space-x-2.5">
+            <Tabs
+              value={viewMode}
+              onValueChange={(val: any) => setViewMode(val)}
+              className="w-auto"
+            >
+              <TabsList className="grid grid-cols-2 h-9">
+                <TabsTrigger value="kanban" className="text-xs font-semibold">
+                  Kanban
+                </TabsTrigger>
+                <TabsTrigger value="list" className="text-xs font-semibold">
+                  Lista
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadData(false)}
+              disabled={isLoading}
+              className="text-xs border-slate-300 gap-1.5 h-9 font-semibold"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
           </div>
-          <p className="text-sm text-slate-500 mt-1">
-            Gestão de motoristas sem cadastro SAP ativo que tentaram entrada no Totem ou Check-in
-            Externo.
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <Tabs value={viewMode} onValueChange={(val: any) => setViewMode(val)} className="w-auto">
-            <TabsList className="grid grid-cols-2 h-9">
-              <TabsTrigger value="kanban" className="text-xs">
-                Kanban
-              </TabsTrigger>
-              <TabsTrigger value="list" className="text-xs">
-                Lista
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => loadData(false)}
-            disabled={isLoading}
-            className="text-xs border-slate-300 gap-1.5"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
-        </div>
-      </div>
+        }
+        className="bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm mb-0"
+      />
 
       {/* Regra Fundamental de Proteção */}
       <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-xs text-amber-900 flex items-start space-x-3 shadow-sm">

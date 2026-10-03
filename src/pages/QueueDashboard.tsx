@@ -60,6 +60,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
 import { TmsService } from '@/services/tmsService'
 import {
   QueueEntryEntity,
@@ -724,6 +725,43 @@ export const QueueDashboard: React.FC = () => {
 
   return (
     <div className="space-y-5">
+      <PageHeader
+        title="Fila de Disponibilidade Logística"
+        subtitle="Controle unificado da presença de veículos: Portaria (PORTA), Raio Operacional (FORA ≤ 60km) e Programação Futura."
+        icon={Truck}
+        badge={<Badge className="bg-[#005596] text-white font-bold">Operação Viva</Badge>}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Operações' },
+          { label: 'Fila de Disponibilidade' },
+        ]}
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            {permissions.canManageQueueStatus && (
+              <Button
+                onClick={() => setIsManualModalOpen(true)}
+                size="sm"
+                className="bg-[#005596] hover:bg-[#004275] text-white text-xs h-9 shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Inclusão Manual Portaria
+              </Button>
+            )}
+            <Button
+              onClick={fetchData}
+              variant="outline"
+              size="sm"
+              disabled={isLoading}
+              className="text-xs h-9"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          </div>
+        }
+        className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-0"
+      />
+
       {/* Top Banner: PUBLIC QUEUE LINK & QR CODE */}
       <Card className="bg-gradient-to-r from-slate-900 via-slate-800 to-[#005596] text-white border-0 shadow-lg">
         <CardContent className="p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-4">

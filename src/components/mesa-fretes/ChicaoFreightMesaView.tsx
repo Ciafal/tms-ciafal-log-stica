@@ -48,6 +48,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { tmsService } from '@/services/tmsService'
 import { ChicaoFreightOfferEntity, ChicaoOfferStatus } from '@/domain/rules'
 import { formatCurrency, formatWeight } from '@/lib/utils'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
 
 // Mapeamento das 8 colunas do Kanban conforme especificado
 export type KanbanColumnKey =
@@ -485,45 +486,45 @@ export const ChicaoFreightMesaView: React.FC = () => {
     <div className="space-y-6">
       {/* 1. CABEÇALHO DO MÓDULO & INDICADORES REAIS */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-5 shadow-sm space-y-4">
-        {/* Cabeçalho Reestruturado e Totalmente Responsivo */}
-        <div className="w-full space-y-3 border-b border-slate-100 pb-4">
-          {/* Linha 1: [Ícone] Título flexível e robusto */}
-          <div className="flex items-center gap-2.5 min-w-0 w-full">
-            <span className="p-2 rounded-lg bg-[#005596] text-white shrink-0 shadow-sm">
-              <Bot className="w-5 h-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-xl sm:text-2xl font-bold md:font-extrabold text-slate-900 tracking-tight leading-tight sm:leading-snug break-normal overflow-wrap-normal">
-                Mesa de Fretes — Agente Chicão
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5 leading-normal">
-                Gestão de ofertas, negociações e contratação de fretes.
-              </p>
-            </div>
-          </div>
-
-          {/* Linha 2 / Região de ações: Busca ampla + Botão Atualizar */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-1 w-full">
-            <div className="relative flex-1 min-w-0 max-w-2xl">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <Input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar oferta, motorista, placa, rota..."
-                className="pl-9 h-9 text-xs w-full border-slate-300 bg-slate-50/50 focus:bg-white transition"
-              />
-            </div>
+        {/* Cabeçalho Reestruturado e Totalmente Responsivo com PageHeader */}
+        <PageHeader
+          title="Mesa de Fretes — Agente Chicão"
+          subtitle="Gestão inteligente de ofertas, negociações automáticas e contratação com separação de frete e pedágio."
+          icon={Bot}
+          badge={
+            <Badge className="bg-[#005596] text-white text-xs font-bold px-2 py-0.5 shrink-0">
+              Kanban 8 Colunas
+            </Badge>
+          }
+          breadcrumbs={[
+            { label: 'TMS CIAFAL', href: '/tms' },
+            { label: 'Mesa de Fretes' },
+            { label: 'Agente Chicão' },
+          ]}
+          actions={
             <Button
               variant="outline"
               size="sm"
               onClick={loadOffers}
               disabled={loading || actionLoading}
-              className="h-9 gap-1.5 text-xs text-slate-700 font-semibold border-slate-300 hover:bg-slate-50 shrink-0 self-start sm:self-auto"
+              className="h-9 gap-1.5 text-xs text-slate-700 font-semibold border-slate-300 hover:bg-slate-50 shrink-0"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
-          </div>
+          }
+          className="pb-2 border-b-0 mb-0"
+        />
+
+        {/* Linha de Busca Ampla */}
+        <div className="relative w-full max-w-2xl pt-1">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar oferta, motorista, placa, rota..."
+            className="pl-9 h-9 text-xs w-full border-slate-300 bg-slate-50/50 focus:bg-white transition"
+          />
         </div>
 
         {/* CARDS DE INDICADORES CALCULADOS DOS DADOS REAIS */}
@@ -671,14 +672,14 @@ export const ChicaoFreightMesaView: React.FC = () => {
           </span>
         </div>
 
-        {/* Kanban com scroll horizontal suave em telas menores */}
-        <div className="flex gap-3 overflow-x-auto pb-4 pt-1 snap-x scrollbar-thin">
+        {/* Kanban com largura proporcional adaptada a 1366x768, 1440x900 e 1920x1080 */}
+        <div className="flex gap-2.5 xl:gap-3 overflow-x-auto pb-4 pt-1 snap-x scrollbar-thin max-w-full">
           {KANBAN_COLUMNS.map((col) => {
             const colOffers = offersByColumn[col.key] || []
             return (
               <div
                 key={col.key}
-                className="bg-slate-100/80 rounded-xl p-2.5 border border-slate-200 flex flex-col w-[260px] sm:w-[270px] shrink-0 max-h-[800px] snap-start"
+                className="bg-slate-100/80 rounded-xl p-2 sm:p-2.5 border border-slate-200 flex flex-col w-[240px] sm:w-[255px] xl:w-[calc((100%-7*0.75rem)/8)] min-w-[220px] max-w-[290px] shrink-0 xl:shrink max-h-[750px] snap-start transition-all"
               >
                 {/* Header da Coluna */}
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200/80">

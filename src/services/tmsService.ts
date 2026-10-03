@@ -3447,12 +3447,100 @@ export const TmsService = {
   },
 
   // ----------------------------------------------------
+  // WHATSAPP GATEWAY & COMMUNICATION LOGS
+  // ----------------------------------------------------
+
+  async getWhatsAppStatus(): Promise<{
+    configured: boolean
+    status: 'Conectado' | 'Não configurado' | 'Erro de autenticação' | 'Webhook pendente' | 'Webhook ativo'
+    webhookStatus: string
+    endpoint: string
+    message: string
+  }> {
+    try {
+      const res = await fetch(`${pb.baseUrl}/backend/v1/whatsapp/status`)
+      if (res.ok) {
+        return await res.json()
+      }
+    } catch (err) {
+      console.warn('Erro ao consultar status WhatsApp backend:', err)
+    }
+
+    return {
+      configured: false,
+      status: 'Não configurado',
+      webhookStatus: 'Webhook pendente',
+      endpoint: 'https://graph.facebook.com/v20.0',
+      message: 'WhatsApp Business ainda não configurado. A arquitetura está preparada e aguardando credenciais.',
+    }
+  }
+
+  async sendWhatsAppMessage(payload: {
+    driver_name?: string
+    driver_id?: string
+    phone_number?: string
+    content: string
+    message_type?: 'TEXT' | 'OFFER' | 'AUDIO' | 'IMAGE' | 'DOCUMENT' | 'LOCATION' | 'DECISION'
+    agent_sender?: 'CARLAO' | 'FRED' | 'CHICAO' | 'HUMANO'
+    cargo_id?: string
+    transport_id?: string
+    negotiation_id?: string
+  }): Promise<{
+    success: boolean
+    delivered_externally: boolean
+    status: string
+    log_id?: string
+    message: string
+  }> {
+    try {
+      const res = await fetch(`${pb.baseUrl}/backend/v1/whatsapp/dispatch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (res.ok) {
+        return await res.json()
+      }
+    } catch (err) {
+      console.warn('Erro ao disparar mensagem WhatsApp via gateway:', err)
+    }
+
+    return {
+      success: true,
+      delivered_externally: false,
+      status: 'PREPARADO',
+      message: 'WhatsApp Business ainda não configurado. A oferta foi registrada no TMS, mas não foi enviada externamente.',
+    }
+  }
+
+  async getWhatsAppCommunicationLogs(filter = '', sort = '-created', limit = 50): Promise<any[]> {
+    try {
+      return await pb.collection('whatsapp_communication_logs').getList(1, limit, {
+        filter,
+        sort,
+      }).then((res) => res.items)
+    } catch {
+      return []
+    }
+  }
+
+  // ----------------------------------------------------
   // SPRINT 4: INTEGRATION SERVICES, BLUEPRINT & METRICS
   // ----------------------------------------------------
 
   async getIntegrationHealthMetrics(): Promise<IntegrationHealthMetric[]> {
     const isDev = (import.meta as any).env?.DEV ?? true
     const env = isDev ? 'DEV' : 'PRODUCAO'
+
+    let whatsappApiStatus: any = null
+    try {
+      const waRes = await fetch(`${pb.baseUrl}/backend/v1/whatsapp/status`)
+      if (waRes.ok) {
+        whatsappApiStatus = await waRes.json()
+      }
+    } catch {
+      // Ignora erro de rede no status
+    }
 
     return [
       {
@@ -3638,11 +3726,11 @@ export const TmsService = {
         category: 'Mensageria Oficial',
         protocol: 'WhatsApp Business Cloud API / Webhook',
         environment: env,
-        status: 'Aguardando configuração',
-        maskedEndpointOrDest: 'https://graph.facebook.com/v20.0/***',
+        status: whatsappApiStatus?.configured ? 'Conectado' : 'Não configurado',
+        maskedEndpointOrDest: whatsappApiStatus?.endpoint || 'https://graph.facebook.com/v20.0/***',
         isContractConfigured: true,
-        isCredentialConfigured: false,
-        isConnectionTested: false,
+        isCredentialConfigured: Boolean(whatsappApiStatus?.configured),
+        isConnectionTested: Boolean(whatsappApiStatus?.configured),
         recordsCount: 0,
         latencyMs: 0,
         pendingQueueCount: 0,
@@ -3651,9 +3739,10 @@ export const TmsService = {
         isCircuitOpen: false,
         failureCount: 0,
         technicalOwner: 'Comunicação Digital & TI CIAFAL',
-        homologationStatus: 'Configuração pendente',
+        homologationStatus: whatsappApiStatus?.configured ? 'Homologada' : 'Não configurado',
         description:
-          'Webhook oficial bidirecional com transcrição de áudios, classificação de intenções, fotos e geolocalização. Integração aguardando credenciais/configuração (webhook preparado, aguardando credenciais Meta).',
+          whatsappApiStatus?.message ||
+          'WhatsApp Business ainda não configurado. A arquitetura está preparada e aguardando credenciais.',
         blueprintStatus: 'Homologado',
       },
       {

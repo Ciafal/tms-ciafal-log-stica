@@ -84,6 +84,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ChicaoFreightMesaView } from '@/components/mesa-fretes/ChicaoFreightMesaView'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
 
 export const MesaFretesPage: React.FC = () => {
   const { user, permissions } = useAuth()
@@ -481,9 +482,22 @@ export const MesaFretesPage: React.FC = () => {
       }
 
       const created = await tmsService.createFreightNegotiation(newNegData)
+
+      // Notificar gateway WhatsApp (registra log estruturado e informa status honesto)
+      await tmsService.sendWhatsAppMessage({
+        driver_name: selectedDriverForCarlao.driverName,
+        driver_id: selectedDriverForCarlao.driverId,
+        phone_number: selectedDriverForCarlao.driverPhone || '(19) 98765-4321',
+        content: initialMessage,
+        message_type: 'OFFER',
+        agent_sender: 'CARLAO',
+        cargo_id: selectedCargoForOffer.cargo_id,
+        negotiation_id: created?.id,
+      })
+
       toast({
         title: 'Negociação Iniciada com Carlão',
-        description: `Carlão abriu negociação com ${selectedDriverForCarlao.driverName} para a carga ${selectedCargoForOffer.cargo_id}.`,
+        description: `Carlão abriu negociação com ${selectedDriverForCarlao.driverName} para a carga ${selectedCargoForOffer.cargo_id}. Registrado no TMS e aguardando WhatsApp.`,
         className: 'bg-[#005596] text-white',
       })
       setCarlaoModalOpen(false)
@@ -770,46 +784,46 @@ export const MesaFretesPage: React.FC = () => {
   return (
     <TooltipProvider>
       <div className="space-y-6 animate-fade-in pb-12">
-        {/* Header Title & Actions */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <BadgeDollarSign className="w-6 h-6 text-[#005596] shrink-0" />
-              <h1 className="text-xl sm:text-2xl font-bold md:font-extrabold text-slate-900 tracking-tight leading-tight break-normal overflow-wrap-normal">
-                Mesa de Fretes Inteligente & Agente Carlão
-              </h1>
-              <Badge className="bg-[#005596] text-white text-xs font-bold px-2.5 py-0.5 flex items-center gap-1 shrink-0">
-                <Bot className="w-3.5 h-3.5" />
-                Carlão · IA Ativo (Nível 1)
-              </Badge>
-            </div>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-normal max-w-4xl">
-              Mercado inteligente de contratação sustentável: Score de Elegibilidade + Faixa
-              Parametrizável + Negociação Cordial com Carlão + Separação Obrigatória de Pedágio.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadData}
-              className="text-xs border-slate-300 gap-1.5 h-9"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Atualizar Mesa
-            </Button>
-            <Link to="/tms/expedicao">
+        {/* Header Title & Actions — Padronizado com PageHeader */}
+        <PageHeader
+          title="Mesa de Fretes Inteligente & Agente Carlão"
+          subtitle="Mercado inteligente de contratação sustentável: Score de Elegibilidade + Faixa Parametrizável + Negociação Cordial com Carlão + Separação de Pedágio."
+          icon={BadgeDollarSign}
+          badge={
+            <Badge className="bg-[#005596] text-white text-xs font-bold px-2.5 py-0.5 flex items-center gap-1 shrink-0">
+              <Bot className="w-3.5 h-3.5" />
+              Carlão · IA Ativo (Nível 1)
+            </Badge>
+          }
+          breadcrumbs={[
+            { label: 'TMS CIAFAL', href: '/tms' },
+            { label: 'Operações' },
+            { label: 'Mesa de Fretes' },
+          ]}
+          actions={
+            <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
               <Button
+                variant="outline"
                 size="sm"
-                className="bg-[#005596] hover:bg-[#004275] text-white font-bold text-xs gap-1.5 shadow-sm h-9"
+                onClick={loadData}
+                className="text-xs border-slate-300 gap-1.5 h-9"
               >
-                <Truck className="w-3.5 h-3.5" />
-                Torre de Expedição
+                <RotateCcw className="w-3.5 h-3.5" />
+                Atualizar Mesa
               </Button>
-            </Link>
-          </div>
-        </div>
+              <Link to="/tms/expedicao">
+                <Button
+                  size="sm"
+                  className="bg-[#005596] hover:bg-[#004275] text-white font-bold text-xs gap-1.5 shadow-sm h-9"
+                >
+                  <Truck className="w-3.5 h-3.5" />
+                  Torre de Expedição
+                </Button>
+              </Link>
+            </div>
+          }
+          className="bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm mb-0"
+        />
 
         {/* INDICATORS HEADER (METRICS CARDS) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-3.5">

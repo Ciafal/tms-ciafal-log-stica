@@ -1,11 +1,9 @@
-export { KpiCard } from './KpiCard'
-export type { KpiCardProps } from './KpiCard'
-
-export { StatusBadge } from './StatusBadge'
-export type { StatusType } from './StatusBadge'
-
-export { IntegrationCard } from './IntegrationCard'
-export type { IntegrationCardProps } from './IntegrationCard'
-
-export { SectionHeader } from './SectionHeader'
-export type { SectionHeaderProps } from './SectionHeader'
+export * from './IntegrationCard'
+export * from './KpiCard'
+export * from './SectionHeader'
+export * from './StatusBadge'
+export * from './PageHeader'
+export * from './RegionConsulta'
+export * from './FeedbackStates'
+export * from './ResponsiveModal'
+export * from './ResponsiveDataTable'
