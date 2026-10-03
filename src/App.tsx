@@ -14,6 +14,7 @@ import { DriversVehiclesPage } from '@/pages/DriversVehiclesPage'
 import { DriverPerformanceManagementPage } from '@/pages/DriverPerformanceManagementPage'
 import { FreightOffersPreparationPage } from '@/pages/FreightOffersPreparationPage'
 import { MesaFretesPage } from '@/pages/MesaFretesPage'
+import { NegociacoesPage } from '@/pages/NegociacoesPage'
 import { DriverOfferPublicPage } from '@/pages/DriverOfferPublicPage'
 import { SapImportPage } from '@/pages/SapImportPage'
 import { AuditLogsPage } from '@/pages/AuditLogsPage'
@@ -254,7 +255,7 @@ export const App: React.FC = () => {
               }
             />
 
-            {/* 3. CONTRATAÇÃO & MESA DE FRETES COM CARLÃO */}
+            {/* 3. CONTRATAÇÃO & MESA DE FRETES COM CHICÃO */}
             <Route
               path="/tms/mesa-fretes"
               element={
@@ -276,6 +277,14 @@ export const App: React.FC = () => {
               element={
                 <Layout>
                   <MesaFretesPage />
+                </Layout>
+              }
+            />
+            <Route
+              path="/tms/negociacoes"
+              element={
+                <Layout>
+                  <NegociacoesPage />
                 </Layout>
               }
             />

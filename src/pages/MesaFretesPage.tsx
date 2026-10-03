@@ -318,7 +318,7 @@ export const MesaFretesPage: React.FC = () => {
       if (matchingEligible) setSelectedDriverForCarlao(matchingEligible)
       toast({
         title: 'Candidato Selecionado',
-        description: `${cand.driverName} selecionado como foco da negociação com Carlão.`,
+        description: `${cand.driverName} selecionado como foco da negociação com Chicão.`,
       })
     }
   }
@@ -496,8 +496,8 @@ export const MesaFretesPage: React.FC = () => {
       })
 
       toast({
-        title: 'Negociação Iniciada com Carlão',
-        description: `Carlão abriu negociação com ${selectedDriverForCarlao.driverName} para a carga ${selectedCargoForOffer.cargo_id}. Registrado no TMS e aguardando WhatsApp.`,
+        title: 'Negociação Iniciada com Chicão',
+        description: `Chicão abriu negociação com ${selectedDriverForCarlao.driverName} para a carga ${selectedCargoForOffer.cargo_id}. Registrado no TMS e aguardando WhatsApp.`,
         className: 'bg-[#005596] text-white',
       })
       setCarlaoModalOpen(false)
@@ -507,7 +507,7 @@ export const MesaFretesPage: React.FC = () => {
     } catch (err: any) {
       toast({
         title: 'Erro ao Iniciar Negociação',
-        description: err?.message || 'Falha na inicialização do Carlão.',
+        description: err?.message || 'Falha na inicialização do Chicão.',
         variant: 'destructive',
       })
     } finally {
@@ -611,11 +611,11 @@ export const MesaFretesPage: React.FC = () => {
         title:
           carlaoRes.decision === 'ACCEPT'
             ? 'Contratação Confirmada!'
-            : 'Resposta do Carlão Registrada',
+            : 'Resposta do Chicão Registrada',
         description:
           carlaoRes.decision === 'ACCEPT'
             ? 'Valores confirmados e separados. Ordem pronta para envio ao SAP.'
-            : `Carlão propôs R$ ${carlaoRes.proposed_freight_value.toLocaleString('pt-BR')} + pedágio.`,
+            : `Chicão propôs R$ ${carlaoRes.proposed_freight_value.toLocaleString('pt-BR')} + pedágio.`,
         className:
           carlaoRes.decision === 'ACCEPT' ? 'bg-emerald-600 text-white' : 'bg-[#005596] text-white',
       })
@@ -747,7 +747,7 @@ export const MesaFretesPage: React.FC = () => {
         wms_status_detail: 'Estoque disponível 27.5t no DP34',
         wms_available_weight_kg: 27500,
         wms_pending_weight_kg: 0,
-        source_system: 'Mesa de Fretes / Carlão IA',
+        source_system: 'Mesa de Fretes / Chicão IA',
       })
 
       toast({
@@ -786,13 +786,13 @@ export const MesaFretesPage: React.FC = () => {
       <div className="space-y-6 animate-fade-in pb-12">
         {/* Header Title & Actions — Padronizado com PageHeader */}
         <PageHeader
-          title="Mesa de Fretes Inteligente & Agente Carlão"
-          subtitle="Mercado inteligente de contratação sustentável: Score de Elegibilidade + Faixa Parametrizável + Negociação Cordial com Carlão + Separação de Pedágio."
+          title="Mesa de Fretes Inteligente & Agente Chicão"
+          subtitle="Mercado inteligente de contratação sustentável: Score de Elegibilidade + Faixa Parametrizável + Negociação Cordial com Chicão + Separação de Pedágio."
           icon={BadgeDollarSign}
           badge={
             <Badge className="bg-[#005596] text-white text-xs font-bold px-2.5 py-0.5 flex items-center gap-1 shrink-0">
               <Bot className="w-3.5 h-3.5" />
-              Carlão · IA Ativo (Nível 1)
+              Agente Chicão · IA Ativo (Nível 1)
             </Badge>
           }
           breadcrumbs={[
@@ -848,7 +848,7 @@ export const MesaFretesPage: React.FC = () => {
             <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-sky-800 truncate">
-                  Em Negociação Carlão
+                  Em Negociação Chicão
                 </p>
                 <div className="text-xl sm:text-2xl font-mono font-black text-[#005596] mt-0.5 flex items-center gap-1.5">
                   {negotiations.filter((n) => n.status === 'EM_NEGOCIACAO').length}
@@ -865,7 +865,7 @@ export const MesaFretesPage: React.FC = () => {
             <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-amber-900 truncate">
-                  Autonomia Carlão
+                  Autonomia Chicão
                 </p>
                 <div className="text-xl sm:text-2xl font-mono font-black text-amber-700 mt-0.5">
                   82,4 %
@@ -904,7 +904,7 @@ export const MesaFretesPage: React.FC = () => {
                 <div className="text-xl sm:text-2xl font-mono font-black text-slate-800 mt-0.5">
                   14 min 48 s
                 </div>
-                <p className="text-[10px] text-slate-500 truncate">Agilidade Carlão</p>
+                <p className="text-[10px] text-slate-500 truncate">Agilidade Chicão</p>
               </div>
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[#005596] shrink-0">
                 <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -933,14 +933,14 @@ export const MesaFretesPage: React.FC = () => {
                 className="gap-1.5 text-xs font-bold whitespace-nowrap"
               >
                 <Bot className="w-4 h-4 text-[#005596]" />
-                Negociações com Carlão ({negotiations.length})
+                Negociações com Chicão ({negotiations.length})
               </TabsTrigger>
               <TabsTrigger
                 value="carlao_supervisao"
                 className="gap-1.5 text-xs font-bold whitespace-nowrap"
               >
                 <Sparkles className="w-4 h-4 text-amber-500" />
-                Supervisão IA & Explicabilidade
+                Supervisão Chicão IA & Explicabilidade
               </TabsTrigger>
             </TabsList>
           </div>
@@ -960,7 +960,7 @@ export const MesaFretesPage: React.FC = () => {
                   </h2>
                   <p className="text-xs text-slate-500">
                     Selecione uma carga para calcular o Score de Elegibilidade dos motoristas e
-                    iniciar a negociação com o Carlão.
+                    iniciar a negociação com o Chicão.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
@@ -1017,7 +1017,7 @@ export const MesaFretesPage: React.FC = () => {
                             <span>{formatCurrency(band.metaCiafal)}</span>
                           </div>
                           <div className="flex justify-between text-[11px] text-amber-700 font-semibold">
-                            <span>Autonomia Carlão:</span>
+                            <span>Autonomia Chicão:</span>
                             <span>Até {formatCurrency(band.autonomiaMaximaCarlao)}</span>
                           </div>
                           <div className="flex justify-between text-[11px] text-emerald-700 font-bold border-t pt-1">
@@ -1033,7 +1033,7 @@ export const MesaFretesPage: React.FC = () => {
                             className="w-full bg-[#005596] hover:bg-[#004275] text-white font-bold text-xs gap-1.5 shadow-sm"
                           >
                             <Bot className="w-3.5 h-3.5" />
-                            Ofertar com Carlão (Score & Ondas)
+                            Ofertar com Chicão (Score & Ondas)
                           </Button>
                         </div>
                       </CardContent>
@@ -1044,7 +1044,7 @@ export const MesaFretesPage: React.FC = () => {
             </div>
           </TabsContent>
 
-          {/* TAB 2: NEGOCIAÇÕES EM ANDAMENTO COM CARLÃO */}
+          {/* TAB 2: NEGOCIAÇÕES EM ANDAMENTO COM CHICÃO */}
           <TabsContent value="negociacoes" className="space-y-4 mt-4">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Lista de Negociações */}
@@ -1114,7 +1114,7 @@ export const MesaFretesPage: React.FC = () => {
                               variant="outline"
                               className={`text-[10px] font-bold ${isCarlaoActive ? 'bg-sky-50 text-[#005596] border-sky-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}
                             >
-                              {isCarlaoActive ? 'CARLÃO · IA' : 'HUMANO ATIVO'}
+                              {isCarlaoActive ? 'CHICÃO · IA' : 'HUMANO ATIVO'}
                             </Badge>
                           </div>
                         </div>
@@ -1168,7 +1168,7 @@ export const MesaFretesPage: React.FC = () => {
                             className="bg-[#005596] hover:bg-[#004275] text-white text-xs font-bold gap-1 h-8"
                           >
                             <PlayCircle className="w-3.5 h-3.5" />
-                            Devolver ao Carlão
+                            Devolver ao Chicão
                           </Button>
                         )}
 
@@ -1182,7 +1182,7 @@ export const MesaFretesPage: React.FC = () => {
                           className="border-slate-300 text-xs gap-1 h-8"
                         >
                           <HelpCircle className="w-3.5 h-3.5 text-[#005596]" />
-                          Por que Carlão fez esta proposta?
+                          Por que Chicão fez esta proposta?
                         </Button>
                       </div>
                     </CardHeader>
@@ -1312,7 +1312,7 @@ export const MesaFretesPage: React.FC = () => {
                           </span>
                           <span className="text-[11px] text-slate-500">
                             Faixa: Piso R$ {activeNegotiation.floor_antt_value} | Meta R${' '}
-                            {activeNegotiation.target_value} | Teto Carlão R${' '}
+                            {activeNegotiation.target_value} | Teto Chicão R${' '}
                             {activeNegotiation.max_autonomy_value}
                           </span>
                         </div>
@@ -1365,7 +1365,7 @@ export const MesaFretesPage: React.FC = () => {
                     </p>
                     <p className="text-xs text-slate-400 mt-1 max-w-sm">
                       Selecione uma negociação na coluna ao lado para acompanhar as mensagens do
-                      Carlão, intervir ou gerar a ordem SAP.
+                      Chicão, intervir ou gerar a ordem SAP.
                     </p>
                   </div>
                 )}
@@ -1420,7 +1420,7 @@ export const MesaFretesPage: React.FC = () => {
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
               <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
                 <Bot className="w-5 h-5 text-[#005596]" />
-                Diagnóstico Analítico do Agente Carlão & Anomalias
+                Diagnóstico Analítico do Agente Chicão & Anomalias
               </h3>
               <p className="text-xs text-slate-500">
                 Supervisão contínua para garantir que a IA não aumente recusas nem prejudique os
@@ -1440,7 +1440,7 @@ export const MesaFretesPage: React.FC = () => {
                     inicial da CIAFAL.
                   </p>
                   <p className="text-slate-700">
-                    <strong>Ação Proposta pelo Carlão:</strong> Ajustar meta de referência para R$
+                    <strong>Ação Proposta pelo Chicão:</strong> Ajustar meta de referência para R$
                     2.780 na faixa inteligente ou acionar motoristas cadastrados com frete de
                     retorno.
                   </p>
@@ -1807,7 +1807,7 @@ export const MesaFretesPage: React.FC = () => {
                 className="bg-[#005596] hover:bg-[#004275] text-white font-bold"
               >
                 {actionLoading
-                  ? 'Disparando Carlão...'
+                  ? 'Disparando Chicão...'
                   : `Iniciar Negociação com ${selectedDriverForCarlao?.driverName || 'Motorista'}`}
               </Button>
             </DialogFooter>
@@ -1999,7 +1999,7 @@ export const MesaFretesPage: React.FC = () => {
                 Deseja assumir esta negociação?
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
-                O agente Carlão será pausado imediatamente e o controle da negociação será
+                O agente Chicão será pausado imediatamente e o controle da negociação será
                 transferido para seu perfil.
               </DialogDescription>
             </DialogHeader>
@@ -2018,7 +2018,7 @@ export const MesaFretesPage: React.FC = () => {
                     Negociação Especial / Volume Estratégico
                   </option>
                   <option value="excecao_financeira">
-                    Exceção Financeira Acima da Autonomia do Carlão
+                    Exceção Financeira Acima da Autonomia do Chicão
                   </option>
                   <option value="motorista_solicitou">Motorista Solicitou Contato Humano</option>
                   <option value="relacionamento">Alinhamento de Relacionamento Comercial</option>
@@ -2065,10 +2065,10 @@ export const MesaFretesPage: React.FC = () => {
             <DialogHeader>
               <DialogTitle className="text-base font-black text-slate-900 flex items-center gap-2">
                 <PlayCircle className="w-5 h-5 text-[#005596]" />
-                Devolver Conversa ao Agente Carlão
+                Devolver Conversa ao Agente Chicão
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
-                Carlão continuará a partir do ponto atual sem reiniciar a conversa.
+                Chicão continuará a partir do ponto atual sem reiniciar a conversa.
               </DialogDescription>
             </DialogHeader>
 
@@ -2101,7 +2101,7 @@ export const MesaFretesPage: React.FC = () => {
                 disabled={actionLoading}
                 className="bg-[#005596] hover:bg-[#004275] text-white font-bold"
               >
-                Reativar Carlão
+                Reativar Chicão
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -2113,7 +2113,7 @@ export const MesaFretesPage: React.FC = () => {
             <DialogHeader>
               <DialogTitle className="text-base font-black text-slate-900 flex items-center gap-2">
                 <HelpCircle className="w-5 h-5 text-[#005596]" />
-                Por que o Carlão fez esta proposta?
+                Por que o Chicão fez esta proposta?
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
                 Composição determinística e explicabilidade em linguagem natural.

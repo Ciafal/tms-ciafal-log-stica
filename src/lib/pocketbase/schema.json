@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T19:55:58.048Z",
+  "generatedAt": "2026-10-03T21:05:13.020Z",
   "collections": [
     {
       "name": "users",
@@ -14941,6 +14941,550 @@
         "CREATE INDEX idx_wa_comm_driver ON whatsapp_communication_logs (driver_id)",
         "CREATE INDEX idx_wa_comm_cargo ON whatsapp_communication_logs (cargo_id)",
         "CREATE INDEX idx_wa_comm_status ON whatsapp_communication_logs (status)"
+      ]
+    },
+    {
+      "name": "negociacoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "negotiation_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cargo_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "offer_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "uf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "distance_km",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "discharges_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customers_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_cpf_masked",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "carrier_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_body_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "initial_freight_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "negotiated_freight_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "toll_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "other_costs_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_contracted_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "antt_floor_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["ABERTO", "EM_NEGOCIACAO", "RECUSADO", "CONCLUIDA"]
+        },
+        {
+          "name": "responsible_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["CHICAO_IA", "HUMANO"]
+        },
+        {
+          "name": "responsible_user_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsible_user_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_messages_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_messages_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_duration_minutes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_duration_minutes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_takeover_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_takeover_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rounds_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "acceptance_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "accepted_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "completion_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opened_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "concluded_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_pipeline_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "AGUARDANDO_INTEGRACAO",
+            "VALIDANDO_DADOS",
+            "CRIANDO_REMESSAS",
+            "REMESSAS_CRIADAS",
+            "CRIANDO_TRANSPORTE",
+            "INTEGRADO_SAP",
+            "ERRO_INTEGRACAO",
+            "INTEGRACAO_PARCIAL"
+          ]
+        },
+        {
+          "name": "sap_pipeline_current_step",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_remessas_summary",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_last_attempt_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_error_technical",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_error_message",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_error_step",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_retry_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "orders_items_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "remessas_sap_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "timeline_events_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "counter_proposals_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_neg_number ON negociacoes (negotiation_number)",
+        "CREATE INDEX idx_neg_cargo ON negociacoes (cargo_id)",
+        "CREATE INDEX idx_neg_status ON negociacoes (status)",
+        "CREATE INDEX idx_neg_sap_status ON negociacoes (sap_pipeline_status)",
+        "CREATE INDEX idx_neg_driver ON negociacoes (driver_id)",
+        "CREATE INDEX idx_neg_plate ON negociacoes (vehicle_plate)",
+        "CREATE INDEX idx_neg_created ON negociacoes (created)"
+      ]
+    },
+    {
+      "name": "sap_remessas_transporte",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "negotiation_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "plant_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "shipping_point",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "orders_numbers",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_items_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "remessa_sap_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["PENDENTE", "CRIANDO", "CRIADA", "ERRO", "CANCELADA"]
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_message",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "technical_details",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "idempotency_key",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "items_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_remessa_unique_key ON sap_remessas_transporte (cargo_id, customer_code, negotiation_number)",
+        "CREATE INDEX idx_remessa_neg ON sap_remessas_transporte (negotiation_number)",
+        "CREATE INDEX idx_remessa_sap_num ON sap_remessas_transporte (remessa_sap_number)",
+        "CREATE INDEX idx_remessa_transp ON sap_remessas_transporte (sap_transport_number)"
       ]
     }
   ]
