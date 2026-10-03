@@ -5775,6 +5775,125 @@ export const TmsService = {
       throw err
     }
   },
+
+  // ----------------------------------------------------
+  // INTEGRAÇÃO AGENTE CHICÃO & MESA DE FRETES
+  // ----------------------------------------------------
+  async sendMatchesToChicao(matches: any[]): Promise<{
+    success: boolean
+    sent_count: number
+    error_count: number
+    results: any[]
+    errors: any[]
+    whatsapp_gateway_connected: boolean
+  }> {
+    try {
+      return await pb.send('/backend/v1/tms/chicao/dispatch', {
+        method: 'POST',
+        body: { matches },
+      })
+    } catch (err: any) {
+      console.error('Erro ao despachar encontros para o Chicão:', err)
+      throw err
+    }
+  },
+
+  async retryChicaoOffer(offerId: string): Promise<{
+    success: boolean
+    message?: string
+    offer: any
+  }> {
+    try {
+      return await pb.send('/backend/v1/tms/chicao/retry', {
+        method: 'POST',
+        body: { offer_id: offerId },
+      })
+    } catch (err: any) {
+      console.error('Erro ao retentar envio ao Chicão:', err)
+      throw err
+    }
+  },
+
+  async processChicaoDriverReply(params: {
+    offer_id: string
+    message_text?: string
+    counter_value?: number
+    is_audio?: boolean
+    audio_transcript?: string
+  }): Promise<{
+    success: boolean
+    status: string
+    counter_value_requested?: number
+    offer: any
+  }> {
+    try {
+      return await pb.send('/backend/v1/tms/chicao/process-reply', {
+        method: 'POST',
+        body: params,
+      })
+    } catch (err: any) {
+      console.error('Erro ao processar resposta do motorista ao Chicão:', err)
+      throw err
+    }
+  },
+
+  async takeoverChicaoOffer(params: {
+    offer_id: string
+    action: 'TAKE' | 'HANDBACK'
+    reason?: string
+  }): Promise<{
+    success: boolean
+    active_actor: string
+    offer: any
+  }> {
+    try {
+      return await pb.send('/backend/v1/tms/chicao/takeover', {
+        method: 'POST',
+        body: params,
+      })
+    } catch (err: any) {
+      console.error('Erro ao alternar interlocutor com Chicão:', err)
+      throw err
+    }
+  },
+
+  async approveChicaoOffer(params: {
+    offer_id: string
+    decision: 'APPROVE' | 'REJECT'
+    approved_value?: number
+  }): Promise<{
+    success: boolean
+    status: string
+    final_contracted_freight?: number
+    offer: any
+  }> {
+    try {
+      return await pb.send('/backend/v1/tms/chicao/approve', {
+        method: 'POST',
+        body: params,
+      })
+    } catch (err: any) {
+      console.error('Erro ao decidir contraproposta na Mesa de Fretes:', err)
+      throw err
+    }
+  },
+
+  async getChicaoOffers(
+    filter?: string,
+    sort = '-created',
+  ): Promise<import('@/domain/rules').ChicaoFreightOfferEntity[]> {
+    try {
+      return await pb
+        .collection('chicao_freight_offers')
+        .getFullList<import('@/domain/rules').ChicaoFreightOfferEntity>({
+          filter: filter || '',
+          sort,
+        })
+    } catch (err) {
+      console.warn('Erro ao carregar chicao_freight_offers:', err)
+      return []
+    }
+  },
 }
 
 export const tmsService = TmsService

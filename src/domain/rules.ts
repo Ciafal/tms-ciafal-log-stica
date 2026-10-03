@@ -551,6 +551,103 @@ export type FreightOfferStatus =
   | 'expirado'
   | 'cancelado'
 
+export type ChicaoOfferStatus =
+  | 'DISPONIVEL'
+  | 'SELECIONADO'
+  | 'ENVIADO_CHICAO'
+  | 'OFERTA_ENVIADA'
+  | 'VISUALIZADA'
+  | 'EM_NEGOCIACAO'
+  | 'CONTRAPROPOSTA'
+  | 'AGUARDANDO_APROVACAO'
+  | 'ACEITA'
+  | 'RECUSADA'
+  | 'EXPIRADA'
+  | 'CANCELADA'
+  | 'ERRO_ENVIO'
+
+export interface ChicaoFreightOfferEntity {
+  id: string
+  offer_code: string
+  sequential_number: number
+  year: number
+  match_id: string
+  cargo_id: string
+  cargo_title?: string
+  itinerary_code?: string
+  itinerary_description?: string
+  origin?: string
+  destination_city?: string
+  destination_uf?: string
+  cities_intermediate?: string
+  driver_id?: string
+  driver_name: string
+  driver_phone?: string
+  driver_whatsapp?: string
+  driver_document?: string
+  carrier_name?: string
+  vehicle_plate: string
+  vehicle_type?: string
+  vehicle_body_type?: string
+  vehicle_capacity_kg?: number
+  queue_group?: string
+  queue_status?: string
+  weight_kg?: number
+  weight_ton?: number
+  customers_count?: number
+  discharges_count?: number
+  distance_km?: number
+  estimated_time_hours?: number
+  discharge_type?: string
+  products_summary?: string
+  customer_logistic_notes?: string
+  orders_json?: any[]
+  initial_offer_value: number
+  toll_cost?: number
+  total_offered_value?: number
+  antt_floor_value?: number
+  cost_per_ton?: number
+  cost_per_km?: number
+  max_autonomy_value?: number
+  counter_value_requested?: number
+  final_contracted_freight?: number
+  final_contracted_total?: number
+  status: ChicaoOfferStatus
+  refusal_reason?: string
+  refusal_category?: string
+  active_actor?: 'CHICAO' | 'HUMANO' | 'MOTORISTA' | string
+  human_takeover_user?: string
+  human_takeover_reason?: string
+  human_takeover_at?: string
+  ai_handled_pct?: number
+  rounds_count?: number
+  whatsapp_status?: string
+  whatsapp_error_message?: string
+  whatsapp_message_id?: string
+  retry_count?: number
+  last_retry_at?: string
+  sap_transport_number?: string
+  sap_status?: string
+  sap_generated_at?: string
+  timeline_json?: Array<{
+    timestamp: string
+    actor: string
+    action: string
+    description: string
+  }>
+  messages_history?: Array<{
+    id: string
+    timestamp: string
+    sender: string
+    channel?: string
+    text: string
+    is_audio?: boolean
+    status?: string
+  }>
+  created?: string
+  updated?: string
+}
+
 export interface FreightOfferEntity {
   id: string
   cargo_id: string

@@ -106,6 +106,20 @@ export const EncontrosDrawer: React.FC<EncontrosDrawerProps> = ({
   const [aiLoading, setAiLoading] = useState(false)
   const [aiExplanation, setAiExplanation] = useState<string>('')
 
+  // Seleção múltipla para envio ao Chicão
+  const [selectedMatchIds, setSelectedMatchIds] = useState<Set<string>>(new Set())
+  const [isChicaoConfirmOpen, setIsChicaoConfirmOpen] = useState(false)
+  const [isDispatchingChicao, setIsDispatchingChicao] = useState(false)
+  const [chicaoDispatchSummary, setChicaoDispatchSummary] = useState<{
+    sentCount: number
+    errorCount: number
+    message: string
+    errors?: any[]
+  } | null>(null)
+  const [validationErrors, setValidationErrors] = useState<
+    Array<{ matchId: string; plate: string; reason: string }>
+  >([])
+
   // Execução determinística do motor
   const engineResult: EngineExecutionResult = useMemo(() => {
     return runVehicleLoadMatchingEngine({
@@ -139,6 +153,211 @@ export const EncontrosDrawer: React.FC<EncontrosDrawerProps> = ({
       return m.driverQueueGroup === 'PROGRAMADO'
     })
   }, [engineResult.matches, temporalTab])
+
+  // Handlers de Seleção Múltipla
+  const toggleSelectMatch = (matchId: string) => {
+    setSelectedMatchIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(matchId)) {
+        next.delete(matchId)
+      } else {
+        next.add(matchId)
+      }
+      return next
+    })
+  }
+
+  const isAllSelected =
+    currentTabMatches.length > 0 && currentTabMatches.every((m) => selectedMatchIds.has(m.matchId))
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedMatchIds(new Set())
+    } else {
+      setSelectedMatchIds(new Set(currentTabMatches.map((m) => m.matchId)))
+    }
+  }
+
+  const selectedMatchesList = useMemo(() => {
+    return engineResult.matches.filter((m) => selectedMatchIds.has(m.matchId))
+  }, [engineResult.matches, selectedMatchIds])
+
+  // Validação em Tempo Real antes do Envio ao Chicão
+  const validateMatchesBeforeDispatch = (
+    matchesToValidate: VehicleLoadMatch[],
+  ): { valid: boolean; errors: Array<{ matchId: string; plate: string; reason: string }> } => {
+    const errs: Array<{ matchId: string; plate: string; reason: string }> = []
+
+    for (const m of matchesToValidate) {
+      // 1. Veículo disponível
+      if (m.queueVehicle.status === 'removido' || m.queueVehicle.status === 'bloqueado') {
+        errs.push({
+          matchId: m.matchId,
+          plate: m.vehiclePlate,
+          reason: `Veículo ${m.vehiclePlate} está com status "${m.queueVehicle.status}" na fila.`,
+        })
+        continue
+      }
+      // 2. Capacidade vs peso
+      const cap = m.vehicleCapacityKg || 0
+      const weight = m.candidateLoad.totalWeightKg || 0
+      if (cap <= 0 || weight > cap) {
+        errs.push({
+          matchId: m.matchId,
+          plate: m.vehiclePlate,
+          reason: `Peso (${(weight / 1000).toFixed(1)}t) excede a capacidade (${(cap / 1000).toFixed(1)}t).`,
+        })
+        continue
+      }
+      // 3. Motorista telefone/WhatsApp válido
+      const phone = (m.driverPhone || m.queueVehicle.driver_phone_cached || '').replace(/\D/g, '')
+      if (!phone || phone.length < 10) {
+        errs.push({
+          matchId: m.matchId,
+          plate: m.vehiclePlate,
+          reason: `Motorista ${m.driverName} não possui telefone/WhatsApp válido cadastrado.`,
+        })
+        continue
+      }
+      // 4. Bloqueio cadastral motorista
+      if (m.queueVehicle.expand?.driver?.status === 'bloqueado') {
+        errs.push({
+          matchId: m.matchId,
+          plate: m.vehiclePlate,
+          reason: `Motorista ${m.driverName} com bloqueio cadastral ativo.`,
+        })
+        continue
+      }
+      // 5. Carga e estoque
+      if (!m.checks.stock && !m.checks.pcp) {
+        errs.push({
+          matchId: m.matchId,
+          plate: m.vehiclePlate,
+          reason: `Itens da carga ${m.candidateLoad.title} sem estoque físico e sem lote PCP pronto.`,
+        })
+        continue
+      }
+      if (!m.checks.credit) {
+        errs.push({
+          matchId: m.matchId,
+          plate: m.vehiclePlate,
+          reason: `Pedidos da carga com crédito bloqueado no SAP.`,
+        })
+        continue
+      }
+    }
+
+    return { valid: errs.length === 0, errors: errs }
+  }
+
+  // Abertura do Popup de Confirmação com Validação
+  const handleOpenChicaoConfirm = () => {
+    if (selectedMatchesList.length === 0) {
+      toast({
+        title: 'Nenhum encontro selecionado',
+        description: 'Selecione pelo menos um encontro para enviar ao Agente Chicão.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const { valid, errors } = validateMatchesBeforeDispatch(selectedMatchesList)
+    setValidationErrors(errors)
+    if (!valid) {
+      toast({
+        title: 'Atenção na validação de pré-envio',
+        description: `${errors.length} encontro(s) apresentaram inconsistências. Revise antes de confirmar.`,
+        variant: 'destructive',
+      })
+    }
+    setIsChicaoConfirmOpen(true)
+  }
+
+  // Disparo em lote ao Chicão
+  const handleExecuteDispatchChicao = async () => {
+    if (selectedMatchesList.length === 0) return
+    setIsDispatchingChicao(true)
+    setChicaoDispatchSummary(null)
+
+    try {
+      const payloadMatches = selectedMatchesList.map((m) => ({
+        match_id: m.matchId,
+        cargo_id: m.candidateLoad.id,
+        cargo_title: m.candidateLoad.title,
+        itinerary_code: m.candidateLoad.itineraryCode,
+        itinerary_description:
+          m.candidateLoad.itineraryName || `Itinerário ${m.candidateLoad.itineraryCode}`,
+        origin: 'Contagem / MG (Sidercentro CIAFAL)',
+        destination_city: m.candidateLoad.destinationCity,
+        destination_uf: m.candidateLoad.destinationUf,
+        cities_intermediate: m.candidateLoad.intermediateCities?.join(', ') || '',
+        driver_id: m.queueVehicle.driver || '',
+        driver_name: m.driverName,
+        driver_phone: m.driverPhone || m.queueVehicle.driver_phone_cached || '',
+        driver_whatsapp: m.driverPhone || m.queueVehicle.driver_phone_cached || '',
+        driver_document: m.driverDocument || m.queueVehicle.driver_doc_cached || '',
+        carrier_name: (m.queueVehicle as any).carrier_name || '',
+        vehicle_plate: m.vehiclePlate,
+        vehicle_type: m.vehicleType,
+        vehicle_body_type: (m.queueVehicle as any).body_type || '',
+        vehicle_capacity_kg: m.vehicleCapacityKg,
+        queue_group: m.driverQueueGroup,
+        queue_status: m.queueVehicle.status,
+        weight_kg: m.candidateLoad.totalWeightKg,
+        weight_ton: Number((m.candidateLoad.totalWeightKg / 1000).toFixed(2)),
+        customers_count: m.candidateLoad.customersCount,
+        discharges_count: m.candidateLoad.dischargesCount,
+        distance_km: m.distanceKm,
+        estimated_time_hours: m.operationalAnalysis?.totalTripHours || 0,
+        discharge_type: m.candidateLoad.requiredDischargeTypes?.join(', ') || 'LIVRE',
+        products_summary:
+          m.candidateLoad.orders
+            ?.map((o) => o.materialDesc)
+            .filter(Boolean)
+            .slice(0, 3)
+            .join(', ') || 'Produtos siderúrgicos CIAFAL',
+        customer_logistic_notes: '',
+        orders: m.candidateLoad.orders || [],
+        freight_value: m.totalSuggestedFreight,
+        initial_offer_value: m.totalSuggestedFreight,
+        toll_cost: m.tollCost,
+        antt_floor_value: m.anttFloorValue,
+      }))
+
+      const response = await tmsService.sendMatchesToChicao(payloadMatches)
+
+      setChicaoDispatchSummary({
+        sentCount: response.sent_count,
+        errorCount: response.error_count,
+        message: `${response.sent_count} ofertas registradas na Mesa de Fretes. ${
+          !response.whatsapp_gateway_connected
+            ? 'Atenção: Gateway WhatsApp Business não está conectado neste ambiente; o envio real falhou com estado honesto "Erro no envio / Sem conexão". Acompanhe na Mesa de Fretes.'
+            : 'O Chicão iniciou o contato via WhatsApp.'
+        }`,
+        errors: response.errors,
+      })
+
+      // Desmarca os enviados
+      setSelectedMatchIds(new Set())
+      if (onRefreshData) onRefreshData()
+    } catch (err: any) {
+      toast({
+        title: 'Erro no envio ao Chicão',
+        description: err?.message || 'Falha ao comunicar com o backend do Chicão.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDispatchingChicao(false)
+    }
+  }
+
+  // Disparo individual a partir de um Card
+  const handleSendSingleToChicao = (match: VehicleLoadMatch) => {
+    setSelectedMatchIds(new Set([match.matchId]))
+    const { valid, errors } = validateMatchesBeforeDispatch([match])
+    setValidationErrors(errors)
+    setIsChicaoConfirmOpen(true)
+  }
 
   // Ação 1: Simular Carga (injetar no Roteirizador)
   const handleSimulate = (match: VehicleLoadMatch) => {
@@ -502,6 +721,47 @@ Explique de forma técnica e compacta (máx 3 parágrafos) ao gestor logístico:
           </div>
         </DrawerHeader>
 
+        {/* Barra de Ação em Lote: Seleção de Encontros + Botão "Enviar Chicão" Oficial */}
+        <div className="px-4 sm:px-6 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-slate-300 text-[#005596] focus:ring-[#005596]"
+              />
+              <span>Selecionar todos ({currentTabMatches.length})</span>
+            </label>
+            {selectedMatchIds.size > 0 && (
+              <Badge className="bg-[#005596] text-white text-xs px-2 py-0.5">
+                {selectedMatchIds.size} selecionado(s)
+              </Badge>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              disabled={selectedMatchIds.size === 0}
+              onClick={handleOpenChicaoConfirm}
+              className={`h-8.5 px-4 rounded-md font-semibold text-xs transition-all shadow-xs flex items-center gap-2 ${
+                selectedMatchIds.size > 0
+                  ? 'bg-[#005596] hover:bg-[#004275] text-white cursor-pointer'
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed border-slate-300'
+              }`}
+            >
+              <Bot className="h-4 w-4 text-blue-200" />
+              <span>Enviar Chicão</span>
+              {selectedMatchIds.size > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-white/20 text-white text-[10px]">
+                  {selectedMatchIds.size}
+                </span>
+              )}
+            </Button>
+          </div>
+        </div>
+
         {/* Corpo do Drawer com ScrollArea */}
         <ScrollArea className="flex-1 p-4 sm:p-6">
           {viewMode === 'LIST' && (
@@ -522,11 +782,14 @@ Explique de forma técnica e compacta (máx 3 parágrafos) ao gestor logístico:
                   <MatchCard
                     key={match.matchId}
                     match={match}
+                    isSelected={selectedMatchIds.has(match.matchId)}
+                    onToggleSelect={toggleSelectMatch}
                     onViewComposition={(m) => setSelectedMatchForComposition(m)}
                     onSimulate={handleSimulate}
                     onReserveVehicle={handleReserveVehicle}
                     onSendToFreightDesk={handleSendToFreightDesk}
                     onCallAiExplain={handleCallAiExplain}
+                    onSendSingleToChicao={handleSendSingleToChicao}
                   />
                 ))
               )}
@@ -547,6 +810,186 @@ Explique de forma técnica e compacta (máx 3 parágrafos) ao gestor logístico:
             <NonMatchDiagnosisView diagnoses={engineResult.nonMatchDiagnoses} />
           )}
         </ScrollArea>
+
+        {/* POPUP DE CONFIRMAÇÃO: Enviar ofertas ao Chicão (Requisito 4 do usuário) */}
+        <Dialog open={isChicaoConfirmOpen} onOpenChange={setIsChicaoConfirmOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+            <DialogHeader className="p-4 sm:p-6 pb-3 border-b bg-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-[#005596] text-white flex items-center justify-center shadow-xs">
+                  <Bot className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-bold text-slate-900">
+                    Enviar ofertas ao Chicão
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-slate-500 mt-0.5">
+                    O Chicão iniciará a oferta destas cargas aos motoristas elegíveis via WhatsApp e
+                    o acompanhamento será realizado na Mesa de Fretes.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
+              {/* Alertas de validação em tempo real se houver */}
+              {validationErrors.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 space-y-1">
+                  <div className="font-bold flex items-center gap-1.5 text-amber-800">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>
+                      Inconsistências identificadas na validação em tempo real (
+                      {validationErrors.length}):
+                    </span>
+                  </div>
+                  <ul className="list-disc pl-5 space-y-0.5 text-amber-800 text-[11px]">
+                    {validationErrors.map((e, idx) => (
+                      <li key={idx}>
+                        <strong>{e.plate}:</strong> {e.reason}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Resultado do Envio (se já executou) */}
+              {chicaoDispatchSummary && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-900 space-y-2">
+                  <div className="flex items-center justify-between font-bold text-sm text-[#005596]">
+                    <span>
+                      {chicaoDispatchSummary.sentCount} ofertas criadas com sucesso na Mesa de
+                      Fretes.
+                    </span>
+                    <Badge className="bg-[#005596] text-white">
+                      {chicaoDispatchSummary.sentCount} Processadas
+                    </Badge>
+                  </div>
+                  <p className="text-[12px] text-slate-700">{chicaoDispatchSummary.message}</p>
+                  {chicaoDispatchSummary.errors && chicaoDispatchSummary.errors.length > 0 && (
+                    <div className="mt-2 text-rose-700 bg-rose-50 p-2 rounded text-[11px]">
+                      <strong>Inconsistências reportadas:</strong>
+                      <ul className="list-disc pl-4 mt-1">
+                        {chicaoDispatchSummary.errors.map((er: any, i: number) => (
+                          <li key={i}>{er.error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="pt-2 flex justify-end">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setIsChicaoConfirmOpen(false)
+                        onOpenChange(false)
+                        navigate('/tms/mesa-fretes')
+                      }}
+                      className="bg-[#005596] hover:bg-[#004275] text-white text-xs font-semibold"
+                    >
+                      Abrir Mesa de Fretes
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Resumo em Tabela conforme Requisito 4: Motorista, Veículo, Carga, Itinerário, Peso, Descargas, Distância, Valor */}
+              <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-2xs">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                    <tr>
+                      <th className="p-2.5">Motorista</th>
+                      <th className="p-2.5">Veículo</th>
+                      <th className="p-2.5">Carga</th>
+                      <th className="p-2.5">Itinerário</th>
+                      <th className="p-2.5 text-right">Peso</th>
+                      <th className="p-2.5 text-center">Descargas</th>
+                      <th className="p-2.5 text-right">Distância</th>
+                      <th className="p-2.5 text-right">Valor Frete</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {selectedMatchesList.map((m) => (
+                      <tr key={m.matchId} className="hover:bg-slate-50/70">
+                        <td className="p-2.5 font-medium text-slate-900">
+                          {m.driverName}
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            {m.driverPhone || 'Sem telefone'}
+                          </div>
+                        </td>
+                        <td className="p-2.5 font-mono font-semibold text-slate-800">
+                          {m.vehiclePlate}
+                        </td>
+                        <td className="p-2.5 font-medium text-slate-700">
+                          {m.candidateLoad.title}
+                        </td>
+                        <td className="p-2.5 text-slate-600">
+                          {m.candidateLoad.destinationCity} / {m.candidateLoad.destinationUf}
+                          <div className="text-[10px] text-slate-400">
+                            Rota {m.candidateLoad.itineraryCode}
+                          </div>
+                        </td>
+                        <td className="p-2.5 text-right font-mono text-slate-800">
+                          {(m.candidateLoad.totalWeightKg / 1000).toFixed(2)} t
+                        </td>
+                        <td className="p-2.5 text-center font-mono">
+                          {m.candidateLoad.dischargesCount}
+                        </td>
+                        <td className="p-2.5 text-right font-mono text-slate-700">
+                          {m.distanceKm} km
+                        </td>
+                        <td className="p-2.5 text-right font-mono font-bold text-[#005596]">
+                          {fmtBrl(m.totalSuggestedFreight)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <DialogFooter className="p-4 sm:p-6 pt-3 border-t bg-slate-50 flex items-center justify-between">
+              <span className="text-xs text-slate-500">
+                Total selecionado: <strong>{selectedMatchesList.length}</strong> carga(s) • Frete
+                total:{' '}
+                <strong>
+                  {fmtBrl(
+                    selectedMatchesList.reduce((acc, curr) => acc + curr.totalSuggestedFreight, 0),
+                  )}
+                </strong>
+              </span>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isDispatchingChicao}
+                  onClick={() => setIsChicaoConfirmOpen(false)}
+                  className="text-xs"
+                >
+                  Cancelar
+                </Button>
+
+                <Button
+                  size="sm"
+                  disabled={isDispatchingChicao || selectedMatchesList.length === 0}
+                  onClick={handleExecuteDispatchChicao}
+                  className="bg-[#005596] hover:bg-[#004275] text-white text-xs font-semibold flex items-center gap-2"
+                >
+                  {isDispatchingChicao ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      <span>Despachando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bot className="h-4 w-4 text-blue-200" />
+                      <span>Confirmar envio ao Chicão</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Modal de Composição da Carga */}
         <MatchCompositionModal

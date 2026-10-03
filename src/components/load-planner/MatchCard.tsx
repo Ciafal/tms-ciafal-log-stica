@@ -24,20 +24,26 @@ import type { VehicleLoadMatch } from '@/domain/vehicleLoadMatchingEngine'
 
 interface MatchCardProps {
   match: VehicleLoadMatch
+  isSelected?: boolean
+  onToggleSelect?: (matchId: string) => void
   onViewComposition: (match: VehicleLoadMatch) => void
   onSimulate: (match: VehicleLoadMatch) => void
   onReserveVehicle: (match: VehicleLoadMatch) => void
   onSendToFreightDesk: (match: VehicleLoadMatch) => void
   onCallAiExplain: (match: VehicleLoadMatch) => void
+  onSendSingleToChicao?: (match: VehicleLoadMatch) => void
 }
 
 export const MatchCard: React.FC<MatchCardProps> = ({
   match,
+  isSelected = false,
+  onToggleSelect,
   onViewComposition,
   onSimulate,
   onReserveVehicle,
   onSendToFreightDesk,
   onCallAiExplain,
+  onSendSingleToChicao,
 }) => {
   const {
     matchId,
@@ -77,9 +83,11 @@ export const MatchCard: React.FC<MatchCardProps> = ({
   return (
     <Card
       className={`border transition-all duration-200 hover:shadow-md ${
-        isOpportunity
-          ? 'border-emerald-500/80 bg-emerald-50/20'
-          : 'border-slate-200 bg-white hover:border-blue-300'
+        isSelected
+          ? 'ring-2 ring-[#005596] border-[#005596] bg-blue-50/25'
+          : isOpportunity
+            ? 'border-emerald-500/80 bg-emerald-50/20'
+            : 'border-slate-200 bg-white hover:border-blue-300'
       }`}
     >
       <CardContent className="p-4 sm:p-5">
@@ -96,15 +104,45 @@ export const MatchCard: React.FC<MatchCardProps> = ({
           </div>
         )}
 
-        {/* Topo do Card: Identificador do Match + Score */}
+        {/* Topo do Card: Checkbox + Identificador do Match + Score */}
         <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {onToggleSelect && (
+              <input
+                type="checkbox"
+                aria-label={`Selecionar encontro ${matchId}`}
+                checked={isSelected}
+                onChange={() => onToggleSelect(matchId)}
+                className="h-4 w-4 rounded border-slate-300 text-[#005596] focus:ring-[#005596] cursor-pointer"
+              />
+            )}
             <Badge
               variant="outline"
               className="bg-blue-50 text-blue-800 border-blue-200 font-mono font-bold text-xs"
             >
               {matchId}
             </Badge>
+            {match.offerCode && (
+              <Badge className="bg-[#005596] text-white text-[10px] font-mono font-bold px-1.5 py-0.5">
+                {match.offerCode}
+              </Badge>
+            )}
+            {match.offerStatus && (
+              <Badge
+                variant="outline"
+                className={`text-[10px] font-semibold ${
+                  match.offerStatus === 'ACEITA'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                    : match.offerStatus === 'ERRO_ENVIO'
+                      ? 'bg-amber-50 text-amber-800 border-amber-300'
+                      : match.offerStatus === 'RECUSADA'
+                        ? 'bg-slate-100 text-slate-600 border-slate-300'
+                        : 'bg-blue-50 text-[#005596] border-blue-300'
+                }`}
+              >
+                {match.offerStatus}
+              </Badge>
+            )}
             <h3 className="font-bold text-slate-900 text-base tracking-tight">
               {candidateLoad.title}
             </h3>
@@ -165,9 +203,14 @@ export const MatchCard: React.FC<MatchCardProps> = ({
             </div>
 
             <div className="flex items-center justify-between text-slate-600">
-              <div className="flex items-center gap-1.5 truncate max-w-[180px]">
+              <div className="flex items-center gap-1.5 truncate max-w-[200px]">
                 <User className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                 <span className="font-medium text-slate-800 truncate">{driverName}</span>
+                {match.driverPhone && (
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    ({match.driverPhone})
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1 text-slate-500 font-mono text-[11px]">
                 <Clock className="h-3 w-3 text-slate-400" />
@@ -429,13 +472,26 @@ export const MatchCard: React.FC<MatchCardProps> = ({
               RESERVAR VEÍCULO
             </Button>
 
+            {onSendSingleToChicao && (
+              <Button
+                size="sm"
+                onClick={() => onSendSingleToChicao(match)}
+                className="text-xs h-8 px-3 bg-[#005596] hover:bg-[#004275] text-white shadow-xs font-medium flex items-center gap-1.5"
+                title="Valida os dados e despacha a oferta diretamente ao Agente Chicão"
+              >
+                <Bot className="h-3.5 w-3.5 text-blue-200" />
+                <span>Enviar Chicão</span>
+              </Button>
+            )}
+
             <Button
               size="sm"
+              variant="outline"
               onClick={() => onSendToFreightDesk(match)}
-              className="text-xs h-8 px-3 bg-[#005596] hover:bg-[#004275] text-white shadow-xs font-medium"
+              className="text-xs h-8 px-3 text-slate-700 border-slate-300 hover:bg-slate-50 font-medium"
             >
               <DollarSign className="h-3.5 w-3.5 mr-1" />
-              ENVIAR P/ MESA
+              Mesa Fretes
             </Button>
           </div>
         </div>

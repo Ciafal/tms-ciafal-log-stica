@@ -120,6 +120,24 @@ export interface VehicleLoadMatch {
   checks: EliminationCheckResult['checks']
   isOpportunity: boolean // Oportunidade verde (≥95% ocupação, PORTA > 30min, pronto)
   createdAt: string
+  // Estado e histórico da oferta de frete ao Agente Chicão
+  offerStatus?:
+    | 'DISPONIVEL'
+    | 'SELECIONADO'
+    | 'ENVIADO_CHICAO'
+    | 'OFERTA_ENVIADA'
+    | 'VISUALIZADA'
+    | 'EM_NEGOCIACAO'
+    | 'CONTRAPROPOSTA'
+    | 'AGUARDANDO_APROVACAO'
+    | 'ACEITA'
+    | 'RECUSADA'
+    | 'EXPIRADA'
+    | 'CANCELADA'
+    | 'ERRO_ENVIO'
+  offerCode?: string
+  whatsappStatus?: string
+  lastErrorReason?: string
 }
 
 export interface VehicleNonMatchDiagnosis {

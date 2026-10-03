@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T18:59:19.182Z",
+  "generatedAt": "2026-10-03T13:27:01.405Z",
   "collections": [
     {
       "name": "users",
@@ -14206,6 +14206,435 @@
         "CREATE INDEX idx_cust_info_city_uf ON sap_customer_logistic_info (delivery_city, delivery_uf)",
         "CREATE INDEX idx_cust_info_level ON sap_customer_logistic_info (highest_restriction_level)",
         "CREATE INDEX idx_cust_info_active ON sap_customer_logistic_info (is_active)"
+      ]
+    },
+    {
+      "name": "chicao_freight_offers",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "offer_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sequential_number",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "year",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "match_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cargo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cargo_title",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination_city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination_uf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cities_intermediate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "driver_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_whatsapp",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "driver_document",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "carrier_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_body_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_capacity_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "queue_group",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "queue_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_ton",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customers_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "discharges_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "distance_km",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estimated_time_hours",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "discharge_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "products_summary",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_logistic_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "orders_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "initial_offer_value",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "toll_cost",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_offered_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "antt_floor_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cost_per_ton",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cost_per_km",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "max_autonomy_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "counter_value_requested",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "final_contracted_freight",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "final_contracted_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "DISPONIVEL",
+            "SELECIONADO",
+            "ENVIADO_CHICAO",
+            "OFERTA_ENVIADA",
+            "VISUALIZADA",
+            "EM_NEGOCIACAO",
+            "CONTRAPROPOSTA",
+            "AGUARDANDO_APROVACAO",
+            "ACEITA",
+            "RECUSADA",
+            "EXPIRADA",
+            "CANCELADA",
+            "ERRO_ENVIO"
+          ]
+        },
+        {
+          "name": "refusal_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "refusal_category",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "active_actor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_takeover_user",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_takeover_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_takeover_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_handled_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rounds_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "whatsapp_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "whatsapp_error_message",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "whatsapp_message_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "retry_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_retry_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_generated_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "timeline_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "messages_history",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_chicao_offer_code ON chicao_freight_offers (offer_code)",
+        "CREATE INDEX idx_chicao_match ON chicao_freight_offers (match_id)",
+        "CREATE INDEX idx_chicao_cargo ON chicao_freight_offers (cargo_id)",
+        "CREATE INDEX idx_chicao_driver ON chicao_freight_offers (driver_id)",
+        "CREATE INDEX idx_chicao_plate ON chicao_freight_offers (vehicle_plate)",
+        "CREATE INDEX idx_chicao_status ON chicao_freight_offers (status)",
+        "CREATE INDEX idx_chicao_created ON chicao_freight_offers (created)"
       ]
     }
   ]
