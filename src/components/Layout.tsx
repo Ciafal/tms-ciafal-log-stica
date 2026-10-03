@@ -724,53 +724,22 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                             <Link
                               key={item.path}
                               to={item.path}
-                              className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
+                              className={`flex items-center gap-2 px-2.5 py-2 rounded-md text-xs font-medium transition-all ${
                                 isActive
                                   ? 'bg-[#005596] text-white shadow-sm font-semibold'
                                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                               }`}
                             >
-                              <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                {item.icon && (
-                                  <item.icon
-                                    className={`w-3.5 h-3.5 shrink-0 ${
-                                      isActive ? 'text-white' : 'text-slate-400'
-                                    }`}
-                                  />
-                                )}
-                                <span className="truncate min-w-0" title={item.title}>
-                                  {item.title}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center space-x-1 shrink-0">
-                                {item.inDev && (
-                                  <Badge
-                                    variant="outline"
-                                    className={`text-[8px] px-1.5 py-0 border shrink-0 ${
-                                      isActive
-                                        ? 'border-white/40 text-white bg-white/10'
-                                        : 'border-amber-400 text-amber-700 bg-amber-50'
-                                    }`}
-                                  >
-                                    Em desenvolv.
-                                  </Badge>
-                                )}
-
-                                {item.badge && (
-                                  <Badge
-                                    className={`text-[8px] px-1.5 py-0 font-bold shrink-0 border-0 ${
-                                      isActive
-                                        ? 'bg-white/20 text-white'
-                                        : item.badgeColor
-                                          ? `${item.badgeColor} text-white`
-                                          : 'bg-slate-200 text-slate-700'
-                                    }`}
-                                  >
-                                    {item.badge}
-                                  </Badge>
-                                )}
-                              </div>
+                              {item.icon && (
+                                <item.icon
+                                  className={`w-3.5 h-3.5 shrink-0 ${
+                                    isActive ? 'text-white' : 'text-slate-400'
+                                  }`}
+                                />
+                              )}
+                              <span className="truncate min-w-0 flex-1" title={item.title}>
+                                {item.title}
+                              </span>
                             </Link>
                           )
                         })}
