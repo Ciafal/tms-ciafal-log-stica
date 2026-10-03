@@ -18,6 +18,13 @@ export interface RegionConsultaProps {
   totalRecords?: number
   filteredRecords?: number
   className?: string
+  children?: React.ReactNode
+  title?: string
+  subtitle?: string
+  totalCount?: number
+  filteredCount?: number
+  onSearch?: (term?: string) => void
+  onClear?: () => void
 }
 
 export const RegionConsulta: React.FC<RegionConsultaProps> = ({
@@ -33,7 +40,19 @@ export const RegionConsulta: React.FC<RegionConsultaProps> = ({
   totalRecords,
   filteredRecords,
   className,
+  children,
+  title,
+  subtitle,
+  totalCount,
+  filteredCount,
+  onSearch,
+  onClear,
 }) => {
+  const effectiveTotal = totalRecords ?? totalCount
+  const effectiveFiltered = filteredRecords ?? filteredCount
+  const handleClear = onClearFilters || onClear
+  const handleRefresh = onRefresh || (onSearch ? () => onSearch() : undefined)
+
   return (
     <div
       className={cn(
@@ -41,6 +60,41 @@ export const RegionConsulta: React.FC<RegionConsultaProps> = ({
         className,
       )}
     >
+      {(title || subtitle) && (
+        <div className="border-b border-slate-100 pb-2.5 flex items-center justify-between gap-2">
+          <div>
+            {title && <h3 className="text-xs sm:text-sm font-bold text-slate-800">{title}</h3>}
+            {subtitle && <p className="text-[11px] text-slate-500 mt-0.5">{subtitle}</p>}
+          </div>
+          {(onSearch || onClear) && (
+            <div className="flex items-center gap-2">
+              {handleClear && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClear}
+                  className="h-8 text-xs text-slate-600 hover:text-slate-900"
+                >
+                  <X className="w-3.5 h-3.5 mr-1" />
+                  Limpar
+                </Button>
+              )}
+              {onSearch && (
+                <Button
+                  size="sm"
+                  onClick={() => onSearch()}
+                  disabled={isSearching}
+                  className="h-8 text-xs font-semibold bg-[#005596] hover:bg-[#004275] text-white"
+                >
+                  <Search className="w-3.5 h-3.5 mr-1" />
+                  Consultar
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
         {onSearchChange !== undefined && (
           <div className="relative flex-1 min-w-[220px] max-w-xl">
@@ -115,19 +169,21 @@ export const RegionConsulta: React.FC<RegionConsultaProps> = ({
         </div>
       )}
 
-      {(totalRecords !== undefined || filteredRecords !== undefined) && (
+      {children && <div className="pt-2 border-t border-slate-100">{children}</div>}
+
+      {(effectiveTotal !== undefined || effectiveFiltered !== undefined) && (
         <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
           <span>
-            {filteredRecords !== undefined &&
-            totalRecords !== undefined &&
-            filteredRecords !== totalRecords ? (
+            {effectiveFiltered !== undefined &&
+            effectiveTotal !== undefined &&
+            effectiveFiltered !== effectiveTotal ? (
               <>
-                Exibindo <strong>{filteredRecords}</strong> de <strong>{totalRecords}</strong>{' '}
+                Exibindo <strong>{effectiveFiltered}</strong> de <strong>{effectiveTotal}</strong>{' '}
                 registros
               </>
-            ) : totalRecords !== undefined ? (
+            ) : effectiveTotal !== undefined ? (
               <>
-                Total de <strong>{totalRecords}</strong> registros
+                Total de <strong>{effectiveTotal}</strong> registros
               </>
             ) : null}
           </span>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/ui-custom/PageHeader'
 import { RegionConsulta } from '@/components/ui-custom/RegionConsulta'
-import { FeedbackStates } from '@/components/ui-custom/FeedbackStates'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui-custom/FeedbackStates'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -53,9 +54,12 @@ import {
 export default function TransportEditPage() {
   const { user, permissions } = useAuth()
   const { toast } = useToast()
+  const [searchParams] = useSearchParams()
+
+  const initialTransportQuery = searchParams.get('transporte') || ''
 
   // Estados dos filtros
-  const [transportNumber, setTransportNumber] = useState('')
+  const [transportNumber, setTransportNumber] = useState(initialTransportQuery)
   const [deliveryNumber, setDeliveryNumber] = useState('')
   const [orderNumber, setOrderNumber] = useState('')
   const [customer, setCustomer] = useState('')
@@ -91,11 +95,12 @@ export default function TransportEditPage() {
   })
 
   // Consulta
-  const handleSearch = async () => {
+  const handleSearch = async (overrideNumber?: string) => {
     setLoading(true)
     try {
+      const activeTransportNum = overrideNumber !== undefined ? overrideNumber : transportNumber
       const filters: TransportFilterParams = {
-        transport_number: transportNumber || undefined,
+        transport_number: activeTransportNum || undefined,
         delivery_number: deliveryNumber || undefined,
         order_number: orderNumber || undefined,
         customer: customer || undefined,
@@ -142,8 +147,13 @@ export default function TransportEditPage() {
   }
 
   useEffect(() => {
-    handleSearch()
-  }, [])
+    if (initialTransportQuery) {
+      setTransportNumber(initialTransportQuery)
+      handleSearch(initialTransportQuery)
+    } else {
+      handleSearch()
+    }
+  }, [initialTransportQuery])
 
   // Paginação
   const paginatedTransports = useMemo(() => {

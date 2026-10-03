@@ -61,6 +61,7 @@ import ExpeditionPerformancePage from '@/pages/ExpeditionPerformancePage'
 import WmsLoadingMapPage from '@/pages/WmsLoadingMapPage'
 import SalesWalletPage from '@/pages/SalesWalletPage'
 import GeneralTransportReportPage from '@/pages/GeneralTransportReportPage'
+import TransportEditPage from '@/pages/TransportEditPage'
 import SapSyncStatusPage from '@/pages/SapSyncStatusPage'
 import AiPlannerParamsPage from '@/pages/AiPlannerParamsPage'
 import { FredControlTowerPage } from '@/pages/FredControlTowerPage'
@@ -107,6 +108,16 @@ export const App: React.FC = () => {
               element={
                 <Layout>
                   <TmsDashboard />
+                </Layout>
+              }
+            />
+
+            {/* 0. CADASTRO */}
+            <Route
+              path="/tms/editar-transporte"
+              element={
+                <Layout>
+                  <TransportEditPage />
                 </Layout>
               }
             />

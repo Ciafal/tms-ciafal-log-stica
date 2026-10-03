@@ -420,7 +420,7 @@ export const TransportEditModal: React.FC<TransportEditModalProps> = ({
       setConfirmModalOpen(false)
       setSuccessInfo({
         open: true,
-        transport_number: res.transport_order_number || originalRecord.transport_number,
+        transport_number: originalRecord.transport_number,
         sap_transport_number: res.sap_transport_number,
         audit_ids: res.audit_log_ids,
         sync_status: res.sap_sync_status,

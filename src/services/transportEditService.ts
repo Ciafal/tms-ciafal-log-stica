@@ -363,13 +363,9 @@ class TransportEditService {
     const criticalCheck = detectCriticalChanges(changes, original_record)
 
     // 5. Integração com SAP RFC/BAPI
-    const sapConfig = sapGateway.getConfig()
-    const sapResult = evaluateSapIntegration(
-      original_record,
-      changes,
-      sapConfig.isConnected,
-      sapConfig.enableWriteBack,
-    )
+    const sapConnected = sapGateway.isConfigured
+    const sapWriteBack = sapGateway.sapWriteEnabled
+    const sapResult = evaluateSapIntegration(original_record, changes, sapConnected, sapWriteBack)
 
     if (!sapResult.success) {
       // Rejeição direta pelo SAP: alteração NÃO concluída
@@ -395,7 +391,7 @@ class TransportEditService {
     const sapStatus: TransportSyncStatus = criticalCheck.requiresApproval
       ? 'PENDENTE_APROVACAO'
       : sapResult.requiresSapCall
-        ? sapConfig.enableWriteBack
+        ? sapWriteBack
           ? 'SINCRONIZADO'
           : 'ALTERADO_SOMENTE_HUB'
         : 'ALTERADO_SOMENTE_HUB'
@@ -458,7 +454,7 @@ class TransportEditService {
 
     // 7. Envio com token seguro para o endpoint de governança
     const token = pb.authStore.token
-    const baseUrl = pb.baseUrl || ''
+    const baseUrl = pb.baseUrl || import.meta.env.VITE_POCKETBASE_URL || window.location.origin
     const endpoint = `${baseUrl}/backend/v1/tms/transports/update-governed`
 
     const payload = {

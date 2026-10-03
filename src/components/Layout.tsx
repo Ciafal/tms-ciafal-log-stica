@@ -62,6 +62,7 @@ interface MenuGroup {
   items: {
     title: string
     path: string
+    icon?: React.ComponentType<{ className?: string }>
     badge?: string
     badgeColor?: string
     inDev?: boolean
@@ -106,6 +107,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         {
           title: 'Editar Transporte',
           path: '/tms/editar-transporte',
+          icon: FileEdit,
           badge: 'VT02N',
           badgeColor: 'bg-[#005596]',
           show: permissions.canViewTransport ?? true,
@@ -728,9 +730,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                               }`}
                             >
-                              <span className="truncate flex-1 min-w-0" title={item.title}>
-                                {item.title}
-                              </span>
+                              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                {item.icon && (
+                                  <item.icon
+                                    className={`w-3.5 h-3.5 shrink-0 ${
+                                      isActive ? 'text-white' : 'text-slate-400'
+                                    }`}
+                                  />
+                                )}
+                                <span className="truncate min-w-0" title={item.title}>
+                                  {item.title}
+                                </span>
+                              </div>
 
                               <div className="flex items-center space-x-1 shrink-0">
                                 {item.inDev && (

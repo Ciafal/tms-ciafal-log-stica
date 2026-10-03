@@ -80,7 +80,6 @@ routerAdd(
       // 2. Localizar registro de transporte
       let transportRecord = null
       try {
-        transportRecord = $app.findCollectionByNameOrId('carrier_operational_history')
         transportRecord = $app.findFirstRecordByData(
           'carrier_operational_history',
           'id',

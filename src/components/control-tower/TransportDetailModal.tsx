@@ -193,6 +193,18 @@ export const TransportDetailModal: React.FC<TransportDetailModalProps> = ({ item
             <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
               Fechar
             </Button>
+            <Link
+              to={`/tms/editar-transporte?transporte=${encodeURIComponent(item.transportNumber || item.sapTransportNumber || '')}`}
+            >
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-[#005596] text-[#005596] hover:bg-sky-50 text-xs font-semibold gap-1"
+              >
+                Editar Transporte
+                <ExternalLink className="w-3 h-3" />
+              </Button>
+            </Link>
             {item.sourceCollection === 'expedition_tracking' && (
               <Link to="/tms/expedicao">
                 <Button size="sm" className="bg-[#005596] text-white text-xs font-bold gap-1">
