@@ -771,30 +771,30 @@ export const MesaFretesPage: React.FC = () => {
     <TooltipProvider>
       <div className="space-y-6 animate-fade-in pb-12">
         {/* Header Title & Actions */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <div>
-            <div className="flex items-center space-x-2.5">
-              <BadgeDollarSign className="w-6 h-6 text-[#005596]" />
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <BadgeDollarSign className="w-6 h-6 text-[#005596] shrink-0" />
+              <h1 className="text-xl sm:text-2xl font-bold md:font-extrabold text-slate-900 tracking-tight leading-tight break-normal overflow-wrap-normal">
                 Mesa de Fretes Inteligente & Agente Carlão
               </h1>
-              <Badge className="bg-[#005596] text-white text-xs font-bold px-2.5 py-0.5 flex items-center gap-1">
+              <Badge className="bg-[#005596] text-white text-xs font-bold px-2.5 py-0.5 flex items-center gap-1 shrink-0">
                 <Bot className="w-3.5 h-3.5" />
                 Carlão · IA Ativo (Nível 1)
               </Badge>
             </div>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-normal max-w-4xl">
               Mercado inteligente de contratação sustentável: Score de Elegibilidade + Faixa
               Parametrizável + Negociação Cordial com Carlão + Separação Obrigatória de Pedágio.
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap">
             <Button
               variant="outline"
               size="sm"
               onClick={loadData}
-              className="text-xs border-slate-300 gap-1.5"
+              className="text-xs border-slate-300 gap-1.5 h-9"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Atualizar Mesa
@@ -802,7 +802,7 @@ export const MesaFretesPage: React.FC = () => {
             <Link to="/tms/expedicao">
               <Button
                 size="sm"
-                className="bg-[#005596] hover:bg-[#004275] text-white font-bold text-xs gap-1.5 shadow-sm"
+                className="bg-[#005596] hover:bg-[#004275] text-white font-bold text-xs gap-1.5 shadow-sm h-9"
               >
                 <Truck className="w-3.5 h-3.5" />
                 Torre de Expedição
@@ -812,86 +812,88 @@ export const MesaFretesPage: React.FC = () => {
         </div>
 
         {/* INDICATORS HEADER (METRICS CARDS) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-3.5">
           <Card className="border-slate-200 bg-white shadow-sm hover:shadow transition">
-            <CardContent className="p-4 flex items-center justify-between gap-2">
+            <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 truncate">
                   Cargas Prontas
                 </p>
-                <div className="text-2xl font-mono font-black text-slate-800 mt-0.5">
+                <div className="text-xl sm:text-2xl font-mono font-black text-slate-800 mt-0.5">
                   {offers.length}
                 </div>
                 <p className="text-[10px] text-slate-500 truncate">Planejadas pelo IA</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[#005596] shrink-0">
-                <Layers className="w-5 h-5" />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[#005596] shrink-0">
+                <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-sky-200 bg-sky-50/50 shadow-sm hover:shadow transition">
-            <CardContent className="p-4 flex items-center justify-between gap-2">
+            <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-sky-800 truncate">
                   Em Negociação Carlão
                 </p>
-                <div className="text-2xl font-mono font-black text-[#005596] mt-0.5 flex items-center gap-1.5">
+                <div className="text-xl sm:text-2xl font-mono font-black text-[#005596] mt-0.5 flex items-center gap-1.5">
                   {negotiations.filter((n) => n.status === 'EM_NEGOCIACAO').length}
                 </div>
                 <p className="text-[10px] text-sky-700 truncate">Rodadas ativas</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-[#005596] text-white flex items-center justify-center shadow-sm shrink-0">
-                <Bot className="w-5 h-5" />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#005596] text-white flex items-center justify-center shadow-sm shrink-0">
+                <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-amber-200 bg-amber-50/40 shadow-sm hover:shadow transition">
-            <CardContent className="p-4 flex items-center justify-between gap-2">
+            <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-amber-900 truncate">
-                  Autonomia do Carlão
+                  Autonomia Carlão
                 </p>
-                <div className="text-2xl font-mono font-black text-amber-700 mt-0.5">82,4 %</div>
+                <div className="text-xl sm:text-2xl font-mono font-black text-amber-700 mt-0.5">
+                  82,4 %
+                </div>
                 <p className="text-[10px] text-amber-700 truncate">Sem intervenção humana</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm shrink-0">
-                <Sparkles className="w-5 h-5" />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm shrink-0">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-emerald-200 bg-emerald-50/40 shadow-sm hover:shadow transition">
-            <CardContent className="p-4 flex items-center justify-between gap-2">
+            <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 truncate">
                   Contratadas Hoje
                 </p>
-                <div className="text-2xl font-mono font-black text-emerald-700 mt-0.5">
+                <div className="text-xl sm:text-2xl font-mono font-black text-emerald-700 mt-0.5">
                   {negotiations.filter((n) => n.status === 'CONTRATADO').length + 3}
                 </div>
                 <p className="text-[10px] text-emerald-600 truncate">Com Transporte SAP</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm shrink-0">
-                <CheckCircle2 className="w-5 h-5" />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200 bg-white shadow-sm hover:shadow transition col-span-1 sm:col-span-2 md:col-span-1">
-            <CardContent className="p-4 flex items-center justify-between gap-2">
+          <Card className="border-slate-200 bg-white shadow-sm hover:shadow transition col-span-2 sm:col-span-1">
+            <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 truncate">
                   Tempo Médio Fechamento
                 </p>
-                <div className="text-2xl font-mono font-black text-slate-800 mt-0.5">
+                <div className="text-xl sm:text-2xl font-mono font-black text-slate-800 mt-0.5">
                   14 min 48 s
                 </div>
                 <p className="text-[10px] text-slate-500 truncate">Agilidade Carlão</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[#005596] shrink-0">
-                <Clock className="w-5 h-5" />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[#005596] shrink-0">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </CardContent>
           </Card>
@@ -899,24 +901,35 @@ export const MesaFretesPage: React.FC = () => {
 
         {/* TABS NAVEGAÇÃO DA MESA */}
         <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)}>
-          <TabsList className="bg-slate-100 p-1 border border-slate-200">
-            <TabsTrigger value="chicao_mesa" className="gap-1.5 text-xs font-bold">
-              <Bot className="w-4 h-4 text-[#005596]" />
-              Agente Chicão (Kanban & Ofertas)
-            </TabsTrigger>
-            <TabsTrigger value="mercado" className="gap-1.5 text-xs font-bold">
-              <Layers className="w-4 h-4" />
-              Mercado de Cargas ({offers.length})
-            </TabsTrigger>
-            <TabsTrigger value="negociacoes" className="gap-1.5 text-xs font-bold">
-              <Bot className="w-4 h-4 text-[#005596]" />
-              Negociações com Carlão ({negotiations.length})
-            </TabsTrigger>
-            <TabsTrigger value="carlao_supervisao" className="gap-1.5 text-xs font-bold">
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              Supervisão IA & Explicabilidade
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-1 max-w-full">
+            <TabsList className="bg-slate-100 p-1 border border-slate-200 w-full sm:w-auto flex-nowrap min-w-max">
+              <TabsTrigger
+                value="chicao_mesa"
+                className="gap-1.5 text-xs font-bold whitespace-nowrap"
+              >
+                <Bot className="w-4 h-4 text-[#005596]" />
+                Agente Chicão (Kanban & Ofertas)
+              </TabsTrigger>
+              <TabsTrigger value="mercado" className="gap-1.5 text-xs font-bold whitespace-nowrap">
+                <Layers className="w-4 h-4" />
+                Mercado de Cargas ({offers.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="negociacoes"
+                className="gap-1.5 text-xs font-bold whitespace-nowrap"
+              >
+                <Bot className="w-4 h-4 text-[#005596]" />
+                Negociações com Carlão ({negotiations.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="carlao_supervisao"
+                className="gap-1.5 text-xs font-bold whitespace-nowrap"
+              >
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                Supervisão IA & Explicabilidade
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* TAB 0: MESA DE FRETES AGENTE CHICÃO (KANBAN 8 COLUNAS, INDICADORES REAIS, CHAT, TIMELINE) */}
           <TabsContent value="chicao_mesa" className="space-y-4 mt-4">
@@ -1102,13 +1115,13 @@ export const MesaFretesPage: React.FC = () => {
                 {activeNegotiation ? (
                   <Card className="border border-slate-200 bg-white shadow-sm flex flex-col h-[650px]">
                     {/* Header do Chat */}
-                    <CardHeader className="p-4 border-b bg-slate-50/80 flex flex-row items-center justify-between space-y-0">
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h3 className="font-extrabold text-base text-slate-900">
+                    <CardHeader className="p-4 border-b bg-slate-50/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 space-y-0">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-extrabold text-base text-slate-900 truncate">
                             {activeNegotiation.cargo_id} • {activeNegotiation.driver_name}
                           </h3>
-                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs font-bold">
+                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs font-bold shrink-0">
                             Score: {activeNegotiation.eligibility_score}/100
                           </Badge>
                         </div>
@@ -1118,7 +1131,7 @@ export const MesaFretesPage: React.FC = () => {
                         </p>
                       </div>
 
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
                         {activeNegotiation.active_actor === 'CARLAO' ? (
                           <Button
                             size="sm"
@@ -1127,7 +1140,7 @@ export const MesaFretesPage: React.FC = () => {
                               setSelectedNegotiationForTakeover(activeNegotiation)
                               setTakeoverModalOpen(true)
                             }}
-                            className="border-amber-400 text-amber-700 hover:bg-amber-50 text-xs font-bold gap-1"
+                            className="border-amber-400 text-amber-700 hover:bg-amber-50 text-xs font-bold gap-1 h-8"
                           >
                             <PauseCircle className="w-3.5 h-3.5" />
                             Assumir Conversa
@@ -1138,7 +1151,7 @@ export const MesaFretesPage: React.FC = () => {
                             onClick={() => {
                               setHandbackModalOpen(true)
                             }}
-                            className="bg-[#005596] hover:bg-[#004275] text-white text-xs font-bold gap-1"
+                            className="bg-[#005596] hover:bg-[#004275] text-white text-xs font-bold gap-1 h-8"
                           >
                             <PlayCircle className="w-3.5 h-3.5" />
                             Devolver ao Carlão
@@ -1152,7 +1165,7 @@ export const MesaFretesPage: React.FC = () => {
                             setExplainData(activeNegotiation.explicabilidade_json)
                             setExplainModalOpen(true)
                           }}
-                          className="border-slate-300 text-xs gap-1"
+                          className="border-slate-300 text-xs gap-1 h-8"
                         >
                           <HelpCircle className="w-3.5 h-3.5 text-[#005596]" />
                           Por que Carlão fez esta proposta?
@@ -1290,19 +1303,19 @@ export const MesaFretesPage: React.FC = () => {
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Input
                             type="number"
                             value={manualCounterValue}
                             onChange={(e) => setManualCounterValue(Number(e.target.value))}
-                            placeholder="Valor da contraproposta (R$)"
-                            className="h-8 text-xs w-48"
+                            placeholder="Contraproposta (R$)"
+                            className="h-8 text-xs w-36 sm:w-44"
                           />
                           <Button
                             size="sm"
                             onClick={() => handleDriverCounterProposal(false)}
                             disabled={actionLoading}
-                            className="bg-[#005596] hover:bg-[#004275] text-white text-xs font-bold gap-1"
+                            className="bg-[#005596] hover:bg-[#004275] text-white text-xs font-bold gap-1 h-8"
                           >
                             <Send className="w-3 h-3" />
                             Enviar Contraproposta
@@ -1312,16 +1325,16 @@ export const MesaFretesPage: React.FC = () => {
                             variant="outline"
                             onClick={() => handleDriverCounterProposal(true)}
                             disabled={actionLoading}
-                            className="border-slate-300 text-slate-700 text-xs font-bold gap-1"
+                            className="border-slate-300 text-slate-700 text-xs font-bold gap-1 h-8"
                           >
                             <Mic className="w-3.5 h-3.5 text-rose-500" />
-                            Simular Áudio do Motorista
+                            Simular Áudio
                           </Button>
                           <Button
                             size="sm"
                             onClick={() => handleConfirmAndCreateSapTransport(activeNegotiation)}
                             disabled={actionLoading}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1 ml-auto"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1 sm:ml-auto h-8"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             Confirmar Carga

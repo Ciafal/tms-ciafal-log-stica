@@ -484,33 +484,33 @@ export const ChicaoFreightMesaView: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* 1. CABEÇALHO DO MÓDULO & INDICADORES REAIS */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="p-2 rounded-lg bg-[#005596] text-white">
-                <Bot className="w-5 h-5" />
-              </span>
-              <div>
-                <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
-                  Mesa de Fretes — Agente Chicão
-                </h1>
-                <p className="text-xs text-slate-500">
-                  Gestão em tempo real das ofertas ativas, negociações via WhatsApp e alçadas de
-                  contratação.
-                </p>
-              </div>
+      <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-5 shadow-sm space-y-4">
+        {/* Cabeçalho Reestruturado e Totalmente Responsivo */}
+        <div className="w-full space-y-3 border-b border-slate-100 pb-4">
+          {/* Linha 1: [Ícone] Título flexível e robusto */}
+          <div className="flex items-center gap-2.5 min-w-0 w-full">
+            <span className="p-2 rounded-lg bg-[#005596] text-white shrink-0 shadow-sm">
+              <Bot className="w-5 h-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl font-bold md:font-extrabold text-slate-900 tracking-tight leading-tight sm:leading-snug break-normal overflow-wrap-normal">
+                Mesa de Fretes — Agente Chicão
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5 leading-normal">
+                Gestão de ofertas, negociações e contratação de fretes.
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          {/* Linha 2 / Região de ações: Busca ampla + Botão Atualizar */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-1 w-full">
+            <div className="relative flex-1 min-w-0 max-w-2xl">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <Input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar oferta, motorista, placa, rota..."
-                className="pl-9 h-9 text-xs w-64 border-slate-300"
+                className="pl-9 h-9 text-xs w-full border-slate-300 bg-slate-50/50 focus:bg-white transition"
               />
             </div>
             <Button
@@ -518,7 +518,7 @@ export const ChicaoFreightMesaView: React.FC = () => {
               size="sm"
               onClick={loadOffers}
               disabled={loading || actionLoading}
-              className="h-9 gap-1.5 text-xs text-slate-700 font-semibold"
+              className="h-9 gap-1.5 text-xs text-slate-700 font-semibold border-slate-300 hover:bg-slate-50 shrink-0 self-start sm:self-auto"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
@@ -671,13 +671,14 @@ export const ChicaoFreightMesaView: React.FC = () => {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 overflow-x-auto pb-4">
+        {/* Kanban com scroll horizontal suave em telas menores */}
+        <div className="flex gap-3 overflow-x-auto pb-4 pt-1 snap-x scrollbar-thin">
           {KANBAN_COLUMNS.map((col) => {
             const colOffers = offersByColumn[col.key] || []
             return (
               <div
                 key={col.key}
-                className="bg-slate-100/80 rounded-xl p-2.5 border border-slate-200 flex flex-col min-w-[220px] max-h-[800px]"
+                className="bg-slate-100/80 rounded-xl p-2.5 border border-slate-200 flex flex-col w-[260px] sm:w-[270px] shrink-0 max-h-[800px] snap-start"
               >
                 {/* Header da Coluna */}
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200/80">
@@ -824,23 +825,27 @@ export const ChicaoFreightMesaView: React.FC = () => {
           {selectedOffer && (
             <>
               <DialogHeader className="border-b pb-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <DialogTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
-                      <span className="font-mono text-[#005596]">{selectedOffer.offer_code}</span>
-                      <span>•</span>
-                      <span>{selectedOffer.cargo_title || selectedOffer.cargo_id}</span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <DialogTitle className="text-base sm:text-lg font-black text-slate-900 flex flex-wrap items-center gap-2 min-w-0">
+                      <span className="font-mono text-[#005596] shrink-0">
+                        {selectedOffer.offer_code}
+                      </span>
+                      <span className="text-slate-400">•</span>
+                      <span className="truncate max-w-[280px] sm:max-w-md">
+                        {selectedOffer.cargo_title || selectedOffer.cargo_id}
+                      </span>
                     </DialogTitle>
-                    <Badge className="text-xs font-bold">{selectedOffer.status}</Badge>
+                    <Badge className="text-xs font-bold shrink-0">{selectedOffer.status}</Badge>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
                     {selectedOffer.active_actor === 'CHICAO' ? (
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => setTakeoverModalOpen(true)}
-                        className="text-xs font-bold border-amber-400 text-amber-700 hover:bg-amber-50 gap-1.5"
+                        className="text-xs font-bold border-amber-400 text-amber-700 hover:bg-amber-50 gap-1.5 h-8"
                       >
                         <UserCheck className="w-3.5 h-3.5" /> Assumir conversa
                       </Button>
@@ -849,7 +854,7 @@ export const ChicaoFreightMesaView: React.FC = () => {
                         size="sm"
                         onClick={() => handleToggleTakeover('HANDBACK')}
                         disabled={actionLoading}
-                        className="text-xs font-bold bg-[#005596] text-white hover:bg-[#004275] gap-1.5"
+                        className="text-xs font-bold bg-[#005596] text-white hover:bg-[#004275] gap-1.5 h-8"
                       >
                         <Bot className="w-3.5 h-3.5" /> Devolver ao Chicão
                       </Button>
@@ -866,14 +871,14 @@ export const ChicaoFreightMesaView: React.FC = () => {
                           )
                           setApproveModalOpen(true)
                         }}
-                        className="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 gap-1.5"
+                        className="text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 gap-1.5 h-8"
                       >
                         <Check className="w-3.5 h-3.5" /> Decidir Contraproposta
                       </Button>
                     )}
                   </div>
                 </div>
-                <DialogDescription className="text-xs text-slate-500">
+                <DialogDescription className="text-xs text-slate-500 mt-1">
                   Criada em {new Date(selectedOffer.created || Date.now()).toLocaleString('pt-BR')}{' '}
                   • Ator Atual: <strong>{selectedOffer.active_actor || 'CHICAO'}</strong> • IA
                   Handled: <strong>{selectedOffer.ai_handled_pct ?? 100}%</strong>
