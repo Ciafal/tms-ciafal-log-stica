@@ -148,7 +148,27 @@ export interface ColumnDefinition {
 }
 
 /**
+ * Presets de visualização rápida de colunas no Relatório Geral
+ */
+export const SUGGESTED_DEFAULT_COLUMN_KEYS: string[] = [
+  'transport_number', // Nº Transporte (140px, sticky)
+  'transport_status', // Status Transporte / Stts.Trnsp (150px)
+  'center_description', // Centro / Unidade (Origem) (180px)
+  'external_id_1', // Placa / ID ext.1 (130px)
+  'user_name', // Usuário SAP (140px)
+  'transport_date', // Data Transporte (145px)
+  'freight_cost', // Valor Frete (130px)
+  'gross_weight_ton', // Peso Bruto (140px)
+  'net_weight_ton', // Peso Líquido (140px)
+  'itinerary_description', // Itinerário / Destino (220px)
+  'expedition_type', // Tipo Expedição (150px)
+  'initial_date', // Data Início Carregamento (145px)
+  'end_date_1', // Data Fim Carregamento (145px)
+]
+
+/**
  * Catálogo canônico ordenado dos 43 campos da especificação
+ * Larguras mínimas calibradas para impedir sobreposição em qualquer resolução (incluindo 1366x768).
  */
 export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
   {
@@ -159,7 +179,7 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     tooltip: 'Cen. — Código do Centro Expedidor SAP (ex: WSTL, 1010)',
     align: 'center',
     format: 'text',
-    minWidth: 100,
+    minWidth: 130,
     defaultVisible: true,
   },
   {
@@ -167,10 +187,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 2,
     sapTitle: 'Descrição Centro',
     label: 'Descrição do Centro',
-    tooltip: 'Descrição Centro — Nome corporativo da unidade produtiva/filial',
+    tooltip: 'Descrição Centro — Origem: nome corporativo da unidade produtiva/filial expedidora',
     align: 'left',
     format: 'text',
-    minWidth: 180,
+    minWidth: 200,
     defaultVisible: true,
   },
   {
@@ -178,11 +198,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 3,
     sapTitle: 'Stts.Trnsp',
     label: 'Status do Transporte',
-    tooltip: 'Stts.Trnsp — Status operacional/faturamento do transporte',
+    tooltip: 'Stts.Trnsp — Status oficial de faturamento e execução operacional no SAP',
     align: 'center',
     format: 'text',
-    sticky: 'left',
-    minWidth: 140,
+    minWidth: 150,
     defaultVisible: true,
   },
   {
@@ -190,11 +209,12 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 4,
     sapTitle: 'Transporte',
     label: 'Nº Transporte',
-    tooltip: 'Transporte — Número oficial da Ordem de Transporte / TKNUM SAP',
+    tooltip:
+      'Transporte — Número oficial da Ordem de Transporte / TKNUM SAP (chave primária operacional)',
     align: 'left',
     format: 'text',
     sticky: 'left',
-    minWidth: 130,
+    minWidth: 140,
     defaultVisible: true,
   },
   {
@@ -202,10 +222,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 5,
     sapTitle: 'Usuário',
     label: 'Usuário SAP',
-    tooltip: 'Usuário — Usuário responsável pelo registro/liberação no SAP',
+    tooltip: 'Usuário — Usuário responsável pelo registro e liberação física no SAP',
     align: 'left',
     format: 'text',
-    minWidth: 130,
+    minWidth: 140,
     defaultVisible: true,
   },
   {
@@ -213,10 +233,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 6,
     sapTitle: 'Data',
     label: 'Data Transporte',
-    tooltip: 'Data — Data de criação/programação do transporte no sistema',
+    tooltip: 'Data — Data de programação e criação do transporte no sistema',
     align: 'center',
     format: 'date',
-    minWidth: 110,
+    minWidth: 145,
     defaultVisible: true,
   },
   {
@@ -227,7 +247,7 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     tooltip: 'Hora — Horário do registro do transporte (HH:mm:ss)',
     align: 'center',
     format: 'time',
-    minWidth: 100,
+    minWidth: 120,
     defaultVisible: true,
   },
   {
@@ -235,10 +255,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 8,
     sapTitle: 'Motivo Balança',
     label: 'Motivo Balança',
-    tooltip: 'Motivo Balança — Justificativa / log de liberação ou pesagem na balança',
+    tooltip: 'Motivo Balança — Justificativa / log de pesagem ou liberação de pesagem na balança',
     align: 'left',
     format: 'text',
-    minWidth: 190,
+    minWidth: 220,
     defaultVisible: true,
   },
   {
@@ -246,11 +266,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 9,
     sapTitle: 'ID ext.1',
     label: 'Placa (ID ext.1)',
-    tooltip: 'ID ext.1 — Identificador externo 1 na estrutura SAP (Placa do veículo)',
+    tooltip: 'ID ext.1 — Identificador externo 1 na estrutura SAP (Placa confirmada do veículo)',
     align: 'center',
     format: 'text',
-    sticky: 'left',
-    minWidth: 120,
+    minWidth: 130,
     defaultVisible: true,
   },
   {
@@ -261,7 +280,7 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     tooltip: 'Frete — Custo/valor total contratado de frete do transporte (R$)',
     align: 'right',
     format: 'currency',
-    minWidth: 120,
+    minWidth: 130,
     defaultVisible: true,
   },
   {
@@ -272,7 +291,7 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     tooltip: 'Pedágio — Custo/previsão de vale-pedágio obrigatório (R$)',
     align: 'right',
     format: 'currency',
-    minWidth: 110,
+    minWidth: 125,
     defaultVisible: true,
   },
   {
@@ -280,10 +299,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 12,
     sapTitle: 'Peso Br(t)',
     label: 'Peso Bruto (t)',
-    tooltip: 'Peso Br(t) — Peso bruto aferido na balança ou calculado (t)',
+    tooltip: 'Peso Br(t) — Peso bruto aferido na balança ou calculado (em toneladas)',
     align: 'right',
     format: 'weight',
-    minWidth: 110,
+    minWidth: 135,
     defaultVisible: true,
   },
   {
@@ -291,10 +310,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 13,
     sapTitle: 'Tara',
     label: 'Tara do Veículo (t)',
-    tooltip: 'Tara — Peso do veículo vazio registrado na balança (t)',
+    tooltip: 'Tara — Peso do veículo vazio registrado na balança de entrada (em toneladas)',
     align: 'right',
     format: 'weight',
-    minWidth: 110,
+    minWidth: 135,
     defaultVisible: true,
   },
   {
@@ -305,7 +324,7 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     tooltip: 'Peso Líq. — Peso líquido real carregado (Bruto - Tara) em toneladas',
     align: 'right',
     format: 'weight',
-    minWidth: 110,
+    minWidth: 135,
     defaultVisible: true,
   },
   {
@@ -313,10 +332,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 15,
     sapTitle: 'Peso NF(t)',
     label: 'Peso NF (t)',
-    tooltip: 'Peso NF(t) — Soma do peso faturado nas notas fiscais do transporte',
+    tooltip: 'Peso NF(t) — Soma do peso faturado nas notas fiscais do transporte (em toneladas)',
     align: 'right',
     format: 'weight',
-    minWidth: 110,
+    minWidth: 135,
     defaultVisible: true,
   },
   {
@@ -324,10 +343,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 16,
     sapTitle: 'Dif. (t)',
     label: 'Diferença (t)',
-    tooltip: 'Dif. (t) — Divergência em toneladas entre peso aferido e peso NF',
+    tooltip: 'Dif. (t) — Divergência em toneladas entre peso aferido e peso faturado NF',
     align: 'right',
     format: 'weight',
-    minWidth: 110,
+    minWidth: 135,
     defaultVisible: true,
   },
   {
@@ -335,10 +354,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 17,
     sapTitle: 'Dif. (%)',
     label: 'Diferença (%)',
-    tooltip: 'Dif. (%) — Percentual de divergência de pesagem',
+    tooltip: 'Dif. (%) — Percentual de divergência de pesagem na balança',
     align: 'right',
     format: 'percent',
-    minWidth: 110,
+    minWidth: 125,
     defaultVisible: true,
   },
   {
@@ -346,10 +365,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 18,
     sapTitle: 'Itin.',
     label: 'Cód. Itinerário',
-    tooltip: 'Itin. — Código SAP da rota/itinerário (TVROT)',
+    tooltip: 'Itin. — Código oficial SAP da rota/itinerário (TVROT)',
     align: 'center',
     format: 'text',
-    minWidth: 110,
+    minWidth: 130,
     defaultVisible: true,
   },
   {
@@ -357,10 +376,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 19,
     sapTitle: 'Descrição itinerário',
     label: 'Descrição Itinerário',
-    tooltip: 'Descrição itinerário — Origem, destino e trajeto comercial',
+    tooltip: 'Descrição itinerário — Origem, trajeto comercial e praça de destino da carga',
     align: 'left',
     format: 'text',
-    minWidth: 200,
+    minWidth: 230,
     defaultVisible: true,
   },
   {
@@ -371,7 +390,7 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     tooltip: 'Tp Expediç — Classificação da expedição (ex: Lotação, Fracionada)',
     align: 'left',
     format: 'text',
-    minWidth: 140,
+    minWidth: 150,
     defaultVisible: true,
   },
   {
@@ -379,10 +398,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 21,
     sapTitle: 'Tp transp.',
     label: 'Tipo Transporte',
-    tooltip: 'Tp transp. — Modal e perfil do transporte rodoviário',
+    tooltip: 'Tp transp. — Modal e perfil operacional do transporte rodoviário',
     align: 'left',
     format: 'text',
-    minWidth: 130,
+    minWidth: 140,
     defaultVisible: true,
   },
   {
@@ -390,10 +409,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 22,
     sapTitle: 'Distância',
     label: 'Distância (km)',
-    tooltip: 'Distância — Quilometragem estimada ou apurada da viagem',
+    tooltip: 'Distância — Quilometragem estimada ou apurada da viagem (km)',
     align: 'right',
     format: 'distance',
-    minWidth: 110,
+    minWidth: 125,
     defaultVisible: true,
   },
   {
@@ -401,10 +420,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 23,
     sapTitle: 'Tp Frete',
     label: 'Tipo de Frete',
-    tooltip: 'Tp Frete — Incoterm / modalidade de frete (CIF / FOB / Terceiro)',
+    tooltip: 'Tp Frete — Incoterm e modalidade de contratação do frete (CIF / FOB / Terceiro)',
     align: 'center',
     format: 'text',
-    minWidth: 110,
+    minWidth: 125,
     defaultVisible: true,
   },
   {
@@ -412,10 +431,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 24,
     sapTitle: 'Organ.',
     label: 'Organização Vendas',
-    tooltip: 'Organ. — Organização de vendas / empresa faturadora',
+    tooltip: 'Organ. — Organização de vendas / empresa faturadora no SAP',
     align: 'left',
     format: 'text',
-    minWidth: 140,
+    minWidth: 160,
     defaultVisible: true,
   },
   {
@@ -423,10 +442,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 25,
     sapTitle: 'Hr Início',
     label: 'Hora Início Operação',
-    tooltip: 'Hr Início — Horário de início do processo operacional',
+    tooltip: 'Hr Início — Horário de início do processo operacional geral',
     align: 'center',
     format: 'time',
-    minWidth: 100,
+    minWidth: 125,
     defaultVisible: true,
   },
   {
@@ -437,7 +456,7 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     tooltip: 'Data Tara — Data da primeira pesagem na balança de entrada',
     align: 'center',
     format: 'date',
-    minWidth: 110,
+    minWidth: 145,
     defaultVisible: true,
   },
   {
@@ -448,7 +467,7 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     tooltip: 'Hora Tara — Horário da primeira pesagem do veículo vazio',
     align: 'center',
     format: 'time',
-    minWidth: 100,
+    minWidth: 120,
     defaultVisible: true,
   },
   {
@@ -456,10 +475,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 28,
     sapTitle: 'Data Iní.',
     label: 'Data Início Carregamento',
-    tooltip: 'Data Iní. — Data de início do carregamento na doca',
+    tooltip: 'Data Iní. — Data de início do carregamento físico na doca',
     align: 'center',
     format: 'date',
-    minWidth: 110,
+    minWidth: 145,
     defaultVisible: true,
   },
   {
@@ -467,10 +486,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 29,
     sapTitle: 'Hora Iní.',
     label: 'Hora Início Carregamento',
-    tooltip: 'Hora Iní. — Horário de posicionamento e início de carga',
+    tooltip: 'Hora Iní. — Horário de posicionamento e início de carga na doca',
     align: 'center',
     format: 'time',
-    minWidth: 100,
+    minWidth: 125,
     defaultVisible: true,
   },
   {
@@ -478,10 +497,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 30,
     sapTitle: 'Data Fim (1)',
     label: 'Data Fim Carregamento (1)',
-    tooltip: 'Data Fim (1) — Primeiro marco de encerramento da etapa física',
+    tooltip: 'Data Fim (1) — Primeiro marco de encerramento da etapa física de carga',
     align: 'center',
     format: 'date',
-    minWidth: 115,
+    minWidth: 145,
     defaultVisible: true,
   },
   {
@@ -492,7 +511,7 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     tooltip: 'Hora Fim (1) — Horário de término do carregamento físico',
     align: 'center',
     format: 'time',
-    minWidth: 110,
+    minWidth: 125,
     defaultVisible: true,
   },
   {
@@ -500,10 +519,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 32,
     sapTitle: 'Tempo Col',
     label: 'Tempo Carregamento (min)',
-    tooltip: 'Tempo Col — Duração em minutos da coleta/carregamento interno',
+    tooltip: 'Tempo Col — Duração em minutos da coleta e carregamento interno na doca',
     align: 'right',
     format: 'duration',
-    minWidth: 120,
+    minWidth: 135,
     defaultVisible: true,
   },
   {
@@ -511,10 +530,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 33,
     sapTitle: 'Data Fim (2)',
     label: 'Data Fim Liberação (2)',
-    tooltip: 'Data Fim (2) — Segundo marco SAP de conclusão/faturamento fiscal',
+    tooltip: 'Data Fim (2) — Segundo marco SAP de conclusão e faturamento fiscal final',
     align: 'center',
     format: 'date',
-    minWidth: 115,
+    minWidth: 145,
     defaultVisible: true,
   },
   {
@@ -522,10 +541,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 34,
     sapTitle: 'Hora Fim (2)',
     label: 'Hora Fim Liberação (2)',
-    tooltip: 'Hora Fim (2) — Horário de encerramento e emissão fiscal final',
+    tooltip: 'Hora Fim (2) — Horário de encerramento fiscal e emissão documental final',
     align: 'center',
     format: 'time',
-    minWidth: 110,
+    minWidth: 125,
     defaultVisible: true,
   },
   {
@@ -533,10 +552,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 35,
     sapTitle: 'Tempo Tot',
     label: 'Tempo Total Pátio (min)',
-    tooltip: 'Tempo Tot — Duração total de permanência interna no pátio',
+    tooltip: 'Tempo Tot — Duração total de permanência interna no pátio (minutos)',
     align: 'right',
     format: 'duration',
-    minWidth: 120,
+    minWidth: 135,
     defaultVisible: true,
   },
   {
@@ -544,10 +563,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 36,
     sapTitle: 'Capac Veíc',
     label: 'Capacidade do Veículo (t)',
-    tooltip: 'Capac Veíc — Capacidade nominal de carga útil do veículo',
+    tooltip: 'Capac Veíc — Capacidade nominal de carga útil do veículo (toneladas)',
     align: 'right',
     format: 'weight',
-    minWidth: 120,
+    minWidth: 140,
     defaultVisible: true,
   },
   {
@@ -555,10 +574,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 37,
     sapTitle: 'Tp Veículo',
     label: 'Tipo de Veículo',
-    tooltip: 'Tp Veículo — Classificação do veículo (Bitrem, Carreta LS, Truck)',
+    tooltip: 'Tp Veículo — Classificação do conjunto veicular (Bitrem, Carreta LS, Truck)',
     align: 'left',
     format: 'text',
-    minWidth: 130,
+    minWidth: 140,
     defaultVisible: true,
   },
   {
@@ -566,10 +585,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 38,
     sapTitle: 'Tp Rodado',
     label: 'Tipo de Rodado',
-    tooltip: 'Tp Rodado — Configuração dos rodados (Rodado Duplo, Simples)',
+    tooltip: 'Tp Rodado — Configuração dos rodados do conjunto (Rodado Duplo, Simples)',
     align: 'left',
     format: 'text',
-    minWidth: 120,
+    minWidth: 130,
     defaultVisible: true,
   },
   {
@@ -580,7 +599,7 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     tooltip: 'Tp Carroce — Grade Baixa, Sider, Graneleiro, Prancha',
     align: 'left',
     format: 'text',
-    minWidth: 130,
+    minWidth: 140,
     defaultVisible: true,
   },
   {
@@ -591,7 +610,7 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     tooltip: 'Eixos — Quantidade física de eixos rodoviários do conjunto',
     align: 'center',
     format: 'integer',
-    minWidth: 90,
+    minWidth: 110,
     defaultVisible: true,
   },
   {
@@ -599,10 +618,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 41,
     sapTitle: 'Ocup. (%)',
     label: 'Ocupação (%)',
-    tooltip: 'Ocup. (%) — Taxa de ocupação de peso em relação à capacidade máxima',
+    tooltip: 'Ocup. (%) — Taxa de ocupação de peso em relação à capacidade máxima do veículo',
     align: 'right',
     format: 'percent',
-    minWidth: 110,
+    minWidth: 125,
     defaultVisible: true,
   },
   {
@@ -610,10 +629,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 42,
     sapTitle: 'Frac. (nº)',
     label: 'Nº de Frações',
-    tooltip: 'Frac. (nº) — Quantidade de frações/descargas programadas',
+    tooltip: 'Frac. (nº) — Quantidade de frações e descargas programadas para a viagem',
     align: 'center',
     format: 'integer',
-    minWidth: 110,
+    minWidth: 125,
     defaultVisible: true,
   },
   {
@@ -621,10 +640,10 @@ export const GENERAL_TRANSPORT_COLUMNS: ColumnDefinition[] = [
     seq: 43,
     sapTitle: 'RFID',
     label: 'Tag / Código RFID',
-    tooltip: 'RFID — Identificador da tag de radiofrequência / WMS',
+    tooltip: 'RFID — Identificador da tag de radiofrequência / WMS de rastreamento do veículo',
     align: 'center',
     format: 'text',
-    minWidth: 130,
+    minWidth: 140,
     defaultVisible: true,
   },
 ]

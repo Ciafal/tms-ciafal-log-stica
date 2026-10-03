@@ -595,10 +595,7 @@ export const FutureProgrammingPage: React.FC = () => {
         title="Torre de Programação Logística D+1"
         subtitle="Planejamento operacional determinístico com estoque projetado livre, carteira SAP real sem remessas e gestão de capacidade."
         icon={Calendar}
-        breadcrumbs={[
-          { label: 'TMS CIAFAL', href: '/tms' },
-          { label: 'Programação Futura D+1' },
-        ]}
+        breadcrumbs={[{ label: 'TMS CIAFAL', href: '/tms' }, { label: 'Programação Futura D+1' }]}
         badge={
           <div className="flex items-center gap-1.5 flex-wrap">
             <Badge className="bg-[#005596] text-white text-[11px] font-bold px-2 py-0.5">

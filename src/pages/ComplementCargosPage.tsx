@@ -573,10 +573,7 @@ export const ComplementCargosPage: React.FC = () => {
           title="Complemento de Cargas — Central de Oportunidades Comerciais"
           subtitle="Motor determinístico: itinerário programado + clientes elegíveis + histórico real + crédito + estoque DP34/PCP + capacidade residual."
           icon={Layers}
-          breadcrumbs={[
-            { label: 'TMS CIAFAL', href: '/tms' },
-            { label: 'Complemento de Cargas' },
-          ]}
+          breadcrumbs={[{ label: 'TMS CIAFAL', href: '/tms' }, { label: 'Complemento de Cargas' }]}
           badge={
             <Badge className="bg-[#005596] text-white text-[10px] font-bold">
               OPORTUNIDADE COMERCIAL

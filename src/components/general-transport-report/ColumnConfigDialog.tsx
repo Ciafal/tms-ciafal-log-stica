@@ -11,7 +11,10 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { ColumnDefinition } from '@/domain/generalTransportReportEngine'
+import {
+  ColumnDefinition,
+  SUGGESTED_DEFAULT_COLUMN_KEYS,
+} from '@/domain/generalTransportReportEngine'
 
 interface ColumnConfigDialogProps {
   open: boolean
@@ -20,6 +23,7 @@ interface ColumnConfigDialogProps {
   visibleKeys: string[]
   onSave: (visibleKeys: string[], orderedColumns: ColumnDefinition[]) => void
   onReset: () => void
+  onApplySuggested?: () => void
 }
 
 export const ColumnConfigDialog: React.FC<ColumnConfigDialogProps> = ({
@@ -29,6 +33,7 @@ export const ColumnConfigDialog: React.FC<ColumnConfigDialogProps> = ({
   visibleKeys,
   onSave,
   onReset,
+  onApplySuggested,
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [currentVisible, setCurrentVisible] = useState<string[]>(visibleKeys)
@@ -56,6 +61,20 @@ export const ColumnConfigDialog: React.FC<ColumnConfigDialogProps> = ({
 
   const handleSelectAll = () => {
     setCurrentVisible(columns.map((c) => c.key as string))
+  }
+
+  const handleClearSelection = () => {
+    // Mantém apenas a coluna de identificação essencial
+    const minimal = columns.filter((c) => c.key === 'transport_number').map((c) => c.key as string)
+    setCurrentVisible(minimal)
+  }
+
+  const handleApplySuggested = () => {
+    if (onApplySuggested) {
+      onApplySuggested()
+    } else {
+      setCurrentVisible(SUGGESTED_DEFAULT_COLUMN_KEYS)
+    }
   }
 
   const handleDeselectNonSticky = () => {
@@ -117,8 +136,8 @@ export const ColumnConfigDialog: React.FC<ColumnConfigDialogProps> = ({
             </Badge>
           </div>
 
-          <div className="flex items-center gap-2 mt-3">
-            <div className="relative flex-1">
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-slate-400" />
               <Input
                 placeholder="Filtrar coluna por nome ou campo SAP (ex: Tara, Frete, Stts)..."
@@ -127,24 +146,38 @@ export const ColumnConfigDialog: React.FC<ColumnConfigDialogProps> = ({
                 className="pl-8 h-8 text-xs bg-white"
               />
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSelectAll}
-              className="text-xs h-8 text-slate-700"
-            >
-              Exibir Todas
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleDeselectNonSticky}
-              className="text-xs h-8 text-slate-700"
-            >
-              Apenas Fixas
-            </Button>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSelectAll}
+                className="text-xs h-8 text-slate-700 font-semibold"
+                title="Selecionar todas as 43 colunas canônicas"
+              >
+                Selecionar Todas (43)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleApplySuggested}
+                className="text-xs h-8 text-[#005596] border-[#005596]/30 bg-blue-50/50 hover:bg-blue-100/60 font-semibold"
+                title="Restaurar colunas principais sugeridas"
+              >
+                Padrão Sugerido
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleClearSelection}
+                className="text-xs h-8 text-slate-500 hover:text-slate-800"
+                title="Limpar seleção de colunas"
+              >
+                Limpar Seleção
+              </Button>
+            </div>
           </div>
         </DialogHeader>
 
@@ -224,17 +257,20 @@ export const ColumnConfigDialog: React.FC<ColumnConfigDialogProps> = ({
           })}
         </div>
 
-        <DialogFooter className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between sm:justify-between">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onReset}
-            className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1.5 h-8"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Restaurar Padrão SAP
-          </Button>
+        <DialogFooter className="p-4 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-2 sm:justify-between">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onReset}
+              className="text-xs text-[#005596] hover:text-[#004275] hover:bg-blue-50 gap-1.5 h-8"
+              title="Ativa todas as 43 colunas canônicas da especificação SAP ZSD40"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Restaurar Todas (43 SAP)
+            </Button>
+          </div>
 
           <div className="flex items-center gap-2">
             <Button
@@ -250,7 +286,7 @@ export const ColumnConfigDialog: React.FC<ColumnConfigDialogProps> = ({
               type="button"
               size="sm"
               onClick={handleApply}
-              className="bg-[#005596] hover:bg-[#004275] text-white text-xs h-8 px-4 font-bold"
+              className="bg-[#005596] hover:bg-[#004275] text-white text-xs h-8 px-4 font-bold shadow-sm"
             >
               Aplicar ({currentVisible.length} colunas)
             </Button>

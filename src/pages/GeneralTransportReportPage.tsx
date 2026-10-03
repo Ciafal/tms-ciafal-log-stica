@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   GENERAL_TRANSPORT_COLUMNS,
+  SUGGESTED_DEFAULT_COLUMN_KEYS,
   ColumnDefinition,
   GeneralTransportRecord,
   GeneralTransportFilterParams,
@@ -88,7 +89,9 @@ export const GeneralTransportReportPage: React.FC = () => {
     } catch {
       /* intentionally ignored */
     }
-    return GENERAL_TRANSPORT_COLUMNS.map((c) => c.key as string)
+    // Ao abrir pela primeira vez, prioriza o preset sugerido com visão enxuta
+    // mantendo todas as 43 disponíveis no seletor e restauráveis
+    return SUGGESTED_DEFAULT_COLUMN_KEYS
   })
 
   const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false)
@@ -344,22 +347,38 @@ export const GeneralTransportReportPage: React.FC = () => {
     })
   }
 
-  // Restaurar padrão SAP
+  // Restaurar padrão SAP (Todas as 43 colunas)
   const handleResetColumns = () => {
-    const defaultKeys = GENERAL_TRANSPORT_COLUMNS.map((c) => c.key as string)
-    setVisibleColumnKeys(defaultKeys)
+    const allKeys = GENERAL_TRANSPORT_COLUMNS.map((c) => c.key as string)
+    setVisibleColumnKeys(allKeys)
     setColumnsOrder(GENERAL_TRANSPORT_COLUMNS)
-    localStorage.removeItem(STORAGE_VISIBLE_COLS_KEY)
+    localStorage.setItem(STORAGE_VISIBLE_COLS_KEY, JSON.stringify(allKeys))
+    localStorage.setItem(
+      STORAGE_ORDER_COLS_KEY,
+      JSON.stringify(GENERAL_TRANSPORT_COLUMNS.map((c) => c.key)),
+    )
+    setIsColumnConfigOpen(false)
+    toast({
+      title: 'Estrutura completa restaurada',
+      description: 'As 43 colunas canônicas do SAP ZSD40 foram ativadas com sucesso.',
+    })
+  }
+
+  // Restaurar visualização padrão sugerida operacional
+  const handleResetSuggestedColumns = () => {
+    setVisibleColumnKeys(SUGGESTED_DEFAULT_COLUMN_KEYS)
+    setColumnsOrder(GENERAL_TRANSPORT_COLUMNS)
+    localStorage.setItem(STORAGE_VISIBLE_COLS_KEY, JSON.stringify(SUGGESTED_DEFAULT_COLUMN_KEYS))
     localStorage.removeItem(STORAGE_ORDER_COLS_KEY)
     setIsColumnConfigOpen(false)
     toast({
-      title: 'Estrutura restaurada',
-      description: 'As 43 colunas canônicas do SAP ZSD40 foram restauradas.',
+      title: 'Visualização padrão aplicada',
+      description: 'Exibindo as principais colunas operacionais com scroll suave.',
     })
   }
 
   return (
-    <div className="space-y-4 p-4 md:p-6 max-w-[1920px] mx-auto min-h-screen bg-slate-50/60">
+    <div className="space-y-4 p-4 md:p-6 w-full max-w-full min-w-0 min-h-screen bg-slate-50/60">
       {/* Cabeçalho da Página com Identidade Visual CIAFAL */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
@@ -436,7 +455,7 @@ export const GeneralTransportReportPage: React.FC = () => {
       />
 
       {/* Grade de 43 Colunas do Relatório */}
-      <div className="space-y-2">
+      <div className="space-y-2 w-full max-w-full min-w-0">
         <ReportDataTable
           records={records}
           columns={activeColumns}
@@ -448,7 +467,7 @@ export const GeneralTransportReportPage: React.FC = () => {
         />
 
         {/* Paginação Server-side */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-1">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-1 w-full max-w-full min-w-0">
           <ReportPagination
             currentPage={filters.page || 1}
             totalPages={totalPages}
@@ -469,6 +488,7 @@ export const GeneralTransportReportPage: React.FC = () => {
         visibleKeys={visibleColumnKeys}
         onSave={handleSaveColumns}
         onReset={handleResetColumns}
+        onApplySuggested={handleResetSuggestedColumns}
       />
 
       {/* Modal de Detalhamento Existente do Transporte */}

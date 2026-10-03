@@ -10,6 +10,7 @@ import {
   FileSpreadsheet,
   Building,
   Info,
+  MapPin,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -117,14 +118,9 @@ export const SapItinerariesPage: React.FC = () => {
         title="Itinerários SAP (Cadastro Mestre TVROT)"
         subtitle="Origem corporativa SAP ECC 6.0 (Tabela TVROT). Metadados operacionais auditados no TMS preservando a chave oficial do SAP."
         icon={MapPin}
-        breadcrumbs={[
-          { label: 'TMS CIAFAL', href: '/tms' },
-          { label: 'Itinerários SAP' },
-        ]}
+        breadcrumbs={[{ label: 'TMS CIAFAL', href: '/tms' }, { label: 'Itinerários SAP' }]}
         badge={
-          <Badge className="bg-[#005596] text-white text-[10px] font-bold">
-            FONTE OFICIAL SAP
-          </Badge>
+          <Badge className="bg-[#005596] text-white text-[10px] font-bold">FONTE OFICIAL SAP</Badge>
         }
         actions={
           <Button

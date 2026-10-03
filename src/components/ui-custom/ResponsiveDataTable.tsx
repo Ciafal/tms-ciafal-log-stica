@@ -74,12 +74,12 @@ export function ResponsiveDataTable<T>({
   return (
     <div
       className={cn(
-        'w-full bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden transition-all',
+        'w-full max-w-full min-w-0 bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden transition-all',
         className,
       )}
     >
-      <div className="overflow-x-auto max-w-full">
-        <Table>
+      <div className="overflow-x-auto max-w-full w-full min-w-0">
+        <Table className="w-max min-w-full">
           <TableHeader
             className={cn('bg-slate-50/80', stickyHeader && 'sticky top-0 z-10 backdrop-blur-xs')}
           >

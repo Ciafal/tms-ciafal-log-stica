@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useEffect } from 'react'
 import {
   ArrowUpDown,
   ArrowUp,
@@ -6,18 +6,8 @@ import {
   ExternalLink,
   Info,
   Scale,
-  Clock,
-  Truck,
-  Hash,
+  PackageOpen,
 } from 'lucide-react'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -45,6 +35,15 @@ export const ReportDataTable: React.FC<ReportDataTableProps> = ({
   onSelectTransport,
   isLoading,
 }) => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Garante que ao carregar novos dados o scroll comece sempre alinhado à esquerda
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft = 0
+    }
+  }, [])
+
   // Cores de status padrão CIAFAL
   const getStatusBadge = (status: string) => {
     const s = (status || '').toUpperCase()
@@ -63,94 +62,51 @@ export const ReportDataTable: React.FC<ReportDataTableProps> = ({
     return 'bg-slate-100 text-slate-800 border-slate-300'
   }
 
-  // Define posições sticky horizontais
-  // Colunas sticky: Transporte (esquerda 0), Stts.Trnsp (esquerda 130px), ID ext.1/Placa (esquerda 270px)
-  const getStickyStyle = (col: ColumnDefinition, index: number) => {
-    if (!col.sticky) return undefined
+  // Define estilo para a primeira coluna fixa (Nº Transporte)
+  // Fixamos APENAS a coluna de identificação para nunca haver conflito de sobreposição
+  const isColSticky = (col: ColumnDefinition) => col.key === 'transport_number'
 
-    if (col.key === 'transport_number') {
-      return {
-        position: 'sticky' as const,
-        left: 0,
-        zIndex: 20,
-        backgroundColor: '#ffffff',
-        boxShadow: '2px 0 4px -2px rgba(0,0,0,0.1)',
-      }
+  const getStickyCellClass = (col: ColumnDefinition) => {
+    if (isColSticky(col)) {
+      return 'sticky left-0 z-20 bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.12)]'
     }
-    if (col.key === 'transport_status') {
-      return {
-        position: 'sticky' as const,
-        left: 130,
-        zIndex: 19,
-        backgroundColor: '#ffffff',
-        boxShadow: '2px 0 4px -2px rgba(0,0,0,0.1)',
-      }
-    }
-    if (col.key === 'external_id_1') {
-      return {
-        position: 'sticky' as const,
-        left: 270,
-        zIndex: 18,
-        backgroundColor: '#ffffff',
-        boxShadow: '4px 0 6px -2px rgba(0,0,0,0.12)',
-      }
-    }
-    return undefined
+    return ''
   }
 
-  const getStickyHeaderStyle = (col: ColumnDefinition) => {
-    if (!col.sticky) return undefined
-
-    if (col.key === 'transport_number') {
-      return {
-        position: 'sticky' as const,
-        left: 0,
-        zIndex: 35,
-        backgroundColor: '#f1f5f9',
-        boxShadow: '2px 0 4px -2px rgba(0,0,0,0.1)',
-      }
+  const getStickyHeaderClass = (col: ColumnDefinition) => {
+    if (isColSticky(col)) {
+      return 'sticky left-0 z-40 bg-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)]'
     }
-    if (col.key === 'transport_status') {
-      return {
-        position: 'sticky' as const,
-        left: 130,
-        zIndex: 34,
-        backgroundColor: '#f1f5f9',
-        boxShadow: '2px 0 4px -2px rgba(0,0,0,0.1)',
-      }
-    }
-    if (col.key === 'external_id_1') {
-      return {
-        position: 'sticky' as const,
-        left: 270,
-        zIndex: 33,
-        backgroundColor: '#f1f5f9',
-        boxShadow: '4px 0 6px -2px rgba(0,0,0,0.12)',
-      }
-    }
-    return undefined
+    return ''
   }
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <div className="relative border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
-        {/* Container com scroll horizontal e cabeçalho sticky */}
-        <div className="overflow-x-auto max-h-[640px] relative scrollbar-thin scrollbar-thumb-slate-300">
-          <Table className="w-full border-collapse text-xs">
-            <TableHeader className="sticky top-0 z-30 bg-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-              <TableRow className="border-b border-slate-200 hover:bg-slate-100">
-                {columns.map((col, idx) => {
+    <TooltipProvider delayDuration={150}>
+      <div className="w-full max-w-full min-w-0 border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
+        {/* Container com scroll horizontal dedicado e isolado da página */}
+        <div
+          ref={scrollContainerRef}
+          tabIndex={0}
+          aria-label="Tabela do Relatório Geral Transporte com 43 colunas canônicas"
+          className="w-full max-w-full overflow-x-auto max-h-[640px] relative scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 focus:outline-none focus:ring-1 focus:ring-[#005596]/30"
+        >
+          <table className="border-collapse text-xs table-auto w-max min-w-full">
+            {/* thead fixo verticalmente (sticky top-0) */}
+            <thead className="sticky top-0 z-30 bg-slate-100 border-b border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+              <tr className="border-b border-slate-200">
+                {columns.map((col) => {
                   const isSorted = sortField === col.key
-                  const stickyStyle = getStickyHeaderStyle(col)
+                  const minW = col.minWidth ? `${col.minWidth}px` : '130px'
+                  const stickyClass = getStickyHeaderClass(col)
 
                   return (
-                    <TableHead
+                    <th
                       key={col.key}
                       style={{
-                        minWidth: col.minWidth ? `${col.minWidth}px` : '110px',
-                        ...stickyStyle,
+                        minWidth: minW,
+                        width: minW,
                       }}
-                      className={`h-11 px-3 text-slate-700 font-bold select-none text-[11px] whitespace-nowrap cursor-pointer transition hover:bg-slate-200/80 ${
+                      className={`h-11 px-3 text-slate-700 font-bold select-none text-[11px] whitespace-nowrap cursor-pointer transition hover:bg-slate-200/80 ${stickyClass} ${
                         col.align === 'right'
                           ? 'text-right'
                           : col.align === 'center'
@@ -158,6 +114,7 @@ export const ReportDataTable: React.FC<ReportDataTableProps> = ({
                             : 'text-left'
                       }`}
                       onClick={() => onSort(col.key as string)}
+                      title={`Ordenar por ${col.label}`}
                     >
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -170,80 +127,102 @@ export const ReportDataTable: React.FC<ReportDataTableProps> = ({
                                   : 'justify-start'
                             }`}
                           >
-                            <span className="text-[10px] text-slate-400 font-mono">#{col.seq}</span>
-                            <span className="font-semibold">{col.label}</span>
-                            <span className="text-[10px] text-[#005596] font-mono bg-blue-50 px-1 rounded border border-blue-200">
+                            <span className="text-[10px] text-slate-400 font-mono font-medium">
+                              #{col.seq}
+                            </span>
+                            <span className="font-semibold text-slate-800 tracking-tight">
+                              {col.label}
+                            </span>
+                            <span className="text-[9.5px] text-[#005596] font-mono font-bold bg-blue-50/80 px-1.5 py-0.5 rounded border border-blue-200/60 shrink-0">
                               {col.sapTitle}
                             </span>
-                            <span className="text-slate-400">
+                            <span className="text-slate-400 shrink-0 ml-0.5">
                               {isSorted ? (
                                 sortOrder === 'asc' ? (
-                                  <ArrowUp className="w-3 h-3 text-[#005596]" />
+                                  <ArrowUp className="w-3.5 h-3.5 text-[#005596]" />
                                 ) : (
-                                  <ArrowDown className="w-3 h-3 text-[#005596]" />
+                                  <ArrowDown className="w-3.5 h-3.5 text-[#005596]" />
                                 )
                               ) : (
-                                <ArrowUpDown className="w-2.5 h-2.5 opacity-40 hover:opacity-100" />
+                                <ArrowUpDown className="w-2.5 h-2.5 opacity-35 hover:opacity-100" />
                               )}
                             </span>
                           </div>
                         </TooltipTrigger>
-                        <TooltipContent side="top" className="text-xs max-w-xs">
-                          <p className="font-bold text-[#005596]">{col.label}</p>
-                          <p className="text-[11px] text-slate-200">{col.tooltip}</p>
+                        <TooltipContent side="top" className="text-xs max-w-sm p-2.5">
+                          <p className="font-bold text-[#005596] mb-0.5">
+                            #{col.seq} — {col.label} ({col.sapTitle})
+                          </p>
+                          <p className="text-[11px] text-slate-200 leading-snug">{col.tooltip}</p>
+                          <p className="text-[10px] text-slate-400 mt-1 font-mono">
+                            Formato: {col.format} • Largura mín.: {minW}
+                          </p>
                         </TooltipContent>
                       </Tooltip>
-                    </TableHead>
+                    </th>
                   )
                 })}
-              </TableRow>
-            </TableHeader>
+              </tr>
+            </thead>
 
-            <TableBody>
+            <tbody className="divide-y divide-slate-100 bg-white">
               {isLoading && records.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-44 text-center text-slate-500">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-6 h-6 border-2 border-[#005596] border-t-transparent rounded-full animate-spin" />
-                      <span className="text-xs font-semibold text-slate-600">
-                        Carregando registros operacionais do SAP ZSD40...
-                      </span>
+                <tr>
+                  <td colSpan={columns.length} className="h-56 text-center text-slate-500 bg-white">
+                    <div className="flex flex-col items-center justify-center gap-3 py-10">
+                      <div className="w-8 h-8 border-3 border-[#005596] border-t-transparent rounded-full animate-spin" />
+                      <div className="space-y-1">
+                        <span className="text-xs font-bold text-slate-700 block">
+                          Carregando registros operacionais do SAP ZSD40...
+                        </span>
+                        <span className="text-[11px] text-slate-400 block">
+                          Sincronizando histórico operacional, pesagens e ordens de transporte.
+                        </span>
+                      </div>
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : records.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-44 text-center text-slate-500">
-                    <div className="flex flex-col items-center justify-center gap-1.5">
-                      <Info className="w-6 h-6 text-slate-400" />
-                      <p className="text-sm font-semibold text-slate-700">
-                        Nenhum transporte encontrado para os filtros selecionados
+                /* Estado sem registros enriquecido e com visual institucional CIAFAL */
+                <tr>
+                  <td
+                    colSpan={columns.length}
+                    className="h-56 text-center text-slate-500 bg-slate-50/40"
+                  >
+                    <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto py-10">
+                      <div className="w-12 h-12 rounded-full bg-blue-50 text-[#005596] flex items-center justify-center mb-1">
+                        <PackageOpen className="w-6 h-6 text-[#005596]" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-800">
+                        Nenhum transporte encontrado
                       </p>
-                      <p className="text-xs text-slate-400">
-                        Ajuste o número do transporte, o intervalo de datas ou a placa para refazer
-                        a consulta.
+                      <p className="text-xs text-slate-500 leading-relaxed px-4">
+                        Ajuste os filtros ou verifique se existem transportes para o período
+                        selecionado. Você pode alterar as datas, número do transporte ou placa do
+                        veículo.
                       </p>
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : (
                 records.map((rec) => (
-                  <TableRow
+                  <tr
                     key={rec.id}
                     className="border-b border-slate-100 hover:bg-blue-50/40 transition-colors"
                   >
-                    {columns.map((col, idx) => {
+                    {columns.map((col) => {
                       const rawValue = rec[col.key]
                       const formatted = formatReportValue(rawValue, col.format)
-                      const stickyStyle = getStickyStyle(col, idx)
+                      const minW = col.minWidth ? `${col.minWidth}px` : '130px'
+                      const stickyCellClass = getStickyCellClass(col)
 
                       // 1. Coluna de Transporte: link clicável para detalhe
                       if (col.key === 'transport_number') {
                         return (
-                          <TableCell
+                          <td
                             key={col.key}
-                            style={stickyStyle}
-                            className="font-mono font-bold text-[#005596] whitespace-nowrap px-3 py-2.5"
+                            style={{ minWidth: minW, width: minW }}
+                            className={`font-mono font-bold text-[#005596] whitespace-nowrap px-3 py-2.5 ${stickyCellClass}`}
                           >
                             <button
                               type="button"
@@ -257,19 +236,19 @@ export const ReportDataTable: React.FC<ReportDataTableProps> = ({
                               title="Clique para abrir o detalhamento operacional completo"
                             >
                               <span>{formatted}</span>
-                              <ExternalLink className="w-3 h-3 text-[#005596] opacity-60 group-hover:opacity-100" />
+                              <ExternalLink className="w-3 h-3 text-[#005596] opacity-60 group-hover:opacity-100 shrink-0" />
                             </button>
-                          </TableCell>
+                          </td>
                         )
                       }
 
-                      // 2. Coluna Status
+                      // 2. Coluna Status do Transporte
                       if (col.key === 'transport_status') {
                         return (
-                          <TableCell
+                          <td
                             key={col.key}
-                            style={stickyStyle}
-                            className="text-center px-3 py-2.5 whitespace-nowrap"
+                            style={{ minWidth: minW, width: minW }}
+                            className={`text-center px-3 py-2.5 whitespace-nowrap ${stickyCellClass}`}
                           >
                             <Badge
                               variant="outline"
@@ -279,36 +258,37 @@ export const ReportDataTable: React.FC<ReportDataTableProps> = ({
                             >
                               {formatted}
                             </Badge>
-                          </TableCell>
+                          </td>
                         )
                       }
 
                       // 3. Coluna ID ext.1 (Placa)
                       if (col.key === 'external_id_1') {
                         return (
-                          <TableCell
+                          <td
                             key={col.key}
-                            style={stickyStyle}
-                            className="font-mono text-center font-bold text-slate-800 px-3 py-2.5 whitespace-nowrap"
+                            style={{ minWidth: minW, width: minW }}
+                            className={`font-mono text-center font-bold text-slate-800 px-3 py-2.5 whitespace-nowrap ${stickyCellClass}`}
                           >
                             <span className="bg-slate-100 text-slate-800 border border-slate-200 px-1.5 py-0.5 rounded text-[11px]">
                               {formatted}
                             </span>
-                          </TableCell>
+                          </td>
                         )
                       }
 
-                      // 4. Motivo Balança com ícone de alerta caso haja divergência
+                      // 4. Motivo Balança com ícone e tooltip
                       if (col.key === 'scale_reason') {
                         const hasDivergence =
                           rec.diff_weight_pct > 1.0 ||
                           String(rawValue).toLowerCase().includes('diverg')
                         return (
-                          <TableCell
+                          <td
                             key={col.key}
+                            style={{ minWidth: minW, width: minW }}
                             className="px-3 py-2.5 whitespace-nowrap text-left"
                           >
-                            <div className="flex items-center gap-1.5 max-w-[240px]">
+                            <div className="flex items-center gap-1.5 max-w-[260px]">
                               <Scale
                                 className={`w-3.5 h-3.5 shrink-0 ${
                                   hasDivergence ? 'text-amber-500' : 'text-slate-400'
@@ -323,7 +303,7 @@ export const ReportDataTable: React.FC<ReportDataTableProps> = ({
                                 {formatted}
                               </span>
                             </div>
-                          </TableCell>
+                          </td>
                         )
                       }
 
@@ -332,23 +312,24 @@ export const ReportDataTable: React.FC<ReportDataTableProps> = ({
                         const num = Number(rawValue) || 0
                         const isHigh = Math.abs(num) > (col.key === 'diff_weight_pct' ? 1.5 : 0.2)
                         return (
-                          <TableCell
+                          <td
                             key={col.key}
+                            style={{ minWidth: minW, width: minW }}
                             className={`px-3 py-2.5 whitespace-nowrap font-mono text-right ${
                               isHigh ? 'text-amber-600 font-bold' : 'text-slate-700'
                             }`}
                           >
                             {formatted}
-                          </TableCell>
+                          </td>
                         )
                       }
 
                       // Demais colunas padrão com formatação e alinhamento
                       return (
-                        <TableCell
+                        <td
                           key={col.key}
-                          style={stickyStyle}
-                          className={`px-3 py-2.5 whitespace-nowrap text-xs ${
+                          style={{ minWidth: minW, width: minW }}
+                          className={`px-3 py-2.5 whitespace-nowrap text-xs ${stickyCellClass} ${
                             col.align === 'right'
                               ? 'text-right font-mono'
                               : col.align === 'center'
@@ -357,14 +338,14 @@ export const ReportDataTable: React.FC<ReportDataTableProps> = ({
                           }`}
                         >
                           <span title={String(rawValue || '')}>{formatted}</span>
-                        </TableCell>
+                        </td>
                       )
                     })}
-                  </TableRow>
+                  </tr>
                 ))
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       </div>
     </TooltipProvider>

@@ -506,10 +506,7 @@ export function LoadRouterAndSimulatorPage() {
         title="Roteirizador & Simulador de Cargas Multicritério"
         subtitle="O TMS analisa a carteira e entrega as melhores cargas para sua decisão. Motor determinístico CIAFAL: Ocupação Máxima • Saída Imediata (DP34 + Crédito + PORTA) • Pedidos Atrasados • Menor Custo."
         icon={Truck}
-        breadcrumbs={[
-          { label: 'TMS CIAFAL', href: '/tms' },
-          { label: 'Roteirizador & Simulador' },
-        ]}
+        breadcrumbs={[{ label: 'TMS CIAFAL', href: '/tms' }, { label: 'Roteirizador & Simulador' }]}
         badge={
           <div className="flex items-center gap-1.5">
             <Badge

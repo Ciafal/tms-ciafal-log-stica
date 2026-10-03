@@ -8,9 +8,13 @@ import { generalTransportReportService } from '@/services/generalTransportReport
 import { pb } from '@/lib/pocketbase/client'
 
 describe('Motor do Relatório Geral Transporte (43 Colunas Canônicas SAP)', () => {
-  it('deve conter exatamente 43 colunas canônicas na sequência correta de 1 a 43', () => {
-    expect(GENERAL_TRANSPORT_COLUMNS.length).toBe(43)
+it('deve conter exatamente 43 colunas canônicas na sequência correta de 1 a 43 com larguras mínimas seguras', () => {
+  expect(GENERAL_TRANSPORT_COLUMNS.length).toBe(43)
 
+  // Todas as 43 colunas devem possuir largura mínima de pelo menos 110px para evitar sobreposição
+  GENERAL_TRANSPORT_COLUMNS.forEach((col) => {
+    expect(col.minWidth).toBeGreaterThanOrEqual(110)
+  })
     // Validar sequência ordinal 1 a 43
     GENERAL_TRANSPORT_COLUMNS.forEach((col, index) => {
       expect(col.seq).toBe(index + 1)
