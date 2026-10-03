@@ -1906,6 +1906,151 @@ export const TmsService = {
     return res.success
   },
 
+  // ----------------------------------------------------
+  // GESTÃO E GOVERNANÇA FINANCEIRA NO COMPLEMENTO DE CARGAS (REQUISITOS 1-9)
+  // ----------------------------------------------------
+  async sendComplementToFinancial(params: {
+    opportunityId: string
+    observation?: string
+    userEmail: string
+    userName: string
+    userRole?: string
+    creditLimit?: number
+    creditUsed?: number
+    creditAvailable?: number
+    requiredValue?: number
+    lastSapQueryAt?: string
+  }): Promise<{
+    success: boolean
+    alreadyRequested?: boolean
+    requestNumber?: string
+    requestId?: string
+    message: string
+  }> {
+    try {
+      const res = await pb.send('/backend/v1/financial-complement/request', {
+        method: 'POST',
+        body: {
+          opportunity_id: params.opportunityId,
+          observation: params.observation || '',
+          user_email: params.userEmail,
+          user_name: params.userName,
+          user_role: params.userRole || 'gerente_carga',
+          credit_limit: params.creditLimit,
+          credit_used: params.creditUsed,
+          credit_available: params.creditAvailable,
+          required_value: params.requiredValue,
+          last_sap_query_at: params.lastSapQueryAt,
+        },
+      })
+      return {
+        success: Boolean(res.success),
+        requestNumber: res.request_number,
+        requestId: res.request_id,
+        message: res.message || 'Solicitação enviada ao Financeiro com sucesso.',
+      }
+    } catch (err: any) {
+      console.error('Error sending complement to financial via hook:', err)
+      const errData = err?.data || {}
+      if (err?.status === 409 || errData.already_requested) {
+        return {
+          success: false,
+          alreadyRequested: true,
+          requestNumber: errData.request_number,
+          message:
+            errData.message ||
+            'Já existe uma solicitação financeira em andamento para esta oportunidade.',
+        }
+      }
+      return {
+        success: false,
+        message:
+          errData.message ||
+          err?.message ||
+          'Falha ao comunicar com o serviço de governança financeira.',
+      }
+    }
+  },
+
+  async getFinancialComplementRequests(
+    filter?: string,
+  ): Promise<import('@/domain/rules').FinancialComplementRequestEntity[]> {
+    try {
+      return await pb
+        .collection('financial_complement_requests')
+        .getFullList<import('@/domain/rules').FinancialComplementRequestEntity>({
+          filter: filter || '',
+          sort: '-created',
+        })
+    } catch (err) {
+      console.error('Failed to fetch financial complement requests:', err)
+      return []
+    }
+  },
+
+  async getFinancialRequestByOpportunityId(
+    oppId: string,
+  ): Promise<import('@/domain/rules').FinancialComplementRequestEntity | null> {
+    try {
+      const records = await pb
+        .collection('financial_complement_requests')
+        .getList<import('@/domain/rules').FinancialComplementRequestEntity>(1, 1, {
+          filter: `opportunity_id="${oppId}"`,
+          sort: '-created',
+        })
+      return records.items[0] || null
+    } catch (err) {
+      console.error('Failed to fetch financial request for opp:', err)
+      return null
+    }
+  },
+
+  async decideFinancialComplementRequest(params: {
+    requestId: string
+    action: 'LIBERAR' | 'REPROVAR' | 'SOLICITAR_INFORMACOES'
+    justification: string
+    sapCondition?: 'LIBERADO' | 'BLOQUEADO'
+    userEmail: string
+    userName: string
+    userRole?: string
+  }): Promise<{
+    success: boolean
+    action?: string
+    unblocked?: boolean
+    remainingBlock?: boolean
+    message: string
+  }> {
+    try {
+      const res = await pb.send('/backend/v1/financial-complement/decide', {
+        method: 'POST',
+        body: {
+          request_id: params.requestId,
+          action: params.action,
+          justification: params.justification,
+          sap_condition: params.sapCondition || 'LIBERADO',
+          user_email: params.userEmail,
+          user_name: params.userName,
+          user_role: params.userRole || 'financeiro',
+        },
+      })
+      return {
+        success: Boolean(res.success),
+        action: res.action,
+        unblocked: Boolean(res.unblocked),
+        remainingBlock: Boolean(res.remaining_block),
+        message: res.message || 'Decisão financeira processada com sucesso.',
+      }
+    } catch (err: any) {
+      console.error('Error deciding financial complement request:', err)
+      const errData = err?.data || {}
+      return {
+        success: false,
+        message:
+          errData.message || err?.message || 'Erro ao processar parecer financeiro no backend.',
+      }
+    }
+  },
+
   /**
    * CORRELAÇÃO AUTOMÁTICA DE NOVOS PEDIDOS SAP COM CARGAS EM ABERTO:
    * Cenário: Novo pedido entra no SAP (ex.: 5t para cliente do itinerário) ->

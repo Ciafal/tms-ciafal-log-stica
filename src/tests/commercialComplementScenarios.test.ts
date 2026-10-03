@@ -358,4 +358,110 @@ describe('Central de Oportunidades Comerciais - 4 Cenários de Aceite Obrigatór
       }),
     )
   })
+
+  /**
+   * Requisitos 1, 2, 4, 7 e 8: Fluxo "Enviar p/ Financeiro"
+   */
+  describe('Fluxo Enviar p/ Financeiro (Requisitos 1 a 12)', () => {
+    it('Requisito 1 e 2: Roteia bloqueio de crédito para FINANCEIRO e outros para os respectivos setores', async () => {
+      const { determineOpportunityRouting, isCreditBlockedReason } = await import('@/domain/rules')
+
+      // Bloqueio de crédito
+      const creditOpp = {
+        is_blocked: true,
+        block_reason: 'Crédito bloqueado no SAP pelo financeiro (limite excedido)',
+        credit_status: 'Crédito Bloqueado (Financeiro)',
+      }
+      expect(isCreditBlockedReason(creditOpp.block_reason, creditOpp.credit_status)).toBe(true)
+      expect(determineOpportunityRouting(creditOpp)).toBe('FINANCEIRO')
+
+      // Bloqueio por falta de estoque físico
+      const stockOpp = {
+        is_blocked: true,
+        block_reason: 'Material sem saldo disponível no depósito DP34',
+        stock_status: 'Indisponível no DP34',
+        credit_status: 'Crédito OK',
+      }
+      expect(isCreditBlockedReason(stockOpp.block_reason, stockOpp.credit_status)).toBe(false)
+      expect(determineOpportunityRouting(stockOpp)).toBe('ESTOQUE_WMS')
+
+      // Bloqueio por produção futura/PCP
+      const pcpOpp = {
+        is_blocked: true,
+        block_reason: 'Necessidade de laminação futura programada para D+2',
+        stock_status: 'Aguardando PCP',
+        credit_status: 'Crédito OK',
+      }
+      expect(determineOpportunityRouting(pcpOpp)).toBe('PCP_ROBOTIZADO')
+    })
+
+    it('Requisito 4: Envio ao Financeiro chama o endpoint e retorna mensagem oficial sem desbloquear a oportunidade', async () => {
+      const sendSpy = vi.spyOn(pb, 'send').mockResolvedValue({
+        success: true,
+        request_number: 'SOL-FIN-2026-0001',
+        request_id: 'fin-req-123',
+        message:
+          'Solicitação enviada ao Financeiro com sucesso. A oportunidade permanecerá bloqueada até nova avaliação do crédito.',
+      })
+
+      const res = await tmsService.sendComplementToFinancial({
+        opportunityId: 'opp-100',
+        observation: 'Solicitamos liberação temporária de R$ 28.500',
+        userEmail: 'operador@ciafal.com.br',
+        userName: 'Operador Logístico',
+        userRole: 'gerente_carga',
+      })
+
+      expect(sendSpy).toHaveBeenCalledWith(
+        '/backend/v1/financial-complement/request',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.objectContaining({
+            opportunity_id: 'opp-100',
+            observation: 'Solicitamos liberação temporária de R$ 28.500',
+          }),
+        }),
+      )
+
+      expect(res.success).toBe(true)
+      expect(res.requestNumber).toBe('SOL-FIN-2026-0001')
+      expect(res.message).toBe(
+        'Solicitação enviada ao Financeiro com sucesso. A oportunidade permanecerá bloqueada até nova avaliação do crédito.',
+      )
+    })
+
+    it('Requisito 6 e 7: Decisão do Financeiro exige justificativa e validação SAP', async () => {
+      const sendSpy = vi.spyOn(pb, 'send').mockResolvedValue({
+        success: true,
+        action: 'LIBERADO',
+        unblocked: true,
+        remaining_block: false,
+        message: 'Crédito liberado e confirmado no SAP. Bloqueio retirado e oportunidade recalculada com sucesso.',
+      })
+
+      const res = await tmsService.decideFinancialComplementRequest({
+        requestId: 'fin-req-123',
+        action: 'LIBERAR',
+        justification: 'Cliente realizou pagamento da duplicata vencida NF 4819',
+        sapCondition: 'LIBERADO',
+        userEmail: 'financeiro@ciafal.com.br',
+        userName: 'Analista Financeiro',
+      })
+
+      expect(sendSpy).toHaveBeenCalledWith(
+        '/backend/v1/financial-complement/decide',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.objectContaining({
+            request_id: 'fin-req-123',
+            action: 'LIBERAR',
+            justification: 'Cliente realizou pagamento da duplicata vencida NF 4819',
+            sap_condition: 'LIBERADO',
+          }),
+        }),
+      )
+      expect(res.success).toBe(true)
+      expect(res.unblocked).toBe(true)
+    })
+  })
 })

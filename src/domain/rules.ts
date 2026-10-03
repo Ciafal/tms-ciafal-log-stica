@@ -3098,8 +3098,173 @@ export interface LoadComplementOpportunityEntity {
   last_resend_at?: string
   last_resend_by?: string
   sent_snapshot?: any
+  financial_substatus?: string
+  financial_request_id?: string
+  financial_request_number?: string
+  financial_requested_at?: string
+  financial_requested_by?: string
   created?: string
   updated?: string
+}
+
+export type FinancialRequestStatus =
+  | 'AGUARDANDO_ANALISE'
+  | 'EM_ANALISE'
+  | 'LIBERADO_FINANCEIRO'
+  | 'REPROVADO_FINANCEIRO'
+  | 'INFORMACOES_SOLICITADAS'
+  | 'REVALIDACAO_SAP_PENDENTE'
+  | 'REVALIDACAO_SAP_CONFIRMADA'
+  | 'REVALIDACAO_SAP_DIVERGENTE'
+
+export interface FinancialComplementRequestEntity {
+  id: string
+  request_number: string
+  opportunity_id: string
+  opportunity_code: string
+  load_proposal_id?: string
+  itinerary_id?: string
+  planned_dispatch_date?: string
+
+  vehicle_plate?: string
+  vehicle_type?: string
+  vehicle_capacity_kg?: number
+  current_weight_kg?: number
+  current_occupancy_pct?: number
+  missing_weight_kg?: number
+
+  customer_sap_code: string
+  customer_name: string
+  destination_city?: string
+  destination_uf?: string
+  sales_rep?: string
+
+  material_id?: string
+  material_description?: string
+  suggested_quantity_kg?: number
+  sap_order_id?: string
+
+  credit_status_sap?: string
+  block_reason?: string
+  credit_limit?: number
+  credit_used?: number
+  credit_available?: number
+  required_value?: number
+  last_sap_query_at?: string
+
+  requester_email?: string
+  requester_name: string
+  requester_role?: string
+  requester_observation?: string
+  requested_at?: string
+
+  status: FinancialRequestStatus
+  decision?: string
+  decision_justification?: string
+  financial_analyst_name?: string
+  financial_analyst_email?: string
+  financial_decided_at?: string
+
+  sap_recheck_status?: string
+  sap_recheck_at?: string
+  sap_recheck_response?: string
+  sap_recheck_credit_status?: string
+  sap_recheck_credit_limit?: number
+  sap_recheck_credit_used?: number
+  sap_recheck_credit_available?: number
+
+  credit_snapshot_at_request?: any
+  sap_recheck_snapshot?: any
+  metadata?: any
+  correlation_id?: string
+  created?: string
+  updated?: string
+}
+
+/**
+ * Determina o setor/roteamento automático do impedimento com base nas regras do HUB CIAFAL:
+ * - Bloqueio de crédito/financeiro -> Financeiro
+ * - Pendência comercial -> Comercial
+ * - Falta de estoque físico -> WMS/Estoque
+ * - Produção futura/laminação -> PCP Robotizado
+ * - Outros impedimentos mantêm o tratamento atual
+ */
+export type OpportunityRoutingSector =
+  | 'FINANCEIRO'
+  | 'COMERCIAL'
+  | 'ESTOQUE_WMS'
+  | 'PCP_ROBOTIZADO'
+  | 'OUTRO'
+
+export function isCreditBlockedReason(reason?: string, creditStatus?: string): boolean {
+  const r = (reason || '').toLowerCase()
+  const c = (creditStatus || '').toLowerCase()
+
+  const creditKeywords = [
+    'crédito',
+    'credito',
+    'limite excedido',
+    'limite insuficiente',
+    'bloqueio de crédito',
+    'bloqueio de credito',
+    'bloqueado financeiramente',
+    'bloqueio financeiro',
+    'financeiro',
+    'títulos em aberto',
+    'titulos em aberto',
+    'documento vencido',
+    'atrasados a mais de',
+    'fd32',
+    'knkk',
+  ]
+
+  return creditKeywords.some((k) => r.includes(k)) || creditKeywords.some((k) => c.includes(k))
+}
+
+export function determineOpportunityRouting(opp: {
+  block_reason?: string
+  credit_status?: string
+  stock_status?: string
+  is_blocked?: boolean
+}): OpportunityRoutingSector {
+  if (!opp.is_blocked && !opp.block_reason) {
+    return 'COMERCIAL'
+  }
+
+  const reason = opp.block_reason || ''
+  const credit = opp.credit_status || ''
+  const stock = opp.stock_status || ''
+
+  if (isCreditBlockedReason(reason, credit)) {
+    return 'FINANCEIRO'
+  }
+
+  const reasonLower = reason.toLowerCase()
+  const stockLower = stock.toLowerCase()
+
+  if (
+    reasonLower.includes('pcp') ||
+    reasonLower.includes('produção') ||
+    reasonLower.includes('producao') ||
+    reasonLower.includes('laminação') ||
+    reasonLower.includes('laminacao') ||
+    stockLower.includes('aguardando pcp')
+  ) {
+    return 'PCP_ROBOTIZADO'
+  }
+
+  if (
+    reasonLower.includes('estoque') ||
+    reasonLower.includes('indisponível') ||
+    reasonLower.includes('indisponivel') ||
+    reasonLower.includes('saldo dp34') ||
+    stockLower.includes('indisponível') ||
+    stockLower.includes('indisponivel')
+  ) {
+    return 'ESTOQUE_WMS'
+  }
+
+  return 'OUTRO'
 }
 
 export interface LoadComplementHistoryEntity {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T21:05:13.020Z",
+  "generatedAt": "2026-10-03T21:38:45.413Z",
   "collections": [
     {
       "name": "users",
@@ -11117,6 +11117,36 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "financial_substatus",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "financial_request_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "financial_request_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "financial_requested_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "financial_requested_by",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -15485,6 +15515,351 @@
         "CREATE INDEX idx_remessa_neg ON sap_remessas_transporte (negotiation_number)",
         "CREATE INDEX idx_remessa_sap_num ON sap_remessas_transporte (remessa_sap_number)",
         "CREATE INDEX idx_remessa_transp ON sap_remessas_transporte (sap_transport_number)"
+      ]
+    },
+    {
+      "name": "financial_complement_requests",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "request_number",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "opportunity_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "opportunity_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "load_proposal_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "planned_dispatch_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_plate",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_capacity_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_occupancy_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "missing_weight_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_sap_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "destination_city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination_uf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sales_rep",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "material_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "material_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "suggested_quantity_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_order_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "credit_status_sap",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "block_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "credit_limit",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "credit_used",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "credit_available",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "required_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_sap_query_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requester_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requester_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "requester_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requester_observation",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requested_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "AGUARDANDO_ANALISE",
+            "EM_ANALISE",
+            "LIBERADO_FINANCEIRO",
+            "REPROVADO_FINANCEIRO",
+            "INFORMACOES_SOLICITADAS",
+            "REVALIDACAO_SAP_PENDENTE",
+            "REVALIDACAO_SAP_CONFIRMADA",
+            "REVALIDACAO_SAP_DIVERGENTE"
+          ]
+        },
+        {
+          "name": "decision",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "decision_justification",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "financial_analyst_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "financial_analyst_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "financial_decided_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_recheck_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_recheck_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_recheck_response",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_recheck_credit_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_recheck_credit_limit",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_recheck_credit_used",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_recheck_credit_available",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "credit_snapshot_at_request",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_recheck_snapshot",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_fin_req_num ON financial_complement_requests (request_number)",
+        "CREATE INDEX idx_fin_req_opp ON financial_complement_requests (opportunity_id)",
+        "CREATE INDEX idx_fin_req_opp_code ON financial_complement_requests (opportunity_code)",
+        "CREATE INDEX idx_fin_req_cust ON financial_complement_requests (customer_sap_code)",
+        "CREATE INDEX idx_fin_req_status ON financial_complement_requests (status)",
+        "CREATE INDEX idx_fin_req_created ON financial_complement_requests (created)"
       ]
     }
   ]

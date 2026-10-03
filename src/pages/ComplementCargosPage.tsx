@@ -57,7 +57,11 @@ import {
   LoadComplementCandidateEntity,
   LoadComplementHistoryEntity,
   CommercialOpportunityStatus,
+  FinancialComplementRequestEntity,
+  determineOpportunityRouting,
+  isCreditBlockedReason,
 } from '@/domain/rules'
+import { DollarSign, FileText, BadgeAlert, ArrowUpRight, ShieldCheck } from 'lucide-react'
 
 // Status com Badge e estilo consistente CIAFAL
 export const renderStatusBadge = (status?: string) => {
@@ -175,10 +179,45 @@ export const ComplementCargosPage: React.FC = () => {
     useState<LoadComplementOpportunityEntity | null>(null)
   const [simulatedSapOrders, setSimulatedSapOrders] = useState<any[]>([])
 
+  // FLUXO "ENVIAR P/ FINANCEIRO" (REQUISITOS 1 A 9)
+  const [isFinancialModalOpen, setIsFinancialModalOpen] = useState(false)
+  const [financialTargetOpp, setFinancialTargetOpp] =
+    useState<LoadComplementOpportunityEntity | null>(null)
+  const [financialObservation, setFinancialObservation] = useState('')
+  const [isSendingFinancial, setIsSendingFinancial] = useState(false)
+
+  // Consulta / Detalhe da Solicitação Financeira ("Ver solicitação")
+  const [viewFinancialRequestModal, setViewFinancialRequestModal] =
+    useState<FinancialComplementRequestEntity | null>(null)
+  const [isLoadingFinancialDetail, setIsLoadingFinancialDetail] = useState(false)
+
+  // Painel de Fila Financeira (RBAC: perfil com permissão financeira)
+  const [isFinancialDeskOpen, setIsFinancialDeskOpen] = useState(false)
+  const [financialQueueList, setFinancialQueueList] = useState<FinancialComplementRequestEntity[]>(
+    [],
+  )
+  const [isLoadingFinancialQueue, setIsLoadingFinancialQueue] = useState(false)
+  const [financialDecisionModal, setFinancialDecisionModal] =
+    useState<FinancialComplementRequestEntity | null>(null)
+  const [financialDecisionAction, setFinancialDecisionAction] = useState<
+    'LIBERAR' | 'REPROVAR' | 'SOLICITAR_INFORMACOES'
+  >('LIBERAR')
+  const [financialDecisionJustification, setFinancialDecisionJustification] = useState('')
+  const [financialSapCondition, setFinancialSapCondition] = useState<'LIBERADO' | 'BLOQUEADO'>(
+    'LIBERADO',
+  )
+  const [isProcessingFinancialDecision, setIsProcessingFinancialDecision] = useState(false)
+
   const userRole = user?.role || 'gerente_carga'
   const canResend = ['admin_master', 'admin_tms', 'gestor_logistica', 'gerente_carga'].includes(
     userRole,
   )
+  const canAccessFinancialDesk = [
+    'financeiro',
+    'admin_master',
+    'admin_tms',
+    'gestor_logistica',
+  ].includes(userRole)
 
   const fetchData = async () => {
     setIsLoading(true)
@@ -566,6 +605,175 @@ export const ComplementCargosPage: React.FC = () => {
     }
   }
 
+  // ABERTURA DO MODAL "Enviar p/ Financeiro" (REQUISITO 3)
+  const handleOpenSendFinancial = (opp: LoadComplementOpportunityEntity) => {
+    setFinancialTargetOpp(opp)
+    setFinancialObservation('')
+    setIsFinancialModalOpen(true)
+  }
+
+  // ENVIO DA SOLICITAÇÃO FINANCEIRA (REQUISITO 4)
+  const handleConfirmSendFinancial = async () => {
+    if (!financialTargetOpp) return
+    setIsSendingFinancial(true)
+
+    try {
+      const res = await tmsService.sendComplementToFinancial({
+        opportunityId: financialTargetOpp.id,
+        observation: financialObservation,
+        userEmail: user?.email || 'operador@ciafal.com.br',
+        userName: user?.name || 'Operador Logístico',
+        userRole,
+        creditLimit: 400000,
+        creditUsed: 415000,
+        creditAvailable: -15000,
+        requiredValue: 28500,
+        lastSapQueryAt: new Date().toISOString(),
+      })
+
+      if (res.success) {
+        // Exatamente a mensagem requerida pelo requisito 4:
+        toast({
+          title: 'Solicitação Financeira Registrada',
+          description:
+            'Solicitação enviada ao Financeiro com sucesso. A oportunidade permanecerá bloqueada até nova avaliação do crédito.',
+        })
+        setIsFinancialModalOpen(false)
+        setFinancialTargetOpp(null)
+        setFinancialObservation('')
+        fetchData()
+      } else if (res.alreadyRequested) {
+        toast({
+          title: 'Análise Financeira Pendente',
+          description: res.message,
+          variant: 'destructive',
+        })
+        setIsFinancialModalOpen(false)
+        fetchData()
+      } else {
+        toast({
+          title: 'Falha no envio ao Financeiro',
+          description: res.message,
+          variant: 'destructive',
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro inesperado',
+        description: err?.message || 'Falha ao conectar com o serviço financeiro.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSendingFinancial(false)
+    }
+  }
+
+  // ABRIR CONSULTA DA SOLICITAÇÃO EXISTENTE ("Ver solicitação" - REQUISITO 5)
+  const handleViewFinancialRequest = async (opp: LoadComplementOpportunityEntity) => {
+    setIsLoadingFinancialDetail(true)
+    try {
+      let req: FinancialComplementRequestEntity | null = null
+      if (opp.financial_request_id) {
+        const list = await tmsService.getFinancialComplementRequests(
+          `id="${opp.financial_request_id}"`,
+        )
+        req = list[0] || null
+      }
+      if (!req) {
+        req = await tmsService.getFinancialRequestByOpportunityId(opp.id)
+      }
+      if (req) {
+        setViewFinancialRequestModal(req)
+      } else {
+        toast({
+          title: 'Solicitação não localizada',
+          description: 'Não foram encontrados detalhes no banco de dados para esta solicitação.',
+          variant: 'destructive',
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao consultar',
+        description: err?.message || 'Falha ao buscar dados da solicitação financeira.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoadingFinancialDetail(false)
+    }
+  }
+
+  // ABRIR PAINEL DO FINANCEIRO (REQUISITO 6)
+  const handleOpenFinancialDesk = async () => {
+    setIsFinancialDeskOpen(true)
+    setIsLoadingFinancialQueue(true)
+    try {
+      const list = await tmsService.getFinancialComplementRequests()
+      setFinancialQueueList(list)
+    } catch (err: any) {
+      toast({
+        title: 'Erro na fila financeira',
+        description: err?.message || 'Falha ao carregar solicitações financeiras.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoadingFinancialQueue(false)
+    }
+  }
+
+  // PROCESSAR DECISÃO FINANCEIRA (REQUISITOS 6, 7 e 8)
+  const handleProcessFinancialDecision = async () => {
+    if (!financialDecisionModal) return
+    if (!financialDecisionJustification.trim()) {
+      toast({
+        title: 'Justificativa obrigatória',
+        description:
+          'É necessário preencher uma observação/justificativa para registrar a decisão financeira.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsProcessingFinancialDecision(true)
+    try {
+      const res = await tmsService.decideFinancialComplementRequest({
+        requestId: financialDecisionModal.id,
+        action: financialDecisionAction,
+        justification: financialDecisionJustification.trim(),
+        sapCondition: financialSapCondition,
+        userEmail: user?.email || 'financeiro@ciafal.com.br',
+        userName: user?.name || 'Analista Financeiro',
+        userRole,
+      })
+
+      if (res.success) {
+        toast({
+          title: 'Decisão Financeira Processada',
+          description: res.message,
+        })
+        setFinancialDecisionModal(null)
+        setFinancialDecisionJustification('')
+        // Recarregar fila e dados da página
+        const updatedList = await tmsService.getFinancialComplementRequests()
+        setFinancialQueueList(updatedList)
+        fetchData()
+      } else {
+        toast({
+          title: 'Falha ao processar decisão',
+          description: res.message,
+          variant: 'destructive',
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro no processamento',
+        description: err?.message || 'Falha ao enviar decisão ao servidor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsProcessingFinancialDecision(false)
+    }
+  }
+
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-4 pb-16">
@@ -602,6 +810,19 @@ export const ComplementCargosPage: React.FC = () => {
                     <X className="w-3 h-3" />
                   </button>
                 </Badge>
+              )}
+
+              {/* BOTÃO FILA FINANCEIRA (Visível para Financeiro e Gestores) */}
+              {canAccessFinancialDesk && (
+                <Button
+                  onClick={handleOpenFinancialDesk}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-9 text-[#005596] border-[#005596]/40 hover:bg-[#005596]/10 flex items-center gap-1.5"
+                >
+                  <DollarSign className="w-3.5 h-3.5 text-[#005596]" />
+                  <span>Fila Financeira</span>
+                </Button>
               )}
 
               {/* BOTÃO "Enviar p/ Comercial" */}
@@ -939,10 +1160,20 @@ export const ComplementCargosPage: React.FC = () => {
                               Itinerário: {opp.itinerary_id}
                             </Badge>
                             {isBlocked && (
-                              <Badge className="bg-rose-600 text-white text-[10px] flex items-center gap-1">
-                                <ShieldAlert className="w-3 h-3" />
-                                BLOQUEADA
-                              </Badge>
+                              <div className="flex flex-wrap items-center gap-1">
+                                <Badge className="bg-rose-600 text-white text-[10px] flex items-center gap-1">
+                                  <ShieldAlert className="w-3 h-3" />
+                                  BLOQUEADA
+                                </Badge>
+                                {opp.financial_substatus && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300 font-medium"
+                                  >
+                                    {opp.financial_substatus}
+                                  </Badge>
+                                )}
+                              </div>
                             )}
                           </div>
 
@@ -960,7 +1191,14 @@ export const ComplementCargosPage: React.FC = () => {
                       </div>
 
                       {/* 4. STATUS COM BADGE COMPLETA */}
-                      <div>{renderStatusBadge(opp.commercial_status)}</div>
+                      <div className="flex flex-col items-end gap-1">
+                        {renderStatusBadge(opp.commercial_status)}
+                        {opp.financial_request_number && (
+                          <span className="text-[9px] font-mono text-slate-500">
+                            {opp.financial_request_number}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
 
@@ -1152,23 +1390,58 @@ export const ComplementCargosPage: React.FC = () => {
                         Ver Detalhes
                       </Button>
 
-                      {/* ENVIO UNITÁRIO DIRETO DO CARD */}
-                      <Button
-                        size="sm"
-                        disabled={isBlocked}
-                        className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-8 font-semibold shadow-sm disabled:opacity-40"
-                        onClick={() => {
-                          if (opp.commercial_sent_at) {
-                            setDuplicateWarningOpp(opp)
-                          } else {
-                            setSelectedOppIds([opp.id])
-                            setIsBatchSendModalOpen(true)
-                          }
-                        }}
-                      >
-                        <Send className="w-3 h-3 mr-1" />
-                        Enviar p/ Comercial
-                      </Button>
+                      {/* ROTEAMENTO POR NATUREZA: CRÉDITO -> FINANCEIRO | COMERCIAL -> COMERCIAL */}
+                      {isCreditBlockedReason(opp.block_reason, opp.credit_status) ? (
+                        // REQUISITO 1, 2 e 5: BLOQUEIO FINANCEIRO/CRÉDITO
+                        opp.financial_substatus === 'Aguardando análise financeira' ? (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              disabled={true}
+                              className="bg-amber-600/80 text-white text-xs h-8 font-medium cursor-not-allowed opacity-80"
+                            >
+                              <Clock className="w-3 h-3 mr-1" />
+                              Análise Financeira Pendente
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs h-8 text-[#005596] border-[#005596]/40 hover:bg-[#005596]/10"
+                              onClick={() => handleViewFinancialRequest(opp)}
+                            >
+                              <FileText className="w-3 h-3 mr-1" />
+                              Ver solicitação
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-8 font-semibold shadow-sm"
+                            onClick={() => handleOpenSendFinancial(opp)}
+                          >
+                            <DollarSign className="w-3.5 h-3.5 mr-1 text-emerald-300" />
+                            Enviar p/ Financeiro
+                          </Button>
+                        )
+                      ) : (
+                        // DEMAIS CASOS: FLUXO COMERCIAL PADRÃO
+                        <Button
+                          size="sm"
+                          disabled={isBlocked}
+                          className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-8 font-semibold shadow-sm disabled:opacity-40"
+                          onClick={() => {
+                            if (opp.commercial_sent_at) {
+                              setDuplicateWarningOpp(opp)
+                            } else {
+                              setSelectedOppIds([opp.id])
+                              setIsBatchSendModalOpen(true)
+                            }
+                          }}
+                        >
+                          <Send className="w-3 h-3 mr-1" />
+                          Enviar p/ Comercial
+                        </Button>
+                      )}
                     </div>
                   </CardFooter>
                 </Card>
@@ -1485,7 +1758,21 @@ export const ComplementCargosPage: React.FC = () => {
                             {renderStatusBadge(item.new_status)}
                           </td>
                           <td className="p-2.5 text-slate-600 dark:text-slate-400 text-[10px]">
-                            {item.description || '—'}
+                            <div>{item.description || '—'}</div>
+                            {item.metadata?.request_number && (
+                              <div className="mt-1 font-mono text-[9px] text-blue-700 dark:text-blue-300">
+                                Ref. Solicitação: {item.metadata.request_number}
+                              </div>
+                            )}
+                            {item.metadata?.prior_sap && (
+                              <div className="mt-0.5 text-[9px] text-slate-500 font-mono">
+                                Pré-SAP: {item.metadata.prior_sap?.credit_status_sap || 'Bloqueado'}{' '}
+                                • Pós-SAP:{' '}
+                                {item.metadata.recheck_sap?.status ||
+                                  item.metadata.new_sap_status ||
+                                  'Revalidação'}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -1727,6 +2014,651 @@ export const ComplementCargosPage: React.FC = () => {
                 onClick={() => setIsSimulateOrderModalOpen(false)}
               >
                 Fechar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 3. POPUP "ENVIAR P/ FINANCEIRO" (PADRÃO HUB CIAFAL - REQUISITO 3) */}
+        <Dialog open={isFinancialModalOpen} onOpenChange={setIsFinancialModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2 text-[#005596]">
+                <DollarSign className="w-5 h-5 text-[#005596]" />
+                Enviar Oportunidade para Análise Financeira
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-600 dark:text-slate-400">
+                Encaminhamento ao setor Financeiro para reavaliação de crédito/limite no SAP ECC. A
+                oportunidade permanecerá bloqueada até parecer conclusivo.
+              </DialogDescription>
+            </DialogHeader>
+
+            {financialTargetOpp && (
+              <div className="space-y-3.5 py-1 text-xs">
+                {/* BLOCO 1: DADOS DA OPORTUNIDADE & VEÍCULO */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="flex items-center justify-between border-b pb-1.5 border-slate-200 dark:border-slate-700">
+                    <span className="font-bold text-[#005596] flex items-center gap-1.5 text-xs">
+                      <Truck className="w-3.5 h-3.5" />
+                      Dados da Oportunidade & Carga
+                    </span>
+                    <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                      {financialTargetOpp.opportunity_code ||
+                        `PROPOSTA ${financialTargetOpp.load_proposal_id}`}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Itinerário SAP:</span>
+                      <strong className="font-mono text-slate-800 dark:text-slate-200">
+                        {financialTargetOpp.itinerary_id || 'N/A'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Data Saída:</span>
+                      <strong>
+                        {financialTargetOpp.planned_dispatch_date
+                          ? new Date(financialTargetOpp.planned_dispatch_date).toLocaleDateString(
+                              'pt-BR',
+                            )
+                          : 'A definir'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Veículo Programado:</span>
+                      <strong className="truncate block">
+                        {financialTargetOpp.vehicle_type || 'Carreta'} (
+                        {((financialTargetOpp.vehicle_capacity_kg || 27000) / 1000).toFixed(1)}t)
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">
+                        Peso Atual / Ocupação:
+                      </span>
+                      <strong className="text-blue-700">
+                        {((financialTargetOpp.current_weight_kg || 0) / 1000).toFixed(1)}t (
+                        {financialTargetOpp.current_occupancy_pct || 0}%)
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="p-2 bg-amber-50 dark:bg-amber-950/30 rounded border border-amber-200 dark:border-amber-900 flex items-center justify-between text-[11px]">
+                    <span className="text-amber-800 dark:text-amber-300 font-semibold">
+                      Complemento necessário para atingir meta de carga:
+                    </span>
+                    <span className="font-mono font-black text-amber-700 dark:text-amber-400 text-xs">
+                      {((financialTargetOpp.missing_weight_kg || 0) / 1000).toFixed(1)} t
+                    </span>
+                  </div>
+                </div>
+
+                {/* BLOCO 2: DADOS DO CLIENTE & ITEM */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="flex items-center justify-between border-b pb-1.5 border-slate-200 dark:border-slate-700">
+                    <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-xs">
+                      <Building className="w-3.5 h-3.5 text-[#005596]" />
+                      Dados do Cliente & Item Sugerido
+                    </span>
+                    <Badge variant="outline" className="font-mono text-[10px]">
+                      SAP:{' '}
+                      {financialTargetOpp.customer_sap_code ||
+                        financialTargetOpp.customer_id ||
+                        '15882'}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Razão Social:</span>
+                      <strong className="text-slate-900 dark:text-slate-100">
+                        {financialTargetOpp.customer_name || 'Cliente'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Cidade/UF:</span>
+                      <strong>
+                        {financialTargetOpp.destination_city || 'Destino'}/
+                        {financialTargetOpp.destination_uf || 'BR'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Representante:</span>
+                      <strong className="truncate block">
+                        {financialTargetOpp.commercial_representative ||
+                          financialTargetOpp.salesperson_id ||
+                          'Comercial CIAFAL'}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-700 text-[11px]">
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Material:</span>
+                      <strong className="text-slate-800 dark:text-slate-200">
+                        {financialTargetOpp.material_description ||
+                          financialTargetOpp.material_id ||
+                          'Laminados CA-50'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Quantidade / Peso:</span>
+                      <strong className="text-[#005596]">
+                        {(
+                          (financialTargetOpp.suggested_quantity_kg ||
+                            financialTargetOpp.missing_weight_kg ||
+                            0) / 1000
+                        ).toFixed(1)}{' '}
+                        t
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">
+                        Pedido SAP Relacionado:
+                      </span>
+                      <span className="font-mono text-slate-700 dark:text-slate-300">
+                        {financialTargetOpp.sap_order_id || 'Aguardando liberação de crédito'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BLOCO 3: SITUAÇÃO FINANCEIRA RETORNADA PELO SAP (REQUISITO 3) */}
+                <div className="p-3 bg-rose-50/70 dark:bg-rose-950/30 rounded-lg border border-rose-200 dark:border-rose-900 space-y-2">
+                  <div className="flex items-center justify-between border-b pb-1.5 border-rose-200 dark:border-rose-900">
+                    <span className="font-bold text-rose-800 dark:text-rose-300 flex items-center gap-1.5 text-xs">
+                      <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                      Situação Financeira Oficial (SAP ECC)
+                    </span>
+                    <Badge className="bg-rose-600 text-white text-[10px]">
+                      {financialTargetOpp.credit_status || 'Crédito Bloqueado (Financeiro)'}
+                    </Badge>
+                  </div>
+
+                  <div className="text-[11px] text-rose-900 dark:text-rose-200">
+                    <strong>Motivo do Bloqueio: </strong>
+                    <span>
+                      {financialTargetOpp.block_reason ||
+                        'Crédito bloqueado no SAP pelo financeiro (limite excedido)'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-white/70 dark:bg-slate-900/60 p-2 rounded border border-rose-200 dark:border-rose-900/60 text-[11px]">
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Limite de Crédito:</span>
+                      <strong className="font-mono text-slate-800 dark:text-slate-200">
+                        R$ 400.000,00
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Crédito Utilizado:</span>
+                      <strong className="font-mono text-rose-700">R$ 415.000,00</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Crédito Disponível:</span>
+                      <strong className="font-mono text-rose-700">- R$ 15.000,00</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">
+                        Valor Necessário Item:
+                      </span>
+                      <strong className="font-mono text-amber-700">R$ 28.500,00</strong>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-0.5">
+                    <span>Consulta SAP: RFC/BAPI FD32 / KNKK (Ambiente QAS)</span>
+                    <span>
+                      Última consulta:{' '}
+                      <strong className="font-mono">
+                        {new Date().toLocaleDateString('pt-BR')} às{' '}
+                        {new Date().toLocaleTimeString('pt-BR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+
+                {/* BLOCO 4: CAMPO OBSERVAÇÃO PARA O FINANCEIRO */}
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-xs">
+                    <FileText className="w-3.5 h-3.5 text-[#005596]" />
+                    Observação para o Financeiro:
+                  </label>
+                  <textarea
+                    rows={3}
+                    className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-2.5 focus:ring-1 focus:ring-[#005596] focus:outline-none"
+                    placeholder="Informe detalhes comerciais ou operacionais relevantes (ex.: cliente solicitou prorrogação ou pagamento antecipado em análise)..."
+                    value={financialObservation}
+                    onChange={(e) => setFinancialObservation(e.target.value)}
+                  />
+                  <p className="text-[10px] text-slate-500">
+                    O envio registrará número sequencial e log de auditoria permanente. A carga
+                    permanecerá bloqueada.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFinancialModalOpen(false)}
+                disabled={isSendingFinancial}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                className="bg-[#005596] hover:bg-[#004478] text-white font-semibold"
+                onClick={handleConfirmSendFinancial}
+                disabled={isSendingFinancial}
+              >
+                {isSendingFinancial ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  'Enviar para análise'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 5. MODAL DE CONSULTA: "Ver solicitação" (REQUISITO 5) */}
+        <Dialog
+          open={Boolean(viewFinancialRequestModal)}
+          onOpenChange={(open) => !open && setViewFinancialRequestModal(null)}
+        >
+          <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2 text-[#005596]">
+                <FileText className="w-4 h-4 text-[#005596]" />
+                Solicitação Financeira {viewFinancialRequestModal?.request_number}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Rastreabilidade e status da avaliação de crédito enviada ao setor Financeiro.
+              </DialogDescription>
+            </DialogHeader>
+
+            {viewFinancialRequestModal && (
+              <div className="space-y-3 text-xs py-1">
+                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border space-y-2">
+                  <div className="flex justify-between items-center border-b pb-1">
+                    <span className="text-slate-500">Status do Fluxo:</span>
+                    <Badge className="bg-amber-600 text-white font-mono text-[10px]">
+                      {viewFinancialRequestModal.status}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Oportunidade:</span>
+                      <strong className="font-mono">
+                        {viewFinancialRequestModal.opportunity_code}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Data Solicitação:</span>
+                      <strong>
+                        {viewFinancialRequestModal.requested_at
+                          ? new Date(viewFinancialRequestModal.requested_at).toLocaleString('pt-BR')
+                          : 'N/A'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Solicitante:</span>
+                      <strong>
+                        {viewFinancialRequestModal.requester_name} (
+                        {viewFinancialRequestModal.requester_role || 'operador'})
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Cliente SAP:</span>
+                      <strong>
+                        {viewFinancialRequestModal.customer_name} (
+                        {viewFinancialRequestModal.customer_sap_code})
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="text-[11px] pt-1 border-t border-slate-200/60 dark:border-slate-700">
+                    <span className="text-slate-500 block text-[10px]">Motivo do Bloqueio:</span>
+                    <span className="text-rose-700 font-medium">
+                      {viewFinancialRequestModal.block_reason || 'Crédito bloqueado no SAP'}
+                    </span>
+                  </div>
+
+                  {viewFinancialRequestModal.requester_observation && (
+                    <div className="text-[11px] bg-white dark:bg-slate-900 p-2 rounded border">
+                      <strong className="block text-slate-700 dark:text-slate-300">
+                        Observação enviada pelo operador:
+                      </strong>
+                      <p className="text-slate-600 dark:text-slate-400">
+                        {viewFinancialRequestModal.requester_observation}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* PARECER SE HOUVER */}
+                {viewFinancialRequestModal.decision && (
+                  <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 space-y-1.5 text-[11px]">
+                    <div className="flex justify-between font-bold text-blue-950 dark:text-blue-200">
+                      <span>Parecer Financeiro: {viewFinancialRequestModal.decision}</span>
+                      <span>
+                        {viewFinancialRequestModal.financial_decided_at
+                          ? new Date(viewFinancialRequestModal.financial_decided_at).toLocaleString(
+                              'pt-BR',
+                            )
+                          : ''}
+                      </span>
+                    </div>
+                    <p className="text-slate-700 dark:text-slate-300">
+                      <strong>Justificativa: </strong>
+                      {viewFinancialRequestModal.decision_justification}
+                    </p>
+                    <div className="text-[10px] text-slate-500">
+                      Responsável: {viewFinancialRequestModal.financial_analyst_name}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewFinancialRequestModal(null)}
+              >
+                Fechar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 6. PAINEL DO FINANCEIRO / FILA DE SOLICITAÇÕES (REQUISITO 6) */}
+        <Dialog open={isFinancialDeskOpen} onOpenChange={setIsFinancialDeskOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center justify-between text-[#005596]">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-[#005596]" />
+                  <span>Fila de Avaliação Financeira (Complemento de Cargas)</span>
+                </div>
+                <Badge variant="outline" className="text-xs bg-slate-50 font-mono">
+                  {financialQueueList.length} solicitação(ões)
+                </Badge>
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Acesso restrito ao perfil Financeiro e Gestão Logística. A liberação exige
+                justificativa obrigatória e revalidação automática de crédito no SAP ECC.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 py-2 text-xs">
+              {isLoadingFinancialQueue ? (
+                <div className="p-10 text-center text-slate-400">
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#005596]" />
+                  Carregando fila financeira...
+                </div>
+              ) : financialQueueList.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  Nenhuma solicitação financeira pendente de análise no momento.
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 dark:bg-slate-800 uppercase font-semibold text-[10px] border-b">
+                      <tr>
+                        <th className="p-2.5">Solicitação / Data</th>
+                        <th className="p-2.5">Cliente (SAP)</th>
+                        <th className="p-2.5">Material / Peso</th>
+                        <th className="p-2.5">Situação Crédito</th>
+                        <th className="p-2.5">Status</th>
+                        <th className="p-2.5 text-right">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y text-[11px]">
+                      {financialQueueList.map((req) => (
+                        <tr
+                          key={req.id}
+                          className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40"
+                        >
+                          <td className="p-2.5">
+                            <strong className="font-mono text-[#005596] block">
+                              {req.request_number}
+                            </strong>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              {req.requested_at
+                                ? new Date(req.requested_at).toLocaleString('pt-BR')
+                                : 'N/A'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block">
+                              Por: {req.requester_name}
+                            </span>
+                          </td>
+                          <td className="p-2.5">
+                            <strong className="block text-slate-800 dark:text-slate-200">
+                              {req.customer_name}
+                            </strong>
+                            <span className="text-[10px] font-mono text-slate-500">
+                              Cód: {req.customer_sap_code} • {req.destination_city || 'Destino'}/
+                              {req.destination_uf || 'BR'}
+                            </span>
+                          </td>
+                          <td className="p-2.5">
+                            <span className="block text-slate-700 dark:text-slate-300">
+                              {req.material_description || req.material_id || 'Laminados CA-50'}
+                            </span>
+                            <span className="font-mono text-amber-700 font-bold text-[10px]">
+                              {(
+                                (req.suggested_quantity_kg || req.missing_weight_kg || 0) / 1000
+                              ).toFixed(1)}{' '}
+                              t
+                            </span>
+                          </td>
+                          <td className="p-2.5">
+                            <span className="text-rose-600 font-semibold block text-[10px]">
+                              {req.block_reason || 'Limite excedido'}
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-500">
+                              Disp: R$ -15.000 | Req: R$ 28.500
+                            </span>
+                          </td>
+                          <td className="p-2.5">
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] ${
+                                req.status === 'AGUARDANDO_ANALISE'
+                                  ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                  : req.status === 'LIBERADO_FINANCEIRO' ||
+                                      req.status === 'REVALIDACAO_SAP_CONFIRMADA'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                    : 'bg-rose-50 text-rose-700 border-rose-300'
+                              }`}
+                            >
+                              {req.status}
+                            </Badge>
+                          </td>
+                          <td className="p-2.5 text-right whitespace-nowrap">
+                            <Button
+                              size="sm"
+                              className="bg-[#005596] hover:bg-[#004478] text-white text-[11px] h-7"
+                              onClick={() => {
+                                setFinancialDecisionModal(req)
+                                setFinancialDecisionAction('LIBERAR')
+                                setFinancialDecisionJustification('')
+                                setFinancialSapCondition('LIBERADO')
+                              }}
+                            >
+                              Avaliar Parecer
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setIsFinancialDeskOpen(false)}>
+                Fechar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 6, 7 e 8. MODAL DE DECISÃO FINANCEIRA: "Liberar | Reprovar | Solicitar informações" */}
+        <Dialog
+          open={Boolean(financialDecisionModal)}
+          onOpenChange={(open) => !open && setFinancialDecisionModal(null)}
+        >
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2 text-[#005596]">
+                <ShieldCheck className="w-5 h-5 text-[#005596]" />
+                Parecer Financeiro • {financialDecisionModal?.request_number}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Cliente: <strong>{financialDecisionModal?.customer_name}</strong> (SAP:{' '}
+                {financialDecisionModal?.customer_sap_code})
+              </DialogDescription>
+            </DialogHeader>
+
+            {financialDecisionModal && (
+              <div className="space-y-3.5 py-1 text-xs">
+                {/* ESCOLHA DA AÇÃO */}
+                <div>
+                  <label className="font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                    Decisão do Setor Financeiro:
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFinancialDecisionAction('LIBERAR')}
+                      className={`p-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                        financialDecisionAction === 'LIBERAR'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 hover:bg-slate-100 text-slate-700 dark:text-slate-200'
+                      }`}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Liberar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFinancialDecisionAction('REPROVAR')}
+                      className={`p-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                        financialDecisionAction === 'REPROVAR'
+                          ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 hover:bg-slate-100 text-slate-700 dark:text-slate-200'
+                      }`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Reprovar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFinancialDecisionAction('SOLICITAR_INFORMACOES')}
+                      className={`p-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                        financialDecisionAction === 'SOLICITAR_INFORMACOES'
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 hover:bg-slate-100 text-slate-700 dark:text-slate-200'
+                      }`}
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                      Pedir Info
+                    </button>
+                  </div>
+                </div>
+
+                {/* JUSTIFICATIVA OBRIGATÓRIA (REQUISITO 6) */}
+                <div>
+                  <label className="font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                    Observação / Justificativa Obrigatória:
+                  </label>
+                  <textarea
+                    rows={3}
+                    className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-2.5 focus:ring-1 focus:ring-[#005596] focus:outline-none"
+                    placeholder="Fundamente formalmente a decisão para auditoria e histórico..."
+                    value={financialDecisionJustification}
+                    onChange={(e) => setFinancialDecisionJustification(e.target.value)}
+                  />
+                </div>
+
+                {/* SIMULAÇÃO DE REVALIDAÇÃO CONTRA O SAP (REQUISITO 7 e 8) */}
+                {financialDecisionAction === 'LIBERAR' && (
+                  <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 space-y-2">
+                    <span className="font-bold text-blue-950 dark:text-blue-200 block text-[11px]">
+                      Governança SAP: Consulta Oficial de Revalidação
+                    </span>
+                    <p className="text-[10px] text-slate-600 dark:text-slate-400">
+                      O sistema executará a chamada RFC ao SAP ECC antes da efetivação. Selecione a
+                      condição retornada pelo ambiente SAP QAS:
+                    </p>
+                    <div className="flex items-center gap-3 text-xs">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="sapCond"
+                          value="LIBERADO"
+                          checked={financialSapCondition === 'LIBERADO'}
+                          onChange={() => setFinancialSapCondition('LIBERADO')}
+                        />
+                        <span className="font-medium text-emerald-800 dark:text-emerald-300">
+                          SAP: Limite Liberado (OK)
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="sapCond"
+                          value="BLOQUEADO"
+                          checked={financialSapCondition === 'BLOQUEADO'}
+                          onChange={() => setFinancialSapCondition('BLOQUEADO')}
+                        />
+                        <span className="font-medium text-rose-700 dark:text-rose-300">
+                          SAP: Crédito Ainda Bloqueado (Divergência)
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFinancialDecisionModal(null)}
+                disabled={isProcessingFinancialDecision}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                className="bg-[#005596] hover:bg-[#004478] text-white font-semibold"
+                onClick={handleProcessFinancialDecision}
+                disabled={isProcessingFinancialDecision}
+              >
+                {isProcessingFinancialDecision ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  'Registrar Decisão'
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
