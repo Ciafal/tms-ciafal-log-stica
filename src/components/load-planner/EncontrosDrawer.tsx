@@ -28,6 +28,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Link2,
   Truck,
@@ -287,10 +288,13 @@ export const EncontrosDrawer: React.FC<EncontrosDrawerProps> = ({
       const payloadMatches = selectedMatchesList.map((m) => ({
         match_id: m.matchId,
         cargo_id: m.candidateLoad.id,
+        offer_id: m.offerCode || '',
         cargo_title: m.candidateLoad.title,
         itinerary_code: m.candidateLoad.itineraryCode,
         itinerary_description:
-          (m.candidateLoad as any).itineraryName || `Itinerário ${m.candidateLoad.itineraryCode}`,
+          (m.candidateLoad as any).itineraryName ||
+          m.candidateLoad.itineraryDescription ||
+          `Itinerário ${m.candidateLoad.itineraryCode}`,
         origin: 'Contagem / MG (Sidercentro CIAFAL)',
         destination_city: m.candidateLoad.destinationCity,
         destination_uf: m.candidateLoad.destinationUf,
@@ -303,7 +307,11 @@ export const EncontrosDrawer: React.FC<EncontrosDrawerProps> = ({
         carrier_name: (m.queueVehicle as any).carrier_name || '',
         vehicle_plate: m.vehiclePlate,
         vehicle_type: m.vehicleType,
-        vehicle_body_type: (m.queueVehicle as any).body_type || '',
+        vehicle_body_type:
+          (m.queueVehicle as any).body_type ||
+          (m.queueVehicle.expand?.vehicle as any)?.body_type ||
+          m.vehicleType ||
+          '',
         vehicle_capacity_kg: m.vehicleCapacityKg,
         queue_group: m.driverQueueGroup,
         queue_status: m.queueVehicle.status,
@@ -320,7 +328,9 @@ export const EncontrosDrawer: React.FC<EncontrosDrawerProps> = ({
             .filter(Boolean)
             .slice(0, 3)
             .join(', ') || 'Produtos siderúrgicos CIAFAL',
-        customer_logistic_notes: '',
+        customer_logistic_notes: (m.candidateLoad.logisticRestrictions || []).join('; ') || '',
+        logistic_restrictions: m.candidateLoad.logisticRestrictions || [],
+        observations: `Encontro ${m.matchId} via Planejador de Cargas (Score: ${m.score.totalScore}%)`,
         orders: m.candidateLoad.orders || [],
         freight_value: m.totalSuggestedFreight,
         initial_offer_value: m.totalSuggestedFreight,
@@ -725,7 +735,7 @@ Explique de forma técnica e compacta (máx 3 parágrafos) ao gestor logístico:
           </div>
         </DrawerHeader>
 
-        {/* Barra de Ação em Lote: Seleção de Encontros + Botão "Enviar Chicão" Oficial */}
+        {/* Barra de Ação em Lote: Seleção de Encontros + Botão Único "Enviar ao Chicão" */}
         <div className="px-4 sm:px-6 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
@@ -745,24 +755,38 @@ Explique de forma técnica e compacta (máx 3 parágrafos) ao gestor logístico:
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              disabled={selectedMatchIds.size === 0}
-              onClick={handleOpenChicaoConfirm}
-              className={`h-8.5 px-4 rounded-md font-semibold text-xs transition-all shadow-xs flex items-center gap-2 ${
-                selectedMatchIds.size > 0
-                  ? 'bg-[#005596] hover:bg-[#004275] text-white cursor-pointer'
-                  : 'bg-slate-200 text-slate-400 cursor-not-allowed border-slate-300'
-              }`}
-            >
-              <Bot className="h-4 w-4 text-blue-200" />
-              <span>Enviar Chicão</span>
-              {selectedMatchIds.size > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-white/20 text-white text-[10px]">
-                  {selectedMatchIds.size}
-                </span>
+            <TooltipProvider>
+              {selectedMatchIds.size === 0 ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-block">
+                      <Button
+                        size="sm"
+                        disabled
+                        aria-label="Enviar ao Chicão"
+                        className="h-9 px-4 rounded-md font-semibold text-xs transition-all shadow-xs flex items-center gap-2 whitespace-nowrap bg-slate-200 hover:bg-slate-200 text-slate-700 border border-slate-300 cursor-not-allowed opacity-90 disabled:opacity-90 disabled:pointer-events-none"
+                      >
+                        <Bot className="h-4 w-4 text-slate-600 shrink-0" />
+                        <span>Enviar ao Chicão</span>
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">
+                    Selecione pelo menos um encontro veículo × carga para enviar ao Chicão.
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={handleOpenChicaoConfirm}
+                  aria-label={`Enviar ao Chicão (${selectedMatchIds.size})`}
+                  className="h-9 px-4 rounded-md font-semibold text-xs transition-all shadow-xs flex items-center gap-2 whitespace-nowrap bg-[#005596] hover:bg-[#004275] text-white border border-[#005596] cursor-pointer"
+                >
+                  <Bot className="h-4 w-4 text-white shrink-0" />
+                  <span>Enviar ao Chicão ({selectedMatchIds.size})</span>
+                </Button>
               )}
-            </Button>
+            </TooltipProvider>
           </div>
         </div>
 
@@ -815,7 +839,7 @@ Explique de forma técnica e compacta (máx 3 parágrafos) ao gestor logístico:
           )}
         </ScrollArea>
 
-        {/* POPUP DE CONFIRMAÇÃO: Enviar ofertas ao Chicão (Requisito 4 do usuário) */}
+        {/* POPUP DE CONFIRMAÇÃO: Enviar ao Chicão */}
         <Dialog open={isChicaoConfirmOpen} onOpenChange={setIsChicaoConfirmOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
             <DialogHeader className="p-4 sm:p-6 pb-3 border-b bg-white">
@@ -825,11 +849,11 @@ Explique de forma técnica e compacta (máx 3 parágrafos) ao gestor logístico:
                 </div>
                 <div>
                   <DialogTitle className="text-lg font-bold text-slate-900">
-                    Enviar ofertas ao Chicão
+                    Enviar ao Chicão
                   </DialogTitle>
                   <DialogDescription className="text-xs text-slate-500 mt-0.5">
-                    O Chicão iniciará a oferta destas cargas aos motoristas elegíveis via WhatsApp e
-                    o acompanhamento será realizado na Mesa de Fretes.
+                    Você selecionou {selectedMatchesList.length} encontro(s) veículo × carga para
+                    envio à Mesa de Fretes e início da negociação pelo Chicão.
                   </DialogDescription>
                 </div>
               </div>
@@ -901,50 +925,60 @@ Explique de forma técnica e compacta (máx 3 parágrafos) ao gestor logístico:
                   <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                     <tr>
                       <th className="p-2.5">Motorista</th>
-                      <th className="p-2.5">Veículo</th>
+                      <th className="p-2.5">Veículo / Placa</th>
                       <th className="p-2.5">Carga</th>
                       <th className="p-2.5">Itinerário</th>
-                      <th className="p-2.5 text-right">Peso</th>
-                      <th className="p-2.5 text-center">Descargas</th>
-                      <th className="p-2.5 text-right">Distância</th>
-                      <th className="p-2.5 text-right">Valor Frete</th>
+                      <th className="p-2.5 text-right">Tonelagem</th>
+                      <th className="p-2.5 text-center">Nº Descargas</th>
+                      <th className="p-2.5 text-right">Km Total</th>
+                      <th className="p-2.5 text-right">Tempo Estimado</th>
+                      <th className="p-2.5 text-right">Valor Ofertado</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {selectedMatchesList.map((m) => (
-                      <tr key={m.matchId} className="hover:bg-slate-50/70">
-                        <td className="p-2.5 font-medium text-slate-900">
-                          {m.driverName}
-                          <div className="text-[10px] text-slate-400 font-mono">
-                            {m.driverPhone || 'Sem telefone'}
-                          </div>
-                        </td>
-                        <td className="p-2.5 font-mono font-semibold text-slate-800">
-                          {m.vehiclePlate}
-                        </td>
-                        <td className="p-2.5 font-medium text-slate-700">
-                          {m.candidateLoad.title}
-                        </td>
-                        <td className="p-2.5 text-slate-600">
-                          {m.candidateLoad.destinationCity} / {m.candidateLoad.destinationUf}
-                          <div className="text-[10px] text-slate-400">
-                            Rota {m.candidateLoad.itineraryCode}
-                          </div>
-                        </td>
-                        <td className="p-2.5 text-right font-mono text-slate-800">
-                          {(m.candidateLoad.totalWeightKg / 1000).toFixed(2)} t
-                        </td>
-                        <td className="p-2.5 text-center font-mono">
-                          {m.candidateLoad.dischargesCount}
-                        </td>
-                        <td className="p-2.5 text-right font-mono text-slate-700">
-                          {m.distanceKm} km
-                        </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-[#005596]">
-                          {fmtBrl(m.totalSuggestedFreight)}
-                        </td>
-                      </tr>
-                    ))}
+                    {selectedMatchesList.map((m) => {
+                      const tripHours = (m.operationalAnalysis as any)?.totalTripHours || 0
+                      return (
+                        <tr key={m.matchId} className="hover:bg-slate-50/70">
+                          <td className="p-2.5 font-medium text-slate-900">
+                            {m.driverName}
+                            <div className="text-[10px] text-slate-400 font-mono">
+                              {m.driverPhone || 'Sem telefone'}
+                            </div>
+                          </td>
+                          <td className="p-2.5">
+                            <span className="font-mono font-semibold text-slate-800 block">
+                              {m.vehiclePlate}
+                            </span>
+                            <span className="text-[10px] text-slate-500">{m.vehicleType}</span>
+                          </td>
+                          <td className="p-2.5 font-medium text-slate-700">
+                            {m.candidateLoad.title}
+                          </td>
+                          <td className="p-2.5 text-slate-600">
+                            {m.candidateLoad.destinationCity} / {m.candidateLoad.destinationUf}
+                            <div className="text-[10px] text-slate-400">
+                              Rota {m.candidateLoad.itineraryCode}
+                            </div>
+                          </td>
+                          <td className="p-2.5 text-right font-mono text-slate-800">
+                            {(m.candidateLoad.totalWeightKg / 1000).toFixed(2)} t
+                          </td>
+                          <td className="p-2.5 text-center font-mono">
+                            {m.candidateLoad.dischargesCount}
+                          </td>
+                          <td className="p-2.5 text-right font-mono text-slate-700">
+                            {m.distanceKm} km
+                          </td>
+                          <td className="p-2.5 text-right font-mono text-slate-600">
+                            {tripHours > 0 ? `${tripHours}h` : 'A calcular'}
+                          </td>
+                          <td className="p-2.5 text-right font-mono font-bold text-[#005596]">
+                            {fmtBrl(m.totalSuggestedFreight)}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -985,7 +1019,7 @@ Explique de forma técnica e compacta (máx 3 parágrafos) ao gestor logístico:
                     </>
                   ) : (
                     <>
-                      <Bot className="h-4 w-4 text-blue-200" />
+                      <Bot className="h-4 w-4 text-white" />
                       <span>Confirmar envio ao Chicão</span>
                     </>
                   )}
