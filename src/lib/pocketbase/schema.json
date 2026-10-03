@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T18:48:07.351Z",
+  "generatedAt": "2026-10-03T19:01:05.897Z",
   "collections": [
     {
       "name": "users",
@@ -703,12 +703,88 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "sap_transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delivery_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "order_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "field_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "field_label",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reason_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "justification",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_sync_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "SINCRONIZADO",
+            "AGUARDANDO_SINCRONIZACAO",
+            "ERRO_SINCRONIZACAO",
+            "ALTERADO_SOMENTE_HUB",
+            "PENDENTE_APROVACAO",
+            "NAO_APLICAVEL"
+          ]
+        },
+        {
+          "name": "sap_sync_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_response_message",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "session_id",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_audit_resource ON audit_logs (resource, resource_id)",
         "CREATE INDEX idx_audit_created ON audit_logs (created DESC)",
-        "CREATE INDEX idx_audit_correlation ON audit_logs (correlation_id)"
+        "CREATE INDEX idx_audit_correlation ON audit_logs (correlation_id)",
+        "CREATE INDEX `idx_audit_sap_transport` ON `audit_logs` (sap_transport_number)",
+        "CREATE INDEX `idx_audit_delivery_number` ON `audit_logs` (delivery_number)"
       ]
     },
     {
@@ -13333,6 +13409,110 @@
         },
         {
           "name": "rfid_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sync_version",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_modified_by_user",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_modified_by_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_change_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_change_justification",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sap_sync_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "SINCRONIZADO",
+            "AGUARDANDO_SINCRONIZACAO",
+            "ERRO_SINCRONIZACAO",
+            "ALTERADO_SOMENTE_HUB",
+            "PENDENTE_APROVACAO"
+          ]
+        },
+        {
+          "name": "approval_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["APROVADO", "PENDENTE_APROVACAO", "REJEITADO", "NAO_REQUER_APROVACAO"]
+        },
+        {
+          "name": "approval_requester",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approval_approver",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approval_requested_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approval_decided_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deliveries_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "company_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin_system_source",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "expected_loading_time",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logistics_notes",
           "type": "text",
           "required": false,
           "system": false

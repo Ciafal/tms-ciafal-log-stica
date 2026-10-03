@@ -36,6 +36,9 @@ import {
   History,
   Target,
   LineChart,
+  FileSignature,
+  FileEdit,
+  FolderKanban,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -74,6 +77,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   // Collapsible menu groups state (auto-abre se a rota ativa pertencer ao grupo)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    cadastro: true,
     disponibilidade: true,
     planejamento: true,
     contratacao: false,
@@ -92,8 +96,32 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     }))
   }
 
-  // Estrutura Canônica Reorganizada — Item 19 do Requisito Oficial CIAFAL
+  // Estrutura Canônica Reorganizada — Item 1 do Requisito Oficial: TMS > CADASTRO > Editar Transporte
   const menuGroups: MenuGroup[] = [
+    {
+      id: 'cadastro',
+      title: 'CADASTRO',
+      icon: FolderKanban,
+      items: [
+        {
+          title: 'Editar Transporte',
+          path: '/tms/editar-transporte',
+          badge: 'VT02N',
+          badgeColor: 'bg-[#005596]',
+          show: permissions.canViewTransport ?? true,
+        },
+        {
+          title: 'Motoristas & Veículos',
+          path: '/tms/motoristas',
+          show: true,
+        },
+        {
+          title: 'Pré-cadastros',
+          path: '/tms/pre-cadastros',
+          show: permissions.canManagePreRegistrations,
+        },
+      ],
+    },
     {
       id: 'disponibilidade',
       title: 'DISPONIBILIDADE LOGÍSTICA',
@@ -104,16 +132,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           path: '/tms/fila',
           badge: 'PORTA/FORA',
           badgeColor: 'bg-emerald-600',
-          show: true,
-        },
-        {
-          title: 'Pré-cadastros',
-          path: '/tms/pre-cadastros',
-          show: permissions.canManagePreRegistrations,
-        },
-        {
-          title: 'Motoristas & Veículos',
-          path: '/tms/motoristas',
           show: true,
         },
       ],
