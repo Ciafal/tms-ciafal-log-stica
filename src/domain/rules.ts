@@ -566,6 +566,8 @@ export type ChicaoOfferStatus =
   | 'CANCELADA'
   | 'ERRO_ENVIO'
 
+export const CHICAO_AUTONOMIA_MAX_SPREAD_PCT = 3.0
+
 export interface ChicaoFreightOfferEntity {
   id: string
   offer_code: string

@@ -83,14 +83,15 @@ import {
 } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ChicaoFreightMesaView } from '@/components/mesa-fretes/ChicaoFreightMesaView'
 
 export const MesaFretesPage: React.FC = () => {
   const { user, permissions } = useAuth()
   const { toast } = useToast()
 
-  const [activeTab, setActiveTab] = useState<'mercado' | 'negociacoes' | 'carlao_supervisao'>(
-    'mercado',
-  )
+  const [activeTab, setActiveTab] = useState<
+    'chicao_mesa' | 'mercado' | 'negociacoes' | 'carlao_supervisao'
+  >('chicao_mesa')
   const [offers, setOffers] = useState<any[]>([])
   const [negotiations, setNegotiations] = useState<any[]>([])
   const [queueEntries, setQueueEntries] = useState<any[]>([])
@@ -899,6 +900,10 @@ export const MesaFretesPage: React.FC = () => {
         {/* TABS NAVEGAÇÃO DA MESA */}
         <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)}>
           <TabsList className="bg-slate-100 p-1 border border-slate-200">
+            <TabsTrigger value="chicao_mesa" className="gap-1.5 text-xs font-bold">
+              <Bot className="w-4 h-4 text-[#005596]" />
+              Agente Chicão (Kanban & Ofertas)
+            </TabsTrigger>
             <TabsTrigger value="mercado" className="gap-1.5 text-xs font-bold">
               <Layers className="w-4 h-4" />
               Mercado de Cargas ({offers.length})
@@ -912,6 +917,11 @@ export const MesaFretesPage: React.FC = () => {
               Supervisão IA & Explicabilidade
             </TabsTrigger>
           </TabsList>
+
+          {/* TAB 0: MESA DE FRETES AGENTE CHICÃO (KANBAN 8 COLUNAS, INDICADORES REAIS, CHAT, TIMELINE) */}
+          <TabsContent value="chicao_mesa" className="space-y-4 mt-4">
+            <ChicaoFreightMesaView />
+          </TabsContent>
 
           {/* TAB 1: MERCADO DE CARGAS & OFERTAS POR ONDAS */}
           <TabsContent value="mercado" className="space-y-4 mt-4">

@@ -295,24 +295,26 @@ routerAdd('POST', '/backend/v1/tms/chicao/dispatch', (c) => {
       try {
         const auditCol = app.findCollectionByNameOrId('audit_logs')
         const auditRec = new Record(auditCol)
-        auditRec.set('table_name', 'chicao_freight_offers')
-        auditRec.set('record_id', rec.id)
+        auditRec.set('resource', 'chicao_freight_offers')
+        auditRec.set('resource_id', rec.id)
         auditRec.set('action', 'DISPATCH_CHICAO')
-        auditRec.set('changed_by', userEmail)
-        auditRec.set('timestamp', new Date().toISOString())
-        auditRec.set(
-          'details',
-          JSON.stringify({
-            offer_code: offerCode,
-            match_id: matchId,
-            cargo_id: cargoId,
-            vehicle_plate: plate,
-            driver_name: rec.get('driver_name'),
-            initial_value: initialOfferVal,
-            status: rec.get('status'),
-            whatsapp_status: rec.get('whatsapp_status'),
-          }),
-        )
+        auditRec.set('user_email', userEmail)
+        auditRec.set('user_name', 'Operador TMS')
+        auditRec.set('user_role', 'operador_logistica')
+        auditRec.set('previous_state', 'NOVO_ENCONTRO')
+        auditRec.set('new_state', rec.get('status'))
+        auditRec.set('reason', `Despacho de encontro para Chicão (${offerCode})`)
+        auditRec.set('correlation_id', 'CHICAO-' + rec.id + '-' + Date.now())
+        auditRec.set('payload', {
+          offer_code: offerCode,
+          match_id: matchId,
+          cargo_id: cargoId,
+          vehicle_plate: plate,
+          driver_name: rec.get('driver_name'),
+          initial_value: initialOfferVal,
+          status: rec.get('status'),
+          whatsapp_status: rec.get('whatsapp_status'),
+        })
         app.save(auditRec)
       } catch (auditErr) {
         console.log('Aviso ao gravar audit log de despacho:', auditErr)
@@ -398,15 +400,17 @@ routerAdd('POST', '/backend/v1/tms/chicao/retry', (c) => {
     try {
       const auditCol = app.findCollectionByNameOrId('audit_logs')
       const auditRec = new Record(auditCol)
-      auditRec.set('table_name', 'chicao_freight_offers')
-      auditRec.set('record_id', rec.id)
+      auditRec.set('resource', 'chicao_freight_offers')
+      auditRec.set('resource_id', rec.id)
       auditRec.set('action', 'RETRY_CHICAO_FAILED')
-      auditRec.set('changed_by', userEmail)
-      auditRec.set('timestamp', new Date().toISOString())
-      auditRec.set(
-        'details',
-        JSON.stringify({ retryCount, user: userEmail, reason: 'SEM_CONEXAO' }),
-      )
+      auditRec.set('user_email', userEmail)
+      auditRec.set('user_name', 'Operador TMS')
+      auditRec.set('user_role', 'operador_logistica')
+      auditRec.set('previous_state', 'ERRO_ENVIO')
+      auditRec.set('new_state', 'ERRO_ENVIO')
+      auditRec.set('reason', 'Tentativa de reenvio falhou: sem conexão WhatsApp')
+      auditRec.set('correlation_id', 'RETRY-FAIL-' + rec.id + '-' + Date.now())
+      auditRec.set('payload', { retryCount, user: userEmail, reason: 'SEM_CONEXAO' })
       app.save(auditRec)
     } catch (_) {}
 
@@ -481,15 +485,17 @@ routerAdd('POST', '/backend/v1/tms/chicao/retry', (c) => {
   try {
     const auditCol = app.findCollectionByNameOrId('audit_logs')
     const auditRec = new Record(auditCol)
-    auditRec.set('table_name', 'chicao_freight_offers')
-    auditRec.set('record_id', rec.id)
+    auditRec.set('resource', 'chicao_freight_offers')
+    auditRec.set('resource_id', rec.id)
     auditRec.set('action', 'RETRY_CHICAO')
-    auditRec.set('changed_by', userEmail)
-    auditRec.set('timestamp', new Date().toISOString())
-    auditRec.set(
-      'details',
-      JSON.stringify({ retryCount, user: userEmail, status: rec.get('status') }),
-    )
+    auditRec.set('user_email', userEmail)
+    auditRec.set('user_name', 'Operador TMS')
+    auditRec.set('user_role', 'operador_logistica')
+    auditRec.set('previous_state', 'ERRO_ENVIO')
+    auditRec.set('new_state', rec.get('status'))
+    auditRec.set('reason', `Reenvio de oferta ao motorista (${rec.get('offer_code')})`)
+    auditRec.set('correlation_id', 'RETRY-' + rec.id + '-' + Date.now())
+    auditRec.set('payload', { retryCount, user: userEmail, status: rec.get('status') })
     app.save(auditRec)
   } catch (_) {}
 
@@ -645,12 +651,14 @@ routerAdd('POST', '/backend/v1/tms/chicao/process-reply', (c) => {
 
       // Validação estrita de alçada
       if (requestedVal <= maxAutonomyVal) {
-        rec.set('status', 'EM_NEGOCIACAO')
+        rec.set('status', 'ACEITA')
+        rec.set('final_contracted_freight', requestedVal)
+        rec.set('final_contracted_total', requestedVal + (Number(rec.get('toll_cost')) || 0))
         timeline.push({
           timestamp: new Date().toISOString(),
           actor: 'CHICAO',
           action: 'ALCADA_AUTOMATICA_ACEITA',
-          description: `Valor solicitado (R$ ${requestedVal}) está DENTRO da alçada automática de autonomia da IA (máx R$ ${maxAutonomyVal} / +${autonomiaMaxPct}%).`,
+          description: `Valor solicitado (R$ ${requestedVal}) está DENTRO da alçada automática de autonomia da IA (máx R$ ${maxAutonomyVal} / +${autonomiaMaxPct}%). Aceita automaticamente e carga bloqueada contra duplicidade.`,
         })
 
         messages.push({
@@ -658,7 +666,7 @@ routerAdd('POST', '/backend/v1/tms/chicao/process-reply', (c) => {
           timestamp: new Date().toISOString(),
           sender: 'CHICAO',
           channel: 'WHATSAPP',
-          text: `Conseguimos atender sua proposta de R$ ${requestedVal.toLocaleString('pt-BR')} para essa rota! Podemos fechar o frete com essa condição agora?`,
+          text: `Excelente! Sua contraproposta de R$ ${requestedVal.toLocaleString('pt-BR')} está dentro da nossa alçada e foi aprovada automaticamente! Carga confirmada para o veículo ${rec.get('vehicle_plate')}.`,
         })
       } else {
         rec.set('status', 'AGUARDANDO_APROVACAO')
@@ -705,12 +713,19 @@ routerAdd('POST', '/backend/v1/tms/chicao/process-reply', (c) => {
   try {
     const auditCol = app.findCollectionByNameOrId('audit_logs')
     const auditRec = new Record(auditCol)
-    auditRec.set('table_name', 'chicao_freight_offers')
-    auditRec.set('record_id', rec.id)
+    auditRec.set('resource', 'chicao_freight_offers')
+    auditRec.set('resource_id', rec.id)
     auditRec.set('action', 'REPLY_CHICAO_PROCESSED')
-    auditRec.set('changed_by', 'motorista_whatsapp')
-    auditRec.set('timestamp', new Date().toISOString())
-    auditRec.set('details', JSON.stringify({ message: messageText, newStatus: rec.get('status') }))
+    auditRec.set('user_email', 'motorista@whatsapp')
+    auditRec.set('user_name', rec.get('driver_name') || 'Motorista Parceiro')
+    auditRec.set('user_role', 'motorista_parceiro')
+    auditRec.set('new_state', rec.get('status'))
+    auditRec.set(
+      'reason',
+      `Resposta do motorista processada pelo Chicão (${rec.get('offer_code')})`,
+    )
+    auditRec.set('correlation_id', 'REPLY-' + rec.id + '-' + Date.now())
+    auditRec.set('payload', { message: messageText, newStatus: rec.get('status'), counterValue })
     app.save(auditRec)
   } catch (_) {}
 
@@ -774,12 +789,19 @@ routerAdd('POST', '/backend/v1/tms/chicao/takeover', (c) => {
   try {
     const auditCol = app.findCollectionByNameOrId('audit_logs')
     const auditRec = new Record(auditCol)
-    auditRec.set('table_name', 'chicao_freight_offers')
-    auditRec.set('record_id', rec.id)
+    auditRec.set('resource', 'chicao_freight_offers')
+    auditRec.set('resource_id', rec.id)
     auditRec.set('action', `TAKEOVER_${action}`)
-    auditRec.set('changed_by', userEmail)
-    auditRec.set('timestamp', new Date().toISOString())
-    auditRec.set('details', JSON.stringify({ user: userEmail, action, reason }))
+    auditRec.set('user_email', userEmail)
+    auditRec.set('user_name', 'Operador TMS')
+    auditRec.set('user_role', 'operador_logistica')
+    auditRec.set('new_state', rec.get('active_actor'))
+    auditRec.set(
+      'reason',
+      `Transição de interlocutor: ${action} - ${reason || 'Operação Mesa de Fretes'}`,
+    )
+    auditRec.set('correlation_id', 'TAKEOVER-' + rec.id + '-' + Date.now())
+    auditRec.set('payload', { user: userEmail, action, reason })
     app.save(auditRec)
   } catch (_) {}
 
@@ -865,12 +887,19 @@ routerAdd('POST', '/backend/v1/tms/chicao/approve', (c) => {
   try {
     const auditCol = app.findCollectionByNameOrId('audit_logs')
     const auditRec = new Record(auditCol)
-    auditRec.set('table_name', 'chicao_freight_offers')
-    auditRec.set('record_id', rec.id)
+    auditRec.set('resource', 'chicao_freight_offers')
+    auditRec.set('resource_id', rec.id)
     auditRec.set('action', `DECISION_${decision}`)
-    auditRec.set('changed_by', userEmail)
-    auditRec.set('timestamp', new Date().toISOString())
-    auditRec.set('details', JSON.stringify({ decision, approvedValue, user: userEmail }))
+    auditRec.set('user_email', userEmail)
+    auditRec.set('user_name', 'Gestor de Fretes')
+    auditRec.set('user_role', 'gestor_logistica')
+    auditRec.set('new_state', rec.get('status'))
+    auditRec.set(
+      'reason',
+      `Decisão humana da contraproposta: ${decision} (${rec.get('offer_code')})`,
+    )
+    auditRec.set('correlation_id', 'DECISION-' + rec.id + '-' + Date.now())
+    auditRec.set('payload', { decision, approvedValue, user: userEmail })
     app.save(auditRec)
   } catch (_) {}
 

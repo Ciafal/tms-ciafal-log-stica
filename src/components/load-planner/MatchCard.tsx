@@ -19,6 +19,7 @@ import {
   FileText,
   DollarSign,
   BookmarkCheck,
+  Bot,
 } from 'lucide-react'
 import type { VehicleLoadMatch } from '@/domain/vehicleLoadMatchingEngine'
 

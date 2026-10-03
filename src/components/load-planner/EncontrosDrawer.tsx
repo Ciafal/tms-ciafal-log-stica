@@ -26,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import {
   Link2,
@@ -210,7 +211,10 @@ export const EncontrosDrawer: React.FC<EncontrosDrawerProps> = ({
         continue
       }
       // 3. Motorista telefone/WhatsApp válido
-      const phone = (m.driverPhone || m.queueVehicle.driver_phone_cached || '').replace(/\D/g, '')
+      const phone = (m.driverPhone || (m.queueVehicle as any).driver_phone_cached || '').replace(
+        /\D/g,
+        '',
+      )
       if (!phone || phone.length < 10) {
         errs.push({
           matchId: m.matchId,
@@ -286,15 +290,15 @@ export const EncontrosDrawer: React.FC<EncontrosDrawerProps> = ({
         cargo_title: m.candidateLoad.title,
         itinerary_code: m.candidateLoad.itineraryCode,
         itinerary_description:
-          m.candidateLoad.itineraryName || `Itinerário ${m.candidateLoad.itineraryCode}`,
+          (m.candidateLoad as any).itineraryName || `Itinerário ${m.candidateLoad.itineraryCode}`,
         origin: 'Contagem / MG (Sidercentro CIAFAL)',
         destination_city: m.candidateLoad.destinationCity,
         destination_uf: m.candidateLoad.destinationUf,
-        cities_intermediate: m.candidateLoad.intermediateCities?.join(', ') || '',
+        cities_intermediate: (m.candidateLoad as any).intermediateCities?.join(', ') || '',
         driver_id: m.queueVehicle.driver || '',
         driver_name: m.driverName,
-        driver_phone: m.driverPhone || m.queueVehicle.driver_phone_cached || '',
-        driver_whatsapp: m.driverPhone || m.queueVehicle.driver_phone_cached || '',
+        driver_phone: m.driverPhone || (m.queueVehicle as any).driver_phone_cached || '',
+        driver_whatsapp: m.driverPhone || (m.queueVehicle as any).driver_phone_cached || '',
         driver_document: m.driverDocument || m.queueVehicle.driver_doc_cached || '',
         carrier_name: (m.queueVehicle as any).carrier_name || '',
         vehicle_plate: m.vehiclePlate,
@@ -308,11 +312,11 @@ export const EncontrosDrawer: React.FC<EncontrosDrawerProps> = ({
         customers_count: m.candidateLoad.customersCount,
         discharges_count: m.candidateLoad.dischargesCount,
         distance_km: m.distanceKm,
-        estimated_time_hours: m.operationalAnalysis?.totalTripHours || 0,
+        estimated_time_hours: (m.operationalAnalysis as any)?.totalTripHours || 0,
         discharge_type: m.candidateLoad.requiredDischargeTypes?.join(', ') || 'LIVRE',
         products_summary:
           m.candidateLoad.orders
-            ?.map((o) => o.materialDesc)
+            ?.map((o) => o.material || (o as any).materialDesc)
             .filter(Boolean)
             .slice(0, 3)
             .join(', ') || 'Produtos siderúrgicos CIAFAL',
