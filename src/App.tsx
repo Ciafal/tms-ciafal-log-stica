@@ -72,6 +72,7 @@ import { FredAnalyticsPage } from '@/pages/FredAnalyticsPage'
 import { FredChatPage } from '@/pages/FredChatPage'
 import { DriverMobileCompanionPage } from '@/pages/DriverMobileCompanionPage'
 import SelectionGovernanceAndLoopPage from '@/pages/SelectionGovernanceAndLoopPage'
+import TmsIndicatorsPage from '@/pages/TmsIndicatorsPage'
 import NotFound from '@/pages/NotFound'
 
 export const App: React.FC = () => {
@@ -656,6 +657,18 @@ export const App: React.FC = () => {
               }
             />
             {/* 7. ANÁLISES TRANSVERSAIS */}
+            <Route
+              path="/tms/analises/indicadores-tms"
+              element={
+                <Layout>
+                  <TmsIndicatorsPage />
+                </Layout>
+              }
+            />
+            <Route
+              path="/tms/indicadores"
+              element={<Navigate to="/tms/analises/indicadores-tms" replace />}
+            />
             <Route
               path="/tms/analises/carteira-vendas"
               element={

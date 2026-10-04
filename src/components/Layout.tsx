@@ -319,6 +319,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       icon: BarChart3,
       items: [
         {
+          title: 'Indicadores TMS',
+          path: '/tms/analises/indicadores-tms',
+          badge: 'Real x Meta',
+          badgeColor: 'bg-[#005596]',
+          show: true,
+        },
+        {
           title: 'Carteira Única de Vendas',
           path: '/tms/analises/carteira-vendas',
           badge: 'O que entregar',

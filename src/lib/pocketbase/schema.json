@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T13:58:42.110Z",
+  "generatedAt": "2026-10-04T14:29:57.677Z",
   "collections": [
     {
       "name": "users",
@@ -15991,6 +15991,349 @@
       "indexes": [
         "CREATE UNIQUE INDEX idx_complaint_reason_code ON carrier_complaint_reasons (code)",
         "CREATE INDEX idx_complaint_reason_order ON carrier_complaint_reasons (order_index)"
+      ]
+    },
+    {
+      "name": "tms_kpi_targets",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "kpi_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "kpi_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "category",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["EXPEDICAO", "LOGISTICA", "TRANSPORTE"]
+        },
+        {
+          "name": "year",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "company",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "center",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "target_value",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "rule",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["GTE", "LTE", "EQ", "BETWEEN"]
+        },
+        {
+          "name": "target_value_max",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unit",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valid_from",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valid_to",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsible",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "responsible_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "change_justification",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "previous_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "history_log",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_tms_target_kpi ON tms_kpi_targets (kpi_id, year)",
+        "CREATE INDEX idx_tms_target_cat ON tms_kpi_targets (category)",
+        "CREATE INDEX idx_tms_target_center ON tms_kpi_targets (center)"
+      ]
+    },
+    {
+      "name": "tms_deviation_actions",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "action_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "kpi_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "kpi_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "category",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["EXPEDICAO", "LOGISTICA", "TRANSPORTE"]
+        },
+        {
+          "name": "period_ref",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "month",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "year",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "identified_problem",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "probable_cause",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "action_description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "responsible_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "responsible_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "target_module",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "TMS",
+            "WMS",
+            "PCP_ROBOTIZADO",
+            "MANUTENCAO",
+            "COMERCIAL_CRM",
+            "EXPEDICAO",
+            "OUTRO"
+          ]
+        },
+        {
+          "name": "responsible_sector",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "deadline",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "priority",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["BAIXA", "MEDIA", "ALTA", "CRITICA"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "ABERTA",
+            "EM_ANDAMENTO",
+            "AGUARDANDO_VALIDACAO",
+            "CONCLUIDA",
+            "CANCELADA"
+          ]
+        },
+        {
+          "name": "ai_suggested",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_diagnosis_summary",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evidence_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evidences_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "completion_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "effectiveness_evaluation",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "closed_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "closed_by_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_tms_action_code ON tms_deviation_actions (action_code)",
+        "CREATE INDEX idx_tms_action_kpi ON tms_deviation_actions (kpi_id)",
+        "CREATE INDEX idx_tms_action_status ON tms_deviation_actions (status)",
+        "CREATE INDEX idx_tms_action_period ON tms_deviation_actions (year, month)"
       ]
     }
   ]
