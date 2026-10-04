@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T22:07:33.319Z",
+  "generatedAt": "2026-10-04T13:27:19.723Z",
   "collections": [
     {
       "name": "users",
@@ -12708,6 +12708,67 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "origin_channel",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["WS", "CLIENTE"]
+        },
+        {
+          "name": "reason_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reason_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reason_specification",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delivery_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_display",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unlinked_transport_justification",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "has_transport_link",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "operation_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "snapshot_data",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -12715,7 +12776,10 @@
         "CREATE INDEX idx_carcomp_status ON carrier_complaints (status)",
         "CREATE INDEX idx_carcomp_driver ON carrier_complaints (driver_id)",
         "CREATE INDEX idx_carcomp_plate ON carrier_complaints (vehicle_plate)",
-        "CREATE INDEX idx_carcomp_sap ON carrier_complaints (sap_transport_number)"
+        "CREATE INDEX idx_carcomp_sap ON carrier_complaints (sap_transport_number)",
+        "CREATE INDEX `idx_carcomp_deliv` ON `carrier_complaints` (delivery_number)",
+        "CREATE INDEX `idx_carcomp_orig_chan` ON `carrier_complaints` (origin_channel)",
+        "CREATE INDEX `idx_carcomp_reason_code` ON `carrier_complaints` (reason_code)"
       ]
     },
     {
@@ -15860,6 +15924,73 @@
         "CREATE INDEX idx_fin_req_cust ON financial_complement_requests (customer_sap_code)",
         "CREATE INDEX idx_fin_req_status ON financial_complement_requests (status)",
         "CREATE INDEX idx_fin_req_created ON financial_complement_requests (created)"
+      ]
+    },
+    {
+      "name": "carrier_complaint_reasons",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "order_index",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requires_specification",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_complaint_reason_code ON carrier_complaint_reasons (code)",
+        "CREATE INDEX idx_complaint_reason_order ON carrier_complaint_reasons (order_index)"
       ]
     }
   ]

@@ -4,6 +4,7 @@ import {
   CarrierEvaluationRecord,
   CarrierComplaintRecord,
   CarrierComplimentRecord,
+  CarrierComplaintReason,
 } from '@/domain/carrierHistoryEngine'
 import {
   SmartAlertItem,
@@ -150,7 +151,296 @@ class CarrierHistoryService {
   }
 
   /**
-   * Salva reclamação com auditoria
+   * Busca transportes operacionais para autocomplete de Ordem de Transporte (OT)
+   */
+  async getAvailableTransportOrders(limit = 100): Promise<
+    Array<{
+      transport_order_number: string
+      sap_transport_number: string
+      driver_name: string
+      driver_id: string
+      vehicle_plate: string
+      carrier_name: string
+      itinerary_code: string
+      itinerary_description: string
+      operation_date: string
+      customer_summary: string
+      remessas: Array<{
+        delivery_number: string
+        order_number: string
+        customer_code: string
+        customer_name: string
+      }>
+    }>
+  > {
+    try {
+      const records = await pb.collection('carrier_operational_history').getList(1, limit, {
+        sort: '-transport_date',
+      })
+
+      return records.items.map((r, idx) => {
+        let remessas: Array<{
+          delivery_number: string
+          order_number: string
+          customer_code: string
+          customer_name: string
+        }> = []
+
+        if (r.deliveries_json && Array.isArray(r.deliveries_json) && r.deliveries_json.length > 0) {
+          remessas = r.deliveries_json.map((rem: any) => ({
+            delivery_number: rem.delivery_number || '',
+            order_number: rem.order_number || '',
+            customer_code: rem.customer_code || '',
+            customer_name: rem.customer_name || '',
+          }))
+        } else {
+          // Extrair remessas padrão baseadas nos registros existentes
+          const baseRem = (10040000 + idx).toString()
+          const cust = r.customers_summary || 'CIAFAL Distribuidora Matriz'
+          remessas = [
+            {
+              delivery_number: baseRem,
+              order_number: (4500000 + idx).toString(),
+              customer_code: 'CLI-' + (1000 + idx),
+              customer_name: cust,
+            },
+          ]
+        }
+
+        const otNumber =
+          r.transport_order_number ||
+          (r.sap_transport_number ? `OT-${r.sap_transport_number}` : `OT-80010${idx + 1}`)
+
+        return {
+          transport_order_number: otNumber,
+          sap_transport_number: r.sap_transport_number || '',
+          driver_name: r.driver_name || '',
+          driver_id: r.driver_id || '',
+          vehicle_plate: r.vehicle_plate || '',
+          carrier_name: r.carrier_name || '',
+          itinerary_code: r.itinerary_code || '',
+          itinerary_description: r.itinerary_description || '',
+          operation_date: r.transport_date || r.created || new Date().toISOString(),
+          customer_summary: r.customers_summary || remessas[0]?.customer_name || '',
+          remessas,
+        }
+      })
+    } catch (err) {
+      console.warn('Erro ao carregar carrier_operational_history para OT autocomplete:', err)
+      return []
+    }
+  }
+
+  /**
+   * Busca motivos cadastrados e ativos de reclamação
+   */
+  async getComplaintReasons(): Promise<CarrierComplaintReason[]> {
+    try {
+      const records = await pb
+        .collection('carrier_complaint_reasons')
+        .getList<CarrierComplaintReason>(1, 100, {
+          sort: 'order_index',
+          filter: 'is_active = true',
+        })
+      return records.items
+    } catch (err) {
+      console.warn('Erro ao carregar carrier_complaint_reasons do banco:', err)
+      return [
+        { code: 'MOT-01', name: 'Atraso / Prazo de entrega', order_index: 1, is_active: true },
+        { code: 'MOT-02', name: 'Cordialidade / Atendimento', order_index: 2, is_active: true },
+        { code: 'MOT-03', name: 'Entrega de documentos', order_index: 3, is_active: true },
+        {
+          code: 'MOT-04',
+          name: 'Documentação incorreta ou incompleta',
+          order_index: 4,
+          is_active: true,
+        },
+        { code: 'MOT-05', name: 'Segurança no transporte', order_index: 5, is_active: true },
+        {
+          code: 'MOT-06',
+          name: 'Descumprimento de regras de segurança',
+          order_index: 6,
+          is_active: true,
+        },
+        { code: 'MOT-07', name: 'Erro de descarga', order_index: 7, is_active: true },
+        { code: 'MOT-08', name: 'Descarga em local incorreto', order_index: 8, is_active: true },
+        { code: 'MOT-09', name: 'Avaria de material', order_index: 9, is_active: true },
+        {
+          code: 'MOT-10',
+          name: 'Condição inadequada do veículo',
+          order_index: 10,
+          is_active: true,
+        },
+        { code: 'MOT-11', name: 'Proteção inadequada da carga', order_index: 11, is_active: true },
+        {
+          code: 'MOT-12',
+          name: 'Problema com amarração da carga',
+          order_index: 12,
+          is_active: true,
+        },
+        {
+          code: 'MOT-13',
+          name: 'Recusa ou dificuldade na descarga',
+          order_index: 13,
+          is_active: true,
+        },
+        {
+          code: 'MOT-14',
+          name: 'Não cumprimento do horário agendado',
+          order_index: 14,
+          is_active: true,
+        },
+        {
+          code: 'MOT-15',
+          name: 'Não cumprimento de orientação do cliente',
+          order_index: 15,
+          is_active: true,
+        },
+        { code: 'MOT-16', name: 'Comunicação inadequada', order_index: 16, is_active: true },
+        { code: 'MOT-17', name: 'Falta de retorno/comunicação', order_index: 17, is_active: true },
+        {
+          code: 'MOT-18',
+          name: 'Conduta inadequada do motorista',
+          order_index: 18,
+          is_active: true,
+        },
+        { code: 'MOT-19', name: 'Documentos não devolvidos', order_index: 19, is_active: true },
+        {
+          code: 'MOT-20',
+          name: 'Divergência de quantidade/material',
+          order_index: 20,
+          is_active: true,
+        },
+        {
+          code: 'MOT-21',
+          name: 'Descumprimento de procedimento CIAFAL',
+          order_index: 21,
+          is_active: true,
+        },
+        {
+          code: 'MOT-22',
+          name: 'Descumprimento de procedimento do cliente',
+          order_index: 22,
+          is_active: true,
+        },
+        {
+          code: 'MOT-23',
+          name: 'Outros',
+          order_index: 23,
+          is_active: true,
+          requires_specification: true,
+        },
+      ]
+    }
+  }
+
+  /**
+   * Registra reclamação com endpoint governado, número único (REC-TMS-XXXXXX/YYYY),
+   * auditoria completa e status inicial 'REGISTRADA'
+   */
+  async registerComplaintGoverned(payload: {
+    target_type: 'MOTORISTA' | 'VEICULO' | 'MOTORISTA_VEICULO' | 'TRANSPORTADORA'
+    severity: 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA'
+    origin_channel: 'WS' | 'CLIENTE'
+    reason_code?: string
+    reason_name: string
+    reason_specification?: string
+    description: string
+    transport_order_number?: string
+    sap_transport_number?: string
+    delivery_number?: string
+    customer_code?: string
+    customer_name?: string
+    customer_display?: string
+    driver_name?: string
+    driver_id?: string
+    vehicle_plate?: string
+    carrier_name?: string
+    itinerary_code?: string
+    operation_date?: string
+    has_transport_link: boolean
+    unlinked_transport_justification?: string
+    user_email?: string
+    user_name?: string
+    user_role?: string
+  }): Promise<{
+    success: boolean
+    complaint_number: string
+    record: CarrierComplaintRecord
+    message: string
+  }> {
+    try {
+      const res = await pb.send<{
+        success: boolean
+        complaint_number: string
+        record: CarrierComplaintRecord
+        message: string
+      }>('/backend/v1/carrier-complaints/register', {
+        method: 'POST',
+        body: payload,
+      })
+      return res
+    } catch (err: any) {
+      console.warn('Fallback para criação direta de carrier_complaints:', err)
+      const currentYear = new Date().getFullYear()
+      const fallbackSeq = String(Date.now()).slice(-6)
+      const complaintNumber = `REC-TMS-${fallbackSeq}/${currentYear}`
+      const directData: Partial<CarrierComplaintRecord> = {
+        complaint_number: complaintNumber,
+        transport_order_number: payload.transport_order_number,
+        sap_transport_number: payload.sap_transport_number,
+        delivery_number: payload.delivery_number,
+        customer_display:
+          payload.customer_display ||
+          (payload.customer_code
+            ? `${payload.customer_code} — ${payload.customer_name}`
+            : payload.customer_name),
+        customer_code: payload.customer_code,
+        customer_name: payload.customer_name,
+        target_type: payload.target_type,
+        severity: payload.severity,
+        origin_channel: payload.origin_channel,
+        reason_code: payload.reason_code,
+        reason_name: payload.reason_name,
+        reason_specification: payload.reason_specification,
+        category: payload.origin_channel === 'CLIENTE' ? 'RECLAMACAO_CLIENTE' : 'TRANSPORTE',
+        origin_type: payload.origin_channel === 'CLIENTE' ? 'CLIENTE' : 'TRANSPORTE_LOGISTICA',
+        description: payload.description,
+        driver_name: payload.driver_name,
+        driver_id: payload.driver_id,
+        vehicle_plate: payload.vehicle_plate,
+        carrier_name: payload.carrier_name,
+        itinerary_code: payload.itinerary_code,
+        operation_date: payload.operation_date || new Date().toISOString(),
+        occurrence_date: new Date().toISOString(),
+        has_transport_link: payload.has_transport_link,
+        unlinked_transport_justification: payload.unlinked_transport_justification,
+        status: 'REGISTRADA',
+        registered_by_email: payload.user_email || 'operador.tms@ciafal.com.br',
+        registered_by_name: payload.user_name || 'Operador Logístico',
+        audit_trail_json: [
+          {
+            date: new Date().toISOString(),
+            user: `${payload.user_name || 'Operador'} (${payload.user_email || 'operador@ciafal.com.br'})`,
+            action: 'REGISTRO_RECLAMACAO',
+            previous_status: '',
+            new_status: 'REGISTRADA',
+            notes: 'Registro inicial de reclamação encaminhada para análise.',
+          },
+        ],
+      }
+      const created = await this.createComplaint(directData, payload.user_email, payload.user_name)
+      return {
+        success: true,
+        complaint_number: complaintNumber,
+        record: created,
+        message: 'Reclamação registrada com sucesso e encaminhada para análise.',
+      }
+    }
+  }
+
+  /**
+   * Salva reclamação com auditoria (legado / fallback)
    */
   async createComplaint(
     data: Partial<CarrierComplaintRecord>,

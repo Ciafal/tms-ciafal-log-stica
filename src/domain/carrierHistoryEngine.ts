@@ -162,11 +162,23 @@ export interface CarrierEvaluationRecord {
   created?: string
 }
 
+export interface CarrierComplaintReason {
+  id?: string
+  code: string
+  name: string
+  description?: string
+  order_index: number
+  is_active: boolean
+  requires_specification?: boolean
+}
+
 export interface CarrierComplaintRecord {
   id?: string
   complaint_number: string
   transport_order_number?: string
   sap_transport_number?: string
+  delivery_number?: string
+  customer_display?: string
   category:
     | 'RECLAMACAO_CLIENTE'
     | 'TRANSPORTE'
@@ -186,6 +198,13 @@ export interface CarrierComplaintRecord {
     | 'OUTRO'
   severity: 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA'
   target_type: 'MOTORISTA' | 'VEICULO' | 'MOTORISTA_VEICULO' | 'TRANSPORTADORA'
+  origin_channel?: 'WS' | 'CLIENTE'
+  reason_code?: string
+  reason_name?: string
+  reason_specification?: string
+  has_transport_link?: boolean
+  unlinked_transport_justification?: string
+  operation_date?: string
   driver_id?: string
   driver_name?: string
   vehicle_plate?: string
@@ -232,7 +251,9 @@ export interface CarrierComplaintRecord {
     action: string
     previous_status?: string
     new_status?: string
+    notes?: string
   }>
+  snapshot_data?: Record<string, any>
   created?: string
 }
 
