@@ -947,6 +947,30 @@ export const MesaFretesPage: React.FC = () => {
 
           {/* TAB 0: MESA DE FRETES AGENTE CHICÃO (KANBAN 8 COLUNAS, INDICADORES REAIS, CHAT, TIMELINE) */}
           <TabsContent value="chicao_mesa" className="space-y-4 mt-4">
+            <div className="bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200 rounded-xl p-3.5 mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-[#005596] text-white">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-900">
+                    Central Unificada: Negociações & Chicão (10 Colunas + Pipeline SAP)
+                  </h4>
+                  <p className="text-[11px] text-slate-600">
+                    Acompanhe o ciclo completo de contratação, takeover e emissão SAP na nova visão
+                    consolidada.
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => window.location.assign('/tms/negociacoes-chicao')}
+                className="bg-[#005596] hover:bg-[#004275] text-white font-bold text-xs gap-1.5 shrink-0"
+              >
+                Abrir Negociações & Chicão
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Button>
+            </div>
             <ChicaoFreightMesaView />
           </TabsContent>
 

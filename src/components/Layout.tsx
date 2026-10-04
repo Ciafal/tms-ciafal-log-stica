@@ -199,16 +199,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         },
         {
           title: 'Negociações & Chicão',
-          path: '/tms/mesa-fretes',
-          badge: 'Chicão IA',
+          path: '/tms/negociacoes-chicao',
+          badge: 'Chicão IA & SAP',
           badgeColor: 'bg-sky-600',
-          show: true,
-        },
-        {
-          title: 'Negociações',
-          path: '/tms/negociacoes',
-          badge: 'Gestão SAP',
-          badgeColor: 'bg-[#005596]',
           show: true,
         },
         {
@@ -390,7 +383,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         },
         {
           title: 'IA x Humano & Chicão',
-          path: '/tms/mesa-fretes',
+          path: '/tms/negociacoes-chicao',
           badge: 'Supervisão',
           badgeColor: 'bg-sky-600',
           show: true,

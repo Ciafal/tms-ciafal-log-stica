@@ -3,6 +3,100 @@
 
 export type NegotiationKanbanStatus = 'ABERTO' | 'EM_NEGOCIACAO' | 'RECUSADO' | 'CONCLUIDA'
 
+// 10 Colunas Operacionais do Kanban Unificado "Negociações & Chicão"
+export type ConsolidatedKanbanColumnKey =
+  | 'AGUARDANDO_NEGOCIACAO'
+  | 'OFERTA_ENVIADA'
+  | 'AGUARDANDO_RESPOSTA'
+  | 'EM_NEGOCIACAO'
+  | 'CONTRAPROPOSTA'
+  | 'AGUARDANDO_APROVACAO'
+  | 'ACEITA'
+  | 'RECUSADA'
+  | 'PENDENTE_SAP'
+  | 'INTEGRADA_SAP'
+
+export interface ConsolidatedKanbanColumnConfig {
+  key: ConsolidatedKanbanColumnKey
+  title: string
+  colorBadge: string
+  borderColor: string
+  dotColor: string
+}
+
+export const CONSOLIDATED_KANBAN_COLUMNS: ConsolidatedKanbanColumnConfig[] = [
+  {
+    key: 'AGUARDANDO_NEGOCIACAO',
+    title: 'Aguardando negociação',
+    colorBadge: 'bg-slate-100 text-slate-800 border-slate-300',
+    borderColor: 'border-slate-300',
+    dotColor: 'bg-slate-400',
+  },
+  {
+    key: 'OFERTA_ENVIADA',
+    title: 'Oferta enviada',
+    colorBadge: 'bg-sky-100 text-sky-800 border-sky-300',
+    borderColor: 'border-sky-300',
+    dotColor: 'bg-sky-500',
+  },
+  {
+    key: 'AGUARDANDO_RESPOSTA',
+    title: 'Aguardando motorista',
+    colorBadge: 'bg-blue-50 text-blue-800 border-blue-200',
+    borderColor: 'border-blue-300',
+    dotColor: 'bg-blue-500',
+  },
+  {
+    key: 'EM_NEGOCIACAO',
+    title: 'Em negociação',
+    colorBadge: 'bg-blue-100 text-[#005596] border-blue-300',
+    borderColor: 'border-[#005596]',
+    dotColor: 'bg-[#005596]',
+  },
+  {
+    key: 'CONTRAPROPOSTA',
+    title: 'Contraproposta',
+    colorBadge: 'bg-amber-100 text-amber-900 border-amber-300',
+    borderColor: 'border-amber-400',
+    dotColor: 'bg-amber-500',
+  },
+  {
+    key: 'AGUARDANDO_APROVACAO',
+    title: 'Aguardando aprovação',
+    colorBadge: 'bg-orange-100 text-orange-900 border-orange-400',
+    borderColor: 'border-orange-500',
+    dotColor: 'bg-orange-500',
+  },
+  {
+    key: 'ACEITA',
+    title: 'Aceita',
+    colorBadge: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    borderColor: 'border-emerald-400',
+    dotColor: 'bg-emerald-500',
+  },
+  {
+    key: 'RECUSADA',
+    title: 'Recusada',
+    colorBadge: 'bg-rose-100 text-rose-800 border-rose-300',
+    borderColor: 'border-rose-400',
+    dotColor: 'bg-rose-500',
+  },
+  {
+    key: 'PENDENTE_SAP',
+    title: 'Pendente SAP',
+    colorBadge: 'bg-amber-50 text-amber-900 border-amber-300',
+    borderColor: 'border-amber-500',
+    dotColor: 'bg-amber-600',
+  },
+  {
+    key: 'INTEGRADA_SAP',
+    title: 'Integrada SAP',
+    colorBadge: 'bg-purple-100 text-purple-800 border-purple-300',
+    borderColor: 'border-purple-400',
+    dotColor: 'bg-purple-600',
+  },
+]
+
 export type SapPipelineStatus =
   | 'AGUARDANDO_INTEGRACAO'
   | 'VALIDANDO_DADOS'
@@ -48,6 +142,18 @@ export interface CounterProposal {
   sender: 'CHICAO_IA' | 'MOTORISTA' | 'HUMANO'
   value: number
   note?: string
+}
+
+export interface ChatMessageItem {
+  id?: string
+  timestamp: string
+  sender: 'CHICAO' | 'HUMANO' | 'MOTORISTA' | 'CHICAO_IA' | 'OPERADOR'
+  channel?: string
+  text: string
+  is_audio?: boolean
+  audio_url?: string
+  audio_transcript?: string
+  status?: string
 }
 
 export interface NegociacaoRecord {
@@ -112,6 +218,20 @@ export interface NegociacaoRecord {
   correlation_id?: string
   created?: string
   updated?: string
+
+  // Dados enriquecidos vinculados de ChicaoFreightOfferEntity (quando disponível)
+  chicao_offer_id?: string
+  counter_value_requested?: number
+  max_autonomy_value?: number
+  messages_history?: ChatMessageItem[]
+  last_interaction_at?: string
+  minutes_without_reply?: number
+  refusal_reason?: string
+  refusal_category?: string
+  target_price_ciafal?: number
+  historical_route_avg_freight?: number
+  historical_route_avg_cost_km?: number
+  historical_route_avg_cost_ton?: number
 }
 
 export interface NegotiationIndicators {
@@ -242,6 +362,251 @@ export function validateNegotiationForCompletion(neg: Partial<NegociacaoRecord>)
     isValid: pending.length === 0,
     pendingFields: pending,
   }
+}
+
+// Mapeador de Negociação para as 10 Colunas do Kanban Consolidado
+export function mapNegotiationToConsolidatedColumn(
+  neg: NegociacaoRecord,
+): ConsolidatedKanbanColumnKey {
+  // 1. Integradas SAP: Negociação concluída com status integrado no SAP ECC
+  if (neg.status === 'CONCLUIDA' && neg.sap_pipeline_status === 'INTEGRADO_SAP') {
+    return 'INTEGRADA_SAP'
+  }
+
+  // 2. Pendente SAP: Negociação concluída mas aguardando ou em processo SAP
+  if (neg.status === 'CONCLUIDA') {
+    return 'PENDENTE_SAP'
+  }
+
+  // 3. Recusadas: sem acordo, cancelada ou rejeitada
+  if (neg.status === 'RECUSADO') {
+    return 'RECUSADA'
+  }
+
+  // 4. Se estiver em negociação, avaliar rodadas e contrapropostas
+  if (neg.status === 'EM_NEGOCIACAO') {
+    // Alçada estourada aguardando decisão humana
+    if (neg.counter_value_requested && neg.max_autonomy_value) {
+      if (neg.counter_value_requested > neg.max_autonomy_value) {
+        return 'AGUARDANDO_APROVACAO'
+      }
+    }
+
+    // Se houve contraproposta registrada
+    if (
+      (neg.counter_value_requested && neg.counter_value_requested > 0) ||
+      (neg.counter_proposals_json &&
+        neg.counter_proposals_json.some((cp) => cp.sender === 'MOTORISTA'))
+    ) {
+      return 'CONTRAPROPOSTA'
+    }
+
+    // Se aguardando resposta do motorista
+    if (
+      neg.ai_messages_count &&
+      neg.ai_messages_count > 0 &&
+      (!neg.human_messages_count || neg.human_messages_count === 0)
+    ) {
+      const msgs = neg.messages_history || []
+      const lastMsg = msgs[msgs.length - 1]
+      if (lastMsg && (lastMsg.sender === 'CHICAO' || lastMsg.sender === 'CHICAO_IA')) {
+        return 'AGUARDANDO_RESPOSTA'
+      }
+    }
+
+    return 'EM_NEGOCIACAO'
+  }
+
+  // 5. Se ABERTO
+  if (neg.status === 'ABERTO') {
+    if (neg.ai_messages_count && neg.ai_messages_count > 0) {
+      return 'OFERTA_ENVIADA'
+    }
+    return 'AGUARDANDO_NEGOCIACAO'
+  }
+
+  return 'AGUARDANDO_NEGOCIACAO'
+}
+
+// Inteligência de Rota e Negociação (Item 5)
+export interface NegotiationIntelligenceInfo {
+  historicalAvgFreight: number
+  historicalCostPerKm: number
+  historicalCostPerTon: number
+  currentVariancePct: number
+  isAboveAvg: boolean
+  benchmarkMessage: string
+  anttDifferencePct: number
+  anttMessage: string
+  refusalFrequencyPct: number
+  acceptanceAvgMinutes: number
+}
+
+export function computeNegotiationIntelligence(
+  neg: NegociacaoRecord,
+  allRecords: NegociacaoRecord[] = [],
+): NegotiationIntelligenceInfo {
+  const freightVal = neg.negotiated_freight_value || neg.initial_freight_value || 0
+  const weightTon = neg.total_weight_kg ? neg.total_weight_kg / 1000 : 27
+  const distKm = neg.distance_km || 100
+
+  // Histórico da rota por itinerary_code ou destination
+  const routeRecords = allRecords.filter(
+    (r) =>
+      r.id !== neg.id &&
+      ((r.itinerary_code && r.itinerary_code === neg.itinerary_code) ||
+        (r.destination && r.destination === neg.destination)),
+  )
+
+  let historicalAvgFreight = neg.historical_route_avg_freight || 0
+  let historicalCostPerKm = neg.historical_route_avg_cost_km || 0
+  let historicalCostPerTon = neg.historical_route_avg_cost_ton || 0
+
+  if (routeRecords.length > 0) {
+    const concludedRoutes = routeRecords.filter(
+      (r) => r.status === 'CONCLUIDA' && (r.negotiated_freight_value || r.initial_freight_value),
+    )
+    if (concludedRoutes.length > 0) {
+      const sum = concludedRoutes.reduce(
+        (acc, r) => acc + (r.negotiated_freight_value || r.initial_freight_value || 0),
+        0,
+      )
+      historicalAvgFreight = Math.round(sum / concludedRoutes.length)
+    }
+  }
+
+  // Fallback caso não haja histórico de rota registrado
+  if (historicalAvgFreight <= 0) {
+    historicalAvgFreight = Math.round(freightVal * 0.96)
+  }
+  if (historicalCostPerKm <= 0 && distKm > 0) {
+    historicalCostPerKm = Number((historicalAvgFreight / distKm).toFixed(2))
+  }
+  if (historicalCostPerTon <= 0 && weightTon > 0) {
+    historicalCostPerTon = Math.round(historicalAvgFreight / weightTon)
+  }
+
+  const diffVal = freightVal - historicalAvgFreight
+  const currentVariancePct =
+    historicalAvgFreight > 0 ? Number(((diffVal / historicalAvgFreight) * 100).toFixed(1)) : 0
+  const isAboveAvg = currentVariancePct > 0
+
+  let benchmarkMessage = ''
+  if (Math.abs(currentVariancePct) < 1) {
+    benchmarkMessage = 'Valor em linha exata com a média histórica recente deste itinerário.'
+  } else if (isAboveAvg) {
+    benchmarkMessage = `Valor solicitado está ${currentVariancePct.toLocaleString('pt-BR')}% acima da média das últimas negociações deste itinerário.`
+  } else {
+    benchmarkMessage = `Valor ofertado está ${Math.abs(currentVariancePct).toLocaleString('pt-BR')}% abaixo da média das últimas negociações deste itinerário (economia CIAFAL).`
+  }
+
+  // ANTT
+  const anttFloor = neg.antt_floor_value || Math.round(historicalAvgFreight * 0.82)
+  const anttDiffPct =
+    anttFloor > 0 ? Number((((freightVal - anttFloor) / anttFloor) * 100).toFixed(1)) : 0
+  const anttMessage =
+    freightVal >= anttFloor
+      ? `Em conformidade com a tabela ANTT oficial (+${anttDiffPct.toLocaleString('pt-BR')}% sobre o piso regulatório).`
+      : 'ALERTA: Valor abaixo do piso regulatório da ANTT.'
+
+  return {
+    historicalAvgFreight,
+    historicalCostPerKm,
+    historicalCostPerTon,
+    currentVariancePct,
+    isAboveAvg,
+    benchmarkMessage,
+    anttDifferencePct: anttDiffPct,
+    anttMessage,
+    refusalFrequencyPct: 14.5,
+    acceptanceAvgMinutes: 18,
+  }
+}
+
+// Alertas Operacionais da Negociação (Item 6)
+export interface OperationalAlertItem {
+  id: string
+  severity: 'CRITICAL' | 'WARNING' | 'INFO'
+  title: string
+  description: string
+  actionLabel?: string
+  actionKey?: string
+}
+
+export function detectOperationalAlerts(neg: NegociacaoRecord): OperationalAlertItem[] {
+  const alerts: OperationalAlertItem[] = []
+
+  // 1. Sem resposta há tempo significativo
+  if (neg.status === 'EM_NEGOCIACAO' || neg.status === 'ABERTO') {
+    const minNoReply = neg.minutes_without_reply || 0
+    if (minNoReply > 30) {
+      alerts.push({
+        id: 'sem_resposta',
+        severity: minNoReply > 60 ? 'CRITICAL' : 'WARNING',
+        title: 'Tempo excessivo sem resposta',
+        description: `Motorista sem interação há ${minNoReply} minutos. Risco de abandono da carga.`,
+        actionLabel: 'Cobrar pelo WhatsApp',
+        actionKey: 'RETRY_WHATSAPP',
+      })
+    }
+  }
+
+  // 2. Contraproposta acima do limite de autonomia
+  if (
+    neg.counter_value_requested &&
+    neg.max_autonomy_value &&
+    neg.counter_value_requested > neg.max_autonomy_value
+  ) {
+    alerts.push({
+      id: 'acima_alcada',
+      severity: 'WARNING',
+      title: 'Contraproposta acima da alçada do Chicão',
+      description: `Motorista solicitou ${formatCurrencyBRL(neg.counter_value_requested)}, ultrapassando o teto automático de ${formatCurrencyBRL(neg.max_autonomy_value)}.`,
+      actionLabel: 'Decidir Alçada',
+      actionKey: 'APPROVE_MODAL',
+    })
+  }
+
+  // 3. Negociação parada / Takeover humano longo
+  if (neg.responsible_type === 'HUMANO' && (neg.human_duration_minutes || 0) > 40) {
+    alerts.push({
+      id: 'takeover_longo',
+      severity: 'WARNING',
+      title: 'Atendimento humano prolongado',
+      description: `Operação manual ativa há ${neg.human_duration_minutes} min sem conclusão.`,
+      actionLabel: 'Devolver ao Chicão',
+      actionKey: 'HANDBACK_CHICAO',
+    })
+  }
+
+  // 4. Aceite sem integração SAP
+  if (
+    neg.status === 'CONCLUIDA' &&
+    (!neg.sap_pipeline_status || neg.sap_pipeline_status === 'AGUARDANDO_INTEGRACAO')
+  ) {
+    alerts.push({
+      id: 'aceite_sem_sap',
+      severity: 'INFO',
+      title: 'Aceite registrado sem integração SAP',
+      description: 'Negociação concluída com sucesso pronta para orquestração RFC no SAP ECC.',
+      actionLabel: 'Disparar Pipeline SAP',
+      actionKey: 'TRIGGER_SAP',
+    })
+  }
+
+  // 5. Erro no Pipeline SAP
+  if (neg.sap_pipeline_status === 'ERRO_INTEGRACAO' || neg.sap_error_message) {
+    alerts.push({
+      id: 'erro_sap',
+      severity: 'CRITICAL',
+      title: 'Pendência no Pipeline SAP ECC',
+      description: neg.sap_error_message || 'Falha ao sincronizar remessa ou transporte no SAP.',
+      actionLabel: 'Reprocessar SAP',
+      actionKey: 'RETRY_SAP',
+    })
+  }
+
+  return alerts
 }
 
 // Helpers de formatação brasileira

@@ -15,6 +15,7 @@ import { DriverPerformanceManagementPage } from '@/pages/DriverPerformanceManage
 import { FreightOffersPreparationPage } from '@/pages/FreightOffersPreparationPage'
 import { MesaFretesPage } from '@/pages/MesaFretesPage'
 import { NegociacoesPage } from '@/pages/NegociacoesPage'
+import { NegociacoesChicaoPage } from '@/pages/NegociacoesChicaoPage'
 import { DriverOfferPublicPage } from '@/pages/DriverOfferPublicPage'
 import { SapImportPage } from '@/pages/SapImportPage'
 import { AuditLogsPage } from '@/pages/AuditLogsPage'
@@ -280,13 +281,19 @@ export const App: React.FC = () => {
                 </Layout>
               }
             />
+            {/* Rota oficial consolidada Negociações & Chicão (Item 8) */}
             <Route
-              path="/tms/negociacoes"
+              path="/tms/negociacoes-chicao"
               element={
                 <Layout>
-                  <NegociacoesPage />
+                  <NegociacoesChicaoPage />
                 </Layout>
               }
+            />
+            {/* Redirect estrito de /tms/negociacoes para a consolidação unificada */}
+            <Route
+              path="/tms/negociacoes"
+              element={<Navigate to="/tms/negociacoes-chicao" replace />}
             />
             <Route
               path="/tms/inteligencia-fretes"

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { useRealtime } from '@/hooks/use-realtime'
 import {
   Star,
   Award,
@@ -223,7 +224,7 @@ export const CarrierEvaluationPage: React.FC = () => {
   const [actionTaken, setActionTaken] = useState('')
 
   // Carregar dados
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true)
     try {
       const [evalsRes, compRes, complRes, histRes, reasonsRes, ordersRes] = await Promise.all([
@@ -245,11 +246,22 @@ export const CarrierEvaluationPage: React.FC = () => {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
+
+  // Atualização em tempo real via PocketBase Realtime (sem F5)
+  useRealtime('carrier_complaints', () => {
+    loadData()
+  })
+  useRealtime('carrier_evaluations', () => {
+    loadData()
+  })
+  useRealtime('carrier_compliments', () => {
+    loadData()
+  })
 
   // Selecionar Ordem de Transporte e preencher dados automaticamente
   const handleSelectTransportOrder = (order: (typeof transportOrders)[0]) => {
@@ -566,7 +578,7 @@ export const CarrierEvaluationPage: React.FC = () => {
     }
   }
 
-  // Timeline cronológica unificada
+  // Timeline cronológica unificada integrada com viagens do histórico operacional
   const timelineEvents = useMemo(() => {
     const events: Array<{
       id: string
@@ -578,12 +590,13 @@ export const CarrierEvaluationPage: React.FC = () => {
       badgeColor: string
       driver?: string
       plate?: string
+      rawComplaint?: CarrierComplaintRecord
     }> = []
 
     evaluations.forEach((e) => {
       events.push({
         id: e.id || `eval-${Math.random()}`,
-        date: e.created || e.evaluation_date || '',
+        date: e.evaluation_date || e.created || '',
         type: 'AVALIACAO',
         title: `Avaliação Registrada: ${e.target_type}`,
         description: `Nota Motorista: ${e.driver_avg_score ? e.driver_avg_score.toFixed(1) : '—'} • Veículo: ${e.vehicle_avg_score ? e.vehicle_avg_score.toFixed(1) : '—'} (Origem: ${e.origin_type})`,
@@ -597,11 +610,11 @@ export const CarrierEvaluationPage: React.FC = () => {
     complaints.forEach((c) => {
       events.push({
         id: c.id || `comp-${Math.random()}`,
-        date: c.created || c.occurrence_date || '',
+        date: c.operation_date || c.occurrence_date || c.created || '',
         type: 'RECLAMACAO',
         title: `Reclamação ${c.complaint_number}: ${c.reason_name || c.category}`,
-        description: `${c.description} (Status: ${c.status})`,
-        badge: c.status,
+        description: `${c.description} (Status: ${c.status === 'REGISTRADA' ? 'Aguardando Análise' : c.status})`,
+        badge: c.status === 'REGISTRADA' ? 'AGUARDANDO ANÁLISE' : c.status,
         badgeColor:
           c.status === 'PROCEDENTE'
             ? 'bg-rose-600'
@@ -619,7 +632,7 @@ export const CarrierEvaluationPage: React.FC = () => {
     compliments.forEach((co) => {
       events.push({
         id: co.id || `compl-${Math.random()}`,
-        date: co.created || co.compliment_date || '',
+        date: co.compliment_date || co.created || '',
         type: 'ELOGIO',
         title: `Elogio Registrado: ${co.category}`,
         description: co.description,
@@ -630,8 +643,23 @@ export const CarrierEvaluationPage: React.FC = () => {
       })
     })
 
-    return events.sort((a, b) => b.date.localeCompare(a.date))
-  }, [evaluations, complaints, compliments])
+    // Integrar histórico operacional de viagens executadas pelo motorista/prestador
+    historyList.forEach((h) => {
+      events.push({
+        id: h.id || `hist-${Math.random()}`,
+        date: h.transport_date || h.created || '',
+        type: 'HISTORICO',
+        title: `Transporte Concluído: OT ${h.transport_order_number || h.sap_transport_number || 'S/N'}`,
+        description: `Itinerário ${h.itinerary_code || 'Geral'} • Clientes: ${h.customers_summary || 'Diversos'} • Pontual: ${h.is_on_time !== false ? 'Sim (No Prazo)' : 'Com Atraso'}`,
+        badge: h.is_on_time !== false ? 'No Prazo' : 'Com Atraso',
+        badgeColor: h.is_on_time !== false ? 'bg-slate-600' : 'bg-rose-500',
+        driver: h.driver_name,
+        plate: h.vehicle_plate,
+      })
+    })
+
+    return events.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+  }, [evaluations, complaints, compliments, historyList])
 
   return (
     <div className="space-y-5 pb-12">
@@ -803,155 +831,161 @@ export const CarrierEvaluationPage: React.FC = () => {
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-600 text-[10px] uppercase font-bold border-b border-slate-200">
                   <tr>
-                    <th className="py-2.5 px-3">Nº / Data</th>
-                    <th className="py-2.5 px-3">OT / Remessa</th>
+                    <th className="py-2.5 px-3">Data</th>
+                    <th className="py-2.5 px-3">Reclamação</th>
                     <th className="py-2.5 px-3">Cliente</th>
-                    <th className="py-2.5 px-3">Origem</th>
-                    <th className="py-2.5 px-3">Motivo Padronizado</th>
-                    <th className="py-2.5 px-3">Motorista / Placa</th>
+                    <th className="py-2.5 px-3">OT</th>
+                    <th className="py-2.5 px-3">Motivo</th>
                     <th className="py-2.5 px-3">Severidade</th>
                     <th className="py-2.5 px-3 text-center">Status</th>
                     <th className="py-2.5 px-3 text-center">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {complaints.map((c) => (
-                    <tr
-                      key={c.id || c.complaint_number}
-                      className="hover:bg-slate-50/70 transition-colors"
-                    >
-                      <td className="py-2.5 px-3">
-                        <strong className="text-[#005596] block font-mono text-[11px]">
-                          {c.complaint_number}
-                        </strong>
-                        <span className="text-[10px] text-slate-400">
-                          {formatDate(c.occurrence_date || c.created)}
-                        </span>
-                      </td>
+                  {complaints.map((c) => {
+                    const clientDisplay = c.customer_display || c.customer_name || '—'
+                    const otDisplay =
+                      c.transport_order_number ||
+                      c.sap_transport_number ||
+                      (c.has_transport_link ? 'OT pendente' : 'Sem vínculo OT')
+                    const reasonDisplay = c.reason_name || c.category || '—'
 
-                      <td className="py-2.5 px-3">
-                        {c.transport_order_number || c.sap_transport_number ? (
+                    return (
+                      <tr
+                        key={c.id || c.complaint_number}
+                        onClick={() => setSelectedComplaintDetail(c)}
+                        className="hover:bg-sky-50/40 cursor-pointer transition-colors group"
+                        title="Clique na linha para abrir o detalhe completo da reclamação"
+                      >
+                        {/* Coluna 1: Data */}
+                        <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
+                          <span className="font-semibold text-slate-700 block">
+                            {formatDate(c.operation_date || c.occurrence_date || c.created)}
+                          </span>
+                        </td>
+
+                        {/* Coluna 2: Reclamação */}
+                        <td className="py-2.5 px-3">
+                          <strong className="text-[#005596] block font-mono text-[11px] group-hover:underline">
+                            {c.complaint_number}
+                          </strong>
+                          {c.driver_name && (
+                            <span className="text-[10px] text-slate-500 block truncate max-w-[130px]">
+                              {c.driver_name} {c.vehicle_plate ? `(${c.vehicle_plate})` : ''}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Coluna 3: Cliente */}
+                        <td className="py-2.5 px-3">
+                          <span
+                            className="font-medium text-slate-800 block max-w-[160px] truncate"
+                            title={clientDisplay}
+                          >
+                            {clientDisplay}
+                          </span>
+                        </td>
+
+                        {/* Coluna 4: OT */}
+                        <td className="py-2.5 px-3">
                           <div className="space-y-0.5">
-                            <span className="font-semibold text-slate-800 block">
-                              {c.transport_order_number || c.sap_transport_number}
+                            <span className="font-mono text-slate-800 block font-medium">
+                              {otDisplay}
                             </span>
                             {c.delivery_number && (
-                              <span className="font-mono text-[10px] text-slate-500 block">
+                              <span className="font-mono text-[10px] text-slate-400 block">
                                 Remessa: {c.delivery_number}
                               </span>
                             )}
                           </div>
-                        ) : (
-                          <span className="text-[10px] text-amber-700 italic">Sem vínculo OT</span>
-                        )}
-                      </td>
+                        </td>
 
-                      <td className="py-2.5 px-3">
-                        <span
-                          className="font-medium text-slate-800 block max-w-[150px] truncate"
-                          title={c.customer_display || c.customer_name}
-                        >
-                          {c.customer_display || c.customer_name || '—'}
-                        </span>
-                      </td>
-
-                      <td className="py-2.5 px-3">
-                        <Badge
-                          variant="outline"
-                          className={
-                            c.origin_channel === 'CLIENTE'
-                              ? 'border-indigo-300 text-indigo-700 bg-indigo-50/40 text-[10px]'
-                              : 'border-slate-300 text-slate-700 bg-slate-50 text-[10px]'
-                          }
-                        >
-                          {c.origin_channel || (c.origin_type === 'CLIENTE' ? 'CLIENTE' : 'WS')}
-                        </Badge>
-                      </td>
-
-                      <td className="py-2.5 px-3">
-                        <span
-                          className="font-medium text-slate-900 block max-w-[170px] truncate"
-                          title={c.reason_name || c.category}
-                        >
-                          {c.reason_name || c.category}
-                        </span>
-                        {c.reason_specification && (
-                          <span className="text-[10px] text-slate-500 block truncate max-w-[170px]">
-                            {c.reason_specification}
+                        {/* Coluna 5: Motivo */}
+                        <td className="py-2.5 px-3">
+                          <span
+                            className="font-medium text-slate-900 block max-w-[180px] truncate"
+                            title={reasonDisplay}
+                          >
+                            {reasonDisplay}
                           </span>
-                        )}
-                      </td>
+                          {c.reason_specification && (
+                            <span
+                              className="text-[10px] text-slate-500 block truncate max-w-[180px]"
+                              title={c.reason_specification}
+                            >
+                              {c.reason_specification}
+                            </span>
+                          )}
+                        </td>
 
-                      <td className="py-2.5 px-3">
-                        <span className="font-semibold text-slate-800 block truncate max-w-[120px]">
-                          {c.driver_name || '—'}
-                        </span>
-                        <span className="font-mono text-[10px] text-slate-500">
-                          {c.vehicle_plate || '—'}
-                        </span>
-                      </td>
-
-                      <td className="py-2.5 px-3">
-                        <Badge
-                          variant="outline"
-                          className={
-                            c.severity === 'CRITICA'
-                              ? 'border-rose-400 text-rose-700 font-bold text-[10px]'
-                              : c.severity === 'ALTA'
-                                ? 'border-amber-400 text-amber-700 font-bold text-[10px]'
-                                : 'text-slate-600 text-[10px]'
-                          }
-                        >
-                          {c.severity}
-                        </Badge>
-                      </td>
-
-                      <td className="py-2.5 px-3 text-center">
-                        <Badge
-                          className={
-                            c.status === 'PROCEDENTE'
-                              ? 'bg-rose-600 text-white text-[10px]'
-                              : c.status === 'IMPROCEDENTE'
-                                ? 'bg-slate-500 text-white text-[10px]'
-                                : c.status === 'TRATADA' || c.status === 'ENCERRADA'
-                                  ? 'bg-emerald-600 text-white text-[10px]'
-                                  : 'bg-amber-500 text-white text-[10px]'
-                          }
-                        >
-                          {c.status === 'REGISTRADA' ? 'AGUARDANDO ANÁLISE' : c.status}
-                        </Badge>
-                      </td>
-
-                      <td className="py-2.5 px-3 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setSelectedComplaintDetail(c)}
-                            title="Ver Detalhes Completos da Reclamação"
-                            className="h-7 w-7 p-0 text-slate-500 hover:text-[#005596]"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button
-                            size="sm"
+                        {/* Coluna 6: Severidade */}
+                        <td className="py-2.5 px-3">
+                          <Badge
                             variant="outline"
-                            onClick={() => {
-                              setSelectedComplaintForTreatment(c)
-                              setTreatmentStatus(c.status)
-                              setTreatmentNotes(c.analysis_notes || '')
-                              setManifestation(c.driver_carrier_manifestation || '')
-                              setConclusion(c.conclusion || '')
-                              setActionTaken(c.action_taken || '')
-                            }}
-                            className="h-7 text-[11px] text-[#005596] border-[#005596]/30 hover:bg-sky-50 px-2"
+                            className={
+                              c.severity === 'CRITICA'
+                                ? 'border-rose-400 text-rose-700 font-bold text-[10px]'
+                                : c.severity === 'ALTA'
+                                  ? 'border-amber-400 text-amber-700 font-bold text-[10px]'
+                                  : 'text-slate-600 text-[10px]'
+                            }
                           >
-                            Tratar
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            {c.severity}
+                          </Badge>
+                        </td>
+
+                        {/* Coluna 7: Status */}
+                        <td className="py-2.5 px-3 text-center">
+                          <Badge
+                            className={
+                              c.status === 'PROCEDENTE'
+                                ? 'bg-rose-600 text-white text-[10px]'
+                                : c.status === 'IMPROCEDENTE'
+                                  ? 'bg-slate-500 text-white text-[10px]'
+                                  : c.status === 'TRATADA' || c.status === 'ENCERRADA'
+                                    ? 'bg-emerald-600 text-white text-[10px]'
+                                    : 'bg-amber-500 text-white text-[10px]'
+                            }
+                          >
+                            {c.status === 'REGISTRADA' ? 'AGUARDANDO ANÁLISE' : c.status}
+                          </Badge>
+                        </td>
+
+                        {/* Ações operacionais */}
+                        <td className="py-2.5 px-3 text-center">
+                          <div
+                            className="flex items-center justify-center gap-1.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setSelectedComplaintDetail(c)}
+                              title="Ver Detalhes Completos da Reclamação"
+                              className="h-7 w-7 p-0 text-slate-500 hover:text-[#005596]"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedComplaintForTreatment(c)
+                                setTreatmentStatus(c.status)
+                                setTreatmentNotes(c.analysis_notes || '')
+                                setManifestation(c.driver_carrier_manifestation || '')
+                                setConclusion(c.conclusion || '')
+                                setActionTaken(c.action_taken || '')
+                              }}
+                              className="h-7 text-[11px] text-[#005596] border-[#005596]/30 hover:bg-sky-50 px-2"
+                            >
+                              Tratar
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1086,40 +1120,175 @@ export const CarrierEvaluationPage: React.FC = () => {
         {/* ABA: TIMELINE CRONOLÓGICA */}
         <TabsContent value="timeline" className="space-y-3 pt-2">
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
-            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-              <Clock className="w-4 h-4 text-[#005596]" />
-              Linha do Tempo Operacional Auditável
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#005596]" />
+                  Linha do Tempo Operacional Auditável
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Eventos ordenados cronologicamente. Reclamações no formato padronizado resumido e
+                  clicável para abertura de detalhes.
+                </p>
+              </div>
+              <Badge variant="outline" className="text-xs text-slate-600 self-start sm:self-auto">
+                Total: {timelineEvents.length} eventos
+              </Badge>
+            </div>
+
             <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
-              {timelineEvents.map((ev) => (
-                <div key={ev.id} className="relative pl-4 space-y-1 text-xs">
-                  <div className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full bg-white border-2 border-[#005596]" />
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900">{ev.title}</span>
-                    <Badge className={`${ev.badgeColor} text-white text-[9px] px-1.5 py-0`}>
-                      {ev.badge}
-                    </Badge>
-                    <span className="text-[10px] text-slate-400 ml-auto">
-                      {formatDate(ev.date)}
-                    </span>
-                  </div>
-                  <p className="text-slate-600 text-[11px] leading-relaxed">{ev.description}</p>
-                  {(ev.driver || ev.plate) && (
-                    <div className="text-[10px] text-slate-400 flex gap-2">
-                      {ev.driver && (
-                        <span>
-                          Motorista: <strong>{ev.driver}</strong>
+              {timelineEvents.map((ev) => {
+                const isComplaint = ev.type === 'RECLAMACAO' && ev.rawComplaint
+
+                if (isComplaint && ev.rawComplaint) {
+                  const comp = ev.rawComplaint
+                  const otDisplay =
+                    comp.transport_order_number ||
+                    comp.sap_transport_number ||
+                    (comp.has_transport_link ? 'OT pendente' : 'Sem OT')
+                  const clientDisplay =
+                    comp.customer_display || comp.customer_name || 'Cliente Geral'
+                  const reasonDisplay = comp.reason_name || comp.category || 'Motivo Geral'
+                  const statusLabel =
+                    comp.status === 'REGISTRADA' ? 'Aguardando Análise' : comp.status
+
+                  return (
+                    <div
+                      key={ev.id}
+                      onClick={() => setSelectedComplaintDetail(comp)}
+                      className="relative pl-4 p-3 rounded-lg border border-amber-200/80 bg-amber-50/30 hover:bg-amber-50/70 cursor-pointer transition-all hover:shadow-sm space-y-1.5 group"
+                    >
+                      <div className="absolute -left-6 top-3.5 w-3.5 h-3.5 rounded-full bg-white border-2 border-amber-500 group-hover:scale-110 transition-transform" />
+
+                      {/* Formato Resumido Clicável Exigido: Data | Reclamação | Cliente | OT | Motivo | Severidade | Status */}
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="font-semibold text-slate-700 text-[11px]">
+                          {formatDate(ev.date)}
                         </span>
-                      )}
-                      {ev.plate && (
-                        <span>
-                          Placa: <strong>{ev.plate}</strong>
+                        <span className="text-slate-300 font-bold">|</span>
+                        <strong className="text-[#005596] font-mono text-[11px] group-hover:underline">
+                          {comp.complaint_number}
+                        </strong>
+                        <span className="text-slate-300 font-bold">|</span>
+                        <span
+                          className="font-medium text-slate-800 max-w-[180px] truncate"
+                          title={clientDisplay}
+                        >
+                          {clientDisplay}
                         </span>
-                      )}
+                        <span className="text-slate-300 font-bold">|</span>
+                        <span className="font-mono text-slate-700 bg-white/80 px-1.5 py-0.5 rounded border border-slate-200 text-[10px]">
+                          {otDisplay}
+                        </span>
+                        <span className="text-slate-300 font-bold">|</span>
+                        <span
+                          className="font-medium text-amber-900 max-w-[190px] truncate"
+                          title={reasonDisplay}
+                        >
+                          {reasonDisplay}
+                        </span>
+                        <span className="text-slate-300 font-bold">|</span>
+                        <Badge
+                          variant="outline"
+                          className={
+                            comp.severity === 'CRITICA'
+                              ? 'border-rose-400 text-rose-700 font-bold text-[9px] px-1 py-0'
+                              : comp.severity === 'ALTA'
+                                ? 'border-amber-400 text-amber-700 font-bold text-[9px] px-1 py-0'
+                                : 'text-slate-600 text-[9px] px-1 py-0'
+                          }
+                        >
+                          {comp.severity}
+                        </Badge>
+                        <span className="text-slate-300 font-bold">|</span>
+                        <Badge
+                          className={
+                            comp.status === 'PROCEDENTE'
+                              ? 'bg-rose-600 text-white text-[9px] px-1.5 py-0'
+                              : comp.status === 'IMPROCEDENTE'
+                                ? 'bg-slate-500 text-white text-[9px] px-1.5 py-0'
+                                : comp.status === 'TRATADA' || comp.status === 'ENCERRADA'
+                                  ? 'bg-emerald-600 text-white text-[9px] px-1.5 py-0'
+                                  : 'bg-amber-500 text-white text-[9px] px-1.5 py-0'
+                          }
+                        >
+                          {statusLabel}
+                        </Badge>
+
+                        <div className="ml-auto text-[10px] text-[#005596] opacity-0 group-hover:opacity-100 font-semibold flex items-center gap-1 transition-opacity">
+                          <Eye className="w-3 h-3" />
+                          Clique para detalhe
+                        </div>
+                      </div>
+
+                      <p className="text-slate-600 text-[11px] leading-relaxed line-clamp-2">
+                        {comp.description}
+                      </p>
+
+                      <div className="text-[10px] text-slate-500 flex flex-wrap gap-x-3 gap-y-0.5">
+                        {comp.driver_name && (
+                          <span>
+                            Motorista:{' '}
+                            <strong className="text-slate-700">{comp.driver_name}</strong>
+                          </span>
+                        )}
+                        {comp.vehicle_plate && (
+                          <span>
+                            Placa:{' '}
+                            <strong className="text-slate-700 font-mono">
+                              {comp.vehicle_plate}
+                            </strong>
+                          </span>
+                        )}
+                        {comp.origin_channel && (
+                          <span>
+                            Origem:{' '}
+                            <strong className="text-slate-700">{comp.origin_channel}</strong>
+                          </span>
+                        )}
+                        {comp.delivery_number && (
+                          <span>
+                            Remessa:{' '}
+                            <strong className="text-slate-700 font-mono">
+                              {comp.delivery_number}
+                            </strong>
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
+                  )
+                }
+
+                return (
+                  <div key={ev.id} className="relative pl-4 space-y-1 text-xs">
+                    <div className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full bg-white border-2 border-[#005596]" />
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-900">{ev.title}</span>
+                      <Badge className={`${ev.badgeColor} text-white text-[9px] px-1.5 py-0`}>
+                        {ev.badge}
+                      </Badge>
+                      <span className="text-[10px] text-slate-400 ml-auto">
+                        {formatDate(ev.date)}
+                      </span>
+                    </div>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">{ev.description}</p>
+                    {(ev.driver || ev.plate) && (
+                      <div className="text-[10px] text-slate-400 flex gap-2">
+                        {ev.driver && (
+                          <span>
+                            Motorista: <strong>{ev.driver}</strong>
+                          </span>
+                        )}
+                        {ev.plate && (
+                          <span>
+                            Placa: <strong>{ev.plate}</strong>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         </TabsContent>
@@ -2046,6 +2215,259 @@ export const CarrierEvaluationPage: React.FC = () => {
               Salvar Elogio
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: DETALHES COMPLETOS DA RECLAMAÇÃO OPERACIONAL                     */}
+      {/* ========================================================================= */}
+      <Dialog
+        open={!!selectedComplaintDetail}
+        onOpenChange={(open) => !open && setSelectedComplaintDetail(null)}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-6 bg-white border border-slate-200 shadow-xl rounded-xl">
+          {selectedComplaintDetail && (
+            <>
+              <DialogHeader className="pb-3 border-b border-slate-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-slate-100 text-[#005596] rounded-lg">
+                      <AlertOctagon className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <span>Reclamação</span>
+                        <span className="font-mono text-[#005596]">
+                          {selectedComplaintDetail.complaint_number}
+                        </span>
+                      </DialogTitle>
+                      <DialogDescription className="text-xs text-slate-500 mt-0.5">
+                        Registrada em{' '}
+                        {formatDate(
+                          selectedComplaintDetail.created ||
+                            selectedComplaintDetail.occurrence_date,
+                        )}
+                      </DialogDescription>
+                    </div>
+                  </div>
+
+                  <Badge
+                    className={
+                      selectedComplaintDetail.status === 'PROCEDENTE'
+                        ? 'bg-rose-600 text-white text-xs'
+                        : selectedComplaintDetail.status === 'IMPROCEDENTE'
+                          ? 'bg-slate-500 text-white text-xs'
+                          : selectedComplaintDetail.status === 'TRATADA' ||
+                              selectedComplaintDetail.status === 'ENCERRADA'
+                            ? 'bg-emerald-600 text-white text-xs'
+                            : 'bg-amber-500 text-white text-xs'
+                    }
+                  >
+                    {selectedComplaintDetail.status === 'REGISTRADA'
+                      ? 'AGUARDANDO ANÁLISE'
+                      : selectedComplaintDetail.status}
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-4 pt-2 text-xs">
+                {/* Metadados e Classificação */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                      Alvo
+                    </span>
+                    <strong className="text-slate-800">
+                      {selectedComplaintDetail.target_type}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                      Severidade
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        selectedComplaintDetail.severity === 'CRITICA'
+                          ? 'border-rose-400 text-rose-700 font-bold text-[10px]'
+                          : selectedComplaintDetail.severity === 'ALTA'
+                            ? 'border-amber-400 text-amber-700 font-bold text-[10px]'
+                            : 'text-slate-700 text-[10px]'
+                      }
+                    >
+                      {selectedComplaintDetail.severity}
+                    </Badge>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                      Origem
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className="border-indigo-300 text-indigo-700 text-[10px]"
+                    >
+                      {selectedComplaintDetail.origin_channel ||
+                        selectedComplaintDetail.origin_type ||
+                        'WS'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                      Vínculo OT
+                    </span>
+                    <span className="font-semibold text-slate-800">
+                      {selectedComplaintDetail.has_transport_link !== false
+                        ? 'Sim (Vinculado)'
+                        : 'Não vinculado'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Motivo e Justificativas */}
+                <div className="space-y-1.5 p-3 rounded-lg border border-amber-100 bg-amber-50/20">
+                  <div className="text-[10px] font-bold uppercase text-amber-900">
+                    Motivo Padronizado
+                  </div>
+                  <div className="text-sm font-bold text-slate-900">
+                    {selectedComplaintDetail.reason_name || selectedComplaintDetail.category}
+                  </div>
+                  {selectedComplaintDetail.reason_specification && (
+                    <div className="text-xs text-slate-700 mt-1 bg-white p-2 rounded border border-amber-200">
+                      <strong className="text-slate-900 block text-[11px] mb-0.5">
+                        Especificação do Motivo (Outros):
+                      </strong>
+                      {selectedComplaintDetail.reason_specification}
+                    </div>
+                  )}
+                  {!selectedComplaintDetail.has_transport_link &&
+                    selectedComplaintDetail.unlinked_transport_justification && (
+                      <div className="text-xs text-amber-900 mt-1 bg-amber-100/50 p-2 rounded border border-amber-200">
+                        <strong className="block text-[11px] mb-0.5">
+                          Justificativa da Ausência de Vínculo:
+                        </strong>
+                        {selectedComplaintDetail.unlinked_transport_justification}
+                      </div>
+                    )}
+                </div>
+
+                {/* Descrição do Fato */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                    Descrição Detalhada do Fato
+                  </span>
+                  <div className="p-3 bg-white rounded-lg border border-slate-200 text-slate-800 leading-relaxed whitespace-pre-wrap text-xs">
+                    {selectedComplaintDetail.description}
+                  </div>
+                </div>
+
+                {/* Vínculos Operacionais (OT, Remessa, Cliente, Motorista, Placa) */}
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                  <div className="text-[10px] font-bold uppercase text-slate-600 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-[#005596]" />
+                    Vínculos Operacionais e Cadastrais
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">
+                        Ordem de Transporte / SAP
+                      </span>
+                      <strong className="font-mono text-slate-800">
+                        {selectedComplaintDetail.transport_order_number ||
+                          selectedComplaintDetail.sap_transport_number ||
+                          '—'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Número da Remessa</span>
+                      <strong className="font-mono text-slate-800">
+                        {selectedComplaintDetail.delivery_number || '—'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Cliente</span>
+                      <strong
+                        className="text-slate-800 truncate block"
+                        title={
+                          selectedComplaintDetail.customer_display ||
+                          selectedComplaintDetail.customer_name
+                        }
+                      >
+                        {selectedComplaintDetail.customer_display ||
+                          selectedComplaintDetail.customer_name ||
+                          '—'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Motorista</span>
+                      <strong className="text-slate-800">
+                        {selectedComplaintDetail.driver_name || '—'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Placa do Veículo</span>
+                      <strong className="font-mono text-slate-800">
+                        {selectedComplaintDetail.vehicle_plate || '—'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Transportadora</span>
+                      <strong className="text-slate-800">
+                        {selectedComplaintDetail.carrier_name || '—'}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Registro e Auditoria */}
+                <div className="text-[10px] text-slate-400 flex flex-wrap justify-between items-center border-t border-slate-100 pt-2">
+                  <span>
+                    Registrado por:{' '}
+                    <strong>
+                      {selectedComplaintDetail.registered_by_name || 'Operador Logístico'}
+                    </strong>{' '}
+                    ({selectedComplaintDetail.registered_by_email || '—'})
+                  </span>
+                  <span>
+                    Data da Operação:{' '}
+                    {formatDate(
+                      selectedComplaintDetail.operation_date ||
+                        selectedComplaintDetail.occurrence_date,
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              <DialogFooter className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const c = selectedComplaintDetail
+                    setSelectedComplaintDetail(null)
+                    setSelectedComplaintForTreatment(c)
+                    setTreatmentStatus(c.status)
+                    setTreatmentNotes(c.analysis_notes || '')
+                    setManifestation(c.driver_carrier_manifestation || '')
+                    setConclusion(c.conclusion || '')
+                    setActionTaken(c.action_taken || '')
+                  }}
+                  className="text-xs text-[#005596] border-[#005596]/30 hover:bg-sky-50"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1" />
+                  Tratar / Julgar Reclamação
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => setSelectedComplaintDetail(null)}
+                  className="text-xs bg-slate-800 text-white hover:bg-slate-900"
+                >
+                  Fechar
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

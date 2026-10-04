@@ -7,6 +7,9 @@ import {
   formatDistanceKm,
   formatDateTimeBR,
   NegociacaoRecord,
+  mapNegotiationToConsolidatedColumn,
+  computeNegotiationIntelligence,
+  detectOperationalAlerts,
 } from '../domain/negociacoesEngine'
 
 describe('Motor de Domínio de Negociações & Pipeline SAP (HUB CIAFAL)', () => {
@@ -145,5 +148,27 @@ describe('Motor de Domínio de Negociações & Pipeline SAP (HUB CIAFAL)', () =>
     const dt = formatDateTimeBR('2026-10-03T14:35:00.000Z')
     expect(dt.date).toBeDefined()
     expect(dt.time).toBeDefined()
+  })
+
+  it('4. Deve mapear corretamente as negociações para as 10 colunas consolidadas', () => {
+    // mockRecords[0]: status CONCLUIDA, sap_pipeline_status AGUARDANDO_INTEGRACAO => PENDENTE_SAP
+    expect(mapNegotiationToConsolidatedColumn(mockRecords[0])).toBe('PENDENTE_SAP')
+
+    // mockRecords[4]: status ABERTO => AGUARDANDO_NEGOCIACAO
+    expect(mapNegotiationToConsolidatedColumn(mockRecords[4])).toBe('AGUARDANDO_NEGOCIACAO')
+
+    // mockRecords[3]: status RECUSADO => RECUSADA
+    expect(mapNegotiationToConsolidatedColumn(mockRecords[3])).toBe('RECUSADA')
+
+    // Inteligência de rota
+    const intel = computeNegotiationIntelligence(mockRecords[0], mockRecords)
+    expect(intel.historicalAvgFreight).toBeGreaterThan(0)
+    expect(intel.benchmarkMessage).toBeDefined()
+    expect(intel.anttMessage).toBeDefined()
+
+    // Alertas operacionais
+    const alerts = detectOperationalAlerts(mockRecords[0])
+    expect(alerts.length).toBeGreaterThanOrEqual(1)
+    expect(alerts.some((a: any) => a.id === 'aceite_sem_sap')).toBe(true)
   })
 })

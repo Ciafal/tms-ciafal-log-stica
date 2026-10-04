@@ -29,6 +29,8 @@ interface NegotiationKanbanCardProps {
   onMoveToNext?: (neg: NegociacaoRecord) => void
   onConcludeModal?: (neg: NegociacaoRecord) => void
   onTriggerSap?: (neg: NegociacaoRecord) => void
+  onTakeover?: (neg: NegociacaoRecord) => void
+  onHandback?: (neg: NegociacaoRecord) => void
   isProcessingSap?: boolean
 }
 
@@ -38,11 +40,19 @@ export const NegotiationKanbanCard: React.FC<NegotiationKanbanCardProps> = ({
   onMoveToNext,
   onConcludeModal,
   onTriggerSap,
+  onTakeover,
+  onHandback,
   isProcessingSap = false,
 }) => {
   const dates = formatDateTimeBR(negotiation.opened_at)
   const isChicao = negotiation.responsible_type === 'CHICAO_IA'
   const isHuman = negotiation.responsible_type === 'HUMANO'
+  const initialFre = negotiation.initial_freight_value || 0
+  const driverCounter = negotiation.counter_value_requested
+  const negotiatedFre = negotiation.negotiated_freight_value || initialFre
+  const toll = negotiation.toll_value || 0
+  const totalCost = negotiation.total_contracted_value || negotiatedFre + toll
+  const minNoReply = negotiation.minutes_without_reply
 
   return (
     <Card className="bg-white border-slate-200 shadow-xs hover:shadow-md transition-all rounded-xl overflow-hidden flex flex-col justify-between group">
@@ -115,36 +125,67 @@ export const NegotiationKanbanCard: React.FC<NegotiationKanbanCardProps> = ({
           </div>
         </div>
 
-        {/* Valores Comerciais */}
-        <div className="pt-1 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <span className="text-[10px] text-slate-400 block">Frete Negociado</span>
-            <span className="font-mono font-bold text-slate-900">
-              {formatCurrencyBRL(
-                negotiation.negotiated_freight_value || negotiation.initial_freight_value,
-              )}
-            </span>
+        {/* Valores Comerciais Detalhados (Inicial, Solicitado pelo motorista, Negociado, Pedágio, Total) */}
+        <div className="pt-1 border-t border-slate-100 space-y-1.5 text-xs">
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <div>
+              <span className="text-[10px] text-slate-400 block">Valor Inicial</span>
+              <span className="font-mono text-slate-600 font-semibold">
+                {formatCurrencyBRL(initialFre)}
+              </span>
+            </div>
+            {driverCounter ? (
+              <div className="text-right">
+                <span className="text-[10px] text-amber-700 font-bold block">
+                  Solicitado Motorista
+                </span>
+                <span className="font-mono font-bold text-amber-800">
+                  {formatCurrencyBRL(driverCounter)}
+                </span>
+              </div>
+            ) : (
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 block">Frete Acordo</span>
+                <span className="font-mono font-bold text-slate-900">
+                  {formatCurrencyBRL(negotiatedFre)}
+                </span>
+              </div>
+            )}
           </div>
-          <div className="text-right">
-            <span className="text-[10px] text-slate-400 block">Pedágio Integral</span>
-            <span className="font-mono font-bold text-amber-700">
-              {formatCurrencyBRL(negotiation.toll_value)}
-            </span>
+
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <div>
+              <span className="text-[10px] text-slate-400 block">Pedágio Integral</span>
+              <span className="font-mono font-bold text-amber-700">{formatCurrencyBRL(toll)}</span>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 block">Custo Total</span>
+              <span className="font-mono font-black text-slate-900">
+                {formatCurrencyBRL(totalCost)}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Total Contratado */}
-        <div className="bg-emerald-50/70 p-1.5 rounded-md border border-emerald-100 flex items-center justify-between text-xs">
-          <span className="text-[10px] font-bold text-emerald-800 uppercase">
-            Total Contratado:
-          </span>
-          <span className="font-mono font-black text-emerald-800">
-            {formatCurrencyBRL(
-              negotiation.total_contracted_value ||
-                (negotiation.negotiated_freight_value || 0) + (negotiation.toll_value || 0),
-            )}
-          </span>
-        </div>
+        {/* Alerta de Tempo Sem Resposta (quando houver) */}
+        {minNoReply !== undefined && minNoReply > 0 && negotiation.status === 'EM_NEGOCIACAO' && (
+          <div className="bg-amber-50 border border-amber-200 rounded px-2 py-1 flex items-center justify-between text-[10px] text-amber-800">
+            <span className="flex items-center gap-1 font-semibold">
+              <AlertTriangle className="w-3 h-3 text-amber-600" /> Sem resposta:
+            </span>
+            <span className="font-bold">{minNoReply} min</span>
+          </div>
+        )}
+
+        {/* Total Contratado Concluído */}
+        {negotiation.status === 'CONCLUIDA' && (
+          <div className="bg-emerald-50/70 p-1.5 rounded-md border border-emerald-100 flex items-center justify-between text-xs">
+            <span className="text-[10px] font-bold text-emerald-800 uppercase">Total Fechado:</span>
+            <span className="font-mono font-black text-emerald-800">
+              {formatCurrencyBRL(totalCost)}
+            </span>
+          </div>
+        )}
 
         {/* Status da Integração SAP (Itens 11 e 12) */}
         {negotiation.status === 'CONCLUIDA' && (
@@ -202,6 +243,32 @@ export const NegotiationKanbanCard: React.FC<NegotiationKanbanCardProps> = ({
         </Button>
 
         <div className="flex items-center gap-1">
+          {negotiation.responsible_type === 'CHICAO_IA' && onTakeover && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onTakeover(negotiation)}
+              className="h-8 text-[10px] font-bold border-amber-300 text-amber-800 hover:bg-amber-50 px-2"
+              title="Assumir negociação do Chicão (Takeover Humano)"
+            >
+              <User className="w-3 h-3 mr-1 text-amber-600" />
+              Assumir
+            </Button>
+          )}
+
+          {negotiation.responsible_type === 'HUMANO' && onHandback && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onHandback(negotiation)}
+              className="h-8 text-[10px] font-bold border-sky-300 text-[#005596] hover:bg-sky-50 px-2"
+              title="Devolver negociação para o Chicão IA"
+            >
+              <Bot className="w-3 h-3 mr-1 text-[#005596]" />
+              Devolver
+            </Button>
+          )}
+
           {negotiation.status === 'ABERTO' && onMoveToNext && (
             <Button
               size="sm"

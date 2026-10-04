@@ -33,7 +33,11 @@ import {
   ExternalLink,
   ShieldCheck,
   Package,
+  BrainCircuit,
+  TrendingUp,
+  Scale,
 } from 'lucide-react'
+import { computeNegotiationIntelligence, detectOperationalAlerts } from '@/domain/negociacoesEngine'
 
 interface NegotiationDetailDrawerProps {
   open: boolean
@@ -65,6 +69,7 @@ export const NegotiationDetailDrawer: React.FC<NegotiationDetailDrawerProps> = (
   const datesAccepted = formatDateTimeBR(negotiation.acceptance_at)
 
   const validation = validateNegotiationForCompletion(negotiation)
+  const intel = computeNegotiationIntelligence(negotiation)
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -188,6 +193,37 @@ export const NegotiationDetailDrawer: React.FC<NegotiationDetailDrawerProps> = (
               </ul>
             </AlertDescription>
           </Alert>
+        )}
+
+        {/* Alertas Operacionais (Item 6) */}
+        {detectOperationalAlerts(negotiation).length > 0 && (
+          <div className="space-y-2">
+            {detectOperationalAlerts(negotiation).map((al) => (
+              <div
+                key={al.id}
+                className={`p-3 rounded-xl border text-xs flex items-start justify-between gap-3 ${
+                  al.severity === 'CRITICAL'
+                    ? 'bg-rose-50 border-rose-200 text-rose-900'
+                    : al.severity === 'WARNING'
+                      ? 'bg-amber-50 border-amber-200 text-amber-900'
+                      : 'bg-sky-50 border-sky-200 text-[#005596]'
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="font-bold block">{al.title}</strong>
+                    <span className="text-[11px] leading-tight block">{al.description}</span>
+                  </div>
+                </div>
+                {al.actionLabel && (
+                  <Badge variant="outline" className="bg-white shrink-0 text-[10px] font-bold">
+                    {al.actionLabel}
+                  </Badge>
+                )}
+              </div>
+            ))}
+          </div>
         )}
 
         {/* TABS DE DETALHAMENTO */}
@@ -503,8 +539,84 @@ export const NegotiationDetailDrawer: React.FC<NegotiationDetailDrawerProps> = (
             </Card>
           </TabsContent>
 
-          {/* TAB 4: VALORES COMERCIAIS */}
+          {/* TAB 4: VALORES COMERCIAIS & INTELIGÊNCIA ANTT/HISTÓRICO */}
           <TabsContent value="comercial" className="space-y-4 mt-3">
+            {/* Bloco de Inteligência de Negociação (Item 5 da especificação) */}
+            <Card className="bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border-blue-200 shadow-xs">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-blue-200/80 pb-2">
+                  <div className="flex items-center gap-2">
+                    <BrainCircuit className="w-4 h-4 text-[#005596]" />
+                    <h4 className="text-xs font-black uppercase text-[#005596] tracking-wider">
+                      Inteligência de Rota CIAFAL & Parâmetros de Mercado
+                    </h4>
+                  </div>
+                  <Badge className="bg-[#005596] text-white text-[10px] font-bold">
+                    Prescritivo
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="bg-white p-2.5 rounded-lg border border-blue-100">
+                    <span className="text-[10px] text-slate-400 block font-semibold">
+                      Média Histórica Rota
+                    </span>
+                    <strong className="text-base font-mono text-slate-800">
+                      {formatCurrencyBRL(intel.historicalAvgFreight)}
+                    </strong>
+                    <span className="text-[10px] text-slate-500 block">Itinerário TVROT</span>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-lg border border-blue-100">
+                    <span className="text-[10px] text-slate-400 block font-semibold">
+                      Custo Médio / km
+                    </span>
+                    <strong className="text-base font-mono text-slate-800">
+                      R$ {intel.historicalCostPerKm.toFixed(2)}
+                    </strong>
+                    <span className="text-[10px] text-slate-500 block">Por km rodado</span>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-lg border border-blue-100">
+                    <span className="text-[10px] text-slate-400 block font-semibold">
+                      Custo Médio / ton
+                    </span>
+                    <strong className="text-base font-mono text-slate-800">
+                      R$ {intel.historicalCostPerTon.toFixed(2)}
+                    </strong>
+                    <span className="text-[10px] text-slate-500 block">Por tonelada útil</span>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-lg border border-blue-100">
+                    <span className="text-[10px] text-slate-400 block font-semibold">
+                      Variação vs Histórico
+                    </span>
+                    <strong
+                      className={`text-base font-mono ${
+                        intel.isAboveAvg ? 'text-amber-700' : 'text-emerald-700'
+                      }`}
+                    >
+                      {intel.currentVariancePct > 0 ? '+' : ''}
+                      {intel.currentVariancePct.toLocaleString('pt-BR')}%
+                    </strong>
+                    <span className="text-[10px] text-slate-500 block">Impacto margem</span>
+                  </div>
+                </div>
+
+                {/* Frase de apoio prescritiva */}
+                <div className="bg-white/80 p-3 rounded-lg border border-blue-200 text-xs space-y-1.5">
+                  <div className="flex items-center gap-2 text-slate-800 font-medium">
+                    <TrendingUp className="w-4 h-4 text-[#005596]" />
+                    <span>{intel.benchmarkMessage}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-600 text-[11px]">
+                    <Scale className="w-3.5 h-3.5 text-slate-500" />
+                    <span>{intel.anttMessage}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="bg-white border-slate-200 shadow-xs">
               <CardContent className="p-4 space-y-4">
                 <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider">

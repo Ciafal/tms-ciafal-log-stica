@@ -289,6 +289,77 @@ export interface CarrierComplimentRecord {
   created?: string
 }
 
+export function evaluateDriverStructured(ratings: {
+  pontualidade: number
+  cumprimentoOrientacoes: number
+  relacionamentoInterno: number
+  cuidadoCarga: number
+  regrasSeguranca: number
+  qualidadeGeral: number
+}): { averageScore: number; details: Record<string, number> } {
+  const values = Object.values(ratings)
+  const averageScore = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0
+  return { averageScore, details: ratings }
+}
+
+export function evaluateVehicleStructured(ratings: {
+  conservacao: number
+  limpeza: number
+  condicoesAparentes: number
+  amarracao: number
+  regrasInternas: number
+}): { averageScore: number; details: Record<string, number> } {
+  const values = Object.values(ratings)
+  const averageScore = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0
+  return { averageScore, details: ratings }
+}
+
+export function calculateCarrierScore(
+  data: {
+    servicesAvgScore: number
+    punctualityPct: number
+    totalComplaintsCount: number
+    procedenteComplaintsCount: number
+    occurrencesCount: number
+    communicationScore: number
+    onTimeDeliveriesPct: number
+    complimentsCount: number
+  },
+  weights: {
+    servicesEvaluationPct: number
+    punctualityPct: number
+    procedenteComplaintsPct: number
+    occurrencesPct: number
+    communicationPct: number
+    deliveryHistoryPct: number
+    complimentsPct: number
+  },
+): {
+  finalScore: number
+  complaintsScore: number
+} {
+  const complaintsScore = Math.max(0, 100 - (data.procedenteComplaintsCount || 0) * 25)
+  const servicesScore = ((data.servicesAvgScore || 0) / 5) * 100
+  const commScore = ((data.communicationScore || 0) / 5) * 100
+  const occurrencesScore = Math.max(0, 100 - (data.occurrencesCount || 0) * 15)
+  const complimentsScore = Math.min(100, 70 + (data.complimentsCount || 0) * 15)
+
+  const finalScore =
+    (servicesScore * weights.servicesEvaluationPct +
+      data.punctualityPct * weights.punctualityPct +
+      complaintsScore * weights.procedenteComplaintsPct +
+      occurrencesScore * weights.occurrencesPct +
+      commScore * weights.communicationPct +
+      data.onTimeDeliveriesPct * weights.deliveryHistoryPct +
+      complimentsScore * weights.complimentsPct) /
+    100
+
+  return {
+    finalScore: Math.round(finalScore),
+    complaintsScore,
+  }
+}
+
 // -------------------------------------------------------------------------
 // 1. VISÃO 360º MOTORISTA
 // -------------------------------------------------------------------------
