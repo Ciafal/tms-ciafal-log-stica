@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T14:29:57.677Z",
+  "generatedAt": "2026-10-05T11:51:59.404Z",
   "collections": [
     {
       "name": "users",
@@ -11147,6 +11147,72 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "commercial_response_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "commercial_response_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "commercial_rejection_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "commercial_negotiated_condition",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "commercial_confirmed_qty_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "commercial_confirmed_material",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "commercial_responded_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "commercial_responded_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_suggested_products_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_message_draft",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "commercial_sent_message",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -16334,6 +16400,308 @@
         "CREATE INDEX idx_tms_action_kpi ON tms_deviation_actions (kpi_id)",
         "CREATE INDEX idx_tms_action_status ON tms_deviation_actions (status)",
         "CREATE INDEX idx_tms_action_period ON tms_deviation_actions (year, month)"
+      ]
+    },
+    {
+      "name": "hub_notifications",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "recipient_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "recipient_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "recipient_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sender_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sender_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opportunity_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "opportunity_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_sap_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "message",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "suggested_products_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "link_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_read",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "read_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "channel",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_hub_notif_code ON hub_notifications (opportunity_code)",
+        "CREATE INDEX idx_hub_notif_recip ON hub_notifications (recipient_name)",
+        "CREATE INDEX idx_hub_notif_created ON hub_notifications (created DESC)",
+        "CREATE INDEX idx_hub_notif_read ON hub_notifications (is_read)"
+      ]
+    },
+    {
+      "name": "load_complement_learning",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "opportunity_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "opportunity_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_sap_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "itinerary_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "representative_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "material_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "material_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "suggested_qty_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "confirmed_qty_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "outcome",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["SENT", "ACCEPTED", "REJECTED", "EXPIRED", "CANCELLED", "UNDER_ANALYSIS"]
+        },
+        {
+          "name": "rejection_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rejection_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "negotiated_condition",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "response_time_minutes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "converted",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_suggested_products_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_original_rationale",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sent_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responded_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_lcl_opp_code ON load_complement_learning (opportunity_code)",
+        "CREATE INDEX idx_lcl_cust ON load_complement_learning (customer_sap_code)",
+        "CREATE INDEX idx_lcl_itin ON load_complement_learning (itinerary_id)",
+        "CREATE INDEX idx_lcl_rep ON load_complement_learning (representative_name)",
+        "CREATE INDEX idx_lcl_outcome ON load_complement_learning (outcome)"
       ]
     }
   ]

@@ -2976,21 +2976,35 @@ export type LoadLifecycleStage =
 export type CommercialOpportunityStatus =
   | 'Nova'
   | 'Selecionada'
+  | 'Enviado ao Comercial'
   | 'Enviada ao Comercial'
   | 'Em análise comercial'
+  | 'Cliente contatado'
+  | 'Cliente interessado'
+  | 'Cliente sem interesse'
+  | 'Complemento confirmado'
   | 'Aceita pelo Comercial'
   | 'Recusada pelo Comercial'
+  | 'Expirado'
   | 'Expirada'
+  | 'Cancelado'
   | 'Convertida em venda'
   | 'Nova oportunidade'
   | 'Contato iniciado'
-  | 'Cliente interessado'
   | 'Aguardando pedido SAP'
   | 'Pedido criado'
   | 'Associado à carga'
   | 'Recusado pelo cliente'
   | 'Descartado'
-  | 'Expirado'
+
+export type CommercialRejectionReason =
+  | 'sem necessidade'
+  | 'preço'
+  | 'prazo'
+  | 'estoque próprio'
+  | 'não conseguiu contato'
+  | 'material não atende'
+  | 'outro'
 
 export type AdherenceLevel = 'Alta' | 'Média' | 'Baixa'
 
@@ -3103,6 +3117,68 @@ export interface LoadComplementOpportunityEntity {
   financial_request_number?: string
   financial_requested_at?: string
   financial_requested_by?: string
+  commercial_response_status?: string
+  commercial_response_notes?: string
+  commercial_rejection_reason?: CommercialRejectionReason | string
+  commercial_negotiated_condition?: string
+  commercial_confirmed_qty_kg?: number
+  commercial_confirmed_material?: string
+  commercial_responded_at?: string
+  commercial_responded_by?: string
+  ai_suggested_products_json?: any
+  ai_message_draft?: string
+  commercial_sent_message?: string
+  created?: string
+  updated?: string
+}
+
+export interface HubNotificationEntity {
+  id?: string
+  title: string
+  recipient_role?: string
+  recipient_name: string
+  recipient_email?: string
+  sender_name: string
+  sender_email?: string
+  opportunity_code: string
+  opportunity_id?: string
+  itinerary_id?: string
+  customer_name?: string
+  customer_sap_code?: string
+  message: string
+  suggested_products_json?: any
+  link_url?: string
+  is_read?: boolean
+  read_at?: string
+  channel?: 'HUB' | 'EMAIL' | 'WHATSAPP' | string
+  status?: string
+  metadata?: any
+  created?: string
+  updated?: string
+}
+
+export interface LoadComplementLearningEntity {
+  id?: string
+  opportunity_code: string
+  opportunity_id?: string
+  customer_sap_code: string
+  customer_name: string
+  itinerary_id: string
+  representative_name: string
+  material_code?: string
+  material_description?: string
+  suggested_qty_kg?: number
+  confirmed_qty_kg?: number
+  outcome: 'SENT' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED' | 'CANCELLED' | 'UNDER_ANALYSIS'
+  rejection_reason?: CommercialRejectionReason | string
+  rejection_notes?: string
+  negotiated_condition?: string
+  response_time_minutes?: number
+  converted?: boolean
+  ai_suggested_products_json?: any
+  ai_original_rationale?: string
+  sent_at?: string
+  responded_at?: string
   created?: string
   updated?: string
 }
