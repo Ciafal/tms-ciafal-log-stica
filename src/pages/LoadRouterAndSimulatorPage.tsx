@@ -509,7 +509,7 @@ export function LoadRouterAndSimulatorPage() {
         breadcrumbs={[
           { label: 'TMS CIAFAL', href: '/tms' },
           { label: 'Planejamento Logístico', href: '/tms/roteirizador' },
-          { label: 'Roteirizador & Simulador' },
+          { label: 'Roteirizador & Simulador de Cargas' },
         ]}
         badge={
           <div className="flex items-center gap-1.5">

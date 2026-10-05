@@ -65,6 +65,7 @@ import {
   CommercialComplementEngine,
   CustomerCommercialHistorySummary,
   CommercialAiEvaluationResult,
+  CommercialSuggestedProduct,
 } from '@/domain/commercialComplementEngine'
 import { CommercialHistoryDetailModal } from '@/components/commercial/CommercialHistoryDetailModal'
 import { SendCommercialProposalModal } from '@/components/commercial/SendCommercialProposalModal'
@@ -933,7 +934,7 @@ export const ComplementCargosPage: React.FC = () => {
           breadcrumbs={[
             { label: 'TMS CIAFAL', href: '/tms' },
             { label: 'Comercial & Oportunidades', href: '/tms/complemento-cargas' },
-            { label: 'Complemento de Cargas' },
+            { label: 'Complemento de Cargas (Oportunidades)' },
           ]}
           badge={
             <Badge className="bg-[#005596] text-white text-[10px] font-bold">

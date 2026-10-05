@@ -279,7 +279,7 @@ export const CustomerLogisticInfoPage: React.FC = () => {
           { label: 'Informações Logísticas de Clientes' },
         ]}
         badge={
-          <Badge variant="outline" className="text-xs bg-blue-50 border-blue-200 text-[#002F6C]">
+          <Badge className="bg-[#005596] text-white text-xs font-bold px-2.5 py-0.5">
             Base Corporativa SAP ECC
           </Badge>
         }

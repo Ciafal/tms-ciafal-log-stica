@@ -597,7 +597,7 @@ export const FutureProgrammingPage: React.FC = () => {
         icon={Calendar}
         breadcrumbs={[
           { label: 'TMS CIAFAL', href: '/tms' },
-          { label: 'Planejamento Logístico', href: '/tms/programacao-futura' },
+          { label: 'Planejamento Logístico', href: '/tms/planejador-cargas' },
           { label: 'Programação Futura D+1' },
         ]}
         badge={

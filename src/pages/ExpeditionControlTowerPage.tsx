@@ -28,6 +28,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
 
 import {
   TowerViewMode,
@@ -224,55 +225,39 @@ export const ExpeditionControlTowerPage: React.FC = () => {
 
   return (
     <div className="space-y-5 animate-fade-in pb-16">
-      {/* 1. Breadcrumb e Cabeçalho Consolidado */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
-        {/* Breadcrumb */}
-        <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500">
-          <Link
-            to="/tms/dashboard"
-            className="hover:text-[#005596] transition flex items-center gap-1"
-          >
-            <Building2 className="w-3.5 h-3.5 text-slate-400" />
-            TMS
-          </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-[#005596] font-bold">Torre de Controle</span>
-        </div>
-
-        {/* Header Principal */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
-          <div>
-            <div className="flex items-center space-x-2.5">
-              <Zap className="w-6 h-6 text-[#005596]" />
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                Torre de Controle TMS CIAFAL
-              </h1>
-              <Badge className="bg-emerald-600 text-white text-xs font-bold px-2.5 py-0.5">
-                Visão 360º Live
-              </Badge>
-            </div>
-            <p className="text-xs text-slate-600 mt-1 max-w-3xl">
-              Visão integrada da operação logística CIAFAL — da disponibilidade do veículo à entrega
-              ao cliente.
-            </p>
+      {/* 1. Header Canônico HUB CIAFAL com Breadcrumb */}
+      <PageHeader
+        title="Torre de Controle TMS CIAFAL"
+        subtitle="Visão integrada da operação logística CIAFAL — da disponibilidade do veículo à entrega ao cliente."
+        icon={Zap}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Expedição & Operações', href: '/tms/expedicao' },
+          { label: 'Torre de Controle' },
+        ]}
+        badge={
+          <Badge className="bg-emerald-600 text-white text-xs font-bold px-2.5 py-0.5">
+            Visão 360º Live
+          </Badge>
+        }
+        meta={
+          <div className="text-right hidden sm:block mr-2">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">
+              Última atualização:
+            </span>
+            <span className="text-xs font-mono font-bold text-slate-700">
+              {formattedLastUpdated}
+            </span>
           </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Última atualização:
-              </span>
-              <span className="text-xs font-mono font-bold text-slate-700">
-                {formattedLastUpdated}
-              </span>
-            </div>
-
+        }
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => loadAllData(false)}
               disabled={isRefreshing}
-              className="text-xs border-slate-300 text-slate-700 hover:bg-slate-50 gap-1.5 font-semibold"
+              className="text-xs border-slate-300 text-slate-700 hover:bg-slate-50 gap-1.5 font-semibold h-9"
             >
               <RefreshCw
                 className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-[#005596]' : ''}`}
@@ -283,15 +268,16 @@ export const ExpeditionControlTowerPage: React.FC = () => {
             <Link to="/tms/expedicao">
               <Button
                 size="sm"
-                className="bg-[#005596] hover:bg-[#004275] text-white font-bold text-xs gap-1.5 shadow-sm"
+                className="bg-[#005596] hover:bg-[#004275] text-white font-bold text-xs gap-1.5 shadow-sm h-9"
               >
                 <Truck className="w-3.5 h-3.5" />
                 Gestão da Expedição
               </Button>
             </Link>
           </div>
-        </div>
-      </div>
+        }
+        className="bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm mb-0"
+      />
 
       {/* 2. Barra de Botões de Alternância de Visão */}
       <div className="relative z-10 bg-white rounded-xl border border-slate-200 p-2 shadow-sm pointer-events-auto">

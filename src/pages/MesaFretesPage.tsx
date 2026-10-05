@@ -798,7 +798,7 @@ export const MesaFretesPage: React.FC = () => {
           breadcrumbs={[
             { label: 'TMS CIAFAL', href: '/tms' },
             { label: 'Contratação & Fretes', href: '/tms/mesa-fretes' },
-            { label: 'Mesa de Fretes' },
+            { label: 'Mesa de Fretes & Agente Chicão' },
           ]}
           actions={
             <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">

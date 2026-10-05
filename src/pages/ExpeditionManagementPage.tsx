@@ -37,6 +37,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
 import {
   Dialog,
   DialogContent,
@@ -191,45 +192,45 @@ export const ExpeditionManagementPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
-      {/* Header Principal */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-        <div>
-          <div className="flex items-center space-x-2.5">
-            <Truck className="w-6 h-6 text-[#005596]" />
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              Gestão da Expedição & Torre Operacional
-            </h1>
-            <Badge className="bg-[#005596] text-white text-xs font-bold px-2.5 py-0.5">
-              Tempo Real
-            </Badge>
-          </div>
-          <p className="text-sm text-slate-500 mt-1">
-            Torre de controle de tempos operacionais: Check-in → Liberação WMS DP34 → Separação →
-            Carregamento → Faturamento SAP → Saída.
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadData}
-            className="text-xs border-slate-300 gap-1.5"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Atualizar Torre
-          </Button>
-          <Link to="/tms/torre-controle">
+      {/* Header Principal Canônico */}
+      <PageHeader
+        title="Gestão da Expedição & Torre Operacional"
+        subtitle="Torre de controle de tempos operacionais: Check-in → Liberação WMS DP34 → Separação → Carregamento → Faturamento SAP → Saída."
+        icon={Truck}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Expedição & Operações', href: '/tms/expedicao' },
+          { label: 'Gestão da Expedição' },
+        ]}
+        badge={
+          <Badge className="bg-[#005596] text-white text-xs font-bold px-2.5 py-0.5">
+            Tempo Real
+          </Badge>
+        }
+        actions={
+          <div className="flex items-center gap-2">
             <Button
+              variant="outline"
               size="sm"
-              className="bg-[#005596] hover:bg-[#004275] text-white font-bold text-xs gap-1.5 shadow-sm"
+              onClick={loadData}
+              className="text-xs border-slate-300 gap-1.5 h-9"
             >
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              Modo Torre de Controle
+              <RotateCcw className="w-3.5 h-3.5" />
+              Atualizar Torre
             </Button>
-          </Link>
-        </div>
-      </div>
+            <Link to="/tms/torre-controle">
+              <Button
+                size="sm"
+                className="bg-[#005596] hover:bg-[#004275] text-white font-bold text-xs gap-1.5 shadow-sm h-9"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-400" />
+                Modo Torre de Controle
+              </Button>
+            </Link>
+          </div>
+        }
+        className="bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm mb-0"
+      />
 
       {/* CARDS CLICÁVEIS DE STATUS NO TOPO */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-8 gap-2.5">

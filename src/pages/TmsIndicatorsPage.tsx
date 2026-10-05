@@ -18,7 +18,9 @@ import { KpiDrillDownModal } from '@/components/tms-indicators/KpiDrillDownModal
 import { KpiTargetConfigModal } from '@/components/tms-indicators/KpiTargetConfigModal'
 import { KpiDeviationActionModal } from '@/components/tms-indicators/KpiDeviationActionModal'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
 import { RefreshCw, BarChart3, Sparkles, Download, AlertCircle } from 'lucide-react'
 
 export const TmsIndicatorsPage: React.FC = () => {
@@ -171,56 +173,52 @@ export const TmsIndicatorsPage: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6 max-w-7xl animate-in fade-in duration-300">
-      {/* Cabeçalho da Página */}
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/60 pb-5">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400">
-              <BarChart3 className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                INDICADORES TMS
-                <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20">
-                  HUB CIAFAL
-                </span>
-              </h1>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Expedição • Logística • Transporte — Matriz Gerencial Anual Consolidada (Real x
-                Meta)
-              </p>
-            </div>
+      {/* Cabeçalho Canônico HUB CIAFAL */}
+      <PageHeader
+        title="Indicadores TMS — Matriz Gerencial Anual"
+        subtitle="Expedição • Logística • Transporte — Matriz Gerencial Anual Consolidada (Real x Meta) cruzando dados do SAP ECC e operação em tempo real."
+        icon={BarChart3}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Gestão Estratégica', href: '/tms/indicadores' },
+          { label: 'Indicadores TMS' },
+        ]}
+        badge={
+          <Badge className="bg-[#005596] text-white text-xs font-bold px-2.5 py-0.5">
+            HUB CIAFAL
+          </Badge>
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadData}
+              disabled={isLoading}
+              className="text-xs h-9"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? 'Atualizando...' : 'Atualizar Dados'}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                toast({
+                  title: 'Exportação Solicitada',
+                  description: 'Gerando relatório consolidado em formato padrão ABNT...',
+                })
+              }}
+              className="text-xs h-9"
+            >
+              <Download className="w-3.5 h-3.5 mr-1.5" />
+              Exportar XLS
+            </Button>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadData}
-            disabled={isLoading}
-            className="text-xs h-9"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-            {isLoading ? 'Atualizando...' : 'Atualizar Dados'}
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              toast({
-                title: 'Exportação Solicitada',
-                description: 'Gerando relatório consolidado em formato padrão ABNT...',
-              })
-            }}
-            className="text-xs h-9"
-          >
-            <Download className="w-3.5 h-3.5 mr-1.5" />
-            Exportar XLS
-          </Button>
-        </div>
-      </div>
+        }
+        className="bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm mb-0"
+      />
 
       {/* Cards Executivos de Resumo / Filtros Rápidos */}
       <KpiExecutiveCards

@@ -123,7 +123,7 @@ export const FreightIntelligencePage: React.FC = () => {
         breadcrumbs={[
           { label: 'TMS CIAFAL', href: '/tms' },
           { label: 'Gestão Estratégica', href: '/tms/inteligencia-fretes' },
-          { label: 'Inteligência de Fretes' },
+          { label: 'Inteligência de Fretes & Anomalias' },
         ]}
         badge={
           <Badge className="bg-[#005596] text-white text-xs font-bold px-2.5 py-0.5">

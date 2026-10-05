@@ -25,7 +25,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { KpiCard, IntegrationCard, SectionHeader } from '@/components/ui-custom'
+import { PageHeader, KpiCard, IntegrationCard, SectionHeader } from '@/components/ui-custom'
 import { useAuth } from '@/contexts/AuthContext'
 import { TmsService } from '@/services/tmsService'
 import {
@@ -192,33 +192,30 @@ export const TmsDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner - TORRE DE CONTROLE */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <div className="space-y-0.5">
-          <div className="flex items-center space-x-2 flex-wrap">
-            <h1 className="text-xl font-black tracking-tight text-slate-900">
-              TORRE DE CONTROLE — TRANSPORTE & LOGÍSTICA
-            </h1>
-            <Badge className="bg-[#005596] text-white text-[10px] font-bold">HUB CIAFAL</Badge>
-          </div>
-          <p className="text-xs text-slate-500">
-            Visão integrada da disponibilidade, planejamento, negociação, expedição, faturamento e
-            execução dos transportes.
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-2 shrink-0">
+      {/* Top Header Canônico HUB CIAFAL */}
+      <PageHeader
+        title="Torre de Controle — Transporte & Logística"
+        subtitle="Visão integrada da disponibilidade, planejamento, negociação, expedição, faturamento e execução dos transportes."
+        icon={Activity}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Painel Geral', href: '/tms/dashboard' },
+          { label: 'Torre de Controle Logística' },
+        ]}
+        badge={<Badge className="bg-[#005596] text-white text-[10px] font-bold">HUB CIAFAL</Badge>}
+        actions={
           <Link to="/tms/planejador-cargas">
             <Button
               size="sm"
-              className="bg-[#005596] hover:bg-sky-700 text-white text-xs font-bold shadow-sm"
+              className="bg-[#005596] hover:bg-[#004275] text-white text-xs font-bold shadow-sm h-9"
             >
-              <Package className="w-3.5 h-3.5 mr-1" />
+              <Package className="w-3.5 h-3.5 mr-1.5" />
               Abrir Planejador de Cargas
             </Button>
           </Link>
-        </div>
-      </div>
+        }
+        className="bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm mb-0"
+      />
 
       {/* FILTRO TEMPORAL PRINCIPAL: [ HOJE ] [ ONTEM ] [ SEMANA ] [ MÊS ] [ ANO ] */}
       <TowerTimePeriodFilter

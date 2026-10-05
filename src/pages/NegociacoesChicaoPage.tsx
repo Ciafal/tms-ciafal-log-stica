@@ -532,7 +532,7 @@ export const NegociacoesChicaoPage: React.FC = () => {
         breadcrumbs={[
           { label: 'TMS CIAFAL', href: '/tms' },
           { label: 'Contratação & Fretes', href: '/tms/mesa-fretes' },
-          { label: 'Negociações & Chicão' },
+          { label: 'Negociações & Chicão (Pipeline)' },
         ]}
         actions={
           <div className="flex items-center gap-2">
