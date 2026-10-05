@@ -332,13 +332,21 @@ export class CommercialComplementEngine {
       (opp.block_reason?.toLowerCase().includes('pcp') ||
         opp.stock_status?.toLowerCase().includes('aguardando'))
 
-    // Validação dos requisitos para habilitar o botão
-    const hasCustomer = Boolean(opp.customer_name && opp.customer_name !== 'Não localizado')
+    // Validação dos requisitos para habilitar o botão:
+    // cliente identificado + representante identificado + itinerário definido + complemento necessário > 0 + sugestão comercial válida
+    const hasCustomer = Boolean(
+      opp.customer_name &&
+      opp.customer_name.trim() !== '' &&
+      opp.customer_name !== 'Não localizado',
+    )
     const hasSalesRep = Boolean(
       (opp.commercial_representative || opp.salesperson_id) &&
+      (opp.commercial_representative || opp.salesperson_id)?.trim() !== '' &&
       (opp.commercial_representative || opp.salesperson_id) !== 'Não localizado',
     )
-    const hasItinerary = Boolean(opp.itinerary_id && opp.itinerary_id !== 'Não localizado')
+    const hasItinerary = Boolean(
+      opp.itinerary_id && opp.itinerary_id.trim() !== '' && opp.itinerary_id !== 'Não localizado',
+    )
     const hasResidualCapacity = missingWeightKg > 0
 
     // Construir lista de produtos sugeridos a partir dos dados do card / SAP
@@ -469,6 +477,46 @@ Favor verificar junto ao cliente se existe interesse em complementar esta carga.
       'Representante Comercial CIAFAL'
 
     try {
+      // Tenta primeiro chamar o endpoint seguro do backend
+      try {
+        const response = await fetch(
+          `${pb.baseUrl}/backend/v1/commercial-complement/send-proposal`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(pb.authStore.token ? { Authorization: `Bearer ${pb.authStore.token}` } : {}),
+            },
+            body: JSON.stringify({
+              opportunity_id: opportunity.id,
+              selected_products: selectedProducts,
+              custom_message: customMessage,
+              user_name: senderName,
+              user_email: senderEmail,
+              user_role: senderRole,
+            }),
+          },
+        )
+
+        const data = await response.json()
+        if (response.ok && data.success) {
+          return {
+            success: true,
+            notificationId: data.notification_id,
+            message:
+              data.message || `Oportunidade enviada ao representante ${targetRep} com sucesso!`,
+          }
+        }
+        if (response.status === 422 || response.status === 409 || response.status === 403) {
+          return {
+            success: false,
+            message: data.message || 'Envio não autorizado pelo backend.',
+          }
+        }
+      } catch (_hookErr) {
+        // Fallback direto via SDK do PocketBase
+      }
+
       // 1. Criar Notificação no HUB CIAFAL (Requisito 8)
       let notifRecord: any = null
       try {

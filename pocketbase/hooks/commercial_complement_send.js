@@ -223,6 +223,241 @@ routerAdd('POST', '/backend/v1/commercial-complement/send-batch', (e) => {
   })
 })
 
+// Endpoint específico para envio de Proposta Comercial Individual com Mensagem Contextualizada e Notificação no HUB CIAFAL
+// POST /backend/v1/commercial-complement/send-proposal
+routerAdd('POST', '/backend/v1/commercial-complement/send-proposal', (e) => {
+  const reqData = e.requestInfo().body || {}
+  const authRecord = e.auth
+
+  const userEmail = authRecord ? authRecord.email : reqData.user_email || 'operador@ciafal.com.br'
+  const userName = authRecord
+    ? authRecord.name || 'Operador Logístico'
+    : reqData.user_name || 'Operador Logístico'
+  const userRole = authRecord
+    ? authRecord.role || 'gerente_carga'
+    : reqData.user_role || 'gerente_carga'
+
+  const opportunityId = (reqData.opportunity_id || '').trim()
+  const customMessage = (reqData.custom_message || '').trim()
+  const selectedProducts = Array.isArray(reqData.selected_products) ? reqData.selected_products : []
+
+  if (!opportunityId) {
+    return e.json(400, { success: false, message: 'ID da oportunidade é obrigatório.' })
+  }
+
+  const allowedRoles = [
+    'admin_master',
+    'admin_tms',
+    'gestor_logistica',
+    'gerente_carga',
+    'operador_logistica',
+    'comercial',
+  ]
+  if (!allowedRoles.includes(userRole)) {
+    return e.json(403, {
+      success: false,
+      message:
+        'Acesso negado: seu perfil (' +
+        userRole +
+        ') não tem permissão para enviar propostas ao Comercial.',
+    })
+  }
+
+  try {
+    const opp = $app.findFirstRecordByData('load_complement_opportunities', 'id', opportunityId)
+    if (!opp) {
+      return e.json(404, { success: false, message: 'Oportunidade não encontrada.' })
+    }
+
+    const isBlocked = opp.getBool('is_blocked')
+    const blockReason = opp.getString('block_reason')
+    const currentStatus = opp.getString('commercial_status')
+    const oppCode = opp.getString('opportunity_code')
+
+    // Se estiver bloqueado por PCP ou motivo não financeiro
+    if (
+      isBlocked &&
+      !blockReason.toLowerCase().includes('crédito') &&
+      !blockReason.toLowerCase().includes('credito')
+    ) {
+      return e.json(422, {
+        success: false,
+        message:
+          'Envio impedido: a oportunidade possui bloqueio ativo (' +
+          (blockReason || 'restrição cadastral') +
+          ').',
+      })
+    }
+
+    const now = new Date().toISOString()
+    const nextStatus = 'Enviada ao Comercial'
+    const targetRep =
+      opp.getString('commercial_representative') ||
+      opp.getString('salesperson_id') ||
+      'Representante Comercial CIAFAL'
+
+    // 1. Criar Notificação em hub_notifications
+    let notifRecord = null
+    try {
+      const notifCol = $app.findCollectionByNameOrId('hub_notifications')
+      const notifRec = new Record(notifCol)
+      notifRec.set('title', 'Oportunidade de Complemento de Carga')
+      notifRec.set('recipient_role', 'comercial')
+      notifRec.set('recipient_name', targetRep)
+      notifRec.set(
+        'recipient_email',
+        targetRep.toLowerCase().replace(/[^a-z0-9]/g, '.') + '@ciafal.com.br',
+      )
+      notifRec.set('sender_name', userName)
+      notifRec.set('sender_email', userEmail)
+      notifRec.set('opportunity_code', oppCode)
+      notifRec.set('opportunity_id', opp.id)
+      notifRec.set('itinerary_id', opp.getString('itinerary_id'))
+      notifRec.set('customer_name', opp.getString('customer_name'))
+      notifRec.set(
+        'customer_sap_code',
+        opp.getString('customer_sap_code') || opp.getString('customer_id'),
+      )
+      notifRec.set('message', customMessage)
+      notifRec.set('suggested_products_json', selectedProducts)
+      notifRec.set('link_url', '/tms/complemento-cargas?opp=' + encodeURIComponent(oppCode))
+      notifRec.set('is_read', false)
+      notifRec.set('channel', 'HUB')
+      notifRec.set('status', 'SENT')
+      notifRec.set('metadata', {
+        vehicle_plate: opp.getString('vehicle_plate'),
+        vehicle_type: opp.getString('vehicle_type'),
+        missing_weight_kg: opp.getInt('missing_weight_kg'),
+        planned_dispatch_date: opp.getString('planned_dispatch_date'),
+      })
+      $app.save(notifRec)
+      notifRecord = notifRec
+    } catch (nErr) {
+      console.warn('Erro ao criar hub_notifications no hook:', nErr)
+    }
+
+    // 2. Atualizar oportunidade
+    opp.set('commercial_status', nextStatus)
+    opp.set('commercial_sent_at', now)
+    opp.set('commercial_sent_by', userName)
+    opp.set('commercial_representative', targetRep)
+    opp.set('ai_suggested_products_json', selectedProducts)
+    opp.set('commercial_sent_message', customMessage)
+    $app.save(opp)
+
+    // 3. Registrar em load_complement_learning
+    try {
+      const learnCol = $app.findCollectionByNameOrId('load_complement_learning')
+      const learnRec = new Record(learnCol)
+      learnRec.set('opportunity_code', oppCode)
+      learnRec.set('opportunity_id', opp.id)
+      learnRec.set(
+        'customer_sap_code',
+        opp.getString('customer_sap_code') || opp.getString('customer_id') || 'Não localizado',
+      )
+      learnRec.set('customer_name', opp.getString('customer_name') || 'Não localizado')
+      learnRec.set('itinerary_id', opp.getString('itinerary_id'))
+      learnRec.set('representative_name', targetRep)
+      learnRec.set(
+        'material_code',
+        selectedProducts[0] ? selectedProducts[0].code : opp.getString('material_id'),
+      )
+      learnRec.set(
+        'material_description',
+        selectedProducts[0] ? selectedProducts[0].name : opp.getString('material_description'),
+      )
+      let totalSugKg = 0
+      for (let p = 0; p < selectedProducts.length; p++) {
+        totalSugKg += selectedProducts[p].suggestedQtyKg || 0
+      }
+      learnRec.set(
+        'suggested_qty_kg',
+        totalSugKg || opp.getInt('suggested_quantity_kg') || opp.getInt('missing_weight_kg') || 0,
+      )
+      learnRec.set('outcome', 'SENT')
+      learnRec.set('converted', false)
+      learnRec.set('ai_suggested_products_json', selectedProducts)
+      learnRec.set(
+        'ai_original_rationale',
+        opp.getString('ai_recommendation') || 'Proposta comercial contextualizada',
+      )
+      learnRec.set('sent_at', now)
+      $app.save(learnRec)
+    } catch (lErr) {
+      console.warn('Erro ao gravar load_complement_learning no envio:', lErr)
+    }
+
+    // 4. Registrar em load_complement_history
+    try {
+      const histCol = $app.findCollectionByNameOrId('load_complement_history')
+      const histRec = new Record(histCol)
+      histRec.set('opportunity_code', oppCode)
+      histRec.set('opportunity_id', opp.id)
+      histRec.set('event_type', 'COMMERCIAL_SENT')
+      histRec.set('event_title', 'Oportunidade Enviada ao Comercial')
+      histRec.set('user_email', userEmail)
+      histRec.set('user_name', userName)
+      histRec.set('user_role', userRole)
+      histRec.set('previous_status', currentStatus || 'Nova')
+      histRec.set('new_status', nextStatus)
+      histRec.set(
+        'description',
+        'Disparada proposta contextualizada para o representante ' +
+          targetRep +
+          ' com ' +
+          selectedProducts.length +
+          ' produto(s) sugerido(s).',
+      )
+      histRec.set('metadata', {
+        target_rep: targetRep,
+        suggested_products: selectedProducts,
+        custom_message: customMessage,
+      })
+      $app.save(histRec)
+    } catch (hErr) {
+      console.warn('Erro ao gravar load_complement_history no envio:', hErr)
+    }
+
+    // 5. Registrar em audit_logs
+    try {
+      const auditCol = $app.findCollectionByNameOrId('audit_logs')
+      const auditRec = new Record(auditCol)
+      auditRec.set('user_email', userEmail)
+      auditRec.set('user_name', userName)
+      auditRec.set('user_role', userRole)
+      auditRec.set('action', 'SEND_COMPLEMENT_TO_COMMERCIAL_HUB')
+      auditRec.set('resource', 'load_complement_opportunities')
+      auditRec.set('resource_id', opp.id)
+      auditRec.set('previous_state', currentStatus)
+      auditRec.set('new_state', nextStatus)
+      auditRec.set(
+        'reason',
+        'Oportunidade enviada para ' + targetRep + ' com mensagem contextualizada',
+      )
+      auditRec.set('correlation_id', 'COMM-HUB-' + oppCode + '-' + Date.now())
+      auditRec.set('payload', {
+        notification_id: notifRecord ? notifRecord.id : null,
+        suggested_products: selectedProducts,
+        message: customMessage,
+      })
+      $app.save(auditRec)
+    } catch (aErr) {
+      console.warn('Erro ao gravar audit_logs no envio:', aErr)
+    }
+
+    return e.json(200, {
+      success: true,
+      notification_id: notifRecord ? notifRecord.id : null,
+      message: 'Oportunidade enviada ao representante ' + targetRep + ' com sucesso!',
+    })
+  } catch (err) {
+    return e.json(500, {
+      success: false,
+      message: 'Erro interno ao processar proposta comercial: ' + (err.message || String(err)),
+    })
+  }
+})
+
 // Endpoint para Registro do Retorno do Representante Comercial
 // Endpoint: POST /backend/v1/commercial-complement/feedback
 // Regras:

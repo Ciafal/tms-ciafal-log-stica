@@ -195,6 +195,27 @@ export const ComplementCargosPage: React.FC = () => {
   const [financialObservation, setFinancialObservation] = useState('')
   const [isSendingFinancial, setIsSendingFinancial] = useState(false)
 
+  // ESTADOS DO FLUXO HISTÓRICO COMERCIAL & ENVIO COMERCIAL CONTEXTUALIZADO
+  const [commercialHistoryCache, setCommercialHistoryCache] = useState<
+    Record<string, CustomerCommercialHistorySummary>
+  >({})
+  const [isCommercialHistoryModalOpen, setIsCommercialHistoryModalOpen] = useState(false)
+  const [commercialHistoryOpp, setCommercialHistoryOpp] =
+    useState<LoadComplementOpportunityEntity | null>(null)
+  const [isLoadingCommercialHistory, setIsLoadingCommercialHistory] = useState(false)
+
+  const [isSendCommercialModalOpen, setIsSendCommercialModalOpen] = useState(false)
+  const [sendTargetOpp, setSendTargetOpp] = useState<LoadComplementOpportunityEntity | null>(null)
+  const [sendAiEvaluation, setSendAiEvaluation] = useState<CommercialAiEvaluationResult | null>(
+    null,
+  )
+  const [isEvaluatingAi, setIsEvaluatingAi] = useState(false)
+  const [isSendingProposal, setIsSendingProposal] = useState(false)
+
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false)
+  const [feedbackTargetOpp, setFeedbackTargetOpp] =
+    useState<LoadComplementOpportunityEntity | null>(null)
+
   // Consulta / Detalhe da Solicitação Financeira ("Ver solicitação")
   const [viewFinancialRequestModal, setViewFinancialRequestModal] =
     useState<FinancialComplementRequestEntity | null>(null)
@@ -238,7 +259,7 @@ export const ComplementCargosPage: React.FC = () => {
       setOpportunities(opps)
       setSimulatedSapOrders(sapOrders || [])
 
-      // Carregar candidatos de cada oportunidade
+      // Carregar candidatos e histórico comercial inicial
       const candMap: Record<string, LoadComplementCandidateEntity[]> = {}
       for (const opp of opps.slice(0, 20)) {
         try {
@@ -249,6 +270,26 @@ export const ComplementCargosPage: React.FC = () => {
         }
       }
       setCandidatesMap(candMap)
+
+      // Pré-carregar resumos comerciais dos clientes identificados
+      const initialCache: Record<string, CustomerCommercialHistorySummary> = {}
+      for (const opp of opps.slice(0, 15)) {
+        const custCode = opp.customer_sap_code || opp.customer_id
+        if (custCode) {
+          try {
+            const hist = await CommercialComplementEngine.getCustomerCommercialHistory(
+              custCode,
+              opp.material_description || opp.material_id,
+            )
+            initialCache[opp.id] = hist
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      if (Object.keys(initialCache).length > 0) {
+        setCommercialHistoryCache((prev) => ({ ...prev, ...initialCache }))
+      }
     } catch (err: any) {
       toast({
         title: 'Erro ao carregar oportunidades',
@@ -277,6 +318,105 @@ export const ComplementCargosPage: React.FC = () => {
     } finally {
       setIsLoadingHistory(false)
     }
+  }
+
+  // Carregar histórico comercial do cliente no modal detalhado
+  const handleOpenCommercialHistoryDetail = async (opp: LoadComplementOpportunityEntity) => {
+    setCommercialHistoryOpp(opp)
+    const cached = commercialHistoryCache[opp.id]
+    if (cached) {
+      setIsCommercialHistoryModalOpen(true)
+      return
+    }
+    setIsLoadingCommercialHistory(true)
+    setIsCommercialHistoryModalOpen(true)
+    try {
+      const summary = await CommercialComplementEngine.getCustomerCommercialHistory(
+        opp.customer_sap_code || opp.customer_id,
+        opp.material_description || opp.material_id,
+      )
+      setCommercialHistoryCache((prev) => ({ ...prev, [opp.id]: summary }))
+    } catch (err) {
+      console.error('Erro ao consultar histórico comercial:', err)
+    } finally {
+      setIsLoadingCommercialHistory(false)
+    }
+  }
+
+  // Abrir modal de envio comercial com avaliação da IA
+  const handleOpenSendCommercial = async (opp: LoadComplementOpportunityEntity) => {
+    setSendTargetOpp(opp)
+    setIsEvaluatingAi(true)
+    setIsSendCommercialModalOpen(true)
+    try {
+      let historySummary = commercialHistoryCache[opp.id]
+      if (!historySummary) {
+        historySummary = await CommercialComplementEngine.getCustomerCommercialHistory(
+          opp.customer_sap_code || opp.customer_id,
+          opp.material_description || opp.material_id,
+        )
+        setCommercialHistoryCache((prev) => ({ ...prev, [opp.id]: historySummary }))
+      }
+      const evalResult = CommercialComplementEngine.evaluateOpportunityForCommercial(
+        opp,
+        historySummary,
+      )
+      setSendAiEvaluation(evalResult)
+    } catch (err) {
+      console.error('Erro ao avaliar oportunidade para comercial:', err)
+    } finally {
+      setIsEvaluatingAi(false)
+    }
+  }
+
+  // Confirmar envio da proposta comercial via modal
+  const handleConfirmSendProposal = async (
+    selectedProducts: CommercialSuggestedProduct[],
+    message: string,
+  ) => {
+    if (!sendTargetOpp) return
+    setIsSendingProposal(true)
+    try {
+      const res = await CommercialComplementEngine.sendCommercialProposal({
+        opportunity: sendTargetOpp,
+        selectedProducts,
+        customMessage: message,
+        senderName: user?.name || 'Operador Logístico CIAFAL',
+        senderEmail: user?.email || 'operador@ciafal.com.br',
+        senderRole: userRole,
+      })
+
+      if (res.success) {
+        toast({
+          title: 'Oportunidade Enviada ao Comercial',
+          description: res.message,
+        })
+        setIsSendCommercialModalOpen(false)
+        setSendTargetOpp(null)
+        setSendAiEvaluation(null)
+        fetchData()
+      } else {
+        toast({
+          title: 'Não foi possível enviar',
+          description: res.message,
+          variant: 'destructive',
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro no envio da proposta',
+        description: err?.message || 'Falha ao conectar com o serviço comercial.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSendingProposal(false)
+    }
+  }
+
+  // Abrir modal de retorno do representante
+  const handleOpenCommercialFeedback = (opp: LoadComplementOpportunityEntity) => {
+    setFeedbackTargetOpp(opp)
+    setIsFeedbackModalOpen(true)
   }
 
   // Listas para dropdowns de filtros
@@ -1305,6 +1445,58 @@ export const ComplementCargosPage: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* SEÇÃO COMPACTA: HISTÓRICO COMERCIAL (REQUISITO 1) */}
+                    {(() => {
+                      const hist = commercialHistoryCache[opp.id]
+                      return (
+                        <div className="p-2.5 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/70 dark:border-blue-900/50 rounded-lg space-y-1.5 text-[11px]">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-[#005596] flex items-center gap-1.5">
+                              <History className="w-3.5 h-3.5 text-[#005596]" />
+                              Histórico Comercial
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-[10px] font-semibold text-[#005596] hover:bg-[#005596]/10"
+                              onClick={() => handleOpenCommercialHistoryDetail(opp)}
+                            >
+                              Consultar detalhes
+                              <ArrowRight className="w-3 h-3 ml-1" />
+                            </Button>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px] text-slate-700 dark:text-slate-300">
+                            <div>
+                              <span className="text-slate-500 text-[10px] block">
+                                Última compra:
+                              </span>
+                              <strong className="text-slate-800 dark:text-slate-200">
+                                {hist ? hist.lastPurchaseDateFormatted : 'Não localizado'}
+                              </strong>
+                            </div>
+                            <div className="sm:text-right">
+                              <span className="text-slate-500 text-[10px] block">
+                                Último contato:
+                              </span>
+                              <strong className="text-slate-800 dark:text-slate-200">
+                                {hist ? hist.lastContactDateTimeFormatted : 'Não localizado'}
+                              </strong>
+                            </div>
+                          </div>
+
+                          <div className="pt-1 border-t border-blue-200/50 dark:border-blue-900/40 text-[11px]">
+                            <span className="text-slate-500 text-[10px] block">
+                              Último pedido deste material:
+                            </span>
+                            <span className="font-medium text-slate-800 dark:text-slate-200">
+                              {hist ? hist.lastOrderMaterialFormatted : 'Não localizado'}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })()}
+
                     {/* REGISTRO DE ENVIO COMERCIAL CASO JÁ TENHA SIDO ENVIADA */}
                     {opp.commercial_sent_at && (
                       <div className="p-2 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded text-[11px] text-blue-950 dark:text-blue-200 flex items-center justify-between">
@@ -1399,10 +1591,9 @@ export const ComplementCargosPage: React.FC = () => {
                         Ver Detalhes
                       </Button>
 
-                      {/* ROTEAMENTO POR NATUREZA: CRÉDITO -> FINANCEIRO | COMERCIAL -> COMERCIAL */}
-                      {isCreditBlockedReason(opp.block_reason, opp.credit_status) ? (
-                        // REQUISITO 1, 2 e 5: BLOQUEIO FINANCEIRO/CRÉDITO
-                        opp.financial_substatus === 'Aguardando análise financeira' ? (
+                      {/* ROTEAMENTO POR NATUREZA: CRÉDITO -> FINANCEIRO */}
+                      {isCreditBlockedReason(opp.block_reason, opp.credit_status) &&
+                        (opp.financial_substatus === 'Aguardando análise financeira' ? (
                           <div className="flex items-center gap-1">
                             <Button
                               size="sm"
@@ -1431,26 +1622,64 @@ export const ComplementCargosPage: React.FC = () => {
                             <DollarSign className="w-3.5 h-3.5 mr-1 text-emerald-300" />
                             Enviar p/ Financeiro
                           </Button>
-                        )
-                      ) : (
-                        // DEMAIS CASOS: FLUXO COMERCIAL PADRÃO
+                        ))}
+
+                      {/* BOTÃO RETORNO COMERCIAL CASO JÁ ENVIADO */}
+                      {opp.commercial_status === 'Enviada ao Comercial' && (
                         <Button
                           size="sm"
-                          disabled={isBlocked}
-                          className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-8 font-semibold shadow-sm disabled:opacity-40"
-                          onClick={() => {
-                            if (opp.commercial_sent_at) {
-                              setDuplicateWarningOpp(opp)
-                            } else {
-                              setSelectedOppIds([opp.id])
-                              setIsBatchSendModalOpen(true)
-                            }
-                          }}
+                          variant="outline"
+                          className="text-xs h-8 border-emerald-600 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                          onClick={() => handleOpenCommercialFeedback(opp)}
                         >
-                          <Send className="w-3 h-3 mr-1" />
-                          Enviar p/ Comercial
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                          Retorno Comercial
                         </Button>
                       )}
+
+                      {/* BOTÃO 'Enviar Comercial' CONTEXTUALIZADO (REQUISITO 1 & 2) */}
+                      {(() => {
+                        const histSummary = commercialHistoryCache[opp.id] || {
+                          hasRealHistory: false,
+                          lastPurchaseDetail: { date: null },
+                          lastOrderItemDetail: { sapOrderNumber: null },
+                          materialStats: { averageTonsPerOrder: null },
+                        }
+                        const evalResult =
+                          CommercialComplementEngine.evaluateOpportunityForCommercial(
+                            opp,
+                            histSummary as any,
+                          )
+
+                        const buttonElement = (
+                          <Button
+                            size="sm"
+                            disabled={!evalResult.canSendCommercial}
+                            className="bg-[#005596] hover:bg-[#004478] text-white text-xs h-8 font-semibold shadow-sm disabled:opacity-40"
+                            onClick={() => handleOpenSendCommercial(opp)}
+                          >
+                            <Send className="w-3 h-3 mr-1" />
+                            Enviar Comercial
+                          </Button>
+                        )
+
+                        if (!evalResult.canSendCommercial && evalResult.ineligibilityReason) {
+                          return (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span tabIndex={0} className="inline-block">
+                                  {buttonElement}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="text-xs max-w-xs bg-slate-900 text-white">
+                                {evalResult.ineligibilityReason}
+                              </TooltipContent>
+                            </Tooltip>
+                          )
+                        }
+
+                        return buttonElement
+                      })()}
                     </div>
                   </CardFooter>
                 </Card>
@@ -2672,6 +2901,49 @@ export const ComplementCargosPage: React.FC = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* MODAL 1: CONSULTAR DETALHES DO HISTÓRICO COMERCIAL DO CLIENTE */}
+        <CommercialHistoryDetailModal
+          isOpen={isCommercialHistoryModalOpen}
+          onClose={() => {
+            setIsCommercialHistoryModalOpen(false)
+            setCommercialHistoryOpp(null)
+          }}
+          historyData={
+            commercialHistoryOpp ? commercialHistoryCache[commercialHistoryOpp.id] || null : null
+          }
+          opportunityCode={commercialHistoryOpp?.opportunity_code}
+        />
+
+        {/* MODAL 2: ENVIAR PROPOSTA COMERCIAL CONTEXTUALIZADA */}
+        <SendCommercialProposalModal
+          isOpen={isSendCommercialModalOpen}
+          onClose={() => {
+            setIsSendCommercialModalOpen(false)
+            setSendTargetOpp(null)
+            setSendAiEvaluation(null)
+          }}
+          opportunity={sendTargetOpp}
+          aiEvaluation={sendAiEvaluation}
+          onConfirmSend={handleConfirmSendProposal}
+          isSending={isSendingProposal}
+        />
+
+        {/* MODAL 3: RETORNO COMERCIAL DO REPRESENTANTE */}
+        <CommercialFeedbackModal
+          isOpen={isFeedbackModalOpen}
+          onClose={() => {
+            setIsFeedbackModalOpen(false)
+            setFeedbackTargetOpp(null)
+          }}
+          opportunity={feedbackTargetOpp}
+          onSuccess={() => {
+            fetchData()
+          }}
+          userRole={userRole}
+          userName={user?.name || 'Representante Comercial'}
+          userEmail={user?.email || 'comercial@ciafal.com.br'}
+        />
       </div>
     </TooltipProvider>
   )
