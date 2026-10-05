@@ -61,6 +61,15 @@ import {
   determineOpportunityRouting,
   isCreditBlockedReason,
 } from '@/domain/rules'
+import {
+  CommercialComplementEngine,
+  CustomerCommercialHistorySummary,
+  CommercialAiEvaluationResult,
+} from '@/domain/commercialComplementEngine'
+import { CommercialHistoryDetailModal } from '@/components/commercial/CommercialHistoryDetailModal'
+import { SendCommercialProposalModal } from '@/components/commercial/SendCommercialProposalModal'
+import { CommercialFeedbackModal } from '@/components/commercial/CommercialFeedbackModal'
+import { useRealtime } from '@/hooks/use-realtime'
 import { DollarSign, FileText, BadgeAlert, ArrowUpRight, ShieldCheck } from 'lucide-react'
 
 // Status com Badge e estilo consistente CIAFAL
