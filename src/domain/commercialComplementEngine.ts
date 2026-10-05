@@ -643,6 +643,45 @@ Favor verificar junto ao cliente se existe interesse em complementar esta carga.
       }
     }
 
+    // Tenta primeiro chamar o endpoint seguro do backend
+    try {
+      const response = await fetch(`${pb.baseUrl}/backend/v1/commercial-complement/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(pb.authStore.token ? { Authorization: `Bearer ${pb.authStore.token}` } : {}),
+        },
+        body: JSON.stringify({
+          opportunity_id: opportunity.id,
+          is_interested: isInterested,
+          material_confirmed: materialConfirmed,
+          confirmed_qty_kg: confirmedQtyKg,
+          notes,
+          negotiated_condition: negotiatedCondition,
+          rejection_reason: rejectionReason,
+          user_name: responderName,
+          user_email: responderEmail,
+          user_role: responderRole,
+        }),
+      })
+
+      const data = await response.json()
+      if (response.ok && data.success) {
+        return {
+          success: true,
+          message: data.message,
+        }
+      }
+      if (response.status === 422 || response.status === 400 || response.status === 404) {
+        return {
+          success: false,
+          message: data.message || 'Erro de validação no retorno comercial.',
+        }
+      }
+    } catch (_hookErr) {
+      // Fallback para execução direta via client SDK (ex: ambientes de teste)
+    }
+
     const now = new Date().toISOString()
     const nextStatus: CommercialOpportunityStatus = isInterested
       ? 'Cliente interessado'
