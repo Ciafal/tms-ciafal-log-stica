@@ -797,7 +797,7 @@ export const MesaFretesPage: React.FC = () => {
           }
           breadcrumbs={[
             { label: 'TMS CIAFAL', href: '/tms' },
-            { label: 'Operações' },
+            { label: 'Contratação & Fretes', href: '/tms/mesa-fretes' },
             { label: 'Mesa de Fretes' },
           ]}
           actions={

@@ -401,7 +401,7 @@ export const LoadPlannerPage: React.FC = () => {
           { label: 'Planejador de Cargas' },
         ]}
         badge={
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <Badge className="bg-[#005596] text-white text-[10px] font-bold">
               REPOSITÓRIO ÚNICO
             </Badge>
@@ -418,13 +418,13 @@ export const LoadPlannerPage: React.FC = () => {
             <Button
               onClick={() => setIsEncontrosOpen(true)}
               size="sm"
-              className="bg-[#005596] hover:bg-[#004275] text-white text-xs h-8 font-bold shadow-xs flex items-center gap-1.5"
+              className="bg-[#005596] hover:bg-[#004275] text-white text-xs h-8 font-bold shadow-xs flex items-center gap-1.5 shrink-0"
+              title="Abrir painel de encontros automáticos veículo × carga"
             >
               <Link2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">ENCONTROS VEÍCULO × CARGA</span>
-              <span className="sm:hidden">ENCONTROS</span>
-              <Badge className="bg-white/20 hover:bg-white/30 text-white font-mono text-[10px] px-1.5 py-0 border-none font-extrabold">
-                ENCONTROS {viableMatchesCount}
+              <span>Encontros Veículo × Carga</span>
+              <Badge className="bg-white/20 hover:bg-white/30 text-white font-mono text-[10px] px-1.5 py-0 border-none font-extrabold ml-0.5">
+                {viableMatchesCount}
               </Badge>
             </Button>
 
@@ -432,22 +432,23 @@ export const LoadPlannerPage: React.FC = () => {
               onClick={handleRunAiPlanner}
               disabled={isAiLoading}
               size="sm"
-              className="bg-purple-700 hover:bg-purple-800 text-white text-xs h-8 font-bold"
+              className="bg-purple-700 hover:bg-purple-800 text-white text-xs h-8 font-bold shrink-0"
+              title="Executar assistente de inteligência logística"
             >
               <Sparkles className={`w-3.5 h-3.5 mr-1.5 ${isAiLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden md:inline">AGENTE IA — PLANEJADOR</span>
-              <span className="md:hidden">AGENTE IA</span>
+              <span>Agente IA — Planejador</span>
             </Button>
 
             <Button
               onClick={fetchData}
               variant="outline"
               size="sm"
-              className="text-xs h-8 font-semibold text-slate-700 border-slate-300 hover:bg-slate-50"
+              className="text-xs h-8 font-semibold text-slate-700 border-slate-300 hover:bg-slate-50 shrink-0"
               disabled={isLoading}
+              title="Atualizar dados da carteira SAP e status de veículos"
             >
               <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Atualizar agora</span>
+              <span>Atualizar agora</span>
             </Button>
           </div>
         }

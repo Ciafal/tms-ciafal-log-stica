@@ -531,7 +531,7 @@ export const NegociacoesChicaoPage: React.FC = () => {
         }
         breadcrumbs={[
           { label: 'TMS CIAFAL', href: '/tms' },
-          { label: 'Contratação' },
+          { label: 'Contratação & Fretes', href: '/tms/mesa-fretes' },
           { label: 'Negociações & Chicão' },
         ]}
         actions={

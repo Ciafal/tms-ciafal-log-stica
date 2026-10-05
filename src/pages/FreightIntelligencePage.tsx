@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { PageHeader } from '@/components/ui-custom/PageHeader'
 import {
   Dialog,
   DialogContent,
@@ -114,36 +115,34 @@ export const FreightIntelligencePage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-        <div>
-          <div className="flex items-center space-x-2.5">
-            <Compass className="w-6 h-6 text-[#005596]" />
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              Inteligência de Fretes, Motoristas & Anomalias
-            </h1>
-            <Badge className="bg-[#005596] text-white text-xs font-bold px-2.5 py-0.5">
-              Analytics 360°
-            </Badge>
-          </div>
-          <p className="text-sm text-slate-500 mt-1">
-            Cruzamento holístico: Preço + Pontualidade + Taxa de Cancelamento + Tempo de Pátio =
-            Índice de Custo Sustentável.
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-3">
+      {/* Header Padrão HUB CIAFAL */}
+      <PageHeader
+        title="Inteligência de Fretes, Motoristas & Anomalias"
+        subtitle="Cruzamento holístico: Preço + Pontualidade + Taxa de Cancelamento + Tempo de Pátio = Índice de Custo Sustentável."
+        icon={Compass}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Gestão Estratégica', href: '/tms/inteligencia-fretes' },
+          { label: 'Inteligência de Fretes' },
+        ]}
+        badge={
+          <Badge className="bg-[#005596] text-white text-xs font-bold px-2.5 py-0.5">
+            Analytics 360°
+          </Badge>
+        }
+        actions={
           <Button
             variant="outline"
             size="sm"
             onClick={loadData}
-            className="text-xs border-slate-300 gap-1.5"
+            className="text-xs border-slate-300 gap-1.5 h-9"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Atualizar Indicadores
           </Button>
-        </div>
-      </div>
+        }
+        className="bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm mb-0"
+      />
 
       {/* Tabs Submódulo Inteligência Logística Completo */}
       <Tabs defaultValue="visao_executiva" className="space-y-4">

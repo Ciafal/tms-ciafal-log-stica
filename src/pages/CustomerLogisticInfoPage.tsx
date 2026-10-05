@@ -270,10 +270,14 @@ export const CustomerLogisticInfoPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Informações Clientes"
+        title="Informações Logísticas de Clientes"
         subtitle={`Inteligência e restrições logísticas por cliente/recebedor • Origem: SAP RFC (${sapConfig.rfc} / ${sapConfig.table})`}
         icon={Users}
-        breadcrumbs={[{ label: 'TMS CIAFAL', href: '/tms' }, { label: 'Informações Clientes' }]}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Cadastros & Regras', href: '/tms/informacoes-clientes' },
+          { label: 'Informações Logísticas de Clientes' },
+        ]}
         badge={
           <Badge variant="outline" className="text-xs bg-blue-50 border-blue-200 text-[#002F6C]">
             Base Corporativa SAP ECC

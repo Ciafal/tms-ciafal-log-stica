@@ -592,10 +592,14 @@ export const FutureProgrammingPage: React.FC = () => {
           1. HEADER E BARRA SUPERIOR DE DATA DE PROGRAMAÇÃO D+1
          ======================================================== */}
       <PageHeader
-        title="Torre de Programação Logística D+1"
+        title="Torre de Programação Futura D+1"
         subtitle="Planejamento operacional determinístico com estoque projetado livre, carteira SAP real sem remessas e gestão de capacidade."
         icon={Calendar}
-        breadcrumbs={[{ label: 'TMS CIAFAL', href: '/tms' }, { label: 'Programação Futura D+1' }]}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Planejamento Logístico', href: '/tms/programacao-futura' },
+          { label: 'Programação Futura D+1' },
+        ]}
         badge={
           <div className="flex items-center gap-1.5 flex-wrap">
             <Badge className="bg-[#005596] text-white text-[11px] font-bold px-2 py-0.5">
@@ -657,7 +661,7 @@ export const FutureProgrammingPage: React.FC = () => {
               <RefreshCw
                 className={`w-3.5 h-3.5 mr-1.5 ${isRefreshing ? 'animate-spin text-[#005596]' : ''}`}
               />
-              ATUALIZAR
+              Atualizar
             </Button>
 
             {/* EXPORTAR */}

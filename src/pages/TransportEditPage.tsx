@@ -170,8 +170,13 @@ export default function TransportEditPage() {
     <div className="space-y-6">
       {/* 1. CABEÇALHO PADRÃO CIAFAL */}
       <PageHeader
-        title="Editar Transporte"
-        subtitle="Módulo TMS > Cadastro | Governança Oficial e Integração SAP (VT02N / BAPI_SHIPMENT_CHANGE)"
+        title="Cockpit de Edição e Governança de Transportes"
+        subtitle="Módulo TMS | Governança Oficial e Integração SAP (VT02N / BAPI_SHIPMENT_CHANGE)"
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Operações & Transporte', href: '/tms/transportes' },
+          { label: 'Edição de Transporte' },
+        ]}
         actions={
           <div className="flex items-center gap-2">
             <Badge

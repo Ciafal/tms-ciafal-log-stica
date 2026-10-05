@@ -118,7 +118,11 @@ export const SapItinerariesPage: React.FC = () => {
         title="Itinerários SAP (Cadastro Mestre TVROT)"
         subtitle="Origem corporativa SAP ECC 6.0 (Tabela TVROT). Metadados operacionais auditados no TMS preservando a chave oficial do SAP."
         icon={MapPin}
-        breadcrumbs={[{ label: 'TMS CIAFAL', href: '/tms' }, { label: 'Itinerários SAP' }]}
+        breadcrumbs={[
+          { label: 'TMS CIAFAL', href: '/tms' },
+          { label: 'Integrações SAP', href: '/tms/sap-itineraries' },
+          { label: 'Itinerários SAP' },
+        ]}
         badge={
           <Badge className="bg-[#005596] text-white text-[10px] font-bold">FONTE OFICIAL SAP</Badge>
         }
