@@ -197,6 +197,8 @@ export interface ProposedLoadCluster {
   earliestRequestedDate: string
   latestRequestedDate: string
   aiRationale: string // Justificativa explicável e quantitativa (#19)
+  hasRouteAddition?: boolean
+  routeAdditionData?: import('@/domain/routeAdditionEngine').RouteAdditionEntity | null
   scoreDetails: {
     geoScore: number
     itineraryScore: number

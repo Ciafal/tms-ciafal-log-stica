@@ -64,6 +64,10 @@ import {
 import { LogisticalCargoMap } from '@/components/load-planner/LogisticalCargoMap'
 import { CityDetailDrawer } from '@/components/load-planner/CityDetailDrawer'
 import { CityDemandCluster } from '@/domain/geographicClusterEngine'
+import { RouteAdditionModal } from '@/components/load-planner/RouteAdditionModal'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { tmsService } from '@/services/tmsService'
+import { useToast } from '@/hooks/use-toast'
 
 interface LogisticalMapTowerViewProps {
   orders: SapSalesOrderEntity[]
@@ -80,6 +84,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
   onOpenCustomerProfile,
   onSwitchToPlannerTab,
 }) => {
+  const { toast } = useToast()
   // Filtros compactos de topo (#6, #11)
   const [filterUf, setFilterUf] = useState<string>('ALL')
   const [filterItinerary, setFilterItinerary] = useState<string>('ALL')
@@ -226,11 +231,29 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
       const stopsForThisCluster = allStops.filter((s) => s.assignedClusterId === baseC.id)
 
       if (stopsForThisCluster.length > 0) {
-        const weightTon =
+        const addition = activeAdditions[baseC.id] || activeAdditions[baseC.code]
+        const hasAddition = !!addition
+
+        let weightTon =
           Math.round(stopsForThisCluster.reduce((a, b) => a + b.totalWeightTon, 0) * 10) / 10
+        let distanceKm = baseC.estimatedDistanceKm
+        let discharges = stopsForThisCluster.length
+        let estimatedFreight = Math.round(weightTon * 165 + distanceKm * 3.8)
+        let estimatedToll = baseC.estimatedTollBrl
+
+        if (hasAddition && addition) {
+          weightTon = Math.round((addition.weight_after_kg / 1000) * 10) / 10
+          distanceKm = addition.distance_after_km
+          discharges = addition.discharges_after
+          estimatedFreight = addition.freight_after_brl
+          estimatedToll = addition.toll_after_brl
+        }
+
         const capacity = weightTon > 28.5 ? 32 : 28
-        const occupancy = Math.min(100, Math.round((weightTon / capacity) * 1000) / 10)
-        const discharges = stopsForThisCluster.length
+        const occupancy =
+          hasAddition && addition
+            ? addition.occupancy_after_pct
+            : Math.min(100, Math.round((weightTon / capacity) * 1000) / 10)
 
         // Sequencia as paradas
         stopsForThisCluster.forEach((s, idx) => {
@@ -243,10 +266,14 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
           totalWeightTon: weightTon,
           capacityTon: capacity,
           occupancyPct: occupancy,
+          estimatedDistanceKm: distanceKm,
           clientsCount: stopsForThisCluster.length,
           ordersCount: stopsForThisCluster.reduce((a, b) => a + b.ordersCount, 0),
           dischargesCount: discharges,
-          estimatedFreightBrl: Math.round(weightTon * 165 + baseC.estimatedDistanceKm * 3.8),
+          estimatedFreightBrl: estimatedFreight,
+          estimatedTollBrl: estimatedToll,
+          hasRouteAddition: hasAddition,
+          routeAdditionData: addition || null,
         })
       }
     })
@@ -258,7 +285,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
       stops: allStops,
       unplannedStops: unplanned,
     }
-  }, [baseClusterResult, rawStops, manualStopAssignments])
+  }, [baseClusterResult, rawStops, manualStopAssignments, activeAdditions])
 
   // 5. Comparação de Cenários (A vs B) (#5)
   const scenarioComparison: RoutingScenarioComparison = useMemo(() => {
@@ -293,6 +320,33 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
       economiaEstimadaBrl: scenarioComparison.savings.freightSavingsBrl,
     }
   }, [stops, unplannedStops, clusters, scenarioComparison])
+
+  // Adições excepcionais de rotas ativas (tmsService / collection route_additions)
+  const [activeAdditions, setActiveAdditions] = useState<
+    Record<string, import('@/domain/routeAdditionEngine').RouteAdditionEntity>
+  >({})
+  const [routeAdditionModalOpen, setRouteAdditionModalOpen] = useState(false)
+  const [clusterForRouteAddition, setClusterForRouteAddition] =
+    useState<ProposedLoadCluster | null>(null)
+
+  const loadRouteAdditions = useCallback(async () => {
+    try {
+      const list = await tmsService.getRouteAdditions({ status: 'ATIVA' })
+      const map: Record<string, import('@/domain/routeAdditionEngine').RouteAdditionEntity> = {}
+      list.forEach((item) => {
+        if (item.load_id) {
+          map[item.load_id] = item
+        }
+      })
+      setActiveAdditions(map)
+    } catch (e) {
+      console.warn('Erro ao carregar route_additions ativas no LogisticalMapTowerView', e)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadRouteAdditions()
+  }, [loadRouteAdditions])
 
   // Carga ativa em destaque (#7)
   const activeCluster = useMemo(() => {
@@ -588,6 +642,44 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                               <span className="text-[10px] text-slate-500">
                                 ({cl.destinationCities.slice(0, 2).join('/')})
                               </span>
+                              {cl.hasRouteAddition && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge className="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold text-[9px] px-1.5 py-0">
+                                        + Rota
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs text-xs p-2 bg-slate-900 text-white">
+                                      <p className="font-bold text-amber-300">ROTA ADICIONADA</p>
+                                      <p>
+                                        Original: {cl.routeAdditionData?.original_itinerary_code}
+                                      </p>
+                                      <p>
+                                        Adicional:{' '}
+                                        {cl.routeAdditionData?.complementary_itinerary_code}
+                                      </p>
+                                      <p>Motivo: {cl.routeAdditionData?.reason_description}</p>
+                                      <p>
+                                        Usuário: {cl.routeAdditionData?.user_name || 'Operador'}
+                                      </p>
+                                      <p>
+                                        Data/hora:{' '}
+                                        {cl.routeAdditionData?.created
+                                          ? new Date(cl.routeAdditionData.created).toLocaleString(
+                                              'pt-BR',
+                                            )
+                                          : '-'}
+                                      </p>
+                                      {cl.routeAdditionData?.ai_analysis && (
+                                        <p className="text-amber-200 text-[10px] pt-1">
+                                          IA: {cl.routeAdditionData.ai_analysis}
+                                        </p>
+                                      )}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                             </div>
                             <div className="text-[10px] text-slate-400">
                               {cl.clientsCount} clientes • {cl.dischargesCount} descargas • ~
@@ -632,15 +724,64 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                   />
                   <span>Detalhamento: {activeCluster.code}</span>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() => handleSendLoadToPlanner(activeCluster)}
-                  className="h-6 text-[10px] font-bold bg-[#005596] hover:bg-[#004275] text-white px-2 shadow-xs"
-                  title="Transformar esta proposta diretamente em carga do Planejador"
-                >
-                  <Play className="w-2.5 h-2.5 mr-1 fill-white" />
-                  Enviar p/ Planejador
-                </Button>
+                <div className="flex items-center gap-1.5">
+                  {activeCluster.hasRouteAddition ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        const confirmed = window.confirm(
+                          'Deseja remover esta rota adicional do itinerário?',
+                        )
+                        if (!confirmed) return
+                        const addition = activeCluster.routeAdditionData
+                        if (addition?.id) {
+                          try {
+                            await tmsService.removeRouteAddition(addition.id)
+                            toast({
+                              title: 'Rota adicional removida',
+                              description:
+                                'A rota adicional foi removida mantendo o histórico de auditoria.',
+                            })
+                            loadRouteAdditions()
+                          } catch (err: any) {
+                            toast({
+                              title: 'Erro ao remover rota',
+                              description: err?.message || 'Falha ao remover.',
+                              variant: 'destructive',
+                            })
+                          }
+                        }
+                      }}
+                      className="h-6 text-[10px] font-bold text-rose-700 border-rose-300 hover:bg-rose-50 px-2"
+                      title="Remover rota adicional do itinerário"
+                    >
+                      Remover rota
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setClusterForRouteAddition(activeCluster)
+                        setRouteAdditionModalOpen(true)
+                      }}
+                      className="h-6 text-[10px] font-bold text-[#005596] border-[#005596]/40 hover:bg-sky-50 px-2"
+                      title="Adicionar rota complementar ao itinerário"
+                    >
+                      + Adicionar rota
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => handleSendLoadToPlanner(activeCluster)}
+                    className="h-6 text-[10px] font-bold bg-[#005596] hover:bg-[#004275] text-white px-2 shadow-xs"
+                    title="Transformar esta proposta diretamente em carga do Planejador"
+                  >
+                    <Play className="w-2.5 h-2.5 mr-1 fill-white" />
+                    Enviar p/ Planejador
+                  </Button>
+                </div>
               </div>
 
               <CardContent className="p-3 space-y-2.5 text-xs">
@@ -887,6 +1028,41 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
           </strong>
         </div>
       </div>
+
+      {/* MODAL DE ADIÇÃO EXCEPCIONAL DE ROTA AO ITINERÁRIO */}
+      {clusterForRouteAddition && (
+        <RouteAdditionModal
+          open={routeAdditionModalOpen}
+          onOpenChange={(isOpen) => {
+            setRouteAdditionModalOpen(isOpen)
+            if (!isOpen) setClusterForRouteAddition(null)
+          }}
+          candidateLoad={{
+            id: clusterForRouteAddition.id,
+            title: `Carga ${clusterForRouteAddition.code} - ${clusterForRouteAddition.destinationCities.join('/')}`,
+            itineraryCode: clusterForRouteAddition.code.replace('CL-', '') || 'MG-01',
+            itineraryDescription: `Itinerário ${clusterForRouteAddition.code}`,
+            originPlant: clusterForRouteAddition.originHub.plantCode || '1010',
+            destinationCity: clusterForRouteAddition.destinationCities[0] || 'Belo Horizonte',
+            destinationUf: 'MG',
+            totalWeightKg: Math.round(clusterForRouteAddition.totalWeightTon * 1000),
+            capacityKg: clusterForRouteAddition.capacityTon * 1000,
+            occupancyPct: clusterForRouteAddition.occupancyPct,
+            dischargesCount: clusterForRouteAddition.dischargesCount,
+            customersCount: clusterForRouteAddition.clientsCount,
+            distanceKm: clusterForRouteAddition.estimatedDistanceKm,
+            estimatedTimeHours: Math.round(clusterForRouteAddition.estimatedDistanceKm / 60),
+            suggestedFreightBrl: clusterForRouteAddition.estimatedFreightBrl,
+            tollCostBrl: clusterForRouteAddition.estimatedTollBrl,
+            orders: clusterForRouteAddition.stops.flatMap((s) => s.orders),
+          }}
+          onSuccess={() => {
+            loadRouteAdditions()
+            setRouteAdditionModalOpen(false)
+            setClusterForRouteAddition(null)
+          }}
+        />
+      )}
 
       {/* 4. MODAL DE COMPARAÇÃO DE CENÁRIOS (A vs B) (#5) */}
       {isComparisonModalOpen && (

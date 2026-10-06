@@ -20,6 +20,7 @@ import {
   DollarSign,
   BookmarkCheck,
   Bot,
+  PlusCircle,
 } from 'lucide-react'
 import type { VehicleLoadMatch } from '@/domain/vehicleLoadMatchingEngine'
 
@@ -33,6 +34,8 @@ interface MatchCardProps {
   onSendToFreightDesk: (match: VehicleLoadMatch) => void
   onCallAiExplain: (match: VehicleLoadMatch) => void
   onSendSingleToChicao?: (match: VehicleLoadMatch) => void
+  onAddRoute?: (match: VehicleLoadMatch) => void
+  onRemoveRoute?: (match: VehicleLoadMatch) => void
 }
 
 export const MatchCard: React.FC<MatchCardProps> = ({
@@ -45,6 +48,8 @@ export const MatchCard: React.FC<MatchCardProps> = ({
   onSendToFreightDesk,
   onCallAiExplain,
   onSendSingleToChicao,
+  onAddRoute,
+  onRemoveRoute,
 }) => {
   const {
     matchId,
@@ -150,6 +155,63 @@ export const MatchCard: React.FC<MatchCardProps> = ({
             <Badge variant="secondary" className="text-xs font-medium">
               Rota {candidateLoad.itineraryCode}
             </Badge>
+            {match.hasRouteAddition && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge className="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold text-[10px] cursor-pointer flex items-center gap-1">
+                      <span>ROTA ADICIONADA</span>
+                      {match.routeAdditionData?.complementary_itinerary_code && (
+                        <span className="font-mono text-[9px] bg-amber-200/80 px-1 rounded">
+                          +{match.routeAdditionData.complementary_itinerary_code}
+                        </span>
+                      )}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs p-2.5 space-y-1 bg-slate-900 text-white">
+                    <p className="font-bold border-b border-slate-700 pb-1 text-amber-300">
+                      Adição Excepcional de Rota Ativa
+                    </p>
+                    <p>
+                      <span className="text-slate-400">Original:</span>{' '}
+                      {match.routeAdditionData?.original_itinerary_code ||
+                        candidateLoad.itineraryCode}
+                    </p>
+                    <p>
+                      <span className="text-slate-400">Rota adicionada:</span>{' '}
+                      {match.routeAdditionData?.complementary_itinerary_code} -{' '}
+                      {match.routeAdditionData?.complementary_itinerary_description}
+                    </p>
+                    <p>
+                      <span className="text-slate-400">Motivo:</span>{' '}
+                      {match.routeAdditionData?.reason_code} -{' '}
+                      {match.routeAdditionData?.reason_description}
+                    </p>
+                    <p>
+                      <span className="text-slate-400">Usuário:</span>{' '}
+                      {match.routeAdditionData?.user_name ||
+                        match.routeAdditionData?.user_email ||
+                        'Operador Logístico'}
+                    </p>
+                    <p>
+                      <span className="text-slate-400">Data/Hora:</span>{' '}
+                      {match.routeAdditionData?.created
+                        ? new Date(match.routeAdditionData.created).toLocaleString('pt-BR')
+                        : '-'}
+                    </p>
+                    {match.routeAdditionData?.ai_analysis && (
+                      <p className="pt-1 text-[11px] text-slate-300 border-t border-slate-700">
+                        <span className="text-amber-400 font-semibold">
+                          Conclusão IA ({match.routeAdditionData?.ai_classification || 'Analisado'}
+                          ):
+                        </span>{' '}
+                        {match.routeAdditionData.ai_analysis}
+                      </p>
+                    )}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -454,6 +516,31 @@ export const MatchCard: React.FC<MatchCardProps> = ({
           </Button>
 
           <div className="flex items-center gap-2">
+            {match.hasRouteAddition
+              ? onRemoveRoute && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onRemoveRoute(match)}
+                    className="text-xs h-8 px-2.5 text-rose-700 border-rose-200 hover:bg-rose-50"
+                    title="Remover rota adicional do itinerário"
+                  >
+                    <XCircle className="h-3.5 w-3.5 mr-1" />
+                    Remover Rota
+                  </Button>
+                )
+              : onAddRoute && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAddRoute(match)}
+                    className="text-xs h-8 px-2.5 text-[#005596] border-blue-200 hover:bg-blue-50 font-medium"
+                    title="Adicionar rota complementar ao itinerário"
+                  >
+                    <PlusCircle className="h-3.5 w-3.5 mr-1 text-[#005596]" />+ Adicionar rota
+                  </Button>
+                )}
+
             <Button
               variant="outline"
               size="sm"

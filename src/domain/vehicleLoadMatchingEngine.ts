@@ -117,6 +117,8 @@ export interface VehicleLoadMatch {
   extraDischargesCost: number
   operationalAnalysis: TripOperationalAnalysisResult
   score: ScoreBreakdown
+  hasRouteAddition?: boolean
+  routeAdditionData?: import('@/domain/routeAdditionEngine').RouteAdditionEntity | null
   checks: EliminationCheckResult['checks']
   isOpportunity: boolean // Oportunidade verde (≥95% ocupação, PORTA > 30min, pronto)
   createdAt: string

@@ -62,6 +62,10 @@ import { CustomerLogisticInfoEntity } from '@/domain/customerLogisticInfoEngine'
 import { customerLogisticInfoService } from '@/services/customerLogisticInfoService'
 import { CustomerLogisticDetailModal } from '@/components/CustomerLogisticDetailModal'
 import { useLocation } from 'react-router-dom'
+import { RouteAdditionModal } from '@/components/load-planner/RouteAdditionModal'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { PlusCircle, XCircle } from 'lucide-react'
+import type { RouteAdditionEntity } from '@/domain/routeAdditionEngine'
 
 export const LoadPlannerPage: React.FC = () => {
   const { user } = useAuth()
@@ -109,6 +113,11 @@ export const LoadPlannerPage: React.FC = () => {
   const [cargoName, setCargoName] = useState<string>('CARGA-PLANEJADA-01')
   const [selectedOrders, setSelectedOrders] = useState<SapSalesOrderEntity[]>([])
   const [selectedQueueVehicle, setSelectedQueueVehicle] = useState<QueueEntryEntity | null>(null)
+
+  // Adição Excepcional de Rota ao Itinerário
+  const [routeAdditionModalOpen, setRouteAdditionModalOpen] = useState<boolean>(false)
+  const [activeRouteAddition, setActiveRouteAddition] = useState<RouteAdditionEntity | null>(null)
+  const [matchForRouteAddition, setMatchForRouteAddition] = useState<VehicleLoadMatch | null>(null)
 
   // Alternância de visualização canônica (#1): Lista | Planejamento | Mapa Logístico | Comparação de Cenários
   const [plannerViewMode, setPlannerViewMode] = useState<
@@ -394,6 +403,20 @@ export const LoadPlannerPage: React.FC = () => {
       profile: prof,
     }
   }
+
+  // Carrega adição de rota ativa para a carga em montagem quando mudar cargoName ou filterItinerary
+  const loadActiveRouteAdditionForAssembly = useCallback(async () => {
+    try {
+      const addition = await TmsService.getActiveRouteAdditionForLoad(cargoName)
+      setActiveRouteAddition(addition)
+    } catch (e) {
+      console.warn('Erro ao carregar adição ativa:', e)
+    }
+  }, [cargoName])
+
+  useEffect(() => {
+    loadActiveRouteAdditionForAssembly()
+  }, [loadActiveRouteAdditionForAssembly])
 
   // Complement Opportunity check
   const complementOpportunity = useMemo(() => {
@@ -1001,25 +1024,118 @@ export const LoadPlannerPage: React.FC = () => {
             <Card className="bg-white border-slate-200 shadow-sm h-full flex flex-col">
               <CardHeader className="p-3.5 border-b border-slate-100 bg-sky-50/40">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs font-bold uppercase flex items-center space-x-1.5 text-slate-800">
-                    <Layers className="w-4 h-4 text-[#005596]" />
-                    <span>Carga em Montagem ({selectedOrders.length} pedidos)</span>
-                  </CardTitle>
-                  <Badge
-                    className={
-                      assemblyEvaluation.decision === 'permitida'
-                        ? 'bg-emerald-600 text-white font-bold text-[10px]'
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <CardTitle className="text-xs font-bold uppercase flex items-center space-x-1.5 text-slate-800">
+                      <Layers className="w-4 h-4 text-[#005596]" />
+                      <span>Carga em Montagem ({selectedOrders.length} pedidos)</span>
+                    </CardTitle>
+                    {activeRouteAddition && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge className="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold text-[10px] cursor-pointer">
+                              ROTA ADICIONADA: +{activeRouteAddition.complementary_itinerary_code}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs text-xs p-2.5 space-y-1 bg-slate-900 text-white">
+                            <p className="font-bold border-b border-slate-700 pb-1 text-amber-300">
+                              Adição Excepcional de Rota Ativa
+                            </p>
+                            <p>
+                              <span className="text-slate-400">Original:</span>{' '}
+                              {activeRouteAddition.original_itinerary_code}
+                            </p>
+                            <p>
+                              <span className="text-slate-400">Rota adicionada:</span>{' '}
+                              {activeRouteAddition.complementary_itinerary_code} -{' '}
+                              {activeRouteAddition.complementary_itinerary_description}
+                            </p>
+                            <p>
+                              <span className="text-slate-400">Motivo:</span>{' '}
+                              {activeRouteAddition.reason_code} -{' '}
+                              {activeRouteAddition.reason_description}
+                            </p>
+                            <p>
+                              <span className="text-slate-400">Usuário:</span>{' '}
+                              {activeRouteAddition.user_name || activeRouteAddition.user_email}
+                            </p>
+                            <p>
+                              <span className="text-slate-400">Data/Hora:</span>{' '}
+                              {new Date(activeRouteAddition.created).toLocaleString('pt-BR')}
+                            </p>
+                            {activeRouteAddition.ai_analysis && (
+                              <p className="pt-1 text-[11px] text-slate-300 border-t border-slate-700">
+                                <span className="text-amber-400 font-semibold">
+                                  Conclusão IA ({activeRouteAddition.ai_classification}):
+                                </span>{' '}
+                                {activeRouteAddition.ai_analysis}
+                              </p>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {activeRouteAddition ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          const confirmed = window.confirm(
+                            'Deseja remover esta rota adicional do itinerário?',
+                          )
+                          if (!confirmed) return
+                          try {
+                            await TmsService.removeRouteAddition(activeRouteAddition.id)
+                            toast({
+                              title: 'Rota adicional removida',
+                              description:
+                                'A rota adicional foi removida e o histórico de auditoria preservado.',
+                            })
+                            loadActiveRouteAdditionForAssembly()
+                          } catch (err: any) {
+                            toast({
+                              title: 'Erro ao remover',
+                              description: err?.message || 'Falha ao remover rota.',
+                              variant: 'destructive',
+                            })
+                          }
+                        }}
+                        className="h-6 text-[10px] text-rose-700 border-rose-300 hover:bg-rose-50 font-bold px-2"
+                      >
+                        <XCircle className="w-3 h-3 mr-1" />
+                        Remover rota
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setMatchForRouteAddition(null)
+                          setRouteAdditionModalOpen(true)
+                        }}
+                        className="h-6 text-[10px] text-[#005596] border-[#005596]/40 hover:bg-sky-50 font-bold px-2"
+                      >
+                        <PlusCircle className="w-3 h-3 mr-1" />+ Adicionar rota ao itinerário
+                      </Button>
+                    )}
+                    <Badge
+                      className={
+                        assemblyEvaluation.decision === 'permitida'
+                          ? 'bg-emerald-600 text-white font-bold text-[10px]'
+                          : assemblyEvaluation.decision === 'exige_aprovacao'
+                            ? 'bg-amber-500 text-white font-bold text-[10px]'
+                            : 'bg-rose-600 text-white font-bold text-[10px]'
+                      }
+                    >
+                      {assemblyEvaluation.decision === 'permitida'
+                        ? 'MONTAGEM PERMITIDA'
                         : assemblyEvaluation.decision === 'exige_aprovacao'
-                          ? 'bg-amber-500 text-white font-bold text-[10px]'
-                          : 'bg-rose-600 text-white font-bold text-[10px]'
-                    }
-                  >
-                    {assemblyEvaluation.decision === 'permitida'
-                      ? 'MONTAGEM PERMITIDA'
-                      : assemblyEvaluation.decision === 'exige_aprovacao'
-                        ? 'EXIGE APROVAÇÃO'
-                        : 'MONTAGEM RECUSADA'}
-                  </Badge>
+                          ? 'EXIGE APROVAÇÃO'
+                          : 'MONTAGEM RECUSADA'}
+                    </Badge>
+                  </div>
                 </div>
                 <CardDescription className="text-[11px]">
                   Validação em tempo real das regras determinísticas de engenharia de carga.
@@ -1422,6 +1538,82 @@ export const LoadPlannerPage: React.FC = () => {
             title: 'Carga Carregada na Montagem',
             description: `${match.candidateLoad.title} vinculada ao veículo ${match.vehiclePlate}.`,
           })
+        }}
+        onAddRouteToMatch={(match) => {
+          setMatchForRouteAddition(match)
+          setRouteAdditionModalOpen(true)
+        }}
+        onRemoveRouteFromMatch={async (match) => {
+          const confirmed = window.confirm('Deseja remover esta rota adicional do itinerário?')
+          if (!confirmed) return
+          const addition = match.routeAdditionData
+          if (addition?.id) {
+            try {
+              await TmsService.removeRouteAddition(addition.id)
+              toast({
+                title: 'Rota adicional removida',
+                description: 'A rota adicional foi removida mantendo o histórico de auditoria.',
+              })
+              fetchData()
+            } catch (err: any) {
+              toast({
+                title: 'Erro ao remover',
+                description: err?.message || 'Falha ao remover rota.',
+                variant: 'destructive',
+              })
+            }
+          }
+        }}
+      />
+
+      {/* MODAL DE ADIÇÃO EXCEPCIONAL DE ROTAS AO ITINERÁRIO */}
+      <RouteAdditionModal
+        open={routeAdditionModalOpen}
+        onOpenChange={(isOpen) => {
+          setRouteAdditionModalOpen(isOpen)
+          if (!isOpen) setMatchForRouteAddition(null)
+        }}
+        candidateLoad={
+          matchForRouteAddition
+            ? matchForRouteAddition.candidateLoad
+            : {
+                id: cargoName,
+                title: cargoName,
+                itineraryCode:
+                  filterItinerary !== 'ALL'
+                    ? filterItinerary
+                    : selectedOrders[0]?.itinerary_code || 'MG-01',
+                itineraryDescription: `Itinerário ${filterItinerary !== 'ALL' ? filterItinerary : selectedOrders[0]?.itinerary_code || 'MG-01'}`,
+                originPlant: selectedOrders[0]?.plant_code || '1010',
+                destinationCity: selectedOrders[0]?.destination_city || 'Belo Horizonte',
+                destinationUf: selectedOrders[0]?.uf || 'MG',
+                totalWeightKg: assemblyEvaluation.calculatedWeightKg,
+                capacityKg: selectedQueueVehicle?.vehicle_capacity_kg_cached || 28000,
+                occupancyPct:
+                  selectedQueueVehicle?.vehicle_capacity_kg_cached &&
+                  selectedQueueVehicle.vehicle_capacity_kg_cached > 0
+                    ? Math.round(
+                        (assemblyEvaluation.calculatedWeightKg /
+                          selectedQueueVehicle.vehicle_capacity_kg_cached) *
+                          100,
+                      )
+                    : 0,
+                dischargesCount: new Set(selectedOrders.map((o) => o.customer_code)).size || 1,
+                customersCount: new Set(selectedOrders.map((o) => o.customer_code)).size || 1,
+                distanceKm: 280,
+                estimatedTimeHours: 6,
+                suggestedFreightBrl: Math.round(
+                  (assemblyEvaluation.calculatedWeightKg / 1000) * 165 + 280 * 3.8,
+                ),
+                tollCostBrl: 180,
+                orders: selectedOrders,
+              }
+        }
+        onSuccess={() => {
+          setRouteAdditionModalOpen(false)
+          setMatchForRouteAddition(null)
+          loadActiveRouteAdditionForAssembly()
+          fetchData()
         }}
       />
 

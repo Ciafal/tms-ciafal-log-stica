@@ -521,6 +521,20 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
                     {allPoints.slice(0, -1).map((p1, idx) => {
                       const p2 = allPoints[idx + 1]
                       const isReturnToBase = idx === allPoints.length - 2
+                      // Se a carga possui rota adicionada ativa: diferencia o trecho adicionado com traçado tracejado em tom distinto
+                      const hasAddition = !!cluster.hasRouteAddition
+                      const isAdditionSegment =
+                        hasAddition && idx >= Math.max(1, Math.floor(allPoints.length / 2))
+
+                      const strokeColor = isAdditionSegment ? '#f59e0b' : cluster.color.hex
+                      const strokeDash = isAdditionSegment ? '6,3' : isReturnToBase ? '5,4' : 'none'
+                      const strokeW = isAdditionSegment
+                        ? isSelected
+                          ? 3.5
+                          : 2.4
+                        : isSelected
+                          ? 3
+                          : 1.8
 
                       return (
                         <line
@@ -529,14 +543,22 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
                           y1={p1.y}
                           x2={p2.x}
                           y2={p2.y}
-                          stroke={cluster.color.hex}
-                          strokeWidth={isSelected ? 3 : 1.8}
-                          strokeDasharray={isReturnToBase ? '5,4' : 'none'}
-                          opacity={isSelected ? 0.95 : 0.45}
+                          stroke={strokeColor}
+                          strokeWidth={strokeW}
+                          strokeDasharray={strokeDash}
+                          opacity={isSelected ? 0.95 : 0.65}
                           filter={isSelected ? 'url(#routeGlow)' : undefined}
                           className="cursor-pointer"
                           onClick={() => onSelectCluster(cluster.id)}
-                        />
+                        >
+                          <title>
+                            {isAdditionSegment
+                              ? `Trecho da Rota Adicionada (+${cluster.routeAdditionData?.complementary_itinerary_code || 'Adicional'})`
+                              : isReturnToBase
+                                ? 'Retorno à Origem'
+                                : `Rota Original (${cluster.code})`}
+                          </title>
+                        </line>
                       )
                     })}
                   </g>
@@ -948,8 +970,15 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
             </span>
           </div>
 
-          <div className="text-[9px] text-slate-500 pt-0.5 border-t border-slate-100 flex items-center justify-between">
+          <div className="text-[9px] text-slate-500 pt-0.5 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
             <span>🏭 Origem Matriz / Sidercentro</span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-0.5 bg-slate-700 inline-block" /> Rota original
+            </span>
+            <span className="flex items-center gap-1 text-amber-700 font-semibold">
+              <span className="w-3 h-0.5 border-b-2 border-dashed border-amber-500 inline-block" />{' '}
+              Trecho adicionado (+Rota)
+            </span>
             <span>1, 2, 3 = Ordem de descarga</span>
           </div>
         </div>

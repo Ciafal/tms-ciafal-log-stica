@@ -79,6 +79,8 @@ interface EncontrosDrawerProps {
   freightRuleParameters?: FreightRuleParameterEntity[]
   onRefreshData?: () => void
   onInjectIntoSimulator?: (match: VehicleLoadMatch) => void
+  onAddRouteToMatch?: (match: VehicleLoadMatch) => void
+  onRemoveRouteFromMatch?: (match: VehicleLoadMatch) => void
 }
 
 export const EncontrosDrawer: React.FC<EncontrosDrawerProps> = ({
@@ -93,6 +95,8 @@ export const EncontrosDrawer: React.FC<EncontrosDrawerProps> = ({
   freightRuleParameters = [],
   onRefreshData,
   onInjectIntoSimulator,
+  onAddRouteToMatch,
+  onRemoveRouteFromMatch,
 }) => {
   const { toast } = useToast()
   const { user } = useAuth()
@@ -818,6 +822,8 @@ Explique de forma técnica e compacta (máx 3 parágrafos) ao gestor logístico:
                     onSendToFreightDesk={handleSendToFreightDesk}
                     onCallAiExplain={handleCallAiExplain}
                     onSendSingleToChicao={handleSendSingleToChicao}
+                    onAddRoute={onAddRouteToMatch}
+                    onRemoveRoute={onRemoveRouteFromMatch}
                   />
                 ))
               )}
