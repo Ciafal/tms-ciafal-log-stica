@@ -302,7 +302,7 @@ export function computeOperacaoHojeAnalysis(params: {
   // Agrupar veículos distintos com ao menos 1 match viável
   const matchedVehiclePlates = new Set(engineResult.matches.map((m) => m.vehiclePlate))
   const potentialTons = engineResult.matches.reduce(
-    (sum, m) => sum + (m.candidateLoad.totalWeightKg || 0) / 1000,
+    (sum: number, m: VehicleLoadMatch) => sum + (m.candidateLoad.totalWeightKg || 0) / 1000,
     0,
   )
 

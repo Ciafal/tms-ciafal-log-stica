@@ -119,6 +119,7 @@ export const TmsDashboard: React.FC = () => {
   // Carregar dados gerais do TMS
   const fetchGeneralData = useCallback(async () => {
     try {
+      setDataError(null)
       const [ordersData, queueData, oppsData, cargosData, vehiclesData, driversData, paramsData] =
         await Promise.all([
           TmsService.getSapSalesOrders(),
@@ -136,8 +137,19 @@ export const TmsDashboard: React.FC = () => {
       setVehicles(vehiclesData || [])
       setDrivers(driversData || [])
       setFreightRuleParams(paramsData || [])
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching dashboard data:', err)
+      setDataError(err?.message || 'Falha na comunicação')
+      TmsService.logAudit({
+        user_name: 'Sistema / Hub CIAFAL',
+        user_email: 'tms.integracoes@ciafal.com.br',
+        action: 'ERRO_INTEGRACAO_OPERACAO_HOJE',
+        resource: 'operacao_hoje_datasource',
+        payload: {
+          error_message: err?.message || String(err),
+          timestamp: new Date().toISOString(),
+        },
+      }).catch((e) => console.warn('Erro log audit:', e))
     } finally {
       setIsLoading(false)
     }
@@ -251,6 +263,8 @@ export const TmsDashboard: React.FC = () => {
     }
   }, [orders, queueEntries, vehicles, drivers, freightRuleParams])
 
+  const [dataError, setDataError] = useState<string | null>(null)
+
   // Auditoria ao abrir modais de detalhamento
   const handleOpenDetailModal = (
     type: 'ESTOQUE_SEM_CREDITO' | 'SEM_ESTOQUE' | 'MATCH_VEICULOS_ESTOQUE',
@@ -306,6 +320,16 @@ export const TmsDashboard: React.FC = () => {
         periodLabel={towerData.period_label}
         isRefreshing={isRefreshingTower}
         onRefresh={() => {
+          TmsService.logAudit({
+            user_name: user?.name || 'Operador Logística',
+            user_email: user?.email || 'operador.tms@ciafal.com.br',
+            action: 'ATUALIZAR_MANUAL_OPERACAO_HOJE',
+            resource: 'control_tower_operacao_hoje',
+            payload: {
+              period: selectedPeriod,
+              timestamp: new Date().toISOString(),
+            },
+          }).catch((e) => console.warn('Erro log audit:', e))
           fetchTowerSummary(selectedPeriod)
           fetchGeneralData()
         }}
@@ -320,7 +344,8 @@ export const TmsDashboard: React.FC = () => {
           badge={new Date().toLocaleDateString('pt-BR')}
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+        {/* Linha 1: Indicadores Operacionais de Pátio e Execução (6 cards em grid responsivo, sem espaço vazio) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           {/* Card 1: Motoristas PORTA */}
           <KpiCard
             title="Motoristas PORTA"
@@ -329,6 +354,7 @@ export const TmsDashboard: React.FC = () => {
             variant="highlight"
             status="Presente"
             statusColor="blue"
+            badge="Posição atual"
           />
 
           {/* Card 2: Motoristas FORA */}
@@ -339,6 +365,7 @@ export const TmsDashboard: React.FC = () => {
             variant="success"
             status="Em raio"
             statusColor="emerald"
+            badge="Posição atual"
           />
 
           {/* Card 3: Capacidade Disponível */}
@@ -355,27 +382,19 @@ export const TmsDashboard: React.FC = () => {
             unit="t"
             description="PORTA + FORA"
             variant="default"
+            badge="Posição atual"
           />
 
-          {/* Card 4: Pedidos Prontos SAP */}
-          <KpiCard
-            title="Pronto no PCP"
-            value={readyOrders.length}
-            description="Pedidos Liberados"
-            variant="sky"
-            status="Liberados"
-            statusColor="sky"
-          />
-
-          {/* Card 5: Cargas em Montagem */}
+          {/* Card 4: Cargas em Montagem */}
           <KpiCard
             title="Cargas em Montagem"
             value={activeMontagemCargos}
             description="Planejador Ativo"
             variant="default"
+            badge="Posição atual"
           />
 
-          {/* Card 6: Cargas Sem Veículo */}
+          {/* Card 5: Cargas Sem Veículo */}
           <KpiCard
             title="Sem Veículo"
             value={cargosSemVeiculo}
@@ -383,9 +402,10 @@ export const TmsDashboard: React.FC = () => {
             variant="warning"
             status={cargosSemVeiculo > 0 ? 'Atenção' : 'Normal'}
             statusColor={cargosSemVeiculo > 0 ? 'amber' : 'emerald'}
+            badge="Posição atual"
           />
 
-          {/* Card 7: Complementos Possíveis */}
+          {/* Card 6: Complementos Possíveis */}
           <KpiCard
             title="Complementos CRM"
             value={opportunities.length}
@@ -393,7 +413,225 @@ export const TmsDashboard: React.FC = () => {
             variant="purple"
             status="Avisados"
             statusColor="purple"
+            badge="Posição atual"
           />
+        </div>
+
+        {/* Linha 2 (Novos Indicadores Operação Hoje): Carteira com Estoque s/ Crédito, Carteira s/ Estoque e Match Veículos × Estoque */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+          {/* Card 1: CARTEIRA COM ESTOQUE S/ CRÉDITO */}
+          <Card
+            onClick={() => handleOpenDetailModal('ESTOQUE_SEM_CREDITO')}
+            className="cursor-pointer transition-all duration-200 shadow-xs hover:shadow-md bg-white border-amber-200 hover:border-amber-400 flex flex-col justify-between"
+          >
+            <CardContent className="p-4 flex flex-col justify-between h-full space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                      Carteira c/ Estoque s/ Crédito
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 block">
+                    Material disponível fisicamente · Crédito pendente/bloqueado
+                  </span>
+                </div>
+                <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[9px] font-bold shrink-0">
+                  Posição atual
+                </Badge>
+              </div>
+
+              {dataError ? (
+                <div className="py-2 text-xs text-amber-800 font-medium">
+                  Dados temporariamente indisponíveis
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-baseline gap-2">
+                    <strong className="text-2xl sm:text-3xl font-mono font-black text-amber-900 tracking-tight leading-none">
+                      {operacaoHojeAnalysis.estoqueSemCredito.totalTons.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 1,
+                      })}
+                    </strong>
+                    <span className="text-xs font-semibold text-slate-500 font-sans">
+                      t retidas
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className="ml-auto text-[10px] font-mono border-amber-300 text-amber-800 bg-amber-50/50"
+                    >
+                      {operacaoHojeAnalysis.estoqueSemCredito.ordersCount} pedidos ·{' '}
+                      {operacaoHojeAnalysis.estoqueSemCredito.itemsCount} itens
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] text-slate-600 bg-amber-50/60 p-1.5 rounded border border-amber-200/60">
+                    <span className="flex items-center gap-1 font-semibold text-amber-900">
+                      <AlertTriangle className="w-3 h-3 text-amber-600" />
+                      Criticidade:
+                    </span>
+                    <span className="font-bold text-amber-900">
+                      {operacaoHojeAnalysis.estoqueSemCredito.ordersCount > 0
+                        ? `${operacaoHojeAnalysis.estoqueSemCredito.ordersCount} pedidos com risco de atraso`
+                        : 'Nenhum bloqueio'}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium pt-2 border-t border-slate-100">
+                <span className="truncate">Estoque disponível | Crédito pendente/bloqueado</span>
+                <span className="text-[#005596] font-bold hover:underline shrink-0 ml-1">
+                  Ver detalhes →
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card 2: CARTEIRA S/ ESTOQUE */}
+          <Card
+            onClick={() => handleOpenDetailModal('SEM_ESTOQUE')}
+            className="cursor-pointer transition-all duration-200 shadow-xs hover:shadow-md bg-white border-rose-200 hover:border-rose-400 flex flex-col justify-between"
+          >
+            <CardContent className="p-4 flex flex-col justify-between h-full space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-600 shrink-0" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                      Carteira s/ Estoque
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 block">
+                    Carteira aguardando disponibilidade física / PCP
+                  </span>
+                </div>
+                <Badge className="bg-rose-100 text-rose-900 border-rose-300 text-[9px] font-bold shrink-0">
+                  Posição atual
+                </Badge>
+              </div>
+
+              {dataError ? (
+                <div className="py-2 text-xs text-rose-800 font-medium">
+                  Dados temporariamente indisponíveis
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-baseline gap-2">
+                    <strong className="text-2xl sm:text-3xl font-mono font-black text-rose-900 tracking-tight leading-none">
+                      {operacaoHojeAnalysis.semEstoque.missingTons.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 1,
+                      })}
+                    </strong>
+                    <span className="text-xs font-semibold text-slate-500 font-sans">
+                      t faltante
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className="ml-auto text-[10px] font-mono border-rose-300 text-rose-800 bg-rose-50/50"
+                    >
+                      {operacaoHojeAnalysis.semEstoque.ordersCount} pedidos ·{' '}
+                      {operacaoHojeAnalysis.semEstoque.itemsCount} itens
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] bg-rose-50/60 p-1.5 rounded border border-rose-200/60">
+                    <span className="text-slate-700">Composição do déficit:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-rose-800 font-mono">
+                        Zero: {operacaoHojeAnalysis.semEstoque.semEstoqueCount} (
+                        {operacaoHojeAnalysis.semEstoque.semEstoqueTons.toFixed(1)}t)
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="font-bold text-amber-800 font-mono">
+                        Parcial: {operacaoHojeAnalysis.semEstoque.estoqueParcialCount} (
+                        {operacaoHojeAnalysis.semEstoque.estoqueParcialTons.toFixed(1)}t)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium pt-2 border-t border-slate-100">
+                <span className="truncate">Carteira aguardando disponibilidade</span>
+                <span className="text-[#005596] font-bold hover:underline shrink-0 ml-1">
+                  Ver detalhes →
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card 3: MATCH VEÍCULOS × ESTOQUE */}
+          <Card
+            onClick={() => handleOpenDetailModal('MATCH_VEICULOS_ESTOQUE')}
+            className="cursor-pointer transition-all duration-200 shadow-xs hover:shadow-md bg-white border-[#005596]/30 hover:border-[#005596] flex flex-col justify-between"
+          >
+            <CardContent className="p-4 flex flex-col justify-between h-full space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#005596] shrink-0" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                      Match Veículos × Estoque
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 block">
+                    Oportunidades imediatas de montagem e expedição
+                  </span>
+                </div>
+                <Badge className="bg-sky-100 text-[#005596] border-sky-300 text-[9px] font-bold shrink-0">
+                  Posição atual
+                </Badge>
+              </div>
+
+              {dataError ? (
+                <div className="py-2 text-xs text-sky-800 font-medium">
+                  Dados temporariamente indisponíveis
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-baseline gap-2">
+                    <strong className="text-2xl sm:text-3xl font-mono font-black text-[#005596] tracking-tight leading-none">
+                      {operacaoHojeAnalysis.matchVeiculosEstoque.potentialTons.toLocaleString(
+                        'pt-BR',
+                        {
+                          minimumFractionDigits: 1,
+                          maximumFractionDigits: 1,
+                        },
+                      )}
+                    </strong>
+                    <span className="text-xs font-semibold text-slate-500 font-sans">
+                      t potencial
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className="ml-auto text-[10px] font-mono border-sky-300 text-[#005596] bg-sky-50/50"
+                    >
+                      {operacaoHojeAnalysis.matchVeiculosEstoque.matchesCount} matches viáveis
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] bg-sky-50/60 p-1.5 rounded border border-sky-200/60">
+                    <span className="text-slate-700">Veículos com carga viável:</span>
+                    <span className="font-bold text-[#005596] font-mono">
+                      {operacaoHojeAnalysis.matchVeiculosEstoque.vehiclesWithMatchesCount}{' '}
+                      veículo(s) aptos
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium pt-2 border-t border-slate-100">
+                <span className="truncate">Veículo + rota + carteira + estoque</span>
+                <span className="text-[#005596] font-bold hover:underline shrink-0 ml-1">
+                  Ver oportunidades →
+                </span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -563,6 +801,25 @@ export const TmsDashboard: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Modais de Detalhamento da Operação Hoje (com tabelas e reconciliação) */}
+      <CarteiraEstoqueSemCreditoModal
+        open={isEstoqueSemCreditoOpen}
+        onOpenChange={setIsEstoqueSemCreditoOpen}
+        items={operacaoHojeAnalysis.estoqueSemCredito.items}
+      />
+
+      <CarteiraSemEstoqueModal
+        open={isSemEstoqueOpen}
+        onOpenChange={setIsSemEstoqueOpen}
+        items={operacaoHojeAnalysis.semEstoque.items}
+      />
+
+      <MatchVeiculosEstoqueModal
+        open={isMatchVeiculosEstoqueOpen}
+        onOpenChange={setIsMatchVeiculosEstoqueOpen}
+        matches={operacaoHojeAnalysis.matchVeiculosEstoque.matches}
+      />
     </div>
   )
 }

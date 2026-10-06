@@ -335,9 +335,11 @@ export const CarteiraSemEstoqueModal: React.FC<CarteiraSemEstoqueModalProps> = (
                         </Badge>
                       </TableCell>
                       <TableCell className="font-mono text-[11px] text-slate-600">
-                        {ord.production_order_prediction
-                          ? new Date(ord.production_order_prediction).toLocaleDateString('pt-BR')
-                          : ord.delivery_week || '—'}
+                        {ord.pcp_forecast_date
+                          ? new Date(ord.pcp_forecast_date).toLocaleDateString('pt-BR')
+                          : ord.production_forecast_date
+                            ? new Date(ord.production_forecast_date).toLocaleDateString('pt-BR')
+                            : ord.delivery_week || '—'}
                       </TableCell>
                       <TableCell className="font-mono text-[11px] text-slate-600">
                         {ord.desired_date

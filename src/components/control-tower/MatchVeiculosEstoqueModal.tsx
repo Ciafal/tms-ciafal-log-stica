@@ -58,14 +58,15 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
 
   // Itinerários disponíveis nos matches
   const itineraries = useMemo(() => {
-    const set = new Set(matches.map((m) => m.itineraryCode).filter(Boolean))
+    const set = new Set(matches.map((m) => m.candidateLoad.itineraryCode).filter(Boolean))
     return Array.from(set).sort()
   }, [matches])
 
   // Filtragem
   const filteredMatches = useMemo(() => {
     return matches.filter((m) => {
-      if (selectedItinerary !== 'ALL' && m.itineraryCode !== selectedItinerary) {
+      const itinCode = m.candidateLoad.itineraryCode
+      if (selectedItinerary !== 'ALL' && itinCode !== selectedItinerary) {
         return false
       }
       if (!searchTerm) return true
@@ -73,8 +74,7 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
       return (
         m.vehiclePlate.toLowerCase().includes(q) ||
         m.driverName.toLowerCase().includes(q) ||
-        m.itineraryCode.toLowerCase().includes(q) ||
-        (m.carrierName && m.carrierName.toLowerCase().includes(q)) ||
+        itinCode.toLowerCase().includes(q) ||
         m.candidateLoad.orders.some(
           (o) =>
             o.customer_name.toLowerCase().includes(q) ||
@@ -95,7 +95,7 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
     const avgScore =
       filteredMatches.length > 0
         ? Math.round(
-            filteredMatches.reduce((sum, m) => sum + m.multicriteriaScore.totalScore, 0) /
+            filteredMatches.reduce((sum, m) => sum + m.score.totalScore, 0) /
               filteredMatches.length,
           )
         : 0
@@ -116,13 +116,13 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
         user_email: user?.email || 'operador.tms@ciafal.com.br',
         action: 'ENVIAR_MATCH_PARA_PLANEJADOR',
         resource: 'vehicle_load_matches',
-        resource_id: match.id,
+        resource_id: match.matchId,
         payload: {
-          match_id: match.id,
+          match_id: match.matchId,
           vehicle_plate: match.vehiclePlate,
           driver_name: match.driverName,
-          itinerary: match.itineraryCode,
-          score: match.multicriteriaScore.totalScore,
+          itinerary: match.candidateLoad.itineraryCode,
+          score: match.score.totalScore,
           orders_count: match.candidateLoad.orders.length,
           total_weight_kg: match.candidateLoad.totalWeightKg,
           occupancy_pct: match.occupancyPct,
@@ -134,7 +134,7 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
 
       toast({
         title: 'Sugestão Enviada ao Planejador de Cargas',
-        description: `Carga sugerida para o veículo ${match.vehiclePlate} (${match.itineraryCode}) pronta para revisão e aprovação.`,
+        description: `Carga sugerida para o veículo ${match.vehiclePlate} (${match.candidateLoad.itineraryCode}) pronta para revisão e aprovação.`,
       })
 
       onOpenChange(false)
@@ -287,7 +287,7 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                   </TableRow>
                 ) : (
                   filteredMatches.map((match) => {
-                    const score = match.multicriteriaScore.totalScore
+                    const score = match.score.totalScore
                     const loadTon = match.candidateLoad.totalWeightKg / 1000
                     const capTon = match.vehicleCapacityKg / 1000
                     const elegivelTon = match.candidateLoad.orders.reduce(
@@ -296,7 +296,7 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                     )
 
                     return (
-                      <TableRow key={match.id} className="hover:bg-emerald-50/40">
+                      <TableRow key={match.matchId} className="hover:bg-emerald-50/40">
                         <TableCell className="text-center">
                           <Badge
                             className={`font-mono font-bold text-xs ${
@@ -336,7 +336,7 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                             variant="outline"
                             className="font-mono text-[10px] border-slate-300"
                           >
-                            {match.itineraryCode}
+                            {match.candidateLoad.itineraryCode}
                           </Badge>
                           <div className="text-[10px] text-slate-500 truncate max-w-[140px]">
                             {match.candidateLoad.destinationCity}/
@@ -424,12 +424,12 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                   </DialogTitle>
                   <DialogDescription className="text-xs text-slate-300">
                     Motorista: {selectedMatch.driverName} · Fila: {selectedMatch.queueVehicle.type}{' '}
-                    · Itinerário: {selectedMatch.itineraryCode}
+                    · Itinerário: {selectedMatch.candidateLoad.itineraryCode}
                   </DialogDescription>
                 </div>
                 <div className="text-right">
                   <Badge className="bg-emerald-500 text-white font-mono text-sm px-2.5 py-1">
-                    Score: {selectedMatch.multicriteriaScore.totalScore} pts
+                    Score: {selectedMatch.score.totalScore} pts
                   </Badge>
                 </div>
               </div>
@@ -495,31 +495,33 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                   Justificativa e Análise do Score (0–100)
                 </div>
                 <p className="text-xs text-slate-700 leading-relaxed">
-                  {selectedMatch.explanationText}
+                  {selectedMatch.score.explanations?.join(' · ') ||
+                    `Match de alta aderência com capacidade de ${(selectedMatch.vehicleCapacityKg / 1000).toFixed(1)}t, ocupação de ${selectedMatch.occupancyPct.toFixed(0)}% e itinerário ${selectedMatch.candidateLoad.itineraryCode}.`}
                 </p>
+
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
                   <div className="bg-white p-2 rounded border border-blue-100">
                     <span className="text-slate-500 block">Aderência Itinerário</span>
                     <strong className="text-slate-800">
-                      {selectedMatch.multicriteriaScore.itineraryAdherencePoints} pts
+                      {selectedMatch.score.itineraryAdherencePoints} pts
                     </strong>
                   </div>
                   <div className="bg-white p-2 rounded border border-blue-100">
                     <span className="text-slate-500 block">Aproveitamento Ocupação</span>
                     <strong className="text-slate-800">
-                      {selectedMatch.multicriteriaScore.occupancyPoints} pts
+                      {selectedMatch.score.occupancyPoints} pts
                     </strong>
                   </div>
                   <div className="bg-white p-2 rounded border border-blue-100">
                     <span className="text-slate-500 block">Prontidão Estoque/Crédito</span>
                     <strong className="text-slate-800">
-                      {selectedMatch.multicriteriaScore.readinessPoints} pts
+                      {selectedMatch.score.readinessPoints} pts
                     </strong>
                   </div>
                   <div className="bg-white p-2 rounded border border-blue-100">
                     <span className="text-slate-500 block">Poucas Descargas</span>
                     <strong className="text-slate-800">
-                      {selectedMatch.multicriteriaScore.dischargesPoints} pts
+                      {selectedMatch.score.dischargesPoints} pts
                     </strong>
                   </div>
                   <div className="bg-white p-2 rounded border border-blue-100">
@@ -527,13 +529,13 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                       Tempo Fila ({selectedMatch.queueVehicle.type})
                     </span>
                     <strong className="text-slate-800">
-                      {selectedMatch.multicriteriaScore.queueWaitPoints} pts
+                      {selectedMatch.score.queueWaitPoints} pts
                     </strong>
                   </div>
                   <div className="bg-white p-2 rounded border border-blue-100">
                     <span className="text-slate-500 block">Eficiência de Custo</span>
                     <strong className="text-slate-800">
-                      {selectedMatch.multicriteriaScore.costEfficiencyPoints} pts
+                      {selectedMatch.score.costEfficiencyPoints} pts
                     </strong>
                   </div>
                 </div>

@@ -49,15 +49,20 @@ import {
 import { PageHeader } from '@/components/ui-custom/PageHeader'
 import { LoadingState, EmptyState } from '@/components/ui-custom/FeedbackStates'
 import { EncontrosDrawer } from '@/components/load-planner/EncontrosDrawer'
-import { runVehicleLoadMatchingEngine } from '@/domain/vehicleLoadMatchingEngine'
+import {
+  runVehicleLoadMatchingEngine,
+  type VehicleLoadMatch,
+} from '@/domain/vehicleLoadMatchingEngine'
 import { useRealtime } from '@/hooks/use-realtime'
 import { CustomerLogisticInfoEntity } from '@/domain/customerLogisticInfoEngine'
 import { customerLogisticInfoService } from '@/services/customerLogisticInfoService'
 import { CustomerLogisticDetailModal } from '@/components/CustomerLogisticDetailModal'
+import { useLocation } from 'react-router-dom'
 
 export const LoadPlannerPage: React.FC = () => {
   const { user } = useAuth()
   const { toast } = useToast()
+  const location = useLocation()
 
   const [orders, setOrders] = useState<SapSalesOrderEntity[]>([])
   const [itineraries, setItineraries] = useState<SapItineraryEntity[]>([])
@@ -188,6 +193,48 @@ export const LoadPlannerPage: React.FC = () => {
   useEffect(() => {
     fetchData()
   }, [])
+
+  // Recepção de Oportunidade Injetada via Operação Hoje ("ENVIAR PARA PLANEJADOR DE CARGAS")
+  // A sugestão chega PREPARADA, mas NÃO confirmada: o operador revisa e aprova no Planejador.
+  useEffect(() => {
+    const locState = location.state as {
+      injectedMatch?: VehicleLoadMatch
+      fromOperacaoHoje?: boolean
+      timestamp?: number
+    } | null
+
+    let matchToInject: VehicleLoadMatch | null = null
+
+    if (locState?.injectedMatch) {
+      matchToInject = locState.injectedMatch
+    } else {
+      const stored = sessionStorage.getItem('TMS_INJECTED_MATCH_SUGGESTION')
+      if (stored) {
+        try {
+          matchToInject = JSON.parse(stored)
+          sessionStorage.removeItem('TMS_INJECTED_MATCH_SUGGESTION')
+        } catch (e) {
+          console.warn('Erro ao ler TMS_INJECTED_MATCH_SUGGESTION:', e)
+        }
+      }
+    }
+
+    if (matchToInject) {
+      const m = matchToInject
+      const itin = m.candidateLoad.itineraryCode
+      setSelectedOrders(m.candidateLoad.orders || [])
+      setSelectedQueueVehicle(m.queueVehicle)
+      setCargoName(`CARGA-SUGERIDA-${m.vehiclePlate}`)
+      if (itin) {
+        setFilterItinerary(itin)
+      }
+
+      toast({
+        title: 'Sugestão da Operação Hoje Carregada para Revisão',
+        description: `Veículo ${m.vehiclePlate} (${itin}) com ${m.candidateLoad.orders.length} pedidos (${((m.candidateLoad.totalWeightKg || 0) / 1000).toFixed(1)} t) pré-montado. Revise e confirme.`,
+      })
+    }
+  }, [location.state, toast])
 
   // Inscrições Realtime para manter o contador de Encontros sincronizado ao vivo
   useRealtime('queue_entries', () => {
