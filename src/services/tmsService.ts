@@ -6139,6 +6139,152 @@ export const TmsService = {
       return []
     }
   },
+
+  // ----------------------------------------------------
+  // ADIÇÃO EXCEPCIONAL DE ROTAS EM ITINERÁRIOS & AUDITORIA
+  // ----------------------------------------------------
+
+  async getRouteAdditions(
+    filter?: string,
+    sort = '-created',
+  ): Promise<import('@/domain/routeAdditionEngine').RouteAdditionEntity[]> {
+    try {
+      return await pb
+        .collection('route_additions')
+        .getFullList<import('@/domain/routeAdditionEngine').RouteAdditionEntity>({
+          filter: filter || '',
+          sort,
+        })
+    } catch (err) {
+      console.warn('Erro ao buscar route_additions:', err)
+      return []
+    }
+  },
+
+  async getActiveRouteAdditionForLoad(
+    loadId: string,
+  ): Promise<import('@/domain/routeAdditionEngine').RouteAdditionEntity | null> {
+    try {
+      const records = await pb
+        .collection('route_additions')
+        .getList<import('@/domain/routeAdditionEngine').RouteAdditionEntity>(1, 1, {
+          filter: `load_id = "${loadId}" && status = "ATIVA"`,
+          sort: '-created',
+        })
+      return records.items[0] || null
+    } catch (err) {
+      console.warn('Erro ao verificar rota adicionada para a carga:', err)
+      return null
+    }
+  },
+
+  async createRouteAddition(
+    data: import('@/domain/routeAdditionEngine').RouteAdditionEntity,
+  ): Promise<import('@/domain/routeAdditionEngine').RouteAdditionEntity> {
+    const createdRecord = await pb
+      .collection('route_additions')
+      .create<import('@/domain/routeAdditionEngine').RouteAdditionEntity>({
+        ...data,
+        status: 'ATIVA',
+        created_at_dt: data.created_at_dt || new Date().toISOString(),
+      })
+
+    // Auditoria Imutável (Item 19)
+    await pb.collection('audit_logs').create({
+      user_email: data.created_by || 'operador@ciafal.logistica',
+      user_name: data.created_by || 'Operador de Logística',
+      user_role: data.created_by_role || 'planejador_cargas',
+      action: 'ADD_ROUTE_TO_ITINERARY',
+      resource: 'route_additions',
+      resource_id: createdRecord.id,
+      previous_state: JSON.stringify({
+        itinerary: data.original_itinerary_id,
+        weight_kg: data.weight_before,
+        occupancy_pct: data.occupancy_before,
+        distance_km: data.distance_before,
+        freight_brl: data.freight_before,
+      }),
+      new_state: JSON.stringify({
+        added_itinerary: data.added_itinerary_id,
+        weight_kg: data.weight_after,
+        occupancy_pct: data.occupancy_after,
+        distance_km: data.distance_after,
+        freight_brl: data.freight_after,
+        additional_km: data.additional_distance,
+      }),
+      reason: `${data.reason_description} — ${data.user_observation || 'Sem observação'}`,
+      correlation_id: `ADD-ROUTE-${Date.now()}`,
+      payload: {
+        addition_id: createdRecord.id,
+        load_id: data.load_id,
+        original_itinerary_id: data.original_itinerary_id,
+        added_itinerary_id: data.added_itinerary_id,
+        reason_code: data.reason_code,
+        reason_description: data.reason_description,
+        user_observation: data.user_observation,
+        ai_analysis: data.ai_analysis,
+        ai_user_alignment: data.ai_user_alignment,
+        ai_risk_level: data.ai_risk_level,
+        metrics_impact: {
+          additional_distance: data.additional_distance,
+          weight_gain_kg: data.weight_after - data.weight_before,
+          occupancy_gain_pct: data.occupancy_after - data.occupancy_before,
+          freight_increase_brl: data.freight_after - data.freight_before,
+        },
+      },
+    })
+
+    return createdRecord
+  },
+
+  async removeRouteAddition(params: {
+    additionId: string
+    removedBy: string
+    removedByRole?: string
+    removalReason?: string
+  }): Promise<boolean> {
+    const {
+      additionId,
+      removedBy,
+      removedByRole = 'gestor_logistica',
+      removalReason = 'Remoção de rota adicional pelo usuário',
+    } = params
+
+    const existing = await pb
+      .collection('route_additions')
+      .getOne<import('@/domain/routeAdditionEngine').RouteAdditionEntity>(additionId)
+
+    await pb.collection('route_additions').update(additionId, {
+      status: 'REMOVIDA',
+      removed_by: removedBy,
+      removed_by_role: removedByRole,
+      removed_at_dt: new Date().toISOString(),
+      removal_reason: removalReason,
+    })
+
+    // Auditoria Imutável de Remoção (Item 11 & 19 - nunca apagar o histórico)
+    await pb.collection('audit_logs').create({
+      user_email: removedBy,
+      user_name: removedBy,
+      user_role: removedByRole,
+      action: 'REMOVE_ROUTE_FROM_ITINERARY',
+      resource: 'route_additions',
+      resource_id: additionId,
+      previous_state: 'ATIVA',
+      new_state: 'REMOVIDA',
+      reason: removalReason,
+      correlation_id: `REM-ROUTE-${Date.now()}`,
+      payload: {
+        addition_id: additionId,
+        load_id: existing.load_id,
+        original_itinerary_id: existing.original_itinerary_id,
+        removed_itinerary_id: existing.added_itinerary_id,
+        timestamp: new Date().toISOString(),
+      },
+    })
+
+    return true
+  },
 }
 
 export const tmsService = TmsService

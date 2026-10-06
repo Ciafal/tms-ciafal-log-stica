@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-06T19:54:55.562Z",
+  "generatedAt": "2026-10-06T20:14:07.596Z",
   "collections": [
     {
       "name": "users",
@@ -17028,6 +17028,332 @@
         "CREATE INDEX idx_tms_treatment_kpi ON tms_deviation_treatments (kpi_id, year, month)",
         "CREATE INDEX idx_tms_treatment_status ON tms_deviation_treatments (status)",
         "CREATE INDEX idx_tms_treatment_resp ON tms_deviation_treatments (responsible_analyst_id)"
+      ]
+    },
+    {
+      "name": "route_additions",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "load_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cargo_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "transport_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "original_itinerary_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "original_itinerary_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "added_itinerary_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "added_itinerary_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "added_route_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination_city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination_uf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "order_numbers_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reason_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "reason_description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "user_observation",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_analysis",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_user_alignment",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Coerente", "Parcialmente coerente", "Divergente", "Dados insuficientes"]
+        },
+        {
+          "name": "ai_risk_level",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["FAVORAVEL", "MODERADO", "ALTO_IMPACTO_DESFAVORAVEL"]
+        },
+        {
+          "name": "ai_alert_flag",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_alert_message",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "distance_before",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "distance_after",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "additional_distance",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "additional_time_hours",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_before",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_after",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "occupancy_before",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "occupancy_after",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vehicle_capacity_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "freight_before",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "freight_after",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "toll_before",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "toll_after",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cost_per_ton_before",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cost_per_ton_after",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deliveries_before",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deliveries_after",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "clients_before",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "clients_after",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["ATIVA", "REMOVIDA"]
+        },
+        {
+          "name": "created_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_by_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_at_dt",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "removed_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "removed_by_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "removed_at_dt",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "removal_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_ra_load_id ON route_additions (load_id)",
+        "CREATE INDEX idx_ra_orig_itin ON route_additions (original_itinerary_id)",
+        "CREATE INDEX idx_ra_add_itin ON route_additions (added_itinerary_id)",
+        "CREATE INDEX idx_ra_reason ON route_additions (reason_code)",
+        "CREATE INDEX idx_ra_status ON route_additions (status)",
+        "CREATE INDEX idx_ra_created_by ON route_additions (created_by)"
       ]
     }
   ]
