@@ -40,7 +40,17 @@ import {
   QueueEntryEntity,
   SapSalesOrderEntity,
   OportunidadeComplementoCargaEntity,
+  VehicleEntity,
+  DriverEntity,
+  FreightRuleParameterEntity,
 } from '@/domain/rules'
+import {
+  computeOperacaoHojeAnalysis,
+  type OperacaoHojeAnalysis,
+} from '@/domain/operacaoHojeWalletEngine'
+import { CarteiraEstoqueSemCreditoModal } from '@/components/control-tower/CarteiraEstoqueSemCreditoModal'
+import { CarteiraSemEstoqueModal } from '@/components/control-tower/CarteiraSemEstoqueModal'
+import { MatchVeiculosEstoqueModal } from '@/components/control-tower/MatchVeiculosEstoqueModal'
 import { Link } from 'react-router-dom'
 
 export const TmsDashboard: React.FC = () => {
@@ -49,7 +59,15 @@ export const TmsDashboard: React.FC = () => {
   const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
   const [opportunities, setOpportunities] = useState<OportunidadeComplementoCargaEntity[]>([])
   const [cargos, setCargos] = useState<any[]>([])
+  const [vehicles, setVehicles] = useState<VehicleEntity[]>([])
+  const [drivers, setDrivers] = useState<DriverEntity[]>([])
+  const [freightRuleParams, setFreightRuleParams] = useState<FreightRuleParameterEntity[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // Modais de detalhamento da Operação Hoje
+  const [isEstoqueSemCreditoOpen, setIsEstoqueSemCreditoOpen] = useState(false)
+  const [isSemEstoqueOpen, setIsSemEstoqueOpen] = useState(false)
+  const [isMatchVeiculosEstoqueOpen, setIsMatchVeiculosEstoqueOpen] = useState(false)
 
   // Estado do Filtro Temporal da Torre de Controle (Default: 'today' / HOJE)
   const [selectedPeriod, setSelectedPeriod] = useState<TowerTimePeriod>('today')
@@ -101,16 +119,23 @@ export const TmsDashboard: React.FC = () => {
   // Carregar dados gerais do TMS
   const fetchGeneralData = useCallback(async () => {
     try {
-      const [ordersData, queueData, oppsData, cargosData] = await Promise.all([
-        TmsService.getSapSalesOrders(),
-        TmsService.getOperationalQueue(),
-        TmsService.getComplementOpportunities(),
-        TmsService.getCargos(),
-      ])
+      const [ordersData, queueData, oppsData, cargosData, vehiclesData, driversData, paramsData] =
+        await Promise.all([
+          TmsService.getSapSalesOrders(),
+          TmsService.getOperationalQueue(),
+          TmsService.getComplementOpportunities(),
+          TmsService.getCargos(),
+          TmsService.getVehicles(),
+          TmsService.getDrivers(),
+          TmsService.getFreightRuleParameters(),
+        ])
       setOrders(ordersData || [])
       setQueueEntries(queueData || [])
       setOpportunities(oppsData || [])
       setCargos(cargosData || [])
+      setVehicles(vehiclesData || [])
+      setDrivers(driversData || [])
+      setFreightRuleParams(paramsData || [])
     } catch (err) {
       console.error('Error fetching dashboard data:', err)
     } finally {
@@ -178,7 +203,6 @@ export const TmsDashboard: React.FC = () => {
     0,
   )
 
-  const readyOrders = orders.filter((o) => o.production_status === 'Pronto')
   const inProdOrders = orders.filter((o) => o.production_status === 'Em Produção')
   const uniqueItinerariesWithDemand = Array.from(
     new Set(orders.map((o) => o.itinerary_code).filter(Boolean)),
@@ -189,6 +213,64 @@ export const TmsDashboard: React.FC = () => {
   const cargosSemVeiculo = cargos.filter(
     (c) => !c.vehicle_plate || c.vehicle_plate === 'Aguardando alocação',
   ).length
+
+  // Análise Unificada da Operação Hoje (sem dupla contagem, cruzando carteira única + estoque + crédito + veículos)
+  const operacaoHojeAnalysis: OperacaoHojeAnalysis = React.useMemo(() => {
+    try {
+      return computeOperacaoHojeAnalysis({
+        orders,
+        queueEntries,
+        vehicles,
+        drivers,
+        freightRuleParameters: freightRuleParams,
+      })
+    } catch (err) {
+      console.error('Erro ao calcular OperacaoHojeAnalysis:', err)
+      return {
+        estoqueSemCredito: { ordersCount: 0, itemsCount: 0, totalTons: 0, items: [] },
+        semEstoque: {
+          ordersCount: 0,
+          itemsCount: 0,
+          missingTons: 0,
+          totalPendingTons: 0,
+          semEstoqueCount: 0,
+          semEstoqueTons: 0,
+          estoqueParcialCount: 0,
+          estoqueParcialTons: 0,
+          items: [],
+        },
+        matchVeiculosEstoque: {
+          matchesCount: 0,
+          vehiclesWithMatchesCount: 0,
+          potentialTons: 0,
+          matches: [],
+        },
+        totalOrdersAnalyzed: orders.length,
+        generatedAt: new Date().toISOString(),
+      }
+    }
+  }, [orders, queueEntries, vehicles, drivers, freightRuleParams])
+
+  // Auditoria ao abrir modais de detalhamento
+  const handleOpenDetailModal = (
+    type: 'ESTOQUE_SEM_CREDITO' | 'SEM_ESTOQUE' | 'MATCH_VEICULOS_ESTOQUE',
+  ) => {
+    TmsService.logAudit({
+      user_name: user?.name || 'Operador Logística',
+      user_email: user?.email || 'operador.tms@ciafal.com.br',
+      action: `ABRIR_DETALHAMENTO_${type}`,
+      resource: 'control_tower_operacao_hoje',
+      payload: {
+        indicator: type,
+        period: selectedPeriod,
+        timestamp: new Date().toISOString(),
+      },
+    }).catch((e) => console.warn('Erro log audit:', e))
+
+    if (type === 'ESTOQUE_SEM_CREDITO') setIsEstoqueSemCreditoOpen(true)
+    if (type === 'SEM_ESTOQUE') setIsSemEstoqueOpen(true)
+    if (type === 'MATCH_VEICULOS_ESTOQUE') setIsMatchVeiculosEstoqueOpen(true)
+  }
 
   return (
     <div className="space-y-6">
