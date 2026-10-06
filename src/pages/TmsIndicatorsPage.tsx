@@ -17,6 +17,9 @@ import { KpiConsolidatedMatrix } from '@/components/tms-indicators/KpiConsolidat
 import { KpiDrillDownModal } from '@/components/tms-indicators/KpiDrillDownModal'
 import { KpiTargetConfigModal } from '@/components/tms-indicators/KpiTargetConfigModal'
 import { KpiDeviationActionModal } from '@/components/tms-indicators/KpiDeviationActionModal'
+import { KpiIndividualGraphicAnalysisModal } from '@/components/tms-indicators/KpiIndividualGraphicAnalysisModal'
+import { KpiDeviationTreatmentWorkflowModal } from '@/components/tms-indicators/KpiDeviationTreatmentWorkflowModal'
+import { TmsDeviationTreatment } from '@/domain/tmsDeviationTreatmentEngine'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
@@ -70,6 +73,22 @@ export const TmsIndicatorsPage: React.FC = () => {
   const [activeAiDiagnosis, setActiveAiDiagnosis] = useState<KpiAiDiagnosisResult | null>(null)
   const [isActionModalOpen, setIsActionModalOpen] = useState<boolean>(false)
 
+  // Modais de Análise Gráfica Individual & Workflow de Tratamento de Desvios (8 Etapas)
+  const [selectedKpiGraphic, setSelectedKpiGraphic] = useState<KpiRowData | null>(null)
+  const [selectedMonthGraphic, setSelectedMonthGraphic] = useState<KpiMonthCell | undefined>(
+    undefined,
+  )
+  const [isGraphicModalOpen, setIsGraphicModalOpen] = useState<boolean>(false)
+
+  const [selectedKpiTreatment, setSelectedKpiTreatment] = useState<KpiRowData | null>(null)
+  const [selectedMonthTreatment, setSelectedMonthTreatment] = useState<KpiMonthCell | null>(null)
+  const [initialTreatmentSummary, setInitialTreatmentSummary] = useState<string | undefined>(
+    undefined,
+  )
+  const [existingTreatmentRecord, setExistingTreatmentRecord] =
+    useState<TmsDeviationTreatment | null>(null)
+  const [isTreatmentWorkflowOpen, setIsTreatmentWorkflowOpen] = useState<boolean>(false)
+
   // Carregamento de dados
   const loadData = useCallback(async () => {
     try {
@@ -104,6 +123,43 @@ export const TmsIndicatorsPage: React.FC = () => {
   const handleOpenTargetConfig = (kpi: KpiRowData) => {
     setSelectedKpiConfig(kpi)
     setIsTargetConfigOpen(true)
+  }
+
+  // Abertura de Análise Gráfica Individual
+  const handleOpenGraphicAnalysis = (kpi: KpiRowData, monthCell?: KpiMonthCell) => {
+    setSelectedKpiGraphic(kpi)
+    setSelectedMonthGraphic(monthCell)
+    setIsGraphicModalOpen(true)
+  }
+
+  // Abertura de Tratamento de Desvios (8 Etapas padrão PCP Robotizado)
+  const handleOpenTreatmentWorkflow = async (
+    kpi: KpiRowData,
+    monthCell?: KpiMonthCell,
+    chartSummary?: string,
+  ) => {
+    // Escolhe mês fornecido, ou o primeiro mês com desvio fora da meta, ou o mês mais recente
+    const targetCell =
+      monthCell ||
+      kpi.months.find((m) => m.hasData && m.status === 'FORA_DA_META') ||
+      kpi.months[kpi.months.length - 1]
+
+    setSelectedKpiTreatment(kpi)
+    setSelectedMonthTreatment(targetCell)
+    setInitialTreatmentSummary(chartSummary)
+
+    // Busca tratamento existente no banco para não duplicar registros de desvio aberto
+    try {
+      const existingList = await tmsIndicatorsService.fetchTreatmentsByKpi(kpi.id, targetCell.year)
+      const foundMatch = existingList.find(
+        (t) => t.month === targetCell.month && t.status !== 'CANCELADO',
+      )
+      setExistingTreatmentRecord(foundMatch || null)
+    } catch {
+      setExistingTreatmentRecord(null)
+    }
+
+    setIsTreatmentWorkflowOpen(true)
   }
 
   const handleSaveTarget = async (
@@ -253,6 +309,8 @@ export const TmsIndicatorsPage: React.FC = () => {
           rows={rows}
           onOpenDrillDown={handleOpenDrillDown}
           onOpenTargetConfig={handleOpenTargetConfig}
+          onOpenGraphicAnalysis={handleOpenGraphicAnalysis}
+          onOpenTreatmentWorkflow={(kpi, cell) => handleOpenTreatmentWorkflow(kpi, cell)}
         />
       )}
 
@@ -275,6 +333,8 @@ export const TmsIndicatorsPage: React.FC = () => {
         kpi={selectedKpiDrillDown}
         initialMonthCell={selectedMonthDrillDown}
         onCreateAction={handleCreateActionFromAi}
+        onOpenGraphicAnalysis={handleOpenGraphicAnalysis}
+        onOpenTreatmentWorkflow={(kpi, cell) => handleOpenTreatmentWorkflow(kpi, cell)}
       />
 
       {/* Modal 2: Parametrização de Metas */}
@@ -293,6 +353,31 @@ export const TmsIndicatorsPage: React.FC = () => {
         monthCell={selectedMonthAction}
         aiDiagnosis={activeAiDiagnosis}
         onSubmit={handleSubmitDeviationAction}
+      />
+
+      {/* Modal 4: Análise Gráfica Individual (12 Meses, 4 Séries, Detalhamentos Dinâmicos, IA) */}
+      <KpiIndividualGraphicAnalysisModal
+        isOpen={isGraphicModalOpen}
+        onClose={() => setIsGraphicModalOpen(false)}
+        kpi={selectedKpiGraphic}
+        initialMonthCell={selectedMonthGraphic}
+        onOpenTreatmentWorkflow={(kpi, cell, summary) => {
+          setIsGraphicModalOpen(false)
+          handleOpenTreatmentWorkflow(kpi, cell, summary)
+        }}
+      />
+
+      {/* Modal 5: Workflow de Tratamento de Desvios (8 Etapas canônicas do PCP Robotizado) */}
+      <KpiDeviationTreatmentWorkflowModal
+        isOpen={isTreatmentWorkflowOpen}
+        onClose={() => setIsTreatmentWorkflowOpen(false)}
+        kpi={selectedKpiTreatment}
+        monthCell={selectedMonthTreatment}
+        initialGraphicSummary={initialTreatmentSummary}
+        existingTreatment={existingTreatmentRecord}
+        onSuccessSave={() => {
+          loadData()
+        }}
       />
     </div>
   )

@@ -3,18 +3,31 @@ import { KpiRowData, KpiMonthCell, KpiCategory, KpiRule } from '@/domain/tmsIndi
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Eye, Settings2, TrendingUp, TrendingDown, Minus, Sparkles } from 'lucide-react'
+import {
+  Eye,
+  Settings2,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Sparkles,
+  BarChart3,
+  ShieldAlert,
+} from 'lucide-react'
 
 interface KpiConsolidatedMatrixProps {
   rows: KpiRowData[]
   onOpenDrillDown: (kpi: KpiRowData, monthCell?: KpiMonthCell) => void
   onOpenTargetConfig: (kpi: KpiRowData) => void
+  onOpenGraphicAnalysis?: (kpi: KpiRowData, monthCell?: KpiMonthCell) => void
+  onOpenTreatmentWorkflow?: (kpi: KpiRowData, monthCell?: KpiMonthCell) => void
 }
 
 export const KpiConsolidatedMatrix: React.FC<KpiConsolidatedMatrixProps> = ({
   rows,
   onOpenDrillDown,
   onOpenTargetConfig,
+  onOpenGraphicAnalysis,
+  onOpenTreatmentWorkflow,
 }) => {
   const MONTHS = [
     'Jan',
@@ -258,9 +271,49 @@ export const KpiConsolidatedMatrix: React.FC<KpiConsolidatedMatrixProps> = ({
                     </td>
                   ))}
 
-                  {/* Coluna Ação */}
+                  {/* Coluna Ação com Ações Principais: Análise Gráfica Individual e Tratar Desvio */}
                   <td className="py-2 px-2 text-center">
                     <div className="flex items-center justify-center gap-1">
+                      {onOpenGraphicAnalysis && (
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onOpenGraphicAnalysis(kpi)}
+                                className="h-7 w-7 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                              >
+                                <BarChart3 className="w-3.5 h-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="text-xs">
+                              📊 Análise Gráfica Individual
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+
+                      {onOpenTreatmentWorkflow && (
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onOpenTreatmentWorkflow(kpi)}
+                                className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/50"
+                              >
+                                <ShieldAlert className="w-3.5 h-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="text-xs">
+                              🛡️ Tratar Desvio / Analisar Causa (8 Etapas)
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+
                       <TooltipProvider delayDuration={150}>
                         <Tooltip>
                           <TooltipTrigger asChild>

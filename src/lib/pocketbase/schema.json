@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-06T19:06:53.819Z",
+  "generatedAt": "2026-10-06T19:54:55.562Z",
   "collections": [
     {
       "name": "users",
@@ -16702,6 +16702,332 @@
         "CREATE INDEX idx_lcl_itin ON load_complement_learning (itinerary_id)",
         "CREATE INDEX idx_lcl_rep ON load_complement_learning (representative_name)",
         "CREATE INDEX idx_lcl_outcome ON load_complement_learning (outcome)"
+      ]
+    },
+    {
+      "name": "tms_deviation_treatments",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "treatment_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "kpi_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "kpi_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "category",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["EXPEDICAO", "LOGISTICA", "TRANSPORTE"]
+        },
+        {
+          "name": "company",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "center",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "period_ref",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "month",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "year",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "target_value",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "real_value",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "unit",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "deviation_abs",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "deviation_pct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "trend_label",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "EM_ANALISE",
+            "PLANO_CRIADO",
+            "EM_EXECUCAO",
+            "AGUARDANDO_EFICACIA",
+            "CONCLUIDO_EFICAZ",
+            "CONCLUIDO_PARCIAL",
+            "CONCLUIDO_INEFICAZ",
+            "CANCELADO"
+          ]
+        },
+        {
+          "name": "current_step",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "responsible_analyst_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "responsible_analyst_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "responsible_analyst_email",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "area_supervisor_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "area_supervisor_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "area_supervisor_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "plan_approver_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "plan_approver_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "plan_approver_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deviation_description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ai_initial_analysis",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_analysis_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "hypotheses_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "five_whys_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ishikawa_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "root_causes_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "root_cause_validated",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "impossibility_justification",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "actions_5w2h_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tracking_updates_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "effectiveness_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "effectiveness_before_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "effectiveness_after_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "effectiveness_evaluation_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "effectiveness_evaluated_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "effectiveness_evaluated_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "effectiveness_ai_opinion",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "linked_sap_orders",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin_filters_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadata_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_tms_treatment_code ON tms_deviation_treatments (treatment_code)",
+        "CREATE INDEX idx_tms_treatment_kpi ON tms_deviation_treatments (kpi_id, year, month)",
+        "CREATE INDEX idx_tms_treatment_status ON tms_deviation_treatments (status)",
+        "CREATE INDEX idx_tms_treatment_resp ON tms_deviation_treatments (responsible_analyst_id)"
       ]
     }
   ]

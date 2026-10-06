@@ -18,6 +18,7 @@ import {
   Layers,
   ArrowRight,
   ShieldAlert,
+  BarChart3,
 } from 'lucide-react'
 
 interface KpiDrillDownModalProps {
@@ -30,6 +31,8 @@ interface KpiDrillDownModalProps {
     kpi: KpiRowData,
     monthCell?: KpiMonthCell,
   ) => void
+  onOpenGraphicAnalysis?: (kpi: KpiRowData, monthCell?: KpiMonthCell) => void
+  onOpenTreatmentWorkflow?: (kpi: KpiRowData, monthCell?: KpiMonthCell) => void
 }
 
 export const KpiDrillDownModal: React.FC<KpiDrillDownModalProps> = ({
@@ -38,6 +41,8 @@ export const KpiDrillDownModal: React.FC<KpiDrillDownModalProps> = ({
   kpi,
   initialMonthCell,
   onCreateAction,
+  onOpenGraphicAnalysis,
+  onOpenTreatmentWorkflow,
 }) => {
   const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(() => {
     if (initialMonthCell) return initialMonthCell.month - 1
@@ -86,15 +91,33 @@ export const KpiDrillDownModal: React.FC<KpiDrillDownModalProps> = ({
               <p className="text-xs text-muted-foreground mt-1 max-w-2xl">{kpi.description}</p>
             </div>
 
-            <div className="flex items-center gap-2">
-              {activeCell?.status === 'FORA_DA_META' && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {onOpenGraphicAnalysis && (
                 <Button
                   size="sm"
-                  onClick={() => onCreateAction(aiDiagnosis, kpi, activeCell)}
-                  className="bg-rose-600 hover:bg-rose-700 text-white shadow-sm text-xs font-semibold"
+                  variant="outline"
+                  onClick={() => {
+                    onClose()
+                    onOpenGraphicAnalysis(kpi, activeCell)
+                  }}
+                  className="text-xs border-[#005596] text-[#005596] hover:bg-sky-50"
+                >
+                  <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
+                  Análise Gráfica Individual
+                </Button>
+              )}
+
+              {onOpenTreatmentWorkflow && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    onClose()
+                    onOpenTreatmentWorkflow(kpi, activeCell)
+                  }}
+                  className="bg-[#005596] hover:bg-[#004276] text-white shadow-sm text-xs font-semibold"
                 >
                   <ShieldAlert className="w-3.5 h-3.5 mr-1.5" />
-                  Criar Ação Corretiva
+                  Tratar Desvio (8 Etapas)
                 </Button>
               )}
             </div>
