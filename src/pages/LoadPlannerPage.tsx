@@ -49,6 +49,10 @@ import {
 import { PageHeader } from '@/components/ui-custom/PageHeader'
 import { LoadingState, EmptyState } from '@/components/ui-custom/FeedbackStates'
 import { EncontrosDrawer } from '@/components/load-planner/EncontrosDrawer'
+import { LogisticalMapTowerView } from '@/components/load-planner/LogisticalMapTowerView'
+import { OrdersListView } from '@/components/load-planner/OrdersListView'
+import { ScenarioComparisonView } from '@/components/load-planner/ScenarioComparisonView'
+import { MapPin, List, LayoutGrid, Scale } from 'lucide-react'
 import {
   runVehicleLoadMatchingEngine,
   type VehicleLoadMatch,
@@ -105,6 +109,11 @@ export const LoadPlannerPage: React.FC = () => {
   const [cargoName, setCargoName] = useState<string>('CARGA-PLANEJADA-01')
   const [selectedOrders, setSelectedOrders] = useState<SapSalesOrderEntity[]>([])
   const [selectedQueueVehicle, setSelectedQueueVehicle] = useState<QueueEntryEntity | null>(null)
+
+  // Alternância de visualização canônica (#1): Lista | Planejamento | Mapa Logístico | Comparação de Cenários
+  const [plannerViewMode, setPlannerViewMode] = useState<
+    'LISTA' | 'PLANEJAMENTO' | 'MAPA_LOGISTICO' | 'COMPARACAO_CENARIOS'
+  >('MAPA_LOGISTICO')
 
   // Informações Logísticas de Clientes (SAP RFC HUB)
   const [customerProfiles, setCustomerProfiles] = useState<CustomerLogisticInfoEntity[]>([])
@@ -428,6 +437,80 @@ export const LoadPlannerPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      {/* Seletor Canônico de Visualização (#1): Lista | Planejamento | Mapa Logístico | Comparação de Cenários */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-slate-900 p-2.5 rounded-xl shadow-xs border border-slate-800 text-white">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-800/80 rounded-lg overflow-x-auto">
+          <Button
+            size="sm"
+            variant={plannerViewMode === 'MAPA_LOGISTICO' ? 'default' : 'ghost'}
+            onClick={() => setPlannerViewMode('MAPA_LOGISTICO')}
+            className={`h-8 text-xs font-bold px-3 transition-all ${
+              plannerViewMode === 'MAPA_LOGISTICO'
+                ? 'bg-[#005596] text-white shadow-xs'
+                : 'text-slate-300 hover:text-white hover:bg-slate-700'
+            }`}
+          >
+            <MapPin className="w-3.5 h-3.5 mr-1.5 text-sky-400" />
+            <span>Mapa Logístico de Cargas</span>
+            <Badge className="bg-sky-500/20 text-sky-300 font-mono text-[9px] px-1 py-0 ml-1 border-none">
+              Torre
+            </Badge>
+          </Button>
+
+          <Button
+            size="sm"
+            variant={plannerViewMode === 'PLANEJAMENTO' ? 'default' : 'ghost'}
+            onClick={() => setPlannerViewMode('PLANEJAMENTO')}
+            className={`h-8 text-xs font-bold px-3 transition-all ${
+              plannerViewMode === 'PLANEJAMENTO'
+                ? 'bg-[#005596] text-white shadow-xs'
+                : 'text-slate-300 hover:text-white hover:bg-slate-700'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5 mr-1.5" />
+            <span>Planejamento (3 Colunas)</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant={plannerViewMode === 'LISTA' ? 'default' : 'ghost'}
+            onClick={() => setPlannerViewMode('LISTA')}
+            className={`h-8 text-xs font-bold px-3 transition-all ${
+              plannerViewMode === 'LISTA'
+                ? 'bg-[#005596] text-white shadow-xs'
+                : 'text-slate-300 hover:text-white hover:bg-slate-700'
+            }`}
+          >
+            <List className="w-3.5 h-3.5 mr-1.5" />
+            <span>Lista da Carteira SAP</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant={plannerViewMode === 'COMPARACAO_CENARIOS' ? 'default' : 'ghost'}
+            onClick={() => setPlannerViewMode('COMPARACAO_CENARIOS')}
+            className={`h-8 text-xs font-bold px-3 transition-all ${
+              plannerViewMode === 'COMPARACAO_CENARIOS'
+                ? 'bg-[#005596] text-white shadow-xs'
+                : 'text-slate-300 hover:text-white hover:bg-slate-700'
+            }`}
+          >
+            <Scale className="w-3.5 h-3.5 mr-1.5 text-purple-400" />
+            <span>Comparação de Cenários</span>
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-2 justify-end text-xs text-slate-300">
+          <span className="text-[11px] hidden md:inline">Visualização ativa:</span>
+          <Badge variant="outline" className="border-sky-400 text-sky-300 font-mono text-[10px]">
+            {plannerViewMode === 'MAPA_LOGISTICO' && 'TORRE GEOGRÁFICA INTERATIVA'}
+            {plannerViewMode === 'PLANEJAMENTO' && 'MONTAGEM DETERMINÍSTICA'}
+            {plannerViewMode === 'LISTA' && 'ZSD35 TABELADA'}
+            {plannerViewMode === 'COMPARACAO_CENARIOS' && 'SIMULAÇÃO MULTICRITÉRIO'}
+          </Badge>
+        </div>
+      </div>
+
       <PageHeader
         title="Planejador de Cargas"
         subtitle={`Carteira SAP atualizada em ${
@@ -681,547 +764,642 @@ export const LoadPlannerPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Renderização Condicional da Visualização Ativa (#1) */}
+      {plannerViewMode === 'MAPA_LOGISTICO' && (
+        <LogisticalMapTowerView
+          orders={orders}
+          itineraries={itineraries}
+          onSimulateLoadFromMap={(injectedOrders, label) => {
+            setSelectedOrders(injectedOrders)
+            setCargoName(`CARGA-MAPA-${new Date().getTime().toString().slice(-4)}`)
+            if (injectedOrders.length > 0 && injectedOrders[0].itinerary_code) {
+              setFilterItinerary(injectedOrders[0].itinerary_code)
+            }
+            // Registrar em log de auditoria (#25)
+            TmsService.logAudit({
+              user_name: user?.name || user?.email || 'Operador Logístico',
+              action_type: 'MAP_SIMULATE_LOAD',
+              action: 'MAP_SIMULATE_LOAD',
+              resource: 'load_proposals',
+              details: {
+                destination: label,
+                ordersCount: injectedOrders.length,
+                totalWeightKg: injectedOrders.reduce((acc, o) => acc + (o.weight_kg || 0), 0),
+                orderNumbers: injectedOrders.map((o) => o.order_number),
+                timestamp: new Date().toISOString(),
+              },
+            }).catch(() => {})
+
+            setPlannerViewMode('PLANEJAMENTO')
+            toast({
+              title: 'Pedidos Injetados no Planejador',
+              description: `${injectedOrders.length} pedidos de ${label} transferidos para a montagem de carga.`,
+            })
+          }}
+          onOpenCustomerProfile={(customerCode, customerName) => {
+            const ind = getCustomerIndicator(customerCode, customerName)
+            if (ind.profile) {
+              setSelectedCustomerDetail(ind.profile)
+              setCustomerModalOpen(true)
+            }
+          }}
+          onSwitchToPlannerTab={() => setPlannerViewMode('PLANEJAMENTO')}
+        />
+      )}
+
+      {plannerViewMode === 'LISTA' && (
+        <OrdersListView
+          orders={orders}
+          onSelectOrdersForAssembly={(selectedList) => {
+            setSelectedOrders(selectedList)
+            setCargoName(`CARGA-LISTA-${new Date().getTime().toString().slice(-4)}`)
+            if (selectedList.length > 0 && selectedList[0].itinerary_code) {
+              setFilterItinerary(selectedList[0].itinerary_code)
+            }
+            setPlannerViewMode('PLANEJAMENTO')
+            toast({
+              title: 'Pedidos Carregados para Montagem',
+              description: `${selectedList.length} pedidos selecionados transferidos para a montagem.`,
+            })
+          }}
+          onOpenCustomerProfile={(customerCode, customerName) => {
+            const ind = getCustomerIndicator(customerCode, customerName)
+            if (ind.profile) {
+              setSelectedCustomerDetail(ind.profile)
+              setCustomerModalOpen(true)
+            }
+          }}
+        />
+      )}
+
+      {plannerViewMode === 'COMPARACAO_CENARIOS' && (
+        <ScenarioComparisonView
+          orders={orders}
+          itineraries={itineraries}
+          onApplyScenarioToPlanner={(scenarioOrders, scenarioTitle) => {
+            setSelectedOrders(scenarioOrders)
+            setCargoName(scenarioTitle.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 24))
+            if (scenarioOrders.length > 0 && scenarioOrders[0].itinerary_code) {
+              setFilterItinerary(scenarioOrders[0].itinerary_code)
+            }
+            setPlannerViewMode('PLANEJAMENTO')
+            toast({
+              title: 'Cenário Aplicado à Montagem',
+              description: `${scenarioTitle} carregado com ${scenarioOrders.length} pedidos.`,
+            })
+          }}
+        />
+      )}
+
       {/* 3 COLUMNS OPERATIONAL WORKSPACE (ESQUERDA / CENTRO / DIREITA) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* COLUNA ESQUERDA: PEDIDOS DISPONÍVEIS (SAP RFC) */}
-        <div className="lg:col-span-4 space-y-3">
-          <Card className="bg-white border-slate-200 shadow-sm h-full flex flex-col">
-            <CardHeader className="p-3.5 border-b border-slate-100 bg-slate-50/50">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xs font-bold uppercase flex items-center space-x-1.5 text-slate-800">
-                  <Package className="w-4 h-4 text-[#005596]" />
-                  <span>Pedidos Disponíveis ({availableOrders.length})</span>
-                </CardTitle>
-                <Badge variant="outline" className="text-[10px] bg-white font-mono">
-                  {filterItinerary}
-                </Badge>
-              </div>
-              <CardDescription className="text-[11px]">
-                Carteira única de vendas pronta para montagem de carga.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-3 space-y-2 flex-1 overflow-y-auto max-h-[600px]">
-              {isLoading ? (
-                <LoadingState message="Carregando pedidos da carteira SAP..." rows={3} />
-              ) : availableOrders.length === 0 ? (
-                <EmptyState
-                  title="Nenhum pedido compatível"
-                  description="Não há pedidos na carteira SAP para os filtros atuais."
-                  className="py-6"
-                />
-              ) : (
-                availableOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="p-3 rounded-lg border border-slate-200 bg-white hover:border-[#005596]/60 transition-all space-y-1.5 text-xs shadow-xs"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <strong className="text-slate-900 font-mono text-xs">
-                            {order.order_number}
-                          </strong>
-                          <Badge
-                            variant="outline"
-                            className="text-[8px] px-1 py-0 bg-sky-50 text-sky-700 border-sky-200 font-mono font-semibold"
-                          >
-                            SAP RFC
-                          </Badge>
-                        </div>
-                        <div className="text-slate-700 font-semibold">{order.customer_name}</div>
-                        <div className="text-[10px] text-slate-500">
-                          {order.destination_city} / {order.uf}
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleAddOrder(order)}
-                        className="h-7 text-xs bg-[#005596] hover:bg-sky-700 text-white font-bold"
-                      >
-                        <Plus className="w-3.5 h-3.5 mr-1" />
-                        Montar
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-1 text-[11px] bg-slate-50 p-1.5 rounded border border-slate-100">
-                      <div>
-                        Peso:{' '}
-                        <strong className="text-slate-900 font-mono">
-                          {(order.weight_kg / 1000).toFixed(1)} t
-                        </strong>
-                      </div>
-                      <div>
-                        Valor:{' '}
-                        <strong className="text-slate-900 font-mono">
-                          R$ {order.total_value.toLocaleString('pt-BR')}
-                        </strong>
-                      </div>
-                      <div>
-                        Material: <span className="text-slate-600">{order.material}</span>
-                      </div>
-                      <div>
-                        Descarga: <span className="text-slate-600">{order.discharge_type}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[10px] pt-1">
-                      <div className="flex gap-1">
-                        <Badge
-                          variant="outline"
-                          className={
-                            order.production_status === 'Pronto'
-                              ? 'border-emerald-500 text-emerald-700 bg-emerald-50 text-[9px]'
-                              : 'border-amber-500 text-amber-700 bg-amber-50 text-[9px]'
-                          }
-                        >
-                          PCP: {order.production_status}
-                        </Badge>
-                        <Badge
-                          variant="outline"
-                          className={
-                            order.credit_status === 'Liberado'
-                              ? 'border-blue-500 text-blue-700 bg-blue-50 text-[9px]'
-                              : 'border-rose-500 text-rose-700 bg-rose-50 text-[9px]'
-                          }
-                        >
-                          Crédito: {order.credit_status}
-                        </Badge>
-
-                        {/* Indicador de Informações Logísticas de Clientes (Requisito 19) */}
-                        {(() => {
-                          const ind = getCustomerIndicator(order.customer_code, order.customer_name)
-                          return (
+      {plannerViewMode === 'PLANEJAMENTO' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* COLUNA ESQUERDA: PEDIDOS DISPONÍVEIS (SAP RFC) */}
+          <div className="lg:col-span-4 space-y-3">
+            <Card className="bg-white border-slate-200 shadow-sm h-full flex flex-col">
+              <CardHeader className="p-3.5 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs font-bold uppercase flex items-center space-x-1.5 text-slate-800">
+                    <Package className="w-4 h-4 text-[#005596]" />
+                    <span>Pedidos Disponíveis ({availableOrders.length})</span>
+                  </CardTitle>
+                  <Badge variant="outline" className="text-[10px] bg-white font-mono">
+                    {filterItinerary}
+                  </Badge>
+                </div>
+                <CardDescription className="text-[11px]">
+                  Carteira única de vendas pronta para montagem de carga.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-3 space-y-2 flex-1 overflow-y-auto max-h-[600px]">
+                {isLoading ? (
+                  <LoadingState message="Carregando pedidos da carteira SAP..." rows={3} />
+                ) : availableOrders.length === 0 ? (
+                  <EmptyState
+                    title="Nenhum pedido compatível"
+                    description="Não há pedidos na carteira SAP para os filtros atuais."
+                    className="py-6"
+                  />
+                ) : (
+                  availableOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="p-3 rounded-lg border border-slate-200 bg-white hover:border-[#005596]/60 transition-all space-y-1.5 text-xs shadow-xs"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <strong className="text-slate-900 font-mono text-xs">
+                              {order.order_number}
+                            </strong>
                             <Badge
                               variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (ind.profile) {
-                                  setSelectedCustomerDetail(ind.profile)
-                                  setCustomerModalOpen(true)
-                                }
-                              }}
-                              className={`text-[9px] cursor-pointer hover:opacity-80 transition-opacity ${ind.color}`}
-                              title="Clique para abrir ficha logística completa do cliente"
+                              className="text-[8px] px-1 py-0 bg-sky-50 text-sky-700 border-sky-200 font-mono font-semibold"
                             >
-                              📋 {ind.label}
+                              SAP RFC
                             </Badge>
-                          )
-                        })()}
+                          </div>
+                          <div className="text-slate-700 font-semibold">{order.customer_name}</div>
+                          <div className="text-[10px] text-slate-500">
+                            {order.destination_city} / {order.uf}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleAddOrder(order)}
+                          className="h-7 text-xs bg-[#005596] hover:bg-sky-700 text-white font-bold"
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-1" />
+                          Montar
+                        </Button>
                       </div>
-                    </div>
 
-                    {order.sap_notes && (
-                      <div className="text-[10px] text-slate-500 italic bg-amber-50/60 p-1 rounded border border-amber-200">
-                        Obs SAP: {order.sap_notes}
+                      <div className="grid grid-cols-2 gap-1 text-[11px] bg-slate-50 p-1.5 rounded border border-slate-100">
+                        <div>
+                          Peso:{' '}
+                          <strong className="text-slate-900 font-mono">
+                            {(order.weight_kg / 1000).toFixed(1)} t
+                          </strong>
+                        </div>
+                        <div>
+                          Valor:{' '}
+                          <strong className="text-slate-900 font-mono">
+                            R$ {order.total_value.toLocaleString('pt-BR')}
+                          </strong>
+                        </div>
+                        <div>
+                          Material: <span className="text-slate-600">{order.material}</span>
+                        </div>
+                        <div>
+                          Descarga: <span className="text-slate-600">{order.discharge_type}</span>
+                        </div>
                       </div>
+
+                      <div className="flex items-center justify-between text-[10px] pt-1">
+                        <div className="flex gap-1">
+                          <Badge
+                            variant="outline"
+                            className={
+                              order.production_status === 'Pronto'
+                                ? 'border-emerald-500 text-emerald-700 bg-emerald-50 text-[9px]'
+                                : 'border-amber-500 text-amber-700 bg-amber-50 text-[9px]'
+                            }
+                          >
+                            PCP: {order.production_status}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={
+                              order.credit_status === 'Liberado'
+                                ? 'border-blue-500 text-blue-700 bg-blue-50 text-[9px]'
+                                : 'border-rose-500 text-rose-700 bg-rose-50 text-[9px]'
+                            }
+                          >
+                            Crédito: {order.credit_status}
+                          </Badge>
+
+                          {/* Indicador de Informações Logísticas de Clientes (Requisito 19) */}
+                          {(() => {
+                            const ind = getCustomerIndicator(
+                              order.customer_code,
+                              order.customer_name,
+                            )
+                            return (
+                              <Badge
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  if (ind.profile) {
+                                    setSelectedCustomerDetail(ind.profile)
+                                    setCustomerModalOpen(true)
+                                  }
+                                }}
+                                className={`text-[9px] cursor-pointer hover:opacity-80 transition-opacity ${ind.color}`}
+                                title="Clique para abrir ficha logística completa do cliente"
+                              >
+                                📋 {ind.label}
+                              </Badge>
+                            )
+                          })()}
+                        </div>
+                      </div>
+
+                      {order.sap_notes && (
+                        <div className="text-[10px] text-slate-500 italic bg-amber-50/60 p-1 rounded border border-amber-200">
+                          Obs SAP: {order.sap_notes}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* COLUNA CENTRO: CARGA EM MONTAGEM & MOTOR DETERMINÍSTICO */}
+          <div className="lg:col-span-5 space-y-3">
+            <Card className="bg-white border-slate-200 shadow-sm h-full flex flex-col">
+              <CardHeader className="p-3.5 border-b border-slate-100 bg-sky-50/40">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs font-bold uppercase flex items-center space-x-1.5 text-slate-800">
+                    <Layers className="w-4 h-4 text-[#005596]" />
+                    <span>Carga em Montagem ({selectedOrders.length} pedidos)</span>
+                  </CardTitle>
+                  <Badge
+                    className={
+                      assemblyEvaluation.decision === 'permitida'
+                        ? 'bg-emerald-600 text-white font-bold text-[10px]'
+                        : assemblyEvaluation.decision === 'exige_aprovacao'
+                          ? 'bg-amber-500 text-white font-bold text-[10px]'
+                          : 'bg-rose-600 text-white font-bold text-[10px]'
+                    }
+                  >
+                    {assemblyEvaluation.decision === 'permitida'
+                      ? 'MONTAGEM PERMITIDA'
+                      : assemblyEvaluation.decision === 'exige_aprovacao'
+                        ? 'EXIGE APROVAÇÃO'
+                        : 'MONTAGEM RECUSADA'}
+                  </Badge>
+                </div>
+                <CardDescription className="text-[11px]">
+                  Validação em tempo real das regras determinísticas de engenharia de carga.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-3 space-y-3 flex-1 overflow-y-auto max-h-[600px]">
+                {/* Veículo Selecionado para a Carga */}
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-[#005596]" />
+                      Veículo Vinculado:
+                    </span>
+                    {selectedQueueVehicle ? (
+                      <Badge className="bg-[#005596] text-white text-[10px] font-mono">
+                        {selectedQueueVehicle.vehicle_plate_cached}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-slate-500 text-[10px]">
+                        Nenhum veículo selecionado
+                      </Badge>
                     )}
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* COLUNA CENTRO: CARGA EM MONTAGEM & MOTOR DETERMINÍSTICO */}
-        <div className="lg:col-span-5 space-y-3">
-          <Card className="bg-white border-slate-200 shadow-sm h-full flex flex-col">
-            <CardHeader className="p-3.5 border-b border-slate-100 bg-sky-50/40">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xs font-bold uppercase flex items-center space-x-1.5 text-slate-800">
-                  <Layers className="w-4 h-4 text-[#005596]" />
-                  <span>Carga em Montagem ({selectedOrders.length} pedidos)</span>
-                </CardTitle>
-                <Badge
-                  className={
-                    assemblyEvaluation.decision === 'permitida'
-                      ? 'bg-emerald-600 text-white font-bold text-[10px]'
-                      : assemblyEvaluation.decision === 'exige_aprovacao'
-                        ? 'bg-amber-500 text-white font-bold text-[10px]'
-                        : 'bg-rose-600 text-white font-bold text-[10px]'
-                  }
-                >
-                  {assemblyEvaluation.decision === 'permitida'
-                    ? 'MONTAGEM PERMITIDA'
-                    : assemblyEvaluation.decision === 'exige_aprovacao'
-                      ? 'EXIGE APROVAÇÃO'
-                      : 'MONTAGEM RECUSADA'}
-                </Badge>
-              </div>
-              <CardDescription className="text-[11px]">
-                Validação em tempo real das regras determinísticas de engenharia de carga.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-3 space-y-3 flex-1 overflow-y-auto max-h-[600px]">
-              {/* Veículo Selecionado para a Carga */}
-              <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                    <Truck className="w-3.5 h-3.5 text-[#005596]" />
-                    Veículo Vinculado:
-                  </span>
                   {selectedQueueVehicle ? (
-                    <Badge className="bg-[#005596] text-white text-[10px] font-mono">
-                      {selectedQueueVehicle.vehicle_plate_cached}
-                    </Badge>
+                    <div className="text-[11px] text-slate-600 flex justify-between">
+                      <span>{selectedQueueVehicle.driver_name_cached}</span>
+                      <span>
+                        Capacidade:{' '}
+                        <strong className="text-slate-900 font-mono">
+                          {selectedQueueVehicle.vehicle_capacity_kg_cached &&
+                          selectedQueueVehicle.vehicle_capacity_kg_cached > 0
+                            ? `${(selectedQueueVehicle.vehicle_capacity_kg_cached / 1000).toFixed(1)} t`
+                            : 'Não informada'}
+                        </strong>
+                      </span>
+                    </div>
                   ) : (
-                    <Badge variant="outline" className="text-slate-500 text-[10px]">
-                      Nenhum veículo selecionado
-                    </Badge>
+                    <p className="text-[10px] text-slate-400">
+                      Selecione um veículo da coluna da direita (Disponibilidade Logística) para
+                      vincular à carga.
+                    </p>
                   )}
                 </div>
 
-                {selectedQueueVehicle ? (
-                  <div className="text-[11px] text-slate-600 flex justify-between">
-                    <span>{selectedQueueVehicle.driver_name_cached}</span>
-                    <span>
-                      Capacidade:{' '}
-                      <strong className="text-slate-900 font-mono">
-                        {selectedQueueVehicle.vehicle_capacity_kg_cached &&
-                        selectedQueueVehicle.vehicle_capacity_kg_cached > 0
-                          ? `${(selectedQueueVehicle.vehicle_capacity_kg_cached / 1000).toFixed(1)} t`
-                          : 'Não informada'}
-                      </strong>
-                    </span>
+                {/* Métricas Acumuladas da Carga */}
+                <div className="grid grid-cols-3 gap-2 bg-slate-900 text-white p-3 rounded-lg text-center">
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase block">Peso Total</span>
+                    <strong className="text-sm font-mono text-sky-400">
+                      {(assemblyEvaluation.calculatedWeightKg / 1000).toFixed(1)} t
+                    </strong>
                   </div>
-                ) : (
-                  <p className="text-[10px] text-slate-400">
-                    Selecione um veículo da coluna da direita (Disponibilidade Logística) para
-                    vincular à carga.
-                  </p>
-                )}
-              </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase block">Capacidade</span>
+                    <strong className="text-sm font-mono text-emerald-400">
+                      {assemblyEvaluation.capacityKg && assemblyEvaluation.capacityKg > 0
+                        ? `${(assemblyEvaluation.capacityKg / 1000).toFixed(1)} t`
+                        : 'Não informada'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase block">Saldo / Gap</span>
+                    <strong
+                      className={`text-sm font-mono ${
+                        (assemblyEvaluation.balanceKg || 0) < 0
+                          ? 'text-rose-400 font-black'
+                          : 'text-amber-400'
+                      }`}
+                    >
+                      {assemblyEvaluation.balanceKg !== undefined
+                        ? `${(assemblyEvaluation.balanceKg / 1000).toFixed(1)} t`
+                        : '—'}
+                    </strong>
+                  </div>
+                </div>
 
-              {/* Métricas Acumuladas da Carga */}
-              <div className="grid grid-cols-3 gap-2 bg-slate-900 text-white p-3 rounded-lg text-center">
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase block">Peso Total</span>
-                  <strong className="text-sm font-mono text-sky-400">
-                    {(assemblyEvaluation.calculatedWeightKg / 1000).toFixed(1)} t
-                  </strong>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase block">Capacidade</span>
-                  <strong className="text-sm font-mono text-emerald-400">
-                    {assemblyEvaluation.capacityKg && assemblyEvaluation.capacityKg > 0
-                      ? `${(assemblyEvaluation.capacityKg / 1000).toFixed(1)} t`
-                      : 'Não informada'}
-                  </strong>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase block">Saldo / Gap</span>
-                  <strong
-                    className={`text-sm font-mono ${
-                      (assemblyEvaluation.balanceKg || 0) < 0
-                        ? 'text-rose-400 font-black'
-                        : 'text-amber-400'
+                {/* Relatório de Motivos e Validações do Motor */}
+                {assemblyEvaluation.reasons.length > 0 && (
+                  <div
+                    className={`p-3 rounded-lg border text-xs space-y-1 ${
+                      assemblyEvaluation.decision === 'recusada'
+                        ? 'bg-rose-50 border-rose-300 text-rose-900'
+                        : 'bg-amber-50 border-amber-300 text-amber-900'
                     }`}
                   >
-                    {assemblyEvaluation.balanceKg !== undefined
-                      ? `${(assemblyEvaluation.balanceKg / 1000).toFixed(1)} t`
-                      : '—'}
-                  </strong>
-                </div>
-              </div>
-
-              {/* Relatório de Motivos e Validações do Motor */}
-              {assemblyEvaluation.reasons.length > 0 && (
-                <div
-                  className={`p-3 rounded-lg border text-xs space-y-1 ${
-                    assemblyEvaluation.decision === 'recusada'
-                      ? 'bg-rose-50 border-rose-300 text-rose-900'
-                      : 'bg-amber-50 border-amber-300 text-amber-900'
-                  }`}
-                >
-                  <div className="font-bold flex items-center gap-1.5">
-                    {assemblyEvaluation.decision === 'recusada' ? (
-                      <XCircle className="w-4 h-4 text-rose-600" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-amber-600" />
-                    )}
-                    <span>Motivos Apontados pelo Motor de Regras:</span>
+                    <div className="font-bold flex items-center gap-1.5">
+                      {assemblyEvaluation.decision === 'recusada' ? (
+                        <XCircle className="w-4 h-4 text-rose-600" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                      )}
+                      <span>Motivos Apontados pelo Motor de Regras:</span>
+                    </div>
+                    <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
+                      {assemblyEvaluation.reasons.map((r, i) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
                   </div>
-                  <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
-                    {assemblyEvaluation.reasons.map((r, i) => (
-                      <li key={i}>{r}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+                )}
 
-              {/* Oportunidade de Complemento (se houver saldo positivo e pedidos compatíveis) */}
-              {complementOpportunity && (
-                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg space-y-2 text-xs">
-                  <div className="flex items-center justify-between text-purple-900 font-bold">
-                    <span className="flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                      Oportunidade de Complemento Detectada!
-                    </span>
-                    <Badge className="bg-purple-600 text-white text-[9px]">
-                      Saldo: {(complementOpportunity.balance_kg / 1000).toFixed(1)} t
-                    </Badge>
-                  </div>
-                  <p className="text-[11px] text-purple-800">
-                    Existem pedidos no mesmo itinerário que cabem no saldo residual do veículo.
-                  </p>
-                  <Button
-                    size="sm"
-                    onClick={handleGenerateComplementOpportunity}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs h-7 font-semibold"
-                  >
-                    Gerar Alerta de Oportunidade para CRM 360°
-                  </Button>
-                </div>
-              )}
-
-              {/* Lista de Pedidos na Carga */}
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-bold text-slate-700 block">
-                  Itens Selecionados na Carga:
-                </span>
-                {selectedOrders.length === 0 ? (
-                  <div className="text-center py-6 border border-dashed rounded-lg text-slate-400 text-xs">
-                    Arraste ou clique em "Montar" na coluna da esquerda.
-                  </div>
-                ) : (
-                  selectedOrders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-200 text-xs"
+                {/* Oportunidade de Complemento (se houver saldo positivo e pedidos compatíveis) */}
+                {complementOpportunity && (
+                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg space-y-2 text-xs">
+                    <div className="flex items-center justify-between text-purple-900 font-bold">
+                      <span className="flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                        Oportunidade de Complemento Detectada!
+                      </span>
+                      <Badge className="bg-purple-600 text-white text-[9px]">
+                        Saldo: {(complementOpportunity.balance_kg / 1000).toFixed(1)} t
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-purple-800">
+                      Existem pedidos no mesmo itinerário que cabem no saldo residual do veículo.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={handleGenerateComplementOpportunity}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs h-7 font-semibold"
                     >
-                      <div>
-                        <strong className="font-mono text-slate-900">{order.order_number}</strong> —{' '}
-                        <span className="text-slate-700">{order.customer_name}</span>
-                        <div className="text-[10px] text-slate-500">
-                          {(order.weight_kg / 1000).toFixed(1)} t • {order.material}
+                      Gerar Alerta de Oportunidade para CRM 360°
+                    </Button>
+                  </div>
+                )}
+
+                {/* Lista de Pedidos na Carga */}
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-700 block">
+                    Itens Selecionados na Carga:
+                  </span>
+                  {selectedOrders.length === 0 ? (
+                    <div className="text-center py-6 border border-dashed rounded-lg text-slate-400 text-xs">
+                      Arraste ou clique em "Montar" na coluna da esquerda.
+                    </div>
+                  ) : (
+                    selectedOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-200 text-xs"
+                      >
+                        <div>
+                          <strong className="font-mono text-slate-900">{order.order_number}</strong>{' '}
+                          — <span className="text-slate-700">{order.customer_name}</span>
+                          <div className="text-[10px] text-slate-500">
+                            {(order.weight_kg / 1000).toFixed(1)} t • {order.material}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRemoveOrder(order.id)}
+                          className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* COLUNA DIREITA: DISPONIBILIDADE LOGÍSTICA (PORTA, FORA, PROGRAMADOS) */}
+          <div className="lg:col-span-3 space-y-3">
+            <Card className="bg-white border-slate-200 shadow-sm h-full flex flex-col">
+              <CardHeader className="p-3.5 border-b border-slate-100 bg-slate-50/50">
+                <CardTitle className="text-xs font-bold uppercase flex items-center space-x-1.5 text-slate-800">
+                  <Truck className="w-4 h-4 text-emerald-600" />
+                  <span>Disponibilidade Logística ({availableVehiclesForItinerary.length})</span>
+                </CardTitle>
+                <CardDescription className="text-[11px]">
+                  Motoristas e veículos disponíveis para alocação.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-3 space-y-3 flex-1 overflow-y-auto max-h-[600px]">
+                {/* Grupo PORTA */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                    <span className="flex items-center gap-1 text-[#005596]">
+                      <Building className="w-3 h-3" /> PORTA (Pátio CIAFAL):
+                    </span>
+                    <Badge className="bg-[#005596] text-white text-[9px]">{portaList.length}</Badge>
+                  </div>
+                  {portaList.length === 0 ? (
+                    <div className="text-[10px] text-slate-400 italic py-1">
+                      Nenhum motorista disponível na PORTA
+                    </div>
+                  ) : (
+                    portaList.map((v) => (
+                      <div
+                        key={v.id}
+                        onClick={() => setSelectedQueueVehicle(v)}
+                        className={`p-2 rounded border cursor-pointer transition text-xs space-y-1 ${
+                          selectedQueueVehicle?.id === v.id
+                            ? 'border-[#005596] bg-sky-50 shadow-xs'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex justify-between font-bold">
+                          <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
+                          <span className="text-slate-500 font-mono">
+                            {v.vehicle_capacity_kg_cached && v.vehicle_capacity_kg_cached > 0
+                              ? `${(v.vehicle_capacity_kg_cached / 1000).toFixed(1)} t`
+                              : 'Cap. N/I'}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-600 truncate">
+                          {v.driver_name_cached} • {v.vehicle_type_cached}
+                        </div>
+                        <div className="pt-0.5">
+                          {(() => {
+                            const pItin = (v.preferred_itinerary || '').trim().toUpperCase()
+                            const targetItin = (filterItinerary || '').trim().toUpperCase()
+                            if (
+                              pItin &&
+                              pItin !== 'SEM_PREFERENCIA' &&
+                              targetItin &&
+                              targetItin !== 'ALL' &&
+                              pItin === targetItin
+                            ) {
+                              return (
+                                <Badge
+                                  title="Itinerário informado pelo motorista na entrada da fila coincide com esta carga (maior aderência de aceite)."
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] px-1.5 py-0 font-semibold cursor-help"
+                                >
+                                  ★ Preferência: {v.preferred_itinerary}
+                                </Badge>
+                              )
+                            }
+                            if (!pItin || pItin === 'SEM_PREFERENCIA') {
+                              return (
+                                <Badge
+                                  variant="outline"
+                                  className="text-slate-600 bg-slate-100 border-slate-300 text-[9px] px-1.5 py-0 font-normal"
+                                >
+                                  Sem preferência de rota
+                                </Badge>
+                              )
+                            }
+                            return (
+                              <Badge
+                                title="Preferência informada para outra rota, porém elegível para alocação."
+                                className="bg-amber-500 hover:bg-amber-600 text-white text-[9px] px-1.5 py-0 font-medium cursor-help"
+                              >
+                                Pref: {v.preferred_itinerary}
+                              </Badge>
+                            )
+                          })()}
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleRemoveOrder(order.id)}
-                        className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-50"
+                    ))
+                  )}
+                </div>
+
+                {/* Grupo FORA */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                    <span className="flex items-center gap-1 text-emerald-600">
+                      <Radio className="w-3 h-3" /> FORA (≤ 60 km):
+                    </span>
+                    <Badge className="bg-emerald-600 text-white text-[9px]">
+                      {foraList.length}
+                    </Badge>
+                  </div>
+                  {foraList.length === 0 ? (
+                    <div className="text-[10px] text-slate-400 italic py-1">
+                      Nenhum motorista próximo no raio configurado
+                    </div>
+                  ) : (
+                    foraList.map((v) => (
+                      <div
+                        key={v.id}
+                        onClick={() => setSelectedQueueVehicle(v)}
+                        className={`p-2 rounded border cursor-pointer transition text-xs space-y-1 ${
+                          selectedQueueVehicle?.id === v.id
+                            ? 'border-emerald-600 bg-emerald-50 shadow-xs'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* COLUNA DIREITA: DISPONIBILIDADE LOGÍSTICA (PORTA, FORA, PROGRAMADOS) */}
-        <div className="lg:col-span-3 space-y-3">
-          <Card className="bg-white border-slate-200 shadow-sm h-full flex flex-col">
-            <CardHeader className="p-3.5 border-b border-slate-100 bg-slate-50/50">
-              <CardTitle className="text-xs font-bold uppercase flex items-center space-x-1.5 text-slate-800">
-                <Truck className="w-4 h-4 text-emerald-600" />
-                <span>Disponibilidade Logística ({availableVehiclesForItinerary.length})</span>
-              </CardTitle>
-              <CardDescription className="text-[11px]">
-                Motoristas e veículos disponíveis para alocação.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-3 space-y-3 flex-1 overflow-y-auto max-h-[600px]">
-              {/* Grupo PORTA */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
-                  <span className="flex items-center gap-1 text-[#005596]">
-                    <Building className="w-3 h-3" /> PORTA (Pátio CIAFAL):
-                  </span>
-                  <Badge className="bg-[#005596] text-white text-[9px]">{portaList.length}</Badge>
-                </div>
-                {portaList.length === 0 ? (
-                  <div className="text-[10px] text-slate-400 italic py-1">
-                    Nenhum motorista disponível na PORTA
-                  </div>
-                ) : (
-                  portaList.map((v) => (
-                    <div
-                      key={v.id}
-                      onClick={() => setSelectedQueueVehicle(v)}
-                      className={`p-2 rounded border cursor-pointer transition text-xs space-y-1 ${
-                        selectedQueueVehicle?.id === v.id
-                          ? 'border-[#005596] bg-sky-50 shadow-xs'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex justify-between font-bold">
-                        <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
-                        <span className="text-slate-500 font-mono">
-                          {v.vehicle_capacity_kg_cached && v.vehicle_capacity_kg_cached > 0
-                            ? `${(v.vehicle_capacity_kg_cached / 1000).toFixed(1)} t`
-                            : 'Cap. N/I'}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-600 truncate">
-                        {v.driver_name_cached} • {v.vehicle_type_cached}
-                      </div>
-                      <div className="pt-0.5">
-                        {(() => {
-                          const pItin = (v.preferred_itinerary || '').trim().toUpperCase()
-                          const targetItin = (filterItinerary || '').trim().toUpperCase()
-                          if (
-                            pItin &&
-                            pItin !== 'SEM_PREFERENCIA' &&
-                            targetItin &&
-                            targetItin !== 'ALL' &&
-                            pItin === targetItin
-                          ) {
-                            return (
-                              <Badge
-                                title="Itinerário informado pelo motorista na entrada da fila coincide com esta carga (maior aderência de aceite)."
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] px-1.5 py-0 font-semibold cursor-help"
-                              >
-                                ★ Preferência: {v.preferred_itinerary}
-                              </Badge>
-                            )
-                          }
-                          if (!pItin || pItin === 'SEM_PREFERENCIA') {
-                            return (
-                              <Badge
-                                variant="outline"
-                                className="text-slate-600 bg-slate-100 border-slate-300 text-[9px] px-1.5 py-0 font-normal"
-                              >
-                                Sem preferência de rota
-                              </Badge>
-                            )
-                          }
-                          return (
-                            <Badge
-                              title="Preferência informada para outra rota, porém elegível para alocação."
-                              className="bg-amber-500 hover:bg-amber-600 text-white text-[9px] px-1.5 py-0 font-medium cursor-help"
-                            >
-                              Pref: {v.preferred_itinerary}
-                            </Badge>
-                          )
-                        })()}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Grupo FORA */}
-              <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
-                  <span className="flex items-center gap-1 text-emerald-600">
-                    <Radio className="w-3 h-3" /> FORA (≤ 60 km):
-                  </span>
-                  <Badge className="bg-emerald-600 text-white text-[9px]">{foraList.length}</Badge>
-                </div>
-                {foraList.length === 0 ? (
-                  <div className="text-[10px] text-slate-400 italic py-1">
-                    Nenhum motorista próximo no raio configurado
-                  </div>
-                ) : (
-                  foraList.map((v) => (
-                    <div
-                      key={v.id}
-                      onClick={() => setSelectedQueueVehicle(v)}
-                      className={`p-2 rounded border cursor-pointer transition text-xs space-y-1 ${
-                        selectedQueueVehicle?.id === v.id
-                          ? 'border-emerald-600 bg-emerald-50 shadow-xs'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex justify-between font-bold">
-                        <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
-                        <span className="text-slate-500 font-mono">
-                          {v.vehicle_capacity_kg_cached && v.vehicle_capacity_kg_cached > 0
-                            ? `${(v.vehicle_capacity_kg_cached / 1000).toFixed(1)} t`
-                            : 'Cap. N/I'}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-600 truncate">
-                        {v.driver_name_cached} ({v.distance_km} km)
-                      </div>
-                      <div className="pt-0.5">
-                        {(() => {
-                          const pItin = (v.preferred_itinerary || '').trim().toUpperCase()
-                          const targetItin = (filterItinerary || '').trim().toUpperCase()
-                          if (
-                            pItin &&
-                            pItin !== 'SEM_PREFERENCIA' &&
-                            targetItin &&
-                            targetItin !== 'ALL' &&
-                            pItin === targetItin
-                          ) {
-                            return (
-                              <Badge
-                                title="Itinerário informado pelo motorista na entrada da fila coincide com esta carga (maior aderência de aceite)."
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] px-1.5 py-0 font-semibold cursor-help"
-                              >
-                                ★ Preferência: {v.preferred_itinerary}
-                              </Badge>
-                            )
-                          }
-                          if (!pItin || pItin === 'SEM_PREFERENCIA') {
-                            return (
-                              <Badge
-                                variant="outline"
-                                className="text-slate-600 bg-slate-100 border-slate-300 text-[9px] px-1.5 py-0 font-normal"
-                              >
-                                Sem preferência de rota
-                              </Badge>
-                            )
-                          }
-                          return (
-                            <Badge
-                              title="Preferência informada para outra rota, porém elegível para alocação."
-                              className="bg-amber-500 hover:bg-amber-600 text-white text-[9px] px-1.5 py-0 font-medium cursor-help"
-                            >
-                              Pref: {v.preferred_itinerary}
-                            </Badge>
-                          )
-                        })()}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Grupo PROGRAMADOS */}
-              <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
-                  <span className="flex items-center gap-1 text-purple-600">
-                    <Calendar className="w-3 h-3" /> PROGRAMADOS (Futuro):
-                  </span>
-                  <Badge className="bg-purple-600 text-white text-[9px]">{progList.length}</Badge>
-                </div>
-                {progList.length === 0 ? (
-                  <div className="text-[10px] text-slate-400 italic py-1">
-                    Nenhum motorista programado para datas futuras
-                  </div>
-                ) : (
-                  progList.map((v) => (
-                    <div
-                      key={v.id}
-                      className="p-2 rounded border border-purple-100 bg-purple-50/50 text-xs space-y-1 opacity-80"
-                    >
-                      <div className="flex justify-between font-bold">
-                        <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
-                        <span className="text-purple-700 font-mono text-[10px]">
-                          Previsto:{' '}
-                          {v.scheduled_arrival_date
-                            ? new Date(v.scheduled_arrival_date + 'T12:00:00').toLocaleDateString(
-                                'pt-BR',
+                        <div className="flex justify-between font-bold">
+                          <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
+                          <span className="text-slate-500 font-mono">
+                            {v.vehicle_capacity_kg_cached && v.vehicle_capacity_kg_cached > 0
+                              ? `${(v.vehicle_capacity_kg_cached / 1000).toFixed(1)} t`
+                              : 'Cap. N/I'}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-600 truncate">
+                          {v.driver_name_cached} ({v.distance_km} km)
+                        </div>
+                        <div className="pt-0.5">
+                          {(() => {
+                            const pItin = (v.preferred_itinerary || '').trim().toUpperCase()
+                            const targetItin = (filterItinerary || '').trim().toUpperCase()
+                            if (
+                              pItin &&
+                              pItin !== 'SEM_PREFERENCIA' &&
+                              targetItin &&
+                              targetItin !== 'ALL' &&
+                              pItin === targetItin
+                            ) {
+                              return (
+                                <Badge
+                                  title="Itinerário informado pelo motorista na entrada da fila coincide com esta carga (maior aderência de aceite)."
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] px-1.5 py-0 font-semibold cursor-help"
+                                >
+                                  ★ Preferência: {v.preferred_itinerary}
+                                </Badge>
                               )
-                            : '---'}
-                        </span>
+                            }
+                            if (!pItin || pItin === 'SEM_PREFERENCIA') {
+                              return (
+                                <Badge
+                                  variant="outline"
+                                  className="text-slate-600 bg-slate-100 border-slate-300 text-[9px] px-1.5 py-0 font-normal"
+                                >
+                                  Sem preferência de rota
+                                </Badge>
+                              )
+                            }
+                            return (
+                              <Badge
+                                title="Preferência informada para outra rota, porém elegível para alocação."
+                                className="bg-amber-500 hover:bg-amber-600 text-white text-[9px] px-1.5 py-0 font-medium cursor-help"
+                              >
+                                Pref: {v.preferred_itinerary}
+                              </Badge>
+                            )
+                          })()}
+                        </div>
                       </div>
-                      <div className="text-[10px] text-slate-600 truncate">
-                        {v.driver_name_cached} (Capacidade Futura)
-                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Grupo PROGRAMADOS */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                    <span className="flex items-center gap-1 text-purple-600">
+                      <Calendar className="w-3 h-3" /> PROGRAMADOS (Futuro):
+                    </span>
+                    <Badge className="bg-purple-600 text-white text-[9px]">{progList.length}</Badge>
+                  </div>
+                  {progList.length === 0 ? (
+                    <div className="text-[10px] text-slate-400 italic py-1">
+                      Nenhum motorista programado para datas futuras
                     </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  ) : (
+                    progList.map((v) => (
+                      <div
+                        key={v.id}
+                        className="p-2 rounded border border-purple-100 bg-purple-50/50 text-xs space-y-1 opacity-80"
+                      >
+                        <div className="flex justify-between font-bold">
+                          <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
+                          <span className="text-purple-700 font-mono text-[10px]">
+                            Previsto:{' '}
+                            {v.scheduled_arrival_date
+                              ? new Date(v.scheduled_arrival_date + 'T12:00:00').toLocaleDateString(
+                                  'pt-BR',
+                                )
+                              : '---'}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-600 truncate">
+                          {v.driver_name_cached} (Capacidade Futura)
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
+
       {/* Drawer amplo de ENCONTROS VEÍCULO × CARGA */}
       <EncontrosDrawer
         open={isEncontrosOpen}
