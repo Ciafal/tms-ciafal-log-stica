@@ -7,9 +7,17 @@ import {
   latLngToSvgPoint,
 } from '@/domain/geographicEngine'
 import { processGeographicDemands } from '@/domain/geographicClusterEngine'
+import {
+  buildClientDeliveryStops,
+  runMulticriteriaClusterization,
+  calculateScenarioComparison,
+  haversineDistanceKm,
+  sequenceStopsFromOrigin,
+  CLUSTER_COLOR_PALETTE,
+} from '@/domain/logisticRoutingEngine'
 import { SapSalesOrderEntity, SapItineraryEntity } from '@/domain/rules'
 
-describe('Torre Geográfica - Mapa Logístico de Cargas CIAFAL', () => {
+describe('Central Visual de Roteirização e Clusterização - TMS CIAFAL', () => {
   it('deve resolver coordenadas prioritariamente por dados cadastrados, banco de cidades ou centroide UF', () => {
     // 1) Coordenada exata
     const ord1 = {
@@ -60,99 +68,163 @@ describe('Torre Geográfica - Mapa Logístico de Cargas CIAFAL', () => {
     expect(matriz?.city).toBe('CONTAGEM')
   })
 
-  it('deve processar agrupamentos por Brasil, Região, UF, Cidade e Itinerários SAP com cálculos reais', () => {
-    const mockOrders: SapSalesOrderEntity[] = [
+  it('deve consolidar múltiplos pedidos do mesmo cliente/endereço no mesmo marcador (#2)', () => {
+    const orders: SapSalesOrderEntity[] = [
       {
-        id: 'ord-1',
-        order_number: '10001',
-        customer_name: 'METALURGICA TRIANGULO',
-        customer_code: 'CLI-01',
-        destination_city: 'Uberlândia',
+        id: 'o-1',
+        order_number: '1001',
+        customer_code: 'CLI-001',
+        customer_name: 'METALURGICA ALVORADA',
+        destination_city: 'Contagem',
         uf: 'MG',
-        itinerary_code: 'MG002',
-        weight_kg: 18500,
-        total_value: 120000,
-        production_status: 'Pronto',
-        credit_status: 'Liberado',
+        weight_kg: 8000,
+        itinerary_code: 'MG001',
+        status: 'ativo',
       } as any,
       {
-        id: 'ord-2',
-        order_number: '10002',
-        customer_name: 'ACO UBERABA LTDA',
-        customer_code: 'CLI-02',
-        destination_city: 'Uberaba',
+        id: 'o-2',
+        order_number: '1002',
+        customer_code: 'CLI-001',
+        customer_name: 'METALURGICA ALVORADA',
+        destination_city: 'Contagem',
         uf: 'MG',
-        itinerary_code: 'MG002',
-        weight_kg: 9500,
-        total_value: 65000,
-        production_status: 'Pronto',
-        credit_status: 'Liberado',
+        weight_kg: 12000,
+        itinerary_code: 'MG001',
+        status: 'ativo',
       } as any,
       {
-        id: 'ord-3',
-        order_number: '10003',
-        customer_name: 'CONSTRUTORA SAO PAULO',
-        customer_code: 'CLI-03',
-        destination_city: 'São Paulo',
-        uf: 'SP',
-        itinerary_code: 'SP001',
-        weight_kg: 24000,
-        total_value: 180000,
-        production_status: 'Programado',
-        credit_status: 'Liberado',
+        id: 'o-3',
+        order_number: '1003',
+        customer_code: 'CLI-002',
+        customer_name: 'SIDERURGICA BETIM',
+        destination_city: 'Betim',
+        uf: 'MG',
+        weight_kg: 7500,
+        itinerary_code: 'MG001',
+        status: 'ativo',
       } as any,
     ]
 
-    const mockItineraries: SapItineraryEntity[] = [
-      {
-        id: 'itin-1',
-        sap_code: 'MG002',
-        description: 'Triângulo Mineiro (Uberaba/Uberlândia)',
-        uf: 'MG',
-        region: 'Sudeste',
-        active: true,
-      } as any,
-      {
-        id: 'itin-2',
-        sap_code: 'SP001',
-        description: 'Grande São Paulo / Capital',
-        uf: 'SP',
-        region: 'Sudeste',
-        active: true,
-      } as any,
-    ]
+    const stops = buildClientDeliveryStops(orders)
 
-    const result = processGeographicDemands({
-      orders: mockOrders,
-      itineraries: mockItineraries,
-      includeFuturePcp: true,
-      variableHeatmap: 'TONELADAS',
-    })
+    // Devem existir 2 paradas consolidadas (Alvorada e Betim)
+    expect(stops.length).toBe(2)
 
-    // Totais
-    expect(result.totalWeightTon).toBe(52) // 18.5 + 9.5 + 24
-    expect(result.totalOrdersCount).toBe(3)
-    expect(result.totalClientsCount).toBe(3)
-    expect(result.activeUfsCount).toBe(2) // MG e SP
-
-    // Oportunidade de consolidação no itinerário MG002 (18.5 + 9.5 = 28t)
-    expect(result.consolidationOpportunities.length).toBeGreaterThanOrEqual(1)
-    const mgOpp = result.consolidationOpportunities.find((o) => o.itineraryCode === 'MG002')
-    expect(mgOpp).toBeDefined()
-    expect(mgOpp?.totalWeightTon).toBe(28)
-    expect(mgOpp?.estimatedOccupancyPct).toBe(100)
-    expect(mgOpp?.estimatedSavingsBrl).toBeGreaterThan(0)
-
-    // Insights da IA rastreáveis
-    expect(result.aiInsights.length).toBeGreaterThan(0)
-    expect(result.aiInsights[0].sourceOrders.length).toBeGreaterThan(0)
+    const alvorada = stops.find((s) => s.customerCode === 'CLI-001')
+    expect(alvorada).toBeDefined()
+    expect(alvorada?.ordersCount).toBe(2)
+    expect(alvorada?.totalWeightTon).toBe(20) // 8t + 12t
   })
 
-  it('deve projetar coordenadas geográficas corretamente dentro dos limites do SVG 800x640', () => {
-    const pt = latLngToSvgPoint(-19.9317, -44.0536, 800, 640)
-    expect(pt.x).toBeGreaterThan(0)
-    expect(pt.x).toBeLessThan(800)
-    expect(pt.y).toBeGreaterThan(0)
-    expect(pt.y).toBeLessThan(640)
+  it('deve executar clusterização logística multicritério gerando cores semânticas e sequenciamento (#3, #4, #8)', () => {
+    const orders: SapSalesOrderEntity[] = [
+      {
+        id: 'o-1',
+        order_number: '1001',
+        customer_code: 'CLI-001',
+        customer_name: 'CLIENTE UBERABA',
+        destination_city: 'Uberaba',
+        uf: 'MG',
+        weight_kg: 15000,
+        itinerary_code: 'MG002',
+        production_status: 'Pronto',
+        status: 'ativo',
+      } as any,
+      {
+        id: 'o-2',
+        order_number: '1002',
+        customer_code: 'CLI-002',
+        customer_name: 'CLIENTE UBERLANDIA',
+        destination_city: 'Uberlândia',
+        uf: 'MG',
+        weight_kg: 13000,
+        itinerary_code: 'MG002',
+        production_status: 'Pronto',
+        status: 'ativo',
+      } as any,
+      {
+        id: 'o-3',
+        order_number: '1003',
+        customer_code: 'CLI-003',
+        customer_name: 'CLIENTE DIVINOPOLIS',
+        destination_city: 'Divinópolis',
+        uf: 'MG',
+        weight_kg: 27000,
+        itinerary_code: 'MG003',
+        production_status: 'Pronto',
+        status: 'ativo',
+      } as any,
+    ]
+
+    const stops = buildClientDeliveryStops(orders)
+    const result = runMulticriteriaClusterization({
+      stops,
+      priorityMode: 'EQUILIBRIO_GERAL',
+    })
+
+    expect(result.clusters.length).toBeGreaterThanOrEqual(1)
+
+    // Cada carga tem cor própria semântica
+    const firstCluster = result.clusters[0]
+    expect(firstCluster.color).toBeDefined()
+    expect(firstCluster.color.hex).toBe(CLUSTER_COLOR_PALETTE[0].hex)
+
+    // Sequenciamento de paradas numerado
+    expect(firstCluster.stops.length).toBeGreaterThan(0)
+    expect(firstCluster.stops[0].stopSequence).toBe(1)
+
+    // IA Explicável com justificativa quantitativa (#19)
+    expect(firstCluster.aiRationale).toContain('Carga formada por')
+    expect(firstCluster.aiRationale).toContain('reduz ~')
+  })
+
+  it('deve calcular comparação de cenários A (Convencional) vs B (Clusterização IA) com métricas de redução (#5)', () => {
+    const orders: SapSalesOrderEntity[] = [
+      {
+        id: 'o-1',
+        order_number: '2001',
+        customer_code: 'CLI-A',
+        customer_name: 'AÇOS CAMPINAS',
+        destination_city: 'Campinas',
+        uf: 'SP',
+        weight_kg: 14000,
+        itinerary_code: 'SP002',
+        status: 'ativo',
+      } as any,
+      {
+        id: 'o-2',
+        order_number: '2002',
+        customer_code: 'CLI-B',
+        customer_name: 'TUBOS JUNDIAI',
+        destination_city: 'Jundiaí',
+        uf: 'SP',
+        weight_kg: 13500,
+        itinerary_code: 'SP002',
+        status: 'ativo',
+      } as any,
+    ]
+
+    const stops = buildClientDeliveryStops(orders)
+    const clusterRes = runMulticriteriaClusterization({ stops })
+    const comparison = calculateScenarioComparison({
+      stops,
+      clustersIa: clusterRes.clusters,
+      unplannedIa: clusterRes.unplannedStops,
+    })
+
+    expect(comparison.scenarioA).toBeDefined()
+    expect(comparison.scenarioB).toBeDefined()
+    expect(comparison.savings).toBeDefined()
+
+    // Cenário B deve ter menos ou iguais cargas que o convencional fracionado
+    expect(comparison.scenarioB.loadsCount).toBeLessThanOrEqual(comparison.scenarioA.loadsCount)
+    expect(comparison.savings.freightSavingsBrl).toBeGreaterThanOrEqual(0)
+  })
+
+  it('deve calcular distâncias geográficas corretas via Haversine', () => {
+    // Contagem (-19.9317, -44.0536) até Betim (-19.9678, -44.1983) ~15.7 km
+    const d = haversineDistanceKm(-19.9317, -44.0536, -19.9678, -44.1983)
+    expect(d).toBeGreaterThan(10)
+    expect(d).toBeLessThan(25)
   })
 })

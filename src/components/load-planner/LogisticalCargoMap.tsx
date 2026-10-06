@@ -1,13 +1,17 @@
-// TMS CIAFAL — Mapa Logístico de Cargas (Torre Geográfica Interativa do Brasil)
-// Atende aos requisitos #2 a #14:
-// - Projeção vetorial SVG interativa com limites dos estados brasileiros
-// - Origem das cargas: CIAFAL Matriz Contagem, Sidercentro, etc.
-// - Heatmap configurável: Toneladas, Pedidos, Clientes, Valor, Cargas potenciais
-// - Níveis de agrupamento: Brasil -> Região -> UF -> Cidade -> Clientes -> Pedidos
-// - Itinerários SAP com rotas Origem -> Destinos e diferenciação visual
-// - Tooltips ricos nos pontos e nas rotas
-// - Seletor de 8 camadas com toggle sem recarregar página
-// - Zoom (+ / - / Reset) e Pan interativo (arraste)
+// TMS CIAFAL — Central Visual de Roteirização e Clusterização Geográfica de Cargas
+//
+// Atende integralmente aos requisitos do usuário:
+// #1: ORIGEM -> CLIENTES -> AGRUPAMENTOS -> ROTAS -> CARGAS PROPOSTAS (Visual claro e sem poluição)
+// #2: 1 marcador = cliente/local de descarga (pedidos consolidados no ponto). Hover rico. Clique para abrir painel.
+// #3: Cores semânticas por carga/cluster (Carga 01 azul, Carga 02 verde, 03 laranja, etc.)
+// #6: Mapa como protagonista, clean e sem excessos decorativos
+// #7: Destaque exclusivo da carga selecionada (demais suavizados/dimmed)
+// #8: Rota desenhada com sequência CIAFAL -> Cliente 1 -> 2 -> 3 e NÚMEROS nos pontos (ordem prevista)
+// #9: Rotas OFF por padrão. Ao selecionar carga, mostra a rota dela. Opção "Exibir todas as rotas" desativada por padrão.
+// #10: Botão de Camadas: Clientes/pedidos, Clusterização de cargas, Itinerários, Mapa de calor, Estoque disponível, Estoque futuro, Alertas.
+// #12: Legenda compacta semântica integrada no mapa
+// #13: Pedidos não planejados com marcador cinza/neutro
+// #14: Marcadores com badges especiais de alerta: estoque, crédito, restrição, data crítica, cadastro geo
 
 import React, { useState, useRef, useMemo, useCallback } from 'react'
 import {
@@ -17,7 +21,6 @@ import {
   Layers,
   MapPin,
   Truck,
-  Activity,
   Sparkles,
   Eye,
   EyeOff,
@@ -25,18 +28,19 @@ import {
   CheckCircle2,
   AlertTriangle,
   Info,
-  Maximize2,
-  Filter,
+  Calendar,
+  Building2,
+  Package,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
 import {
-  CityDemandCluster,
-  UfDemandCluster,
-  ItineraryDemandRoute,
-  ConsolidationOpportunity,
-} from '@/domain/geographicClusterEngine'
+  ClientDeliveryStop,
+  ProposedLoadCluster,
+  UNPLANNED_COLOR,
+  ALERT_COLOR,
+  CLUSTER_COLOR_PALETTE,
+} from '@/domain/logisticRoutingEngine'
 import {
   latLngToSvgPoint,
   OFFICIAL_ORIGIN_HUBS,
@@ -44,33 +48,34 @@ import {
   BRAZIL_UF_CENTROIDS,
 } from '@/domain/geographicEngine'
 
-export interface MapLayersState {
-  showHeatmap: boolean
-  showAvailableOrders: boolean
+export interface VisualMapLayers {
   showClients: boolean
-  showSapItineraries: boolean
-  showSuggestedLoads: boolean
-  showPlannedLoads: boolean
+  showClusters: boolean
+  showItineraries: boolean
+  showHeatmap: boolean
   showStockAvailable: boolean
+  showFutureStock: boolean
   showLogisticAlerts: boolean
+  showAllRoutes: boolean
 }
 
 interface LogisticalCargoMapProps {
-  cities: CityDemandCluster[]
-  ufs: UfDemandCluster[]
-  itineraries: ItineraryDemandRoute[]
-  consolidationOpportunities: ConsolidationOpportunity[]
+  stops: ClientDeliveryStop[]
+  clusters: ProposedLoadCluster[]
+  unplannedStops: ClientDeliveryStop[]
+  selectedClusterId: string | null
+  selectedStopId: string | null
+  heatmapVariable: 'TONELADAS' | 'PEDIDOS' | 'CLIENTES' | 'VALOR' | 'CARGAS' | 'ITENS'
   selectedUf: string
   selectedItinerary: string
-  heatmapVariable: 'TONELADAS' | 'PEDIDOS' | 'CLIENTES' | 'VALOR' | 'CARGAS' | 'ITENS'
-  onSelectCity: (city: CityDemandCluster) => void
-  onSelectItinerary?: (itineraryCode: string) => void
+  onSelectCluster: (clusterId: string | null) => void
+  onSelectStop: (stop: ClientDeliveryStop) => void
   onSelectUf?: (uf: string) => void
+  onSelectItinerary?: (itineraryCode: string) => void
 }
 
 // Contornos e posições aproximadas para renderização SVG nítida dos 26 estados + DF
 const BRAZIL_STATE_PATHS: Record<string, string> = {
-  // Principais polígonos aproximados na projeção Mercator Brasil 800x600
   // Norte
   RR: 'M 210,40 L 260,35 L 280,75 L 250,110 L 210,95 Z',
   AP: 'M 410,70 L 460,80 L 445,130 L 415,120 Z',
@@ -110,67 +115,72 @@ const BRAZIL_STATE_PATHS: Record<string, string> = {
 }
 
 export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
-  cities,
-  ufs,
-  itineraries,
-  consolidationOpportunities,
+  stops,
+  clusters,
+  unplannedStops,
+  selectedClusterId,
+  selectedStopId,
+  heatmapVariable,
   selectedUf,
   selectedItinerary,
-  heatmapVariable,
-  onSelectCity,
-  onSelectItinerary,
+  onSelectCluster,
+  onSelectStop,
   onSelectUf,
+  onSelectItinerary,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null)
 
-  // Zoom & Pan state
+  // Zoom & Pan
   const [zoomLevel, setZoomLevel] = useState<number>(1)
   const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
 
-  // Camadas ativas (#10)
-  const [layers, setLayers] = useState<MapLayersState>({
-    showHeatmap: true,
-    showAvailableOrders: true,
+  // Controle do menu popup de Camadas (#10)
+  const [isLayersMenuOpen, setIsLayersMenuOpen] = useState(false)
+
+  // Camadas conforme Requisito #9 e #10:
+  // Visualização principal = Clientes + clusters.
+  // Rotas OFF por padrão; Mapa de calor OFF por padrão como camada secundária.
+  const [layers, setLayers] = useState<VisualMapLayers>({
     showClients: true,
-    showSapItineraries: true,
-    showSuggestedLoads: true,
-    showPlannedLoads: true,
-    showStockAvailable: true,
+    showClusters: true,
+    showItineraries: true,
+    showHeatmap: false, // OFF por padrão
+    showStockAvailable: false,
+    showFutureStock: false,
     showLogisticAlerts: true,
+    showAllRoutes: false, // OFF por padrão (#9)
   })
 
-  // Tooltip flutuante (#8 e #16)
-  const [hoveredPoint, setHoveredPoint] = useState<{
-    city?: CityDemandCluster
-    itinerary?: ItineraryDemandRoute
-    originHub?: OriginHub
+  // Tooltip Hover Rico no Cliente (#2)
+  const [hoveredStop, setHoveredStop] = useState<{
+    stop: ClientDeliveryStop
     x: number
     y: number
   } | null>(null)
 
-  const toggleLayer = (layerKey: keyof MapLayersState) => {
-    setLayers((prev) => ({ ...prev, [layerKey]: !prev[layerKey] }))
+  const [hoveredOrigin, setHoveredOrigin] = useState<{
+    origin: OriginHub
+    x: number
+    y: number
+  } | null>(null)
+
+  const toggleLayer = (key: keyof VisualMapLayers) => {
+    setLayers((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
   // Controles de Zoom
-  const handleZoomIn = () => {
-    setZoomLevel((prev) => Math.min(prev * 1.3, 5))
-  }
-
-  const handleZoomOut = () => {
-    setZoomLevel((prev) => Math.max(prev / 1.3, 0.8))
-  }
-
+  const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev * 1.3, 5))
+  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev / 1.3, 0.8))
   const handleResetZoom = () => {
     setZoomLevel(1)
     setPanOffset({ x: 0, y: 0 })
   }
 
-  // Interação de Pan (arraste com mouse)
+  // Arraste (Pan)
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (e.button !== 0) return // botão esquerdo apenas
+    if (e.button !== 0) return
     setIsPanning(true)
     setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y })
   }
@@ -183,149 +193,210 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
     })
   }
 
-  const handleMouseUp = () => {
-    setIsPanning(false)
-  }
+  const handleMouseUp = () => setIsPanning(false)
 
-  // Centros de Origem Operacionais (CIAFAL Contagem, Sidercentro, etc.)
-  const originHubs = OFFICIAL_ORIGIN_HUBS
+  // Hubs de Origem
+  const origins = OFFICIAL_ORIGIN_HUBS
 
-  // Valor máximo para normalização do Heatmap
-  const heatMax = useMemo(() => {
-    if (cities.length === 0) return 100
-    switch (heatmapVariable) {
-      case 'TONELADAS':
-        return Math.max(...cities.map((c) => c.totalWeightTon), 1)
-      case 'PEDIDOS':
-        return Math.max(...cities.map((c) => c.ordersCount), 1)
-      case 'CLIENTES':
-        return Math.max(...cities.map((c) => c.uniqueClientsCount), 1)
-      case 'VALOR':
-        return Math.max(...cities.map((c) => c.totalValueBrl), 1)
-      case 'CARGAS':
-        return Math.max(...cities.map((c) => c.potentialLoadsCount), 1)
-      case 'ITENS':
-        return Math.max(...cities.map((c) => c.itemsCount), 1)
-      default:
-        return Math.max(...cities.map((c) => c.totalWeightTon), 1)
-    }
-  }, [cities, heatmapVariable])
+  // Mapa de cores dos clusters por id para lookup O(1)
+  const clusterColorMap = useMemo(() => {
+    const map = new Map<string, string>()
+    clusters.forEach((c) => {
+      map.set(c.id, c.color.hex)
+    })
+    return map
+  }, [clusters])
 
-  // Obter intensidade do Heatmap para uma cidade
-  const getHeatmapIntensity = useCallback(
-    (c: CityDemandCluster): number => {
-      let val = c.totalWeightTon
-      if (heatmapVariable === 'PEDIDOS') val = c.ordersCount
-      if (heatmapVariable === 'CLIENTES') val = c.uniqueClientsCount
-      if (heatmapVariable === 'VALOR') val = c.totalValueBrl
-      if (heatmapVariable === 'CARGAS') val = c.potentialLoadsCount
-      if (heatmapVariable === 'ITENS') val = c.itemsCount
+  // Carga atualmente selecionada
+  const activeCluster = useMemo(() => {
+    if (!selectedClusterId) return null
+    return clusters.find((c) => c.id === selectedClusterId) || null
+  }, [clusters, selectedClusterId])
 
-      return Math.min(1, Math.max(0.15, val / heatMax))
-    },
-    [heatmapVariable, heatMax],
-  )
+  // Normalização do Heatmap quando ativado (#10)
+  const maxHeatWeight = useMemo(() => {
+    if (stops.length === 0) return 10
+    return Math.max(...stops.map((s) => s.totalWeightTon), 1)
+  }, [stops])
 
   return (
-    <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-xl flex flex-col h-[650px] select-none">
-      {/* Background Cartográfico Noturno */}
+    <div className="relative bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-md flex flex-col h-[640px] select-none">
+      {/* Background Cartográfico Clean (Identidade CIAFAL: fundo claro, grid técnico sutil) */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-20"
+        className="absolute inset-0 pointer-events-none opacity-40"
         style={{
           backgroundImage:
-            'radial-gradient(#38bdf8 1px, transparent 1px), radial-gradient(#0284c7 1px, #030712 1px)',
-          backgroundSize: '36px 36px',
-          backgroundPosition: '0 0, 18px 18px',
+            'radial-gradient(#cbd5e1 1px, transparent 1px), radial-gradient(#e2e8f0 1px, #f8fafc 1px)',
+          backgroundSize: '32px 32px',
+          backgroundPosition: '0 0, 16px 16px',
         }}
       />
 
-      {/* Floating Toolbar Superior: Indicadores e Alternador de Camadas (#10) */}
-      <div className="relative z-10 p-3 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 flex flex-wrap items-center justify-between gap-2.5 text-xs text-white">
+      {/* Floating Toolbar Superior: Filtros rápidos, Badge de Carga Ativa e Botão Camadas (#10) */}
+      <div className="relative z-10 px-3.5 py-2.5 bg-white/95 backdrop-blur-md border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs shadow-xs">
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge className="bg-[#005596] text-white font-mono text-[10px] px-2 py-0.5">
-            TORRE GEOGRÁFICA DE CARGAS
+          <Badge className="bg-[#005596] text-white font-mono text-[10px] px-2.5 py-0.5 tracking-wider font-bold">
+            ROTEIRIZAÇÃO & CLUSTERS CIAFAL
           </Badge>
 
-          <span className="text-slate-400 text-[11px] hidden sm:inline">Variável de Calor:</span>
-          <Badge variant="outline" className="border-sky-400 text-sky-300 font-bold text-[10px]">
-            {heatmapVariable}
-          </Badge>
+          {activeCluster ? (
+            <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+              <span
+                className="w-2.5 h-2.5 rounded-full inline-block"
+                style={{ backgroundColor: activeCluster.color.hex }}
+              />
+              <span className="font-bold text-slate-800 text-[11px]">{activeCluster.code}</span>
+              <span className="text-slate-500 text-[10px]">
+                ({activeCluster.totalWeightTon.toFixed(1)} t • {activeCluster.clientsCount}{' '}
+                descargas)
+              </span>
+              <button
+                onClick={() => onSelectCluster(null)}
+                className="text-slate-400 hover:text-slate-700 ml-1 text-xs"
+                title="Limpar seleção de carga"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <span className="text-slate-500 text-[11px] hidden sm:inline">
+              Nenhuma carga em foco • Clique numa carga ou marcador para detalhar
+            </span>
+          )}
 
           {selectedUf && selectedUf !== 'ALL' && (
             <Badge className="bg-emerald-600 text-white font-mono text-[10px]">
-              Filtro UF: {selectedUf}
+              UF: {selectedUf}
             </Badge>
           )}
 
           {selectedItinerary && selectedItinerary !== 'ALL' && (
-            <Badge className="bg-purple-600 text-white font-mono text-[10px]">
-              Rota: {selectedItinerary}
+            <Badge className="bg-indigo-600 text-white font-mono text-[10px]">
+              Itin: {selectedItinerary}
             </Badge>
           )}
         </div>
 
-        {/* Camadas Toggles rápidos */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Botão de Camadas (#10) com Dropdown flutuante */}
+        <div className="relative flex items-center gap-2">
+          {/* Toggle de Todas as Rotas (#9) */}
           <Button
             size="sm"
-            variant={layers.showHeatmap ? 'default' : 'outline'}
-            onClick={() => toggleLayer('showHeatmap')}
-            className={`h-7 text-[10px] font-semibold px-2 ${
-              layers.showHeatmap
-                ? 'bg-amber-600 hover:bg-amber-700 text-white'
-                : 'border-slate-700 text-slate-400 hover:bg-slate-800'
+            variant={layers.showAllRoutes ? 'default' : 'outline'}
+            onClick={() => toggleLayer('showAllRoutes')}
+            className={`h-7 text-[10px] font-semibold px-2.5 rounded-lg ${
+              layers.showAllRoutes
+                ? 'bg-[#005596] text-white'
+                : 'border-slate-300 text-slate-700 hover:bg-slate-100'
             }`}
-            title="Alternar camada de mapa de calor"
+            title="Exibir todas as rotas desenhadas simultaneamente"
           >
-            🔥 Calor
+            <Navigation className="w-3 h-3 mr-1" />
+            {layers.showAllRoutes ? 'Todas as Rotas: ON' : 'Rotas Individuais'}
           </Button>
 
-          <Button
-            size="sm"
-            variant={layers.showSapItineraries ? 'default' : 'outline'}
-            onClick={() => toggleLayer('showSapItineraries')}
-            className={`h-7 text-[10px] font-semibold px-2 ${
-              layers.showSapItineraries
-                ? 'bg-[#005596] hover:bg-[#004275] text-white'
-                : 'border-slate-700 text-slate-400 hover:bg-slate-800'
-            }`}
-            title="Exibir/ocultar itinerários e rotas SAP"
-          >
-            🛣️ Itinerários
-          </Button>
+          {/* Botão Camadas Principal (#10) */}
+          <div className="relative">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsLayersMenuOpen(!isLayersMenuOpen)}
+              className="h-7 text-[10px] font-bold px-2.5 rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100 shadow-xs flex items-center gap-1.5"
+            >
+              <Layers className="w-3.5 h-3.5 text-[#005596]" />
+              <span>Camadas</span>
+            </Button>
 
-          <Button
-            size="sm"
-            variant={layers.showSuggestedLoads ? 'default' : 'outline'}
-            onClick={() => toggleLayer('showSuggestedLoads')}
-            className={`h-7 text-[10px] font-semibold px-2 ${
-              layers.showSuggestedLoads
-                ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                : 'border-slate-700 text-slate-400 hover:bg-slate-800'
-            }`}
-            title="Exibir oportunidades de consolidação de cargas da IA"
-          >
-            ✨ Oportunidades
-          </Button>
+            {/* Dropdown de Camadas */}
+            {isLayersMenuOpen && (
+              <div className="absolute right-0 top-8 z-50 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 w-60 text-xs space-y-1.5 animate-in fade-in duration-100">
+                <div className="font-bold text-slate-900 text-[11px] pb-1 border-b border-slate-100 flex items-center justify-between">
+                  <span>Camadas do Mapa</span>
+                  <button
+                    onClick={() => setIsLayersMenuOpen(false)}
+                    className="text-slate-400 hover:text-slate-700"
+                  >
+                    ✕
+                  </button>
+                </div>
 
-          <Button
-            size="sm"
-            variant={layers.showStockAvailable ? 'default' : 'outline'}
-            onClick={() => toggleLayer('showStockAvailable')}
-            className={`h-7 text-[10px] font-semibold px-2 ${
-              layers.showStockAvailable
-                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                : 'border-slate-700 text-slate-400 hover:bg-slate-800'
-            }`}
-            title="Destacar pedidos com estoque físico DP34 já liberado"
-          >
-            📦 Estoque DP34
-          </Button>
+                <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer">
+                  <span className="text-slate-700 text-[11px]">☑ Clientes / Pedidos</span>
+                  <input
+                    type="checkbox"
+                    checked={layers.showClients}
+                    onChange={() => toggleLayer('showClients')}
+                    className="rounded text-[#005596]"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer">
+                  <span className="text-slate-700 text-[11px]">☑ Clusterização de Cargas</span>
+                  <input
+                    type="checkbox"
+                    checked={layers.showClusters}
+                    onChange={() => toggleLayer('showClusters')}
+                    className="rounded text-[#005596]"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer">
+                  <span className="text-slate-700 text-[11px]">☑ Itinerários e Conexões</span>
+                  <input
+                    type="checkbox"
+                    checked={layers.showItineraries}
+                    onChange={() => toggleLayer('showItineraries')}
+                    className="rounded text-[#005596]"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer">
+                  <span className="text-slate-700 text-[11px]">☐ Alertas Operacionais</span>
+                  <input
+                    type="checkbox"
+                    checked={layers.showLogisticAlerts}
+                    onChange={() => toggleLayer('showLogisticAlerts')}
+                    className="rounded text-[#005596]"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer">
+                  <span className="text-slate-700 text-[11px]">☐ Estoque Liberado (DP34)</span>
+                  <input
+                    type="checkbox"
+                    checked={layers.showStockAvailable}
+                    onChange={() => toggleLayer('showStockAvailable')}
+                    className="rounded text-[#005596]"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer">
+                  <span className="text-slate-700 text-[11px]">☐ Previsão PCP Futura</span>
+                  <input
+                    type="checkbox"
+                    checked={layers.showFutureStock}
+                    onChange={() => toggleLayer('showFutureStock')}
+                    className="rounded text-[#005596]"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer border-t border-slate-100 pt-1.5">
+                  <span className="text-slate-700 text-[11px]">🔥 Mapa de Calor (Secundário)</span>
+                  <input
+                    type="checkbox"
+                    checked={layers.showHeatmap}
+                    onChange={() => toggleLayer('showHeatmap')}
+                    className="rounded text-amber-600"
+                  />
+                </label>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* SVG Canvas Interativo */}
-      <div className="relative flex-1 w-full h-full overflow-hidden cursor-grab active:cursor-grabbing">
+      <div className="relative flex-1 w-full h-full overflow-hidden cursor-grab active:cursor-grabbing bg-slate-50">
         <svg
           ref={svgRef}
           viewBox="0 0 800 640"
@@ -336,26 +407,25 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
           onMouseLeave={handleMouseUp}
         >
           <defs>
-            {/* Gradientes e Filtros para Heatmap e Brilho das Rotas */}
-            <radialGradient id="heatGradientHigh" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.85" />
-              <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.5" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+            {/* Gradiente sutil para heatmap secundário (#10) */}
+            <radialGradient id="heatSubtle" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.45" />
+              <stop offset="60%" stopColor="#3b82f6" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#94a3b8" stopOpacity="0" />
             </radialGradient>
 
-            <radialGradient id="heatGradientMedium" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.8" />
-              <stop offset="60%" stopColor="#10b981" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#0284c7" stopOpacity="0" />
-            </radialGradient>
+            {/* Sombra para nós e marcadores de alta visibilidade */}
+            <filter id="markerShadow" x="-25%" y="-25%" width="150%" height="150%">
+              <feDropShadow dx="0" dy="1.5" stdDeviation="2" floodOpacity="0.25" />
+            </filter>
 
-            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
+            <filter id="routeGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="2.5" result="blur" />
               <feComposite in="SourceGraphic" in2="blur" operator="over" />
             </filter>
           </defs>
 
-          {/* Grupo Principal com Zoom e Pan */}
+          {/* Grupo com Pan e Zoom */}
           <g
             transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${zoomLevel})`}
             style={{
@@ -363,44 +433,41 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
               transition: isPanning ? 'none' : 'transform 0.15s ease-out',
             }}
           >
-            {/* 1. Limites dos Estados Brasileiros (#2) */}
+            {/* 1. Limites dos Estados Brasileiros (Fundo Cartográfico Clean) */}
             <g className="states-layer">
               {Object.entries(BRAZIL_STATE_PATHS).map(([uf, pathD]) => {
                 const isSelected = selectedUf === uf
-                const hasDemand = ufs.some((u) => u.uf === uf)
+                const hasDemandInUf = stops.some((s) => s.uf === uf)
+
                 return (
                   <path
                     key={uf}
                     d={pathD}
-                    onClick={() => onSelectUf && onSelectUf(uf)}
-                    className="cursor-pointer transition-colors duration-200"
-                    fill={isSelected ? '#005596' : hasDemand ? '#1e293b' : '#0f172a'}
-                    stroke={isSelected ? '#38bdf8' : '#334155'}
+                    onClick={() => onSelectUf && onSelectUf(isSelected ? 'ALL' : uf)}
+                    className="cursor-pointer transition-colors duration-150"
+                    fill={isSelected ? '#e0f2fe' : hasDemandInUf ? '#f1f5f9' : '#f8fafc'}
+                    stroke={isSelected ? '#0284c7' : '#cbd5e1'}
                     strokeWidth={isSelected ? 2 : 1}
-                    opacity={hasDemand ? 0.9 : 0.4}
                   >
-                    <title>
-                      {uf} — {hasDemand ? 'Possui demanda na carteira' : 'Sem pedidos'}
-                    </title>
+                    <title>{`${uf} ${hasDemandInUf ? '— Possui pedidos' : '— Sem pedidos'}`}</title>
                   </path>
                 )
               })}
             </g>
 
-            {/* Siglas dos Estados Centrais */}
-            <g className="state-labels pointer-events-none">
+            {/* Siglas dos Estados */}
+            <g className="state-labels pointer-events-none opacity-40">
               {Object.entries(BRAZIL_UF_CENTROIDS).map(([uf, item]) => {
                 const pt = latLngToSvgPoint(item.lat, item.lng, 800, 640)
                 return (
                   <text
-                    key={`txt-${uf}`}
+                    key={`label-${uf}`}
                     x={pt.x}
                     y={pt.y}
                     fill="#64748b"
                     fontSize="9"
                     fontWeight="bold"
                     textAnchor="middle"
-                    opacity={0.6}
                   >
                     {uf}
                   </text>
@@ -408,119 +475,140 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
               })}
             </g>
 
-            {/* 2. Camada de Heatmap (Manchas de Demanda Geográfica) (#4) */}
+            {/* 2. Camada Secundária de Heatmap (Fica por trás dos marcadores) (#10) */}
             {layers.showHeatmap && (
-              <g className="heatmap-layer pointer-events-none">
-                {cities.map((c) => {
-                  const pt = latLngToSvgPoint(c.lat, c.lng, 800, 640)
-                  const intensity = getHeatmapIntensity(c)
-                  const radius = Math.max(16, Math.min(55, 18 + intensity * 35))
+              <g className="heatmap-secondary-layer pointer-events-none">
+                {stops.map((st) => {
+                  const pt = latLngToSvgPoint(st.lat, st.lng, 800, 640)
+                  const intensity = Math.min(1, Math.max(0.2, st.totalWeightTon / maxHeatWeight))
+                  const radius = 18 + intensity * 28
+
                   return (
                     <circle
-                      key={`heat-${c.cityName}-${c.uf}`}
+                      key={`heat-${st.id}`}
                       cx={pt.x}
                       cy={pt.y}
                       r={radius}
-                      fill={intensity > 0.6 ? 'url(#heatGradientHigh)' : 'url(#heatGradientMedium)'}
-                      opacity={0.65}
+                      fill="url(#heatSubtle)"
                     />
                   )
                 })}
               </g>
             )}
 
-            {/* 3. Camada de Itinerários SAP e Rotas (#6 e #7) */}
-            {layers.showSapItineraries && (
-              <g className="itineraries-layer">
-                {itineraries.map((it) => {
-                  const originPt = latLngToSvgPoint(it.originHub.lat, it.originHub.lng, 800, 640)
-                  const isHighlighted = selectedItinerary === it.itineraryCode
+            {/* 3. Rotas Desenhadas (#8 e #9) */}
+            {/* Por padrão desligadas; desenham a carga selecionada ou todas se showAllRoutes = true */}
+            <g className="routes-layer">
+              {clusters.map((cluster) => {
+                const isSelected = selectedClusterId === cluster.id
+                const shouldDraw = isSelected || layers.showAllRoutes
+                if (!shouldDraw) return null
 
-                  return (
-                    <g key={`itin-group-${it.itineraryCode}`}>
-                      {it.stopsCoordinates.map((stop, sIdx) => {
-                        const stopPt = latLngToSvgPoint(stop.lat, stop.lng, 800, 640)
-                        return (
-                          <line
-                            key={`line-${it.itineraryCode}-${sIdx}`}
-                            x1={originPt.x}
-                            y1={originPt.y}
-                            x2={stopPt.x}
-                            y2={stopPt.y}
-                            stroke={
-                              isHighlighted
-                                ? '#38bdf8'
-                                : it.originHub.type === 'SIDERCENTRO'
-                                  ? '#ea580c'
-                                  : '#0284c7'
-                            }
-                            strokeWidth={isHighlighted ? 3 : 1.8}
-                            strokeDasharray={isHighlighted ? 'none' : '4,3'}
-                            opacity={isHighlighted ? 1 : 0.65}
-                            className="cursor-pointer hover:opacity-100 transition"
-                            filter={isHighlighted ? 'url(#glow)' : undefined}
-                            onClick={() => onSelectItinerary && onSelectItinerary(it.itineraryCode)}
-                            onMouseEnter={(e) => {
-                              setHoveredPoint({
-                                itinerary: it,
-                                x: e.clientX,
-                                y: e.clientY,
-                              })
-                            }}
-                            onMouseLeave={() => setHoveredPoint(null)}
-                          />
-                        )
-                      })}
-                    </g>
-                  )
-                })}
-              </g>
-            )}
+                const originPt = latLngToSvgPoint(
+                  cluster.originHub.lat,
+                  cluster.originHub.lng,
+                  800,
+                  640,
+                )
+                const stopsPts = cluster.stops.map((s) => latLngToSvgPoint(s.lat, s.lng, 800, 640))
 
-            {/* 4. Pontos de Origem (CIAFAL Matriz, Sidercentro) (#3) */}
+                // Trajeto sequencial: Origem -> Parada 1 -> Parada 2 -> ... -> Parada N -> Origem
+                const allPoints = [originPt, ...stopsPts, originPt]
+
+                return (
+                  <g key={`route-${cluster.id}`} className="transition-opacity duration-200">
+                    {/* Linhas conectando os pontos */}
+                    {allPoints.slice(0, -1).map((p1, idx) => {
+                      const p2 = allPoints[idx + 1]
+                      const isReturnToBase = idx === allPoints.length - 2
+
+                      return (
+                        <line
+                          key={`seg-${cluster.id}-${idx}`}
+                          x1={p1.x}
+                          y1={p1.y}
+                          x2={p2.x}
+                          y2={p2.y}
+                          stroke={cluster.color.hex}
+                          strokeWidth={isSelected ? 3 : 1.8}
+                          strokeDasharray={isReturnToBase ? '5,4' : 'none'}
+                          opacity={isSelected ? 0.95 : 0.45}
+                          filter={isSelected ? 'url(#routeGlow)' : undefined}
+                          className="cursor-pointer"
+                          onClick={() => onSelectCluster(cluster.id)}
+                        />
+                      )
+                    })}
+                  </g>
+                )
+              })}
+            </g>
+
+            {/* 4. Origem Canônica CIAFAL / Sidercentro (#8: Ícone industrial clean 🏭) */}
             <g className="origin-hubs-layer">
-              {originHubs.map((hub) => {
+              {origins.map((hub) => {
                 const pt = latLngToSvgPoint(hub.lat, hub.lng, 800, 640)
                 const isSider = hub.type === 'SIDERCENTRO'
 
                 return (
                   <g
                     key={hub.id}
-                    className="cursor-pointer"
+                    className="cursor-pointer group"
+                    onClick={() => {}}
                     onMouseEnter={(e) =>
-                      setHoveredPoint({
-                        originHub: hub,
+                      setHoveredOrigin({
+                        origin: hub,
                         x: e.clientX,
                         y: e.clientY,
                       })
                     }
-                    onMouseLeave={() => setHoveredPoint(null)}
+                    onMouseLeave={() => setHoveredOrigin(null)}
                   >
-                    {/* Anel de Pulso */}
+                    {/* Halo de destaque da Origem */}
                     <circle
                       cx={pt.x}
                       cy={pt.y}
-                      r={10}
+                      r={16}
                       fill={isSider ? '#ea580c' : '#005596'}
-                      opacity={0.3}
-                      className="animate-ping"
+                      opacity={0.15}
+                      className="group-hover:opacity-30 transition"
                     />
-                    {/* Marcador Central */}
-                    <circle
-                      cx={pt.x}
-                      cy={pt.y}
-                      r={7}
-                      fill={isSider ? '#f97316' : '#38bdf8'}
+
+                    {/* Base quadrada arredondada de Planta Industrial */}
+                    <rect
+                      x={pt.x - 11}
+                      y={pt.y - 11}
+                      width={22}
+                      height={22}
+                      rx={6}
+                      fill={isSider ? '#ea580c' : '#005596'}
                       stroke="#ffffff"
                       strokeWidth={2}
+                      filter="url(#markerShadow)"
                     />
+
+                    {/* Ícone de fábrica clean no centro */}
                     <text
-                      x={pt.x + 9}
+                      x={pt.x}
                       y={pt.y + 4}
                       fill="#ffffff"
+                      fontSize="11"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      className="pointer-events-none select-none"
+                    >
+                      🏭
+                    </text>
+
+                    {/* Rótulo da Origem */}
+                    <text
+                      x={pt.x}
+                      y={pt.y + 20}
+                      fill="#0f172a"
                       fontSize="9"
                       fontWeight="900"
-                      className="pointer-events-none drop-shadow"
+                      textAnchor="middle"
+                      className="pointer-events-none drop-shadow-xs font-mono"
                     >
                       {hub.name}
                     </text>
@@ -529,256 +617,340 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
               })}
             </g>
 
-            {/* 5. Cidades e Nós de Demanda com Clustering (#5, #8, #13) */}
-            <g className="cities-nodes-layer">
-              {cities.map((city) => {
-                const pt = latLngToSvgPoint(city.lat, city.lng, 800, 640)
-                const isHigh = city.consolidationPotential === 'ALTA'
-                const isMedium = city.consolidationPotential === 'MEDIA'
+            {/* 5. Marcadores de Clientes / Locais de Descarga (#2, #3, #7, #8, #13, #14) */}
+            {layers.showClients && (
+              <g className="client-stops-layer">
+                {stops.map((stop) => {
+                  const pt = latLngToSvgPoint(stop.lat, stop.lng, 800, 640)
 
-                // Cor do nó baseada no potencial operacional (#13)
-                const nodeColor = isHigh ? '#10b981' : isMedium ? '#f59e0b' : '#38bdf8'
-                const nodeRadius = Math.max(
-                  5,
-                  Math.min(14, 5 + Math.log10(city.totalWeightTon + 1) * 4),
-                )
+                  // Verificação de seleção e Dimmed (#7)
+                  const isBelongingToSelectedCluster =
+                    selectedClusterId && stop.assignedClusterId === selectedClusterId
+                  const isDimmed = selectedClusterId && !isBelongingToSelectedCluster
+                  const isSelectedStop = selectedStopId === stop.id
 
-                return (
-                  <g
-                    key={`node-${city.cityName}-${city.uf}`}
-                    onClick={() => onSelectCity(city)}
-                    className="cursor-pointer group"
-                    onMouseEnter={(e) =>
-                      setHoveredPoint({
-                        city,
-                        x: e.clientX,
-                        y: e.clientY,
-                      })
-                    }
-                    onMouseLeave={() => setHoveredPoint(null)}
-                  >
-                    {/* Halo de foco */}
-                    <circle
-                      cx={pt.x}
-                      cy={pt.y}
-                      r={nodeRadius + 4}
-                      fill={nodeColor}
-                      opacity={0.2}
-                      className="group-hover:opacity-60 transition"
-                    />
+                  // Cor semântica (#3)
+                  let markerColor = UNPLANNED_COLOR.hex
+                  if (stop.isPlanned && stop.assignedClusterId) {
+                    markerColor = clusterColorMap.get(stop.assignedClusterId) || UNPLANNED_COLOR.hex
+                  }
 
-                    {/* Ponto da Cidade */}
-                    <circle
-                      cx={pt.x}
-                      cy={pt.y}
-                      r={nodeRadius}
-                      fill={nodeColor}
-                      stroke="#ffffff"
-                      strokeWidth={1.5}
-                    />
+                  // Raio compacto do marcador (#1, #2)
+                  const markerRadius = isSelectedStop ? 11 : isBelongingToSelectedCluster ? 9 : 7
 
-                    {/* Rótulo de Tonelagem em Zoom > 1.2 ou Alta Demanda */}
-                    {(zoomLevel > 1.2 || isHigh) && (
-                      <text
-                        x={pt.x}
-                        y={pt.y - nodeRadius - 3}
-                        fill="#ffffff"
-                        fontSize="8"
-                        fontWeight="bold"
-                        textAnchor="middle"
-                        className="pointer-events-none drop-shadow"
-                      >
-                        {city.cityName} ({city.totalWeightTon.toFixed(1)} t)
-                      </text>
-                    )}
-                  </g>
-                )
-              })}
-            </g>
+                  return (
+                    <g
+                      key={stop.id}
+                      className={`cursor-pointer group transition-opacity duration-200 ${
+                        isDimmed ? 'opacity-25 hover:opacity-80' : 'opacity-100'
+                      }`}
+                      onClick={() => {
+                        onSelectStop(stop)
+                        if (stop.assignedClusterId) {
+                          onSelectCluster(stop.assignedClusterId)
+                        }
+                      }}
+                      onMouseEnter={(e) =>
+                        setHoveredStop({
+                          stop,
+                          x: e.clientX,
+                          y: e.clientY,
+                        })
+                      }
+                      onMouseLeave={() => setHoveredStop(null)}
+                    >
+                      {/* Halo de foco quando selecionado */}
+                      {(isSelectedStop || isBelongingToSelectedCluster) && (
+                        <circle
+                          cx={pt.x}
+                          cy={pt.y}
+                          r={markerRadius + 5}
+                          fill={markerColor}
+                          opacity={0.25}
+                          className="animate-pulse"
+                        />
+                      )}
+
+                      {/* Círculo Principal do Marcador */}
+                      <circle
+                        cx={pt.x}
+                        cy={pt.y}
+                        r={markerRadius}
+                        fill={markerColor}
+                        stroke="#ffffff"
+                        strokeWidth={isSelectedStop ? 2.5 : 1.5}
+                        filter="url(#markerShadow)"
+                      />
+
+                      {/* NÚMERO DA SEQUÊNCIA DE DESCARGA (#8: 1, 2, 3...) quando em carga */}
+                      {stop.isPlanned && stop.stopSequence && (
+                        <text
+                          x={pt.x}
+                          y={pt.y + 3.5}
+                          fill="#ffffff"
+                          fontSize="9"
+                          fontWeight="900"
+                          textAnchor="middle"
+                          className="pointer-events-none select-none font-mono"
+                        >
+                          {stop.stopSequence}
+                        </text>
+                      )}
+
+                      {/* Marcador de não planejado (círculo vazio no centro) */}
+                      {!stop.isPlanned && (
+                        <circle
+                          cx={pt.x}
+                          cy={pt.y}
+                          r={3}
+                          fill="#ffffff"
+                          className="pointer-events-none"
+                        />
+                      )}
+
+                      {/* Badge de Alerta Especial sobreposto (#14) */}
+                      {layers.showLogisticAlerts && stop.alerts.length > 0 && (
+                        <g transform={`translate(${pt.x + 4}, ${pt.y - 9})`}>
+                          <circle
+                            cx="0"
+                            cy="0"
+                            r="4.5"
+                            fill="#ef4444"
+                            stroke="#ffffff"
+                            strokeWidth="1"
+                          />
+                          <text
+                            x="0"
+                            y="2.5"
+                            fill="#ffffff"
+                            fontSize="6"
+                            fontWeight="bold"
+                            textAnchor="middle"
+                          >
+                            !
+                          </text>
+                        </g>
+                      )}
+
+                      {/* Rótulo compacto do Cliente se estiver com zoom ou em destaque */}
+                      {(zoomLevel > 1.4 || isBelongingToSelectedCluster || isSelectedStop) && (
+                        <text
+                          x={pt.x}
+                          y={pt.y - markerRadius - 3}
+                          fill="#0f172a"
+                          fontSize="8"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                          className="pointer-events-none drop-shadow-xs truncate"
+                        >
+                          {stop.customerName.slice(0, 14)} ({stop.totalWeightTon.toFixed(1)}t)
+                        </text>
+                      )}
+                    </g>
+                  )
+                })}
+              </g>
+            )}
           </g>
         </svg>
 
-        {/* Tooltip Hover Flutuante Rico (#8 e #16) */}
-        {hoveredPoint && (
+        {/* Tooltip Hover Flutuante Rico (#2: Cliente, Cidade, Pedidos, Peso (t), Itinerário, Data solicitada) */}
+        {hoveredStop && (
           <div
             className="fixed z-50 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-3"
             style={{
-              left: hoveredPoint.x,
-              top: hoveredPoint.y,
+              left: hoveredStop.x,
+              top: hoveredStop.y,
             }}
           >
-            {hoveredPoint.city && (
-              <div className="bg-slate-900/95 text-white p-3 rounded-xl shadow-2xl border border-slate-700 text-xs space-y-1.5 w-64 backdrop-blur-md">
-                <div className="flex items-center justify-between border-b border-slate-700 pb-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                    <strong className="text-white font-bold">
-                      {hoveredPoint.city.cityName} / {hoveredPoint.city.uf}
-                    </strong>
-                  </div>
+            <div className="bg-slate-900/95 text-white p-3 rounded-xl shadow-2xl border border-slate-700 text-xs space-y-2 w-72 backdrop-blur-md animate-in fade-in zoom-in-95 duration-100">
+              {/* Cabeçalho do Cliente */}
+              <div className="flex items-start justify-between border-b border-slate-700 pb-1.5">
+                <div>
+                  <strong className="text-white font-bold block text-sm leading-tight">
+                    {hoveredStop.stop.customerName}
+                  </strong>
+                  <span className="text-[10px] text-slate-400">
+                    Cód. SAP: {hoveredStop.stop.customerCode} • {hoveredStop.stop.city}/
+                    {hoveredStop.stop.uf}
+                  </span>
+                </div>
+
+                {hoveredStop.stop.isPlanned ? (
                   <Badge
-                    className={
-                      hoveredPoint.city.consolidationPotential === 'ALTA'
-                        ? 'bg-emerald-600 text-white text-[9px] px-1 py-0'
-                        : hoveredPoint.city.consolidationPotential === 'MEDIA'
-                          ? 'bg-amber-500 text-white text-[9px] px-1 py-0'
-                          : 'bg-slate-600 text-white text-[9px] px-1 py-0'
-                    }
+                    className="text-[9px] px-1.5 py-0 font-bold"
+                    style={{
+                      backgroundColor:
+                        clusterColorMap.get(hoveredStop.stop.assignedClusterId || '') || '#0284c7',
+                      color: '#ffffff',
+                    }}
                   >
-                    {hoveredPoint.city.consolidationPotential}
+                    Parada {hoveredStop.stop.stopSequence}
                   </Badge>
-                </div>
-
-                <div className="grid grid-cols-2 gap-1 text-[11px] pt-0.5">
-                  <div>
-                    <span className="text-slate-400">Carteira:</span>{' '}
-                    <strong className="text-sky-300 font-mono">
-                      {hoveredPoint.city.totalWeightTon.toFixed(1)} t
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Pedidos:</span>{' '}
-                    <strong className="text-white font-mono">
-                      {hoveredPoint.city.ordersCount}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Clientes:</span>{' '}
-                    <strong className="text-white font-mono">
-                      {hoveredPoint.city.uniqueClientsCount}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Cargas Potenciais:</span>{' '}
-                    <strong className="text-emerald-400 font-mono">
-                      {hoveredPoint.city.potentialLoadsCount}
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="border-t border-slate-800 pt-1 text-[10px] space-y-0.5">
-                  <div className="text-slate-300">
-                    Itinerário: <strong>{hoveredPoint.city.primaryItineraryCode}</strong>
-                  </div>
-                  <div className="text-slate-300">
-                    Estoque Disp. DP34:{' '}
-                    <strong className="text-emerald-400">
-                      {hoveredPoint.city.availableStockTon.toFixed(1)} t
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="pt-1 text-[9px] text-sky-400 font-semibold text-center bg-sky-950/40 rounded py-0.5 border border-sky-800/40">
-                  Clique no ponto para ver detalhes completos
-                </div>
+                ) : (
+                  <Badge variant="outline" className="text-[9px] border-slate-600 text-slate-400">
+                    Não planejado
+                  </Badge>
+                )}
               </div>
-            )}
 
-            {hoveredPoint.itinerary && (
-              <div className="bg-slate-900/95 text-white p-3 rounded-xl shadow-2xl border border-slate-700 text-xs space-y-1.5 w-72 backdrop-blur-md">
-                <div className="flex items-center gap-1.5 border-b border-slate-700 pb-1.5">
-                  <Navigation className="w-3.5 h-3.5 text-sky-400" />
-                  <strong className="text-white font-bold">
-                    Itinerário SAP {hoveredPoint.itinerary.itineraryCode}
+              {/* Grid de Informações Chave (#2) */}
+              <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                <div className="bg-slate-800/80 p-1.5 rounded">
+                  <span className="text-slate-400 text-[10px] block">Peso Consolidado:</span>
+                  <strong className="text-sky-300 font-mono text-xs">
+                    {hoveredStop.stop.totalWeightTon.toFixed(1)} t
                   </strong>
                 </div>
-                <p className="text-[11px] text-slate-300">
-                  {hoveredPoint.itinerary.itineraryDescription}
-                </p>
-                <div className="text-[10px] text-slate-400 space-y-0.5">
-                  <div>
-                    Origem: <strong>{hoveredPoint.itinerary.originHub.name}</strong>
+
+                <div className="bg-slate-800/80 p-1.5 rounded">
+                  <span className="text-slate-400 text-[10px] block">Qtd. Pedidos:</span>
+                  <strong className="text-white font-mono text-xs">
+                    {hoveredStop.stop.ordersCount} pedido(s)
+                  </strong>
+                </div>
+
+                <div className="col-span-2 bg-slate-800/50 p-1.5 rounded space-y-0.5 text-[10px]">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Itinerário SAP:</span>
+                    <strong className="text-white font-mono">
+                      {hoveredStop.stop.itineraryCode}
+                    </strong>
                   </div>
-                  <div>
-                    Destinos:{' '}
-                    <strong>{hoveredPoint.itinerary.destinationCities.join(' → ')}</strong>
-                  </div>
-                  <div>
-                    Demanda:{' '}
-                    <strong className="text-sky-300">
-                      {hoveredPoint.itinerary.totalWeightTon.toFixed(1)} t
-                    </strong>{' '}
-                    ({hoveredPoint.itinerary.ordersCount} pedidos)
-                  </div>
-                  <div>
-                    Frete Estimado:{' '}
-                    <strong className="text-emerald-400">
-                      R$ {hoveredPoint.itinerary.estimatedFreightBrl.toLocaleString('pt-BR')}
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Data Solicitada:</span>
+                    <strong className="text-amber-300 font-mono">
+                      {hoveredStop.stop.requestedDate
+                        ? new Date(hoveredStop.stop.requestedDate + 'T12:00:00').toLocaleDateString(
+                            'pt-BR',
+                          )
+                        : 'A combinar'}
                     </strong>
                   </div>
                 </div>
               </div>
-            )}
 
-            {hoveredPoint.originHub && (
-              <div className="bg-slate-900/95 text-white p-2.5 rounded-xl shadow-2xl border border-slate-700 text-xs space-y-1 w-56 backdrop-blur-md">
-                <div className="font-bold text-sky-400 flex items-center gap-1">
-                  <Truck className="w-3.5 h-3.5" />
-                  <span>{hoveredPoint.originHub.fullName}</span>
+              {/* Alertas Ativos (#14) */}
+              {hoveredStop.stop.alerts.length > 0 && (
+                <div className="space-y-1 border-t border-slate-800 pt-1.5">
+                  <div className="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Alertas Operacionais:
+                  </div>
+                  {hoveredStop.stop.alerts.map((al, idx) => (
+                    <div
+                      key={idx}
+                      className="text-[10px] text-rose-300 bg-rose-950/40 p-1 rounded border border-rose-800/50 flex items-center gap-1"
+                    >
+                      <span>⚠</span>
+                      <span>{al.label}</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="text-[10px] text-slate-300">
-                  Centro Emissor SAP: <strong>{hoveredPoint.originHub.plantCode}</strong> (
-                  {hoveredPoint.originHub.city}/{hoveredPoint.originHub.uf})
-                </div>
+              )}
+
+              <div className="text-[9px] text-sky-400 text-center pt-1 font-semibold border-t border-slate-800">
+                Clique no ponto para abrir detalhamento e simular
               </div>
-            )}
+            </div>
           </div>
         )}
 
-        {/* Floating Controls Inferiores (Zoom + Reset + Legenda) */}
-        <div className="absolute bottom-4 right-4 z-20 flex flex-col gap-1.5 bg-slate-900/90 p-1.5 rounded-xl border border-slate-700 shadow-xl backdrop-blur-md">
+        {/* Tooltip de Origem */}
+        {hoveredOrigin && (
+          <div
+            className="fixed z-50 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-3"
+            style={{
+              left: hoveredOrigin.x,
+              top: hoveredOrigin.y,
+            }}
+          >
+            <div className="bg-slate-900/95 text-white p-2.5 rounded-xl shadow-xl border border-slate-700 text-xs w-60 backdrop-blur-md">
+              <strong className="text-sky-400 block font-bold">
+                {hoveredOrigin.origin.fullName}
+              </strong>
+              <div className="text-[10px] text-slate-300 mt-0.5">
+                Centro Expedidor: <strong>{hoveredOrigin.origin.plantCode}</strong> (
+                {hoveredOrigin.origin.city}/{hoveredOrigin.origin.uf})
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Controles de Zoom Flutuantes */}
+        <div className="absolute top-4 right-4 z-20 flex flex-col gap-1 bg-white/95 p-1 rounded-xl border border-slate-200 shadow-md backdrop-blur-md">
           <Button
             size="sm"
             variant="ghost"
             onClick={handleZoomIn}
-            className="h-8 w-8 p-0 text-slate-300 hover:text-white hover:bg-slate-800"
-            title="Aproximar zoom"
+            className="h-7 w-7 p-0 text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+            title="Aproximar (+)"
           >
             <ZoomIn className="w-4 h-4" />
           </Button>
-
           <Button
             size="sm"
             variant="ghost"
             onClick={handleZoomOut}
-            className="h-8 w-8 p-0 text-slate-300 hover:text-white hover:bg-slate-800"
-            title="Afastar zoom"
+            className="h-7 w-7 p-0 text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+            title="Afastar (-)"
           >
             <ZoomOut className="w-4 h-4" />
           </Button>
-
           <Button
             size="sm"
             variant="ghost"
             onClick={handleResetZoom}
-            className="h-8 w-8 p-0 text-slate-300 hover:text-white hover:bg-slate-800"
-            title="Redefinir visualização completa"
+            className="h-7 w-7 p-0 text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+            title="Redefinir visualização"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5" />
           </Button>
         </div>
 
-        {/* Legenda Operacional Inferior Esquerda */}
-        <div className="absolute bottom-4 left-4 z-20 bg-slate-900/85 backdrop-blur-md border border-slate-800 p-2.5 rounded-xl text-[10px] text-slate-300 shadow-xl hidden md:block space-y-1.5">
-          <div className="font-bold text-white uppercase text-[9px] tracking-wider flex items-center gap-1">
-            <Info className="w-3 h-3 text-sky-400" /> Potencial de Formação
+        {/* LEGENDA COMPACTA SEMÂNTICA NO MAPA (#12: NUNCA cor sem legenda) */}
+        <div className="absolute bottom-3 left-3 z-20 bg-white/95 backdrop-blur-md border border-slate-200 p-2.5 rounded-xl text-[10px] text-slate-700 shadow-md max-w-sm space-y-1.5">
+          <div className="font-bold text-slate-900 uppercase text-[9px] tracking-wider flex items-center justify-between border-b border-slate-100 pb-1">
+            <span className="flex items-center gap-1">
+              <Info className="w-3 h-3 text-[#005596]" /> Legenda de Clusters e Status
+            </span>
+            <span className="text-slate-400 font-mono text-[9px]">{clusters.length} Cargas IA</span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
-              Alta (&gt;25 t)
+
+          {/* Cores das Cargas Atuais */}
+          <div className="flex items-center gap-2 flex-wrap max-h-16 overflow-y-auto pr-1">
+            {clusters.slice(0, 6).map((cl) => (
+              <span
+                key={cl.id}
+                onClick={() => onSelectCluster(selectedClusterId === cl.id ? null : cl.id)}
+                className={`flex items-center gap-1 cursor-pointer px-1.5 py-0.5 rounded transition ${
+                  selectedClusterId === cl.id ? 'bg-slate-200 font-bold' : 'hover:bg-slate-100'
+                }`}
+                title={`Filtrar somente clientes de ${cl.code}`}
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+                  style={{ backgroundColor: cl.color.hex }}
+                />
+                <span className="text-[10px]">{cl.code}</span>
+              </span>
+            ))}
+
+            {/* Marcador Não Planejado (#13) */}
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-slate-600">
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block shrink-0" />
+              <span>Não planejado ({unplannedStops.length})</span>
             </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />
-              Média (10-25 t)
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block" />
-              Baixa (&lt;10 t)
+
+            {/* Marcador Alerta (#14) */}
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-rose-700">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block shrink-0" />
+              <span>Restrição / Pendência</span>
             </span>
           </div>
-          <div className="text-[9px] text-slate-400 pt-0.5 border-t border-slate-800">
-            Arraste para mover • Clique nos pontos para abrir detalhamento
+
+          <div className="text-[9px] text-slate-500 pt-0.5 border-t border-slate-100 flex items-center justify-between">
+            <span>🏭 Origem Matriz / Sidercentro</span>
+            <span>1, 2, 3 = Ordem de descarga</span>
           </div>
         </div>
       </div>
