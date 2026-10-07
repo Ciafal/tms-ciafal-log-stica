@@ -177,10 +177,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: true,
         },
         {
-          title: 'Itinerários SAP',
+          title: 'Itinerários & Rotas',
           path: '/tms/itinerarios-sap',
-          badge: 'TVROT',
-          badgeColor: 'bg-slate-500',
+          badge: 'SAP ECC',
+          badgeColor: 'bg-[#005596]',
           show: true,
         },
       ],

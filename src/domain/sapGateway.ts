@@ -194,11 +194,58 @@ export class SapItinerarioService {
   constructor(private gateway: SapGateway) {}
 
   async fetchItineraries(): Promise<{
-    items: Array<{ sapCode: string; description: string; isActive: boolean }>
+    items: Array<{
+      sapCode: string
+      description: string
+      origin?: string
+      uf?: string
+      region?: string
+      avgTransitDays?: number
+      isActive: boolean
+    }>
     sourceRfc: string
   }> {
     return this.gateway.callRfc<any>('RFC_READ_TABLE_TVROT', {
       QUERY_TABLE: 'TVROT',
+    })
+  }
+}
+
+export class SapRotaService {
+  constructor(private gateway: SapGateway) {}
+
+  async fetchRoutes(): Promise<{
+    items: Array<{
+      sapRouteCode: string
+      description: string
+      origin?: string
+      destination?: string
+      uf?: string
+      region?: string
+      leadTimeDays?: number
+      statusSap?: string
+      isActive: boolean
+    }>
+    sourceRfc: string
+  }> {
+    return this.gateway.callRfc<any>('RFC_READ_TABLE_TVRO', {
+      QUERY_TABLE: 'TVRO',
+    })
+  }
+
+  async fetchItineraryRouteCombinations(): Promise<{
+    items: Array<{
+      itinerarySapCode: string
+      routeSapCode: string
+      uf?: string
+      region?: string
+      leadTimeDays?: number
+      statusSap?: string
+    }>
+    sourceRfc: string
+  }> {
+    return this.gateway.callRfc<any>('RFC_READ_TABLE_TVRO_TVROT', {
+      QUERY_TABLE: 'TVRO_TVROT_MAP',
     })
   }
 }
@@ -266,6 +313,7 @@ export class SapGateway {
   public cliente: SapClienteService
   public veiculo: SapVeiculoService
   public itinerario: SapItinerarioService
+  public rota: SapRotaService
   public estoque: SapEstoqueService
   public credito: SapCreditoService
   public textoPedido: SapTextoPedidoService
@@ -333,6 +381,7 @@ export class SapGateway {
     this.cliente = new SapClienteService(this)
     this.veiculo = new SapVeiculoService(this)
     this.itinerario = new SapItinerarioService(this)
+    this.rota = new SapRotaService(this)
     this.estoque = new SapEstoqueService(this)
     this.credito = new SapCreditoService(this)
     this.textoPedido = new SapTextoPedidoService(this)

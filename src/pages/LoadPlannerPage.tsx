@@ -143,15 +143,17 @@ export const LoadPlannerPage: React.FC = () => {
   const handleRunAiPlanner = async () => {
     setIsAiLoading(true)
     try {
+      const targetRoute = selectedOrders[0]?.route_code || undefined
       const res = await TmsService.callPlannerAi({
         itinerary_code: filterItinerary,
-        message: `Analise os pedidos do itinerário ${filterItinerary} considerando estoque físico DP34, crédito financeiro e veículos PORTA disponíveis.`,
+        route_code: targetRoute,
+        message: `Analise os pedidos do itinerário ${filterItinerary} e rota associada considerando compatibilidade logística, estoque físico DP34, crédito financeiro e veículos PORTA disponíveis.`,
       })
       setAiExplanation(res.explanation)
       toast({
         title: 'Análise do Agente IA Concluída',
         description: res.fallback_used
-          ? 'Planejamento determinístico ativo (Fallback).'
+          ? 'Planejamento determinístico e compatibilidade de rotas ativos.'
           : 'Recomendações do AGENTE IA — PLANEJADOR DE CARGAS geradas.',
       })
     } catch (err: any) {
@@ -965,9 +967,19 @@ export const LoadPlannerPage: React.FC = () => {
                             </Badge>
                           </div>
                           <div className="text-slate-700 font-semibold">{order.customer_name}</div>
-                          <div className="text-[10px] text-slate-500">
-                            {order.destination_city} / {order.uf}
-                          </div>
+                          <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
+                            <span>
+                              {order.destination_city} / {order.uf}
+                            </span>
+                            {order.route_code && (
+                              <Badge
+                                variant="outline"
+                                className="text-[8px] px-1 py-0 border-sky-300 text-sky-800 bg-sky-50 font-mono"
+                              >
+                                {order.route_code}
+                              </Badge>
+                            )}
+                          </div>{' '}
                         </div>
                         <Button
                           size="sm"

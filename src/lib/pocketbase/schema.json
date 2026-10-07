@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-07T16:41:57.391Z",
+  "generatedAt": "2026-10-07T16:58:04.220Z",
   "collections": [
     {
       "name": "users",
@@ -17354,6 +17354,374 @@
         "CREATE INDEX idx_ra_reason ON route_additions (reason_code)",
         "CREATE INDEX idx_ra_status ON route_additions (status)",
         "CREATE INDEX idx_ra_created_by ON route_additions (created_by)"
+      ]
+    },
+    {
+      "name": "sap_routes",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "sap_route_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "origin",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "uf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "region",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lead_time_days",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_sap",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_tms",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_sync_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "operational_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_routes_sap_code ON sap_routes (sap_route_code)",
+        "CREATE INDEX idx_routes_active ON sap_routes (is_active)",
+        "CREATE INDEX idx_routes_uf ON sap_routes (uf)"
+      ]
+    },
+    {
+      "name": "sap_itinerary_routes",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "technical_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "itinerary_sap_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "itinerary_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itinerary_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "sap_itineraries"
+        },
+        {
+          "name": "route_sap_code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "route_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "route_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "sap_routes"
+        },
+        {
+          "name": "uf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "region",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origin",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destination",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lead_time_days",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_sap",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_tms",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_sync_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "operational_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "calculated_lead_time_days",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logistics_priority",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "discharge_restrictions",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_itin_route_tech_key ON sap_itinerary_routes (technical_key)",
+        "CREATE INDEX idx_itin_route_itin ON sap_itinerary_routes (itinerary_sap_code)",
+        "CREATE INDEX idx_itin_route_route ON sap_itinerary_routes (route_sap_code)",
+        "CREATE INDEX idx_itin_route_active ON sap_itinerary_routes (is_active)"
+      ]
+    },
+    {
+      "name": "sap_route_sync_logs",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "sync_timestamp",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "user_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "user_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "source_sap",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itineraries_processed",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "routes_processed",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "combinations_processed",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "insertions_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "updates_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deactivations_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "errors_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "details_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_routesync_date ON sap_route_sync_logs (sync_timestamp)",
+        "CREATE INDEX idx_routesync_status ON sap_route_sync_logs (status)"
       ]
     }
   ]

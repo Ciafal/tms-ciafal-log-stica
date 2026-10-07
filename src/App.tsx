@@ -257,6 +257,15 @@ export const App: React.FC = () => {
                 </Layout>
               }
             />
+            {/* Rota estendida Itinerários & Rotas SAP com suporte a ambos os caminhos */}
+            <Route
+              path="/tms/itinerarios-rotas"
+              element={
+                <Layout>
+                  <SapItinerariesPage />
+                </Layout>
+              }
+            />
 
             {/* 3. CONTRATAÇÃO & MESA DE FRETES COM CHICÃO */}
             <Route

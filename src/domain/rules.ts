@@ -296,6 +296,77 @@ export interface SapItineraryEntity {
   is_active: boolean
   last_sync_date?: string
   operational_notes?: string
+  calculated_lead_time_days?: number
+  logistics_restrictions?: string
+  logistics_priority?: string
+  operating_hours?: string
+  logistic_characteristic?: string
+  planning_notes?: string
+  associated_routes_count?: number
+  created?: string
+  updated?: string
+}
+
+export interface SapRouteEntity {
+  id: string
+  sap_route_code: string
+  description: string
+  origin?: string
+  destination?: string
+  uf?: string
+  region?: string
+  lead_time_days?: number
+  status_sap?: string
+  status_tms?: string
+  is_active: boolean
+  last_sync_date?: string
+  operational_notes?: string
+  associated_itineraries_count?: number
+  created?: string
+  updated?: string
+}
+
+export interface SapItineraryRouteEntity {
+  id: string
+  technical_key: string
+  itinerary_sap_code: string
+  itinerary_description?: string
+  itinerary_id?: string
+  route_sap_code: string
+  route_description?: string
+  route_id?: string
+  uf?: string
+  region?: string
+  origin?: string
+  destination?: string
+  lead_time_days?: number
+  status_sap?: string
+  status_tms?: string
+  is_active: boolean
+  last_sync_date?: string
+  operational_notes?: string
+  calculated_lead_time_days?: number
+  logistics_priority?: string
+  discharge_restrictions?: string
+  created?: string
+  updated?: string
+}
+
+export interface SapRouteSyncLogEntity {
+  id: string
+  sync_timestamp: string
+  user_email?: string
+  user_name?: string
+  source_sap?: string
+  itineraries_processed: number
+  routes_processed: number
+  combinations_processed: number
+  insertions_count: number
+  updates_count: number
+  deactivations_count: number
+  errors_count: number
+  status: 'SUCESSO' | 'SUCESSO_PARCIAL' | 'ERRO'
+  details_json?: any
   created?: string
   updated?: string
 }

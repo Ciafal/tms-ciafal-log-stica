@@ -5084,9 +5084,22 @@ export const TmsService = {
   // 6. Chamada ao Agente IA Planejador Nativo Skip Cloud
   async callPlannerAi(params: {
     itinerary_code: string
+    route_code?: string
     message?: string
     conversation_id?: string | null
-  }): Promise<{ status: string; explanation: string; fallback_used: boolean; governance: any }> {
+  }): Promise<{
+    status: string
+    explanation: string
+    fallback_used: boolean
+    governance: any
+    compatibility?: {
+      primaryRoute?: string
+      candidateCombinationsCount?: number
+      compatibleOrdersCount?: number
+      servicedRegions?: string[]
+      aiRecommendation?: string
+    }
+  }> {
     try {
       const res = await fetch(
         `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/planner-ai/analyze`,
@@ -5104,13 +5117,38 @@ export const TmsService = {
       }
       throw new Error(`HTTP ${res.status}`)
     } catch (err) {
+      // Inteligência de compatibilidade logística Itinerário x Rota
+      let dynamicAdvice =
+        'IA indisponível — planejamento determinístico ativo. Motores de otimização física e econômica em operação normal.'
+      let compatData: any = undefined
+
+      try {
+        const { SapRouteService } = await import('@/services/sapRouteService')
+        const compat = await SapRouteService.findLogisticsCompatibility(
+          params.itinerary_code,
+          params.route_code,
+        )
+        if (compat.primaryRoute || compat.compatibleOrders.length > 0) {
+          compatData = {
+            primaryRoute: compat.primaryRoute?.sap_route_code,
+            candidateCombinationsCount: compat.candidateCombinations.length,
+            compatibleOrdersCount: compat.compatibleOrders.length,
+            servicedRegions: compat.servicedRegions,
+            aiRecommendation: compat.aiRecommendation,
+          }
+          dynamicAdvice = `Planejamento Inteligente SAP (Itinerário × Rota): ${compat.aiRecommendation} Orquestração determinística validada com ${compat.compatibleOrders.length} pedido(s) compatíveis na rota ${compat.primaryRoute?.sap_route_code || params.route_code || 'padrão'}.`
+        }
+      } catch (innerErr) {
+        console.warn('Fallback compatibilidade itinerário x rota:', innerErr)
+      }
+
       return {
         status: 'fallback',
         fallback_used: true,
-        explanation:
-          'IA indisponível — planejamento determinístico ativo. Motores de otimização física e econômica em operação normal.',
+        explanation: dynamicAdvice,
+        compatibility: compatData,
         governance: {
-          model: 'DETERMINISTIC_ENGINE_V6',
+          model: 'DETERMINISTIC_ENGINE_V6_ROUTE_AWARE',
           rules_version: 'SPRINT_6_RULES_2025.1',
           timestamp: new Date().toISOString(),
         },
