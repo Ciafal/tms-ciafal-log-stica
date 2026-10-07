@@ -3033,6 +3033,8 @@ export interface LoadProposalEntity {
   orders_count: number
   customers_count: number
   discharges_count: number
+  fracionamentos?: number
+  remessas_previstas?: number
   estimated_freight_cost?: number
   antt_floor_value?: number
   tolls_value?: number

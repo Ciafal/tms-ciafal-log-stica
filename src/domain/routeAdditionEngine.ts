@@ -2,6 +2,7 @@
 // Em conformidade estrita com os Itens 1–11, 15, 16, 20, 21 da especificação do usuário.
 
 import { SapSalesOrderEntity, SapItineraryEntity } from './rules'
+import { calculateCargoFractionation } from './cargoFractionationEngine'
 
 export const ROUTE_ADDITION_REASONS = [
   { code: '1', label: '1. Urgência de entrega' },
@@ -85,6 +86,11 @@ export interface RouteAdditionEntity {
   discharges_after?: number
   clients_before?: number
   clients_after?: number
+  fractionations_before?: number
+  fractionations_after?: number
+  fractionations_delta?: number
+  remessas_before?: number
+  remessas_after?: number
   status?: 'ATIVA' | 'REMOVIDA'
   created_by?: string
   user_name?: string
@@ -108,6 +114,11 @@ export interface RouteAdditionMetricsComparison {
   clientsAfter: number
   dischargesBefore: number
   dischargesAfter: number
+  fractionationsBefore: number
+  fractionationsAfter: number
+  fractionationsDelta: number
+  remessasBefore: number
+  remessasAfter: number
   distanceBeforeKm: number
   distanceAfterKm: number
   additionalDistanceKm: number
@@ -162,9 +173,19 @@ export function calculateRouteAdditionMetrics(params: {
   const occupancyBeforePct = Math.min(100, Math.round((weightBeforeKg / effectiveCapacity) * 100))
   const occupancyAfterPct = Math.min(100, Math.round((weightAfterKg / effectiveCapacity) * 100))
 
-  const clientsBefore = new Set(currentOrders.map((o) => o.customer_code || o.customer_name)).size
+  const fractionationBefore = calculateCargoFractionation(currentOrders)
   const allOrders = [...currentOrders, ...addedOrders]
-  const clientsAfter = new Set(allOrders.map((o) => o.customer_code || o.customer_name)).size
+  const fractionationAfter = calculateCargoFractionation(allOrders)
+
+  const clientsBefore = fractionationBefore.distinctCustomersCount
+  const clientsAfter = fractionationAfter.distinctCustomersCount
+
+  const fractionationsBefore = fractionationBefore.fracionamentos
+  const fractionationsAfter = fractionationAfter.fracionamentos
+  const fractionationsDelta = fractionationsAfter - fractionationsBefore
+
+  const remessasBefore = fractionationBefore.remessasPrevistas
+  const remessasAfter = fractionationAfter.remessasPrevistas
 
   const dischargesBefore = Math.max(1, currentOrders.length > 0 ? clientsBefore : 0)
   const addedClientsCount = new Set(addedOrders.map((o) => o.customer_code || o.customer_name)).size
@@ -211,6 +232,11 @@ export function calculateRouteAdditionMetrics(params: {
     clientsAfter,
     dischargesBefore,
     dischargesAfter,
+    fractionationsBefore,
+    fractionationsAfter,
+    fractionationsDelta,
+    remessasBefore,
+    remessasAfter,
     distanceBeforeKm: distBefore,
     distanceAfterKm,
     additionalDistanceKm,
@@ -257,6 +283,9 @@ export function generateRouteAdditionAiAnalysis(params: {
     costPerTonAfterBrl,
     dischargesAfter,
     dischargesBefore,
+    fractionationsBefore,
+    fractionationsAfter,
+    fractionationsDelta,
   } = metrics
 
   const addedWeightTon = Math.round((weightAfterTon - weightBeforeTon) * 10) / 10
@@ -294,9 +323,15 @@ export function generateRouteAdditionAiAnalysis(params: {
     )
   }
 
-  diagnosticParts.push(
-    `A inclusão eleva a ocupação para ${occupancyAfterPct}% (+${occupancyGain} p.p.), porém adiciona +${additionalDistanceKm} km e +${additionalDischarges} descarga(s), com acréscimo estimado de R$ ${freightIncreaseBrl.toLocaleString('pt-BR')} no frete.`,
-  )
+  if (fractionationsDelta > 0) {
+    diagnosticParts.push(
+      `A inclusão elevará a ocupação de ${occupancyBeforePct}% para ${occupancyAfterPct}% (+${occupancyGain} p.p.), porém aumentará os fracionamentos de ${fractionationsBefore} para ${fractionationsAfter} (+${fractionationsDelta}) e adicionará +${additionalDistanceKm} km, com acréscimo estimado de R$ ${freightIncreaseBrl.toLocaleString('pt-BR')} no frete.`,
+    )
+  } else {
+    diagnosticParts.push(
+      `A inclusão eleva a ocupação para ${occupancyAfterPct}% (+${occupancyGain} p.p.), mantendo os fracionamentos em ${fractionationsBefore}, adicionando +${additionalDistanceKm} km e +${additionalDischarges} descarga(s), com acréscimo estimado de R$ ${freightIncreaseBrl.toLocaleString('pt-BR')} no frete.`,
+    )
+  }
 
   if (costPerTonAfterBrl <= costPerTonBeforeBrl && costPerTonBeforeBrl > 0) {
     diagnosticParts.push(

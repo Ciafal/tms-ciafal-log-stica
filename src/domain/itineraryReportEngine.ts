@@ -42,11 +42,30 @@ export interface ItineraryReportSummaryCards {
   avgOccupancyAfter: number
   avgOccupancyImpactPp: number
   totalAdditionalDischarges: number
+  avgFractionations: number
+  maxFractionations: number
   topDeviatedItinerary: {
     code: string
     description: string
     count: number
   } | null
+}
+
+export interface ChartDataFractionationBucketItem {
+  bucket: string // "1", "2", "3", "4", "5+"
+  count: number
+  percentage: number
+  avgOccupancyPct: number
+  avgCostPerTonBrl: number
+}
+
+export interface ChartDataItineraryFractionationItem {
+  itineraryCode: string
+  itineraryDescription: string
+  avgFractionation: number
+  maxFractionation: number
+  loadsCount: number
+  avgOccupancyPct: number
 }
 
 export interface ChartDataReasonItem {
@@ -158,6 +177,11 @@ export interface ItineraryReportDetailedRow {
   dischargesBefore: number
   dischargesAfter: number
   additionalDischarges: number
+  fractionationsBefore?: number
+  fractionationsAfter?: number
+  additionalFractionations?: number
+  remessasBefore?: number
+  remessasAfter?: number
   freightBeforeBrl: number
   freightAfterBrl: number
   tollBeforeBrl: number
@@ -368,8 +392,18 @@ export function calculateItinerarySummaryCards(
   let sumOccBefore = 0
   let sumOccAfter = 0
   let totalAdditionalDischarges = 0
+  let sumFractionations = 0
+  let maxFractionations = 0
 
   const itinDeviationCounts: Record<string, { desc: string; count: number }> = {}
+
+  rows.forEach((r) => {
+    const fracs = r.fractionationsAfter || r.dischargesAfter || 1
+    sumFractionations += fracs
+    if (fracs > maxFractionations) {
+      maxFractionations = fracs
+    }
+  })
 
   additions.forEach((r) => {
     totalWeightWithAdditionKg += r.weightAfterKg
@@ -394,6 +428,8 @@ export function calculateItinerarySummaryCards(
   const avgOccupancyAfter =
     loadsWithAddition > 0 ? Math.round((sumOccAfter / loadsWithAddition) * 10) / 10 : 0
   const avgOccupancyImpactPp = Math.round((avgOccupancyAfter - avgOccupancyBefore) * 10) / 10
+  const avgFractionations =
+    totalLoads > 0 ? Math.round((sumFractionations / totalLoads) * 10) / 10 : 0
 
   let topDeviatedItinerary: { code: string; description: string; count: number } | null = null
   let maxCount = 0
@@ -420,6 +456,8 @@ export function calculateItinerarySummaryCards(
     avgOccupancyAfter,
     avgOccupancyImpactPp,
     totalAdditionalDischarges,
+    avgFractionations,
+    maxFractionations,
     topDeviatedItinerary,
   }
 }
@@ -648,6 +686,81 @@ export function buildChartAnalyses(
     .sort((a, b) => b.count - a.count)
     .slice(0, 8)
 
+  // 10. Gráfico "Cargas por Nº de Fracionamentos" (1, 2, 3, 4, 5+) com Custo x Fracionamento e Ocupação x Fracionamento
+  const bucketMap: Record<string, { count: number; sumOcc: number; sumCostPerTon: number }> = {
+    '1': { count: 0, sumOcc: 0, sumCostPerTon: 0 },
+    '2': { count: 0, sumOcc: 0, sumCostPerTon: 0 },
+    '3': { count: 0, sumOcc: 0, sumCostPerTon: 0 },
+    '4': { count: 0, sumOcc: 0, sumCostPerTon: 0 },
+    '5+': { count: 0, sumOcc: 0, sumCostPerTon: 0 },
+  }
+
+  rows.forEach((r) => {
+    const fracs = r.fractionationsAfter || r.dischargesAfter || 1
+    const bKey =
+      fracs === 1 ? '1' : fracs === 2 ? '2' : fracs === 3 ? '3' : fracs === 4 ? '4' : '5+'
+    const weightTon = Math.max(0.1, r.weightAfterKg / 1000)
+    const costPerTon = r.totalCostAfterBrl / weightTon
+
+    bucketMap[bKey].count++
+    bucketMap[bKey].sumOcc += r.occupancyAfterPct || 0
+    bucketMap[bKey].sumCostPerTon += costPerTon || 0
+  })
+
+  const totalAllRows = Math.max(1, rows.length)
+  const byFractionationBuckets: ChartDataFractionationBucketItem[] = ['1', '2', '3', '4', '5+'].map(
+    (bucket) => {
+      const b = bucketMap[bucket]
+      return {
+        bucket,
+        count: b.count,
+        percentage: Math.round((b.count / totalAllRows) * 100),
+        avgOccupancyPct: b.count > 0 ? Math.round((b.sumOcc / b.count) * 10) / 10 : 0,
+        avgCostPerTonBrl: b.count > 0 ? Math.round(b.sumCostPerTon / b.count) : 0,
+      }
+    },
+  )
+
+  // 11. Itinerários com Maior Média de Fracionamentos
+  const itinFracAgg = new Map<
+    string,
+    { desc: string; sumFrac: number; maxFrac: number; count: number; sumOcc: number }
+  >()
+
+  rows.forEach((r) => {
+    const code = r.originalItineraryId || 'N/A'
+    const desc = r.originalItineraryDesc || code
+    const fracs = r.fractionationsAfter || r.dischargesAfter || 1
+    const occ = r.occupancyAfterPct || 0
+
+    const cur = itinFracAgg.get(code) || {
+      desc,
+      sumFrac: 0,
+      maxFrac: 0,
+      count: 0,
+      sumOcc: 0,
+    }
+    cur.sumFrac += fracs
+    if (fracs > cur.maxFrac) cur.maxFrac = fracs
+    cur.count++
+    cur.sumOcc += occ
+    itinFracAgg.set(code, cur)
+  })
+
+  const byItineraryFractionation: ChartDataItineraryFractionationItem[] = Array.from(
+    itinFracAgg.entries(),
+  )
+    .map(([code, d]) => ({
+      itineraryCode: code,
+      itineraryDescription: d.desc,
+      avgFractionation: Math.round((d.sumFrac / d.count) * 10) / 10,
+      maxFractionation: d.maxFrac,
+      loadsCount: d.count,
+      avgOccupancyPct: Math.round((d.sumOcc / d.count) * 10) / 10,
+    }))
+    .sort((a, b) => b.avgFractionation - a.avgFractionation)
+    .slice(0, 8)
+
   return {
     byReason,
     byItinerary,
@@ -658,6 +771,8 @@ export function buildChartAnalyses(
     byDistance,
     byFinancialCost,
     byCustomer,
+    byFractionationBuckets,
+    byItineraryFractionation,
   }
 }
 
@@ -823,7 +938,42 @@ export function generateItineraryAiDiagnosticReport(
       })
     })
 
-  // 3. Análise de Urgências Comerciais Recorrentes
+  // 3. Detecção de Padrões de Alto Fracionamento sem Ganho Proporcional de Ocupação (Requisito 10)
+  const highFracLowGainLoads = rows.filter((r) => {
+    const fracs = r.fractionationsAfter || r.dischargesAfter || 1
+    const occ = r.occupancyAfterPct || 0
+    // Alto fracionamento (>= 4 paradas) porém ocupação insatisfatória (< 80%)
+    return fracs >= 4 && occ < 80
+  })
+
+  if (highFracLowGainLoads.length > 0) {
+    const sampleItins = Array.from(
+      new Set(highFracLowGainLoads.map((r) => r.originalItineraryId)),
+    ).slice(0, 3)
+    const avgOcc =
+      Math.round(
+        (highFracLowGainLoads.reduce((s, r) => s + r.occupancyAfterPct, 0) /
+          highFracLowGainLoads.length) *
+          10,
+      ) / 10
+
+    findings.push({
+      id: 'pattern-high-frac-low-occ',
+      type: 'OPORTUNIDADE_OTIMIZACAO',
+      severity: 'ATENCAO',
+      title: 'Alto Fracionamento sem Ganho Proporcional de Ocupação',
+      targetEntity: sampleItins.join(', '),
+      narrativeText: `Identificadas ${highFracLowGainLoads.length} cargas com alto nível de fracionamento (4 ou mais clientes/descargas), porém com ocupação média de apenas ${avgOcc}%. A pulverização logística de entregas nessas rotas eleva os custos de manuseio e tempo de ciclo sem atingir a lotação ótima do veículo.`,
+      quantitativeEvidence: `${highFracLowGainLoads.length} carga(s) com ≥4 fracionamentos e ocupação <80%. Itinerários envolvidos: ${sampleItins.join(', ')}.`,
+      recommendedActions: [
+        'Avaliar consolidação de pedidos fracionados em centros de transbordo (cross-docking) ou veículos menores de distribuição urbana',
+        'Impor pedido mínimo de tonelagem por cliente na rota para viabilizar cargas fechadas',
+        'Reprogramar entregas de menor urgência para agrupar datas de faturamento por microrregião geográfica',
+      ],
+    })
+  }
+
+  // 4. Análise de Urgências Comerciais Recorrentes
   const urgencyAdds = additions.filter(
     (r) => r.reasonCode === '1' || r.reasonCode === '6' || r.reasonCode === '9',
   )
@@ -971,6 +1121,17 @@ export function buildDetailedReportRows(params: {
       dischargesBefore: add.deliveries_before || 1,
       dischargesAfter: add.deliveries_after || 2,
       additionalDischarges: Math.max(0, (add.deliveries_after || 2) - (add.deliveries_before || 1)),
+      fractionationsBefore:
+        add.fractionations_before || add.clients_before || add.deliveries_before || 1,
+      fractionationsAfter:
+        add.fractionations_after || add.clients_after || add.deliveries_after || 2,
+      additionalFractionations: Math.max(
+        0,
+        (add.fractionations_after || add.clients_after || add.deliveries_after || 2) -
+          (add.fractionations_before || add.clients_before || add.deliveries_before || 1),
+      ),
+      remessasBefore: add.remessas_before || add.clients_before || 1,
+      remessasAfter: add.remessas_after || add.clients_after || 2,
       freightBeforeBrl: add.freight_before || 0,
       freightAfterBrl: add.freight_after || 0,
       tollBeforeBrl: add.toll_before || 0,
@@ -1050,6 +1211,11 @@ export function buildDetailedReportRows(params: {
       dischargesBefore: hist.discharges_count || 1,
       dischargesAfter: hist.discharges_count || 1,
       additionalDischarges: 0,
+      fractionationsBefore: hist.discharges_count || 1,
+      fractionationsAfter: hist.discharges_count || 1,
+      additionalFractionations: 0,
+      remessasBefore: hist.discharges_count || 1,
+      remessasAfter: hist.discharges_count || 1,
       freightBeforeBrl: freight,
       freightAfterBrl: freight,
       tollBeforeBrl: toll,

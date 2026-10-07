@@ -111,6 +111,7 @@ export const LoadPlannerPage: React.FC = () => {
   const [filterCreditStatus, setFilterCreditStatus] = useState<string>('ALL')
   const [filterVehicleType, setFilterVehicleType] = useState<string>('ALL')
   const [filterDischargeType, setFilterDischargeType] = useState<string>('ALL')
+  const [filterFractionations, setFilterFractionations] = useState<string>('ALL')
 
   // Load Assembly Center Staging
   const [cargoName, setCargoName] = useState<string>('CARGA-PLANEJADA-01')
@@ -310,6 +311,22 @@ export const LoadPlannerPage: React.FC = () => {
       if (filterProdStatus !== 'ALL' && o.production_status !== filterProdStatus) return false
       if (filterCreditStatus !== 'ALL' && o.credit_status !== filterCreditStatus) return false
       if (filterDischargeType !== 'ALL' && o.discharge_type !== filterDischargeType) return false
+
+      if (filterFractionations !== 'ALL') {
+        const orderItin = o.itinerary_code
+        // Calcula fracionamento dos pedidos do mesmo itinerário na carteira disponível
+        const sameItinOrders = orders.filter((x) => x.itinerary_code === orderItin)
+        const distinctCustCount = new Set(
+          sameItinOrders.map((x) => (x.customer_code || x.customer_name || '').trim()),
+        ).size
+        if (filterFractionations === '6+') {
+          if (distinctCustCount < 6) return false
+        } else {
+          const target = Number(filterFractionations)
+          if (distinctCustCount !== target) return false
+        }
+      }
+
       return true
     })
   }, [
@@ -324,6 +341,7 @@ export const LoadPlannerPage: React.FC = () => {
     filterProdStatus,
     filterCreditStatus,
     filterDischargeType,
+    filterFractionations,
   ])
 
   // Filtered Queue for the selected Itinerary and Date (Direita)
@@ -680,10 +698,10 @@ export const LoadPlannerPage: React.FC = () => {
         </Card>
       )}
 
-      {/* Filter Bar (11 Critérios de Filtro) */}
+      {/* Filter Bar (Central de Filtros com Nº de Fracionamentos) */}
       <Card className="bg-white border-slate-200 shadow-sm">
         <CardContent className="p-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2.5 text-xs">
             {/* Itinerário */}
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase text-slate-500">
@@ -783,6 +801,27 @@ export const LoadPlannerPage: React.FC = () => {
                   <SelectItem value="Carreta Grade Baixa">Carreta Grade Baixa</SelectItem>
                   <SelectItem value="Carreta LS">Carreta LS</SelectItem>
                   <SelectItem value="Bitrem">Bitrem</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Nº de Fracionamentos (Requisito 9) */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase text-slate-500">
+                Nº Fracionamentos:
+              </label>
+              <Select value={filterFractionations} onValueChange={setFilterFractionations}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="text-xs">
+                  <SelectItem value="ALL">Todos</SelectItem>
+                  <SelectItem value="1">1 fracionamento</SelectItem>
+                  <SelectItem value="2">2 fracionamentos</SelectItem>
+                  <SelectItem value="3">3 fracionamentos</SelectItem>
+                  <SelectItem value="4">4 fracionamentos</SelectItem>
+                  <SelectItem value="5">5 fracionamentos</SelectItem>
+                  <SelectItem value="6+">6+ fracionamentos</SelectItem>
                 </SelectContent>
               </Select>
             </div>

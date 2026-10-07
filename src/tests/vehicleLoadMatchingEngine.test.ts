@@ -63,6 +63,8 @@ describe('Motor Determinístico de Encontros Veículo × Carga (TMS CIAFAL)', ()
     totalWeightKg: 26000,
     customersCount: 1,
     dischargesCount: 1,
+    fracionamentos: 1,
+    remessasPrevistas: 1,
     hasBlockedCredit: false,
     hasInAnalysisCredit: false,
     isStockReady: true,

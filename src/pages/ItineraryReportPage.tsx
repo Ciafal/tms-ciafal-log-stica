@@ -20,6 +20,7 @@ import {
   Truck,
   Building,
   User,
+  Users,
   Calendar,
   Layers,
   ArrowRight,
@@ -867,7 +868,27 @@ export const ItineraryReportPage: React.FC = () => {
           <div className="text-[10px] text-slate-400 mt-1">Paradas a mais</div>
         </Card>
 
-        {/* 11. Itinerário com Maior Quantidade de Desvios */}
+        {/* 11. Média de Fracionamentos */}
+        <Card className="border-blue-200 bg-blue-50/40 shadow-sm p-3 flex flex-col justify-between">
+          <div className="text-[10px] font-bold text-[#005596] uppercase tracking-tight">
+            Média de Fracionamentos
+          </div>
+          <div className="mt-1 flex items-baseline justify-between">
+            <span className="text-xl font-black text-[#005596]">
+              {summaryCards.avgFractionations.toLocaleString('pt-BR', {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              })}
+            </span>
+            <Users className="w-4 h-4 text-[#005596]" />
+          </div>
+          <div className="text-[10px] text-blue-700 mt-1">
+            Máximo: <strong className="font-mono">{summaryCards.maxFractionations}</strong>{' '}
+            clientes/carga
+          </div>
+        </Card>
+
+        {/* 12. Itinerário com Maior Quantidade de Desvios */}
         <Card className="border-sky-200 bg-sky-50/40 shadow-sm p-3 flex flex-col justify-between col-span-2 sm:col-span-1">
           <div className="text-[10px] font-bold text-[#005596] uppercase tracking-tight truncate">
             Maior Desvio
@@ -1391,6 +1412,147 @@ export const ItineraryReportPage: React.FC = () => {
                         contentStyle={{ fontSize: 11 }}
                       />
                       <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 10. Cargas por Nº de Fracionamentos (Requisito 10) */}
+            <Card className="border-slate-200 shadow-sm bg-white flex flex-col justify-between">
+              <CardHeader className="p-4 pb-2 border-b border-slate-100">
+                <CardTitle className="text-xs font-bold text-slate-800">
+                  10. Cargas por Nº de Fracionamentos (1, 2, 3, 4, 5+)
+                </CardTitle>
+                <CardDescription className="text-[10px] text-slate-500">
+                  Distribuição de cargas por quantidade de clientes/paradas
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-2">
+                <div className="h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={chartData.byFractionationBuckets}
+                      margin={{ top: 10, right: 10, left: -20, bottom: 15 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="bucket" tick={{ fontSize: 10 }} />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <RechartsTooltip
+                        formatter={(val: any, name: any) => [
+                          name === 'count' ? `${val} cargas` : `${val}%`,
+                          name === 'count' ? 'Qtd Cargas' : '% do Total',
+                        ]}
+                        labelFormatter={(lbl) => `${lbl} fracionamento(s)`}
+                        contentStyle={{ fontSize: 11 }}
+                      />
+                      <Bar dataKey="count" fill="#005596" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 11. Custo x Fracionamento & Ocupação x Fracionamento (Requisito 10) */}
+            <Card className="border-slate-200 shadow-sm bg-white flex flex-col justify-between">
+              <CardHeader className="p-4 pb-2 border-b border-slate-100">
+                <CardTitle className="text-xs font-bold text-slate-800">
+                  11. Ocupação % e Custo R$/t × Fracionamento
+                </CardTitle>
+                <CardDescription className="text-[10px] text-slate-500">
+                  Ocupação média e custo por tonelada por faixa de fracionamento
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-2">
+                <div className="h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={chartData.byFractionationBuckets}
+                      margin={{ top: 10, right: 10, left: -10, bottom: 15 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="bucket" tick={{ fontSize: 10 }} />
+                      <YAxis
+                        yAxisId="left"
+                        domain={[0, 100]}
+                        tick={{ fontSize: 9 }}
+                        tickFormatter={(v) => `${v}%`}
+                      />
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        tick={{ fontSize: 9 }}
+                        tickFormatter={(v) => `R$${v}`}
+                      />
+                      <RechartsTooltip
+                        formatter={(val: any, name: any) => [
+                          name === 'avgOccupancyPct' ? `${val}%` : formatCurrency(val),
+                          name === 'avgOccupancyPct' ? 'Ocupação Média' : 'Custo R$/t',
+                        ]}
+                        labelFormatter={(lbl) => `${lbl} fracionamento(s)`}
+                        contentStyle={{ fontSize: 11 }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 10 }} />
+                      <Bar
+                        yAxisId="left"
+                        dataKey="avgOccupancyPct"
+                        name="Ocupação %"
+                        fill="#0284c7"
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar
+                        yAxisId="right"
+                        dataKey="avgCostPerTonBrl"
+                        name="Custo R$/t"
+                        fill="#ea580c"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 12. Itinerários com Maior Média de Fracionamentos (Requisito 10) */}
+            <Card className="border-slate-200 shadow-sm bg-white flex flex-col justify-between">
+              <CardHeader className="p-4 pb-2 border-b border-slate-100">
+                <CardTitle className="text-xs font-bold text-slate-800">
+                  12. Itinerários com Maior Média de Fracionamentos
+                </CardTitle>
+                <CardDescription className="text-[10px] text-slate-500">
+                  Rotas com entregas mais pulverizadas
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-2">
+                <div className="h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={chartData.byItineraryFractionation}
+                      margin={{ top: 10, right: 10, left: -20, bottom: 20 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="itineraryCode"
+                        tick={{ fontSize: 10 }}
+                        angle={-20}
+                        textAnchor="end"
+                      />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <RechartsTooltip
+                        formatter={(val: any, name: any) => [
+                          `${val}`,
+                          name === 'avgFractionation'
+                            ? 'Média Fracionamentos'
+                            : 'Máx Fracionamento',
+                        ]}
+                        contentStyle={{ fontSize: 11 }}
+                      />
+                      <Bar
+                        dataKey="avgFractionation"
+                        name="Média Fracionamentos"
+                        fill="#6366f1"
+                        radius={[4, 4, 0, 0]}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

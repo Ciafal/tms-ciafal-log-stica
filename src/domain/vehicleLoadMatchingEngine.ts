@@ -18,6 +18,7 @@ import type {
   DriverEntity,
   FreightRuleParameterEntity,
 } from './rules'
+import { calculateCargoFractionation } from './cargoFractionationEngine'
 
 export type TemporalTab = 'AGORA' | 'PROXIMAS_HORAS' | 'FUTURO'
 
@@ -52,6 +53,8 @@ export interface CandidateLoadProposal {
   totalWeightKg: number
   customersCount: number
   dischargesCount: number
+  fracionamentos: number
+  remessasPrevistas: number
   hasBlockedCredit: boolean
   hasInAnalysisCredit: boolean
   isStockReady: boolean
@@ -106,6 +109,8 @@ export interface VehicleLoadMatch {
   driverPreferredItinerary?: string
   driverPreferredItineraryName?: string
   candidateLoad: CandidateLoadProposal
+  fracionamentos: number
+  remessasPrevistas: number
   occupancyPct: number
   balanceKg: number
   distanceKm: number
@@ -681,6 +686,7 @@ export function buildCandidateLoadsFromOrders(
 
       const firstOrd = curBatch[0]
       const title = `CARGA-${itinCode}-${batchIndex.toString().padStart(2, '0')}`
+      const fractionationResult = calculateCargoFractionation(curBatch)
 
       candidateLoads.push({
         id: `load_${itinCode}_${batchIndex}`,
@@ -691,8 +697,10 @@ export function buildCandidateLoadsFromOrders(
         destinationUf: firstOrd.uf || 'SP',
         orders: [...curBatch],
         totalWeightKg,
-        customersCount: uniqueClients.size,
+        customersCount: fractionationResult.distinctCustomersCount,
         dischargesCount,
+        fracionamentos: fractionationResult.fracionamentos,
+        remessasPrevistas: fractionationResult.remessasPrevistas,
         hasBlockedCredit,
         hasInAnalysisCredit,
         isStockReady,
@@ -942,6 +950,8 @@ export function runVehicleLoadMatchingEngine(params: {
           vehicle.preferred_itinerary || (vehicle as any).preferred_itinerary_code,
         driverPreferredItineraryName: vehicle.preferred_itinerary_name,
         candidateLoad: load,
+        fracionamentos: load.fracionamentos,
+        remessasPrevistas: load.remessasPrevistas,
         occupancyPct,
         balanceKg,
         distanceKm,
@@ -1029,32 +1039,58 @@ export function runVehicleLoadMatchingEngine(params: {
     }
   })
 
-  // 5. Ordenação dos Encontros segundo critério selecionado
+  // 5. Ordenação dos Encontros segundo critério selecionado com desempate bonificando menor fracionamento
   const sortedMatches = [...matches].sort((a, b) => {
+    let primaryDiff = 0
     switch (sortCriteria) {
       case 'MENOR_FRETE':
-        return a.totalSuggestedFreight - b.totalSuggestedFreight
+        primaryDiff = a.totalSuggestedFreight - b.totalSuggestedFreight
+        break
       case 'MENOR_RS_POR_TON':
-        return a.costPerTon - b.costPerTon
+        primaryDiff = a.costPerTon - b.costPerTon
+        break
       case 'MAIOR_OCUPACAO':
-        return b.occupancyPct - a.occupancyPct
+        primaryDiff = b.occupancyPct - a.occupancyPct
+        break
       case 'MENOR_DISTANCIA':
-        return a.distanceKm - b.distanceKm
+        primaryDiff = a.distanceKm - b.distanceKm
+        break
       case 'MENOR_ESPERA':
-        return a.waitingMinutes - b.waitingMinutes
+        primaryDiff = a.waitingMinutes - b.waitingMinutes
+        break
       case 'MAIOR_PRIORIDADE': {
         const pOrder = { ALTA: 3, MEDIA: 2, NORMAL: 1 }
         const diffP = pOrder[b.candidateLoad.priorityLevel] - pOrder[a.candidateLoad.priorityLevel]
-        if (diffP !== 0) return diffP
-        return b.candidateLoad.maxOverdueDays - a.candidateLoad.maxOverdueDays
+        if (diffP !== 0) primaryDiff = diffP
+        else primaryDiff = b.candidateLoad.maxOverdueDays - a.candidateLoad.maxOverdueDays
+        break
       }
       case 'MELHOR_SCORE':
-        return b.score.totalScore - a.score.totalScore
+        primaryDiff = b.score.totalScore - a.score.totalScore
+        break
       case 'MENOR_DESCARGAS':
-        return a.candidateLoad.dischargesCount - b.candidateLoad.dischargesCount
+        primaryDiff = a.candidateLoad.dischargesCount - b.candidateLoad.dischargesCount
+        break
       default:
-        return a.totalSuggestedFreight - b.totalSuggestedFreight
+        primaryDiff = a.totalSuggestedFreight - b.totalSuggestedFreight
     }
+
+    // Se o critério principal for equivalente (ou diferença menor que 1% / empate técnico),
+    // bonifica menor fracionamento (e menor remessas previstas)
+    const isEquivalent =
+      Math.abs(primaryDiff) <
+      (sortCriteria === 'MENOR_FRETE' || sortCriteria === 'MENOR_RS_POR_TON'
+        ? 5
+        : sortCriteria === 'MAIOR_OCUPACAO'
+          ? 0.5
+          : 0.001)
+
+    if (isEquivalent) {
+      const fracDiff = (a.fracionamentos || 0) - (b.fracionamentos || 0)
+      if (fracDiff !== 0) return fracDiff
+    }
+
+    return primaryDiff
   })
 
   // Economia Potencial: estimada pela redução de frete spot/mercado vs Piso ANTT regulado + ganho de ocupação

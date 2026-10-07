@@ -267,6 +267,11 @@ export const RouteAdditionModal: React.FC<RouteAdditionModalProps> = ({
         deliveries_after: metrics.dischargesAfter,
         clients_before: metrics.clientsBefore,
         clients_after: metrics.clientsAfter,
+        fractionations_before: metrics.fractionationsBefore,
+        fractionations_after: metrics.fractionationsAfter,
+        fractionations_delta: metrics.fractionationsDelta,
+        remessas_before: metrics.remessasBefore,
+        remessas_after: metrics.remessasAfter,
         status: 'ATIVA',
         created_by: currentUserEmail,
         created_by_role: currentUserRole,
@@ -609,6 +614,47 @@ export const RouteAdditionModal: React.FC<RouteAdditionModalProps> = ({
                     </td>
                     <td className="p-2 text-right text-slate-700">
                       +{metrics.dischargesAfter - metrics.dischargesBefore}
+                    </td>
+                  </tr>
+                  <tr className="bg-amber-50/40">
+                    <td className="p-2 font-sans font-medium text-slate-800 flex items-center gap-1.5">
+                      <span>Fracionamentos</span>
+                      {metrics.fractionationsDelta > 0 && (
+                        <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[9px] px-1 py-0 font-bold">
+                          +{metrics.fractionationsDelta} fracionamento
+                          {metrics.fractionationsDelta > 1 ? 's' : ''}
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="p-2 text-right text-slate-600">
+                      {metrics.fractionationsBefore}
+                    </td>
+                    <td className="p-2 text-right font-bold text-amber-900">
+                      {metrics.fractionationsAfter}
+                    </td>
+                    <td className="p-2 text-right font-bold text-amber-700">
+                      {metrics.fractionationsDelta > 0
+                        ? `+${metrics.fractionationsDelta}`
+                        : metrics.fractionationsDelta}
+                    </td>
+                  </tr>
+                  <tr className="bg-blue-50/40">
+                    <td className="p-2 font-sans font-medium text-slate-800 flex items-center gap-1.5">
+                      <span>Remessas Previstas</span>
+                      {metrics.remessasAfter > metrics.remessasBefore && (
+                        <Badge className="bg-blue-100 text-[#005596] border-blue-300 text-[9px] px-1 py-0 font-bold">
+                          +{metrics.remessasAfter - metrics.remessasBefore} remessa prevista
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="p-2 text-right text-slate-600">{metrics.remessasBefore}</td>
+                    <td className="p-2 text-right font-bold text-[#005596]">
+                      {metrics.remessasAfter}
+                    </td>
+                    <td className="p-2 text-right font-bold text-blue-700">
+                      {metrics.remessasAfter - metrics.remessasBefore > 0
+                        ? `+${metrics.remessasAfter - metrics.remessasBefore}`
+                        : metrics.remessasAfter - metrics.remessasBefore}
                     </td>
                   </tr>
                   <tr>
