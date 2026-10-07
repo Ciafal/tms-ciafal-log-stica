@@ -28,6 +28,8 @@ import {
   Scale,
   DollarSign,
   Maximize2,
+  Route,
+  Plus,
 } from 'lucide-react'
 import {
   ResponsiveContainer,

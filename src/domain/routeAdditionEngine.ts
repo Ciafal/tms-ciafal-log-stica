@@ -126,6 +126,7 @@ export interface RouteAdditionEntity {
   removed_by_role?: string
   removed_at_dt?: string
   removal_reason?: string
+  added_routes_count?: number
   created?: string
   updated?: string
 }
