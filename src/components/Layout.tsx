@@ -333,6 +333,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: true,
         },
         {
+          title: 'Relatório de Itinerários',
+          path: '/tms/analises/relatorio-itinerarios',
+          badge: 'Adições & IA',
+          badgeColor: 'bg-[#005596]',
+          show: true,
+        },
+        {
           title: 'Estoque & Produção',
           path: '/tms/analises/estoque-producao',
           badge: 'O que disponível',

@@ -35,48 +35,60 @@ export type AiRiskLevel = 'FAVORAVEL' | 'MODERADO' | 'ALTO_IMPACTO_DESFAVORAVEL'
 
 export interface RouteAdditionEntity {
   id?: string
-  load_id: string
+  load_id?: string
   cargo_number?: string
   transport_number?: string
-  original_itinerary_id: string
+  original_itinerary_id?: string
+  original_itinerary_code?: string
   original_itinerary_description?: string
-  added_itinerary_id: string
+  added_itinerary_id?: string
   added_itinerary_description?: string
   added_route_id?: string
+  complementary_itinerary_code?: string
+  complementary_itinerary_description?: string
   customer_code?: string
   customer_name?: string
   destination_city?: string
   destination_uf?: string
   order_numbers_json?: string[]
-  reason_code: string
-  reason_description: string
+  reason_code?: string
+  reason_description?: string
   user_observation?: string
-  ai_analysis: string
-  ai_user_alignment: AiAlignmentClassification
-  ai_risk_level: AiRiskLevel
-  ai_alert_flag: boolean
+  ai_analysis?: string
+  ai_user_alignment?: AiAlignmentClassification
+  ai_classification?: string
+  ai_risk_level?: AiRiskLevel
+  ai_alert_flag?: boolean
   ai_alert_message?: string
-  distance_before: number
-  distance_after: number
-  additional_distance: number
-  additional_time_hours: number
-  weight_before: number
-  weight_after: number
-  occupancy_before: number
-  occupancy_after: number
-  vehicle_capacity_kg: number
-  freight_before: number
-  freight_after: number
-  toll_before: number
-  toll_after: number
-  cost_per_ton_before: number
-  cost_per_ton_after: number
-  deliveries_before: number
-  deliveries_after: number
-  clients_before: number
-  clients_after: number
-  status: 'ATIVA' | 'REMOVIDA'
-  created_by: string
+  distance_before?: number
+  distance_after?: number
+  distance_after_km?: number
+  additional_distance?: number
+  additional_time_hours?: number
+  weight_before?: number
+  weight_after?: number
+  weight_after_kg?: number
+  occupancy_before?: number
+  occupancy_after?: number
+  occupancy_after_pct?: number
+  vehicle_capacity_kg?: number
+  freight_before?: number
+  freight_after?: number
+  freight_after_brl?: number
+  toll_before?: number
+  toll_after?: number
+  toll_after_brl?: number
+  cost_per_ton_before?: number
+  cost_per_ton_after?: number
+  deliveries_before?: number
+  deliveries_after?: number
+  discharges_after?: number
+  clients_before?: number
+  clients_after?: number
+  status?: 'ATIVA' | 'REMOVIDA'
+  created_by?: string
+  user_name?: string
+  user_email?: string
   created_by_role?: string
   created_at_dt?: string
   removed_by?: string

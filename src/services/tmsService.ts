@@ -6237,19 +6237,29 @@ export const TmsService = {
     return createdRecord
   },
 
-  async removeRouteAddition(params: {
-    additionId: string
-    removedBy: string
-    removedByRole?: string
-    removalReason?: string
-  }): Promise<boolean> {
-    const {
-      additionId,
-      removedBy,
-      removedByRole = 'gestor_logistica',
-      removalReason = 'Remoção de rota adicional pelo usuário',
-    } = params
-
+  async removeRouteAddition(
+    params:
+      | string
+      | {
+          additionId: string
+          removedBy?: string
+          removedByRole?: string
+          removalReason?: string
+        },
+  ): Promise<boolean> {
+    const additionId = typeof params === 'string' ? params : params.additionId
+    const removedBy =
+      typeof params === 'object' && params.removedBy
+        ? params.removedBy
+        : 'operador@ciafal.logistica'
+    const removedByRole =
+      typeof params === 'object' && params.removedByRole
+        ? params.removedByRole
+        : 'planejador_cargas'
+    const removalReason =
+      typeof params === 'object' && params.removalReason
+        ? params.removalReason
+        : 'Removido pelo operador no Planejador'
     const existing = await pb
       .collection('route_additions')
       .getOne<import('@/domain/routeAdditionEngine').RouteAdditionEntity>(additionId)

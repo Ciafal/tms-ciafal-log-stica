@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   CalendarCheck,
   Filter,
@@ -19,6 +19,11 @@ import {
   ShieldCheck,
   RefreshCw,
   Link2,
+  MapPin,
+  List,
+  LayoutGrid,
+  Scale,
+  PlusCircle,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -52,7 +57,6 @@ import { EncontrosDrawer } from '@/components/load-planner/EncontrosDrawer'
 import { LogisticalMapTowerView } from '@/components/load-planner/LogisticalMapTowerView'
 import { OrdersListView } from '@/components/load-planner/OrdersListView'
 import { ScenarioComparisonView } from '@/components/load-planner/ScenarioComparisonView'
-import { MapPin, List, LayoutGrid, Scale } from 'lucide-react'
 import {
   runVehicleLoadMatchingEngine,
   type VehicleLoadMatch,
@@ -63,8 +67,7 @@ import { customerLogisticInfoService } from '@/services/customerLogisticInfoServ
 import { CustomerLogisticDetailModal } from '@/components/CustomerLogisticDetailModal'
 import { useLocation } from 'react-router-dom'
 import { RouteAdditionModal } from '@/components/load-planner/RouteAdditionModal'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { PlusCircle, XCircle } from 'lucide-react'
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import type { RouteAdditionEntity } from '@/domain/routeAdditionEngine'
 
 export const LoadPlannerPage: React.FC = () => {
@@ -1087,7 +1090,12 @@ export const LoadPlannerPage: React.FC = () => {
                           )
                           if (!confirmed) return
                           try {
-                            await TmsService.removeRouteAddition(activeRouteAddition.id)
+                            await TmsService.removeRouteAddition({
+                              additionId: activeRouteAddition.id || '',
+                              removedBy: (user?.email as string) || 'operador@ciafal.logistica',
+                              removedByRole: 'planejador_cargas',
+                              removalReason: 'Removido pelo operador no Planejador',
+                            })
                             toast({
                               title: 'Rota adicional removida',
                               description:
@@ -1549,7 +1557,12 @@ export const LoadPlannerPage: React.FC = () => {
           const addition = match.routeAdditionData
           if (addition?.id) {
             try {
-              await TmsService.removeRouteAddition(addition.id)
+              await TmsService.removeRouteAddition({
+                additionId: addition.id,
+                removedBy: (user?.email as string) || 'operador@ciafal.logistica',
+                removedByRole: 'planejador_cargas',
+                removalReason: 'Removido pelo operador no Card do Planejador',
+              })
               toast({
                 title: 'Rota adicional removida',
                 description: 'A rota adicional foi removida mantendo o histórico de auditoria.',

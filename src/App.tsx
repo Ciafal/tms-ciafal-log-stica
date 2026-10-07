@@ -73,6 +73,7 @@ import { FredChatPage } from '@/pages/FredChatPage'
 import { DriverMobileCompanionPage } from '@/pages/DriverMobileCompanionPage'
 import SelectionGovernanceAndLoopPage from '@/pages/SelectionGovernanceAndLoopPage'
 import TmsIndicatorsPage from '@/pages/TmsIndicatorsPage'
+import { ItineraryReportPage } from '@/pages/ItineraryReportPage'
 import NotFound from '@/pages/NotFound'
 
 export const App: React.FC = () => {
@@ -676,6 +677,18 @@ export const App: React.FC = () => {
                   <SalesWalletPage />
                 </Layout>
               }
+            />
+            <Route
+              path="/tms/analises/relatorio-itinerarios"
+              element={
+                <Layout>
+                  <ItineraryReportPage />
+                </Layout>
+              }
+            />
+            <Route
+              path="/tms/relatorio-itinerarios"
+              element={<Navigate to="/tms/analises/relatorio-itinerarios" replace />}
             />
             <Route
               path="/tms/analises/estoque-producao"

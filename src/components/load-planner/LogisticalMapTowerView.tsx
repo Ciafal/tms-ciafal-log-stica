@@ -12,7 +12,7 @@
 // #19: IA Explicável com justificativa específica e quantitativa
 // #21: Transformar proposta em carga do Planejador ("Simular / Injetar Carga")
 
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   MapPin,
   Package,
@@ -172,7 +172,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
   }, [rawStops, priorityMode])
 
   // 4. Aplicação de Ajustes Manuais do Usuário com Recálculo Instantâneo (#15, #16)
-  const { clusters, stops, unplannedStops } = useMemo(() => {
+  const { baseClusters, stops, unplannedStops } = useMemo(() => {
     const clusterMap = new Map<string, ProposedLoadCluster>()
     baseClusterResult.clusters.forEach((c) => {
       clusterMap.set(c.id, {
@@ -225,10 +225,47 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
       }
     })
 
-    // Reconstrói clusters atualizados com métricas recalculadas instantaneamente (#16)
+    const unplanned = allStops.filter((s) => !s.isPlanned || !s.assignedClusterId)
+
+    return {
+      baseClusters: baseClusterResult.clusters,
+      stops: allStops,
+      unplannedStops: unplanned,
+    }
+  }, [baseClusterResult, rawStops, manualStopAssignments])
+
+  // Adições excepcionais de rotas ativas (tmsService / collection route_additions)
+  const [activeAdditions, setActiveAdditions] = useState<
+    Record<string, import('@/domain/routeAdditionEngine').RouteAdditionEntity>
+  >({})
+  const [routeAdditionModalOpen, setRouteAdditionModalOpen] = useState(false)
+  const [clusterForRouteAddition, setClusterForRouteAddition] =
+    useState<ProposedLoadCluster | null>(null)
+
+  const loadRouteAdditions = useCallback(async () => {
+    try {
+      const list = await tmsService.getRouteAdditions("status = 'ATIVA'")
+      const map: Record<string, import('@/domain/routeAdditionEngine').RouteAdditionEntity> = {}
+      list.forEach((item) => {
+        if (item.load_id) {
+          map[item.load_id] = item
+        }
+      })
+      setActiveAdditions(map)
+    } catch (e) {
+      console.warn('Erro ao carregar route_additions ativas no LogisticalMapTowerView', e)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadRouteAdditions()
+  }, [loadRouteAdditions])
+
+  // Reconstrói clusters atualizados com métricas recalculadas instantaneamente e adições ativas (#16)
+  const clusters = useMemo(() => {
     const updatedClusters: ProposedLoadCluster[] = []
-    baseClusterResult.clusters.forEach((baseC) => {
-      const stopsForThisCluster = allStops.filter((s) => s.assignedClusterId === baseC.id)
+    baseClusters.forEach((baseC) => {
+      const stopsForThisCluster = stops.filter((s) => s.assignedClusterId === baseC.id)
 
       if (stopsForThisCluster.length > 0) {
         const addition = activeAdditions[baseC.id] || activeAdditions[baseC.code]
@@ -242,17 +279,25 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
         let estimatedToll = baseC.estimatedTollBrl
 
         if (hasAddition && addition) {
-          weightTon = Math.round((addition.weight_after_kg / 1000) * 10) / 10
-          distanceKm = addition.distance_after_km
-          discharges = addition.discharges_after
-          estimatedFreight = addition.freight_after_brl
-          estimatedToll = addition.toll_after_brl
+          const wAfter = addition.weight_after ?? addition.weight_after_kg
+          if (wAfter !== undefined) weightTon = Math.round((wAfter / 1000) * 10) / 10
+          const dAfter = addition.distance_after ?? addition.distance_after_km
+          if (dAfter !== undefined) distanceKm = dAfter
+          const discAfter = addition.deliveries_after ?? addition.discharges_after
+          if (discAfter !== undefined) discharges = discAfter
+          const fAfter = addition.freight_after ?? addition.freight_after_brl
+          if (fAfter !== undefined) estimatedFreight = fAfter
+          const tAfter = addition.toll_after ?? addition.toll_after_brl
+          if (tAfter !== undefined) estimatedToll = tAfter
         }
 
         const capacity = weightTon > 28.5 ? 32 : 28
+        const occAfter = addition
+          ? (addition.occupancy_after ?? addition.occupancy_after_pct)
+          : undefined
         const occupancy =
-          hasAddition && addition
-            ? addition.occupancy_after_pct
+          hasAddition && occAfter !== undefined
+            ? occAfter
             : Math.min(100, Math.round((weightTon / capacity) * 1000) / 10)
 
         // Sequencia as paradas
@@ -277,15 +322,8 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
         })
       }
     })
-
-    const unplanned = allStops.filter((s) => !s.isPlanned || !s.assignedClusterId)
-
-    return {
-      clusters: updatedClusters,
-      stops: allStops,
-      unplannedStops: unplanned,
-    }
-  }, [baseClusterResult, rawStops, manualStopAssignments, activeAdditions])
+    return updatedClusters
+  }, [baseClusters, stops, activeAdditions])
 
   // 5. Comparação de Cenários (A vs B) (#5)
   const scenarioComparison: RoutingScenarioComparison = useMemo(() => {
@@ -320,33 +358,6 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
       economiaEstimadaBrl: scenarioComparison.savings.freightSavingsBrl,
     }
   }, [stops, unplannedStops, clusters, scenarioComparison])
-
-  // Adições excepcionais de rotas ativas (tmsService / collection route_additions)
-  const [activeAdditions, setActiveAdditions] = useState<
-    Record<string, import('@/domain/routeAdditionEngine').RouteAdditionEntity>
-  >({})
-  const [routeAdditionModalOpen, setRouteAdditionModalOpen] = useState(false)
-  const [clusterForRouteAddition, setClusterForRouteAddition] =
-    useState<ProposedLoadCluster | null>(null)
-
-  const loadRouteAdditions = useCallback(async () => {
-    try {
-      const list = await tmsService.getRouteAdditions({ status: 'ATIVA' })
-      const map: Record<string, import('@/domain/routeAdditionEngine').RouteAdditionEntity> = {}
-      list.forEach((item) => {
-        if (item.load_id) {
-          map[item.load_id] = item
-        }
-      })
-      setActiveAdditions(map)
-    } catch (e) {
-      console.warn('Erro ao carregar route_additions ativas no LogisticalMapTowerView', e)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadRouteAdditions()
-  }, [loadRouteAdditions])
 
   // Carga ativa em destaque (#7)
   const activeCluster = useMemo(() => {

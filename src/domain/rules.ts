@@ -290,6 +290,7 @@ export interface SapItineraryEntity {
   description: string
   origin?: string
   uf?: string
+  destination_uf?: string
   region?: string
   avg_transit_days?: number
   is_active: boolean

@@ -45,17 +45,21 @@ import {
 } from '@/domain/routeAdditionEngine'
 
 interface RouteAdditionModalProps {
-  isOpen: boolean
-  onClose: () => void
-  cargoNumber: string
-  originalItineraryCode: string
+  isOpen?: boolean
+  open?: boolean
+  onClose?: () => void
+  onOpenChange?: (open: boolean) => void
+  cargoNumber?: string
+  originalItineraryCode?: string
   originalItineraryDesc?: string
-  currentOrders: SapSalesOrderEntity[]
-  availableOrders: SapSalesOrderEntity[] // Carteira SAP unificada elegível
-  availableItineraries: SapItineraryEntity[]
-  vehicleCapacityKg: number
+  currentOrders?: SapSalesOrderEntity[]
+  availableOrders?: SapSalesOrderEntity[] // Carteira SAP unificada elegível
+  availableItineraries?: SapItineraryEntity[]
+  vehicleCapacityKg?: number
   vehiclePlate?: string
-  onConfirm: (
+  candidateLoad?: any
+  onSuccess?: () => void
+  onConfirm?: (
     additionData: RouteAdditionEntity,
     addedOrders: SapSalesOrderEntity[],
   ) => Promise<void>
@@ -64,20 +68,40 @@ interface RouteAdditionModalProps {
 }
 
 export const RouteAdditionModal: React.FC<RouteAdditionModalProps> = ({
-  isOpen,
+  isOpen: isOpenProp,
+  open: openProp,
   onClose,
-  cargoNumber,
-  originalItineraryCode,
-  originalItineraryDesc,
-  currentOrders,
-  availableOrders,
-  availableItineraries,
-  vehicleCapacityKg,
+  onOpenChange,
+  cargoNumber: cargoNumberProp,
+  originalItineraryCode: origItinProp,
+  originalItineraryDesc: origDescProp,
+  currentOrders: currentOrdersProp,
+  availableOrders: availableOrdersProp,
+  availableItineraries: availableItinProp,
+  vehicleCapacityKg: vehicleCapacityKgProp,
   vehiclePlate,
+  candidateLoad,
+  onSuccess,
   onConfirm,
   currentUserEmail = 'operador@ciafal.logistica',
   currentUserRole = 'planejador_cargas',
 }) => {
+  const isModalOpen = openProp !== undefined ? openProp : !!isOpenProp
+  const handleClose = () => {
+    if (onOpenChange) onOpenChange(false)
+    if (onClose) onClose()
+  }
+
+  const cargoNumber =
+    cargoNumberProp || candidateLoad?.id || candidateLoad?.cargo_number || 'CARGA-NOVA'
+  const originalItineraryCode =
+    origItinProp || candidateLoad?.itineraryCode || candidateLoad?.original_itinerary_id || 'MG-01'
+  const originalItineraryDesc =
+    origDescProp || candidateLoad?.itineraryDescription || `Itinerário ${originalItineraryCode}`
+  const currentOrders = currentOrdersProp || candidateLoad?.orders || []
+  const availableOrders = availableOrdersProp || []
+  const availableItineraries = availableItinProp || []
+  const vehicleCapacityKg = vehicleCapacityKgProp || candidateLoad?.capacityKg || 28000
   // Estado da seleção da rota complementar e pedidos
   const [selectedItineraryCode, setSelectedItineraryCode] = useState<string>('')
   const [selectedComplementaryOrders, setSelectedComplementaryOrders] = useState<
@@ -93,7 +117,7 @@ export const RouteAdditionModal: React.FC<RouteAdditionModalProps> = ({
 
   // Reseta ao abrir
   useEffect(() => {
-    if (isOpen) {
+    if (isModalOpen) {
       setSelectedItineraryCode('')
       setSelectedComplementaryOrders([])
       setSelectedReasonCode('')
@@ -102,7 +126,7 @@ export const RouteAdditionModal: React.FC<RouteAdditionModalProps> = ({
       setSelectedUf('ALL')
       setIsSubmitting(false)
     }
-  }, [isOpen])
+  }, [isModalOpen])
 
   // Itinerários complementares (exclui o original da carga)
   const complementaryItineraries = useMemo(() => {
@@ -249,8 +273,15 @@ export const RouteAdditionModal: React.FC<RouteAdditionModalProps> = ({
         created_at_dt: new Date().toISOString(),
       }
 
-      await onConfirm(additionRecord, selectedComplementaryOrders)
-      onClose()
+      if (onConfirm) {
+        await onConfirm(additionRecord, selectedComplementaryOrders)
+      } else {
+        // Fallback direto via TmsService se invocado a partir do LogisticalMapTowerView
+        const { TmsService } = await import('@/services/tmsService')
+        await TmsService.createRouteAddition(additionRecord)
+      }
+      if (onSuccess) onSuccess()
+      handleClose()
     } catch (err) {
       console.error('Falha ao confirmar adição de rota:', err)
     } finally {
@@ -262,7 +293,7 @@ export const RouteAdditionModal: React.FC<RouteAdditionModalProps> = ({
   const primaryUf = currentOrders[0]?.uf || 'MG'
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isModalOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="max-w-4xl w-full max-h-[92vh] overflow-hidden flex flex-col p-0 rounded-2xl border border-slate-200 bg-white shadow-2xl">
         {/* Cabeçalho CIAFAL Pantone 2945 */}
         <DialogHeader className="p-4 bg-[#005596] text-white shrink-0">
