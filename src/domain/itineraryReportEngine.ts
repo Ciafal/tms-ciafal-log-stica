@@ -32,17 +32,22 @@ export interface ItineraryReportFilterParams {
 }
 
 export interface ItineraryReportSummaryCards {
-  totalLoads: number
-  loadsWithAddition: number
-  additionPercentage: number
+  // Requisito 16: Exatamente os 12 cards
+  totalItinerariesExecuted: number // 1. Total de Itinerários Executados
+  totalLoads: number // 2. Cargas Planejadas
+  loadsWithAddition: number // 3. Cargas com Adição de Rota
+  additionPercentage: number // 4. % com Adição de Rota
+  totalRoutesAddedCount: number // 5. Nº Total de Rotas Adicionadas
+  totalAdditionalKm: number // 6. Km Adicionais
+  totalEstimatedAdditionalCost: number // 7. Custo Adicional
+  totalAddedWeightTon: number // 8. Peso Adicionado (t)
+  avgFractionations: number // 9. Média de Fracionamentos
+  avgOccupancyBefore: number // 10. Média de Ocupação Antes
+  avgOccupancyAfter: number // 11. Média de Ocupação Depois
+  avgOccupancyImpactPp: number // 12. Ganho Médio de Ocupação (p.p.)
+  // Campos legados para compatibilidade
   totalWeightWithAdditionKg: number
-  totalAdditionalKm: number
-  totalEstimatedAdditionalCost: number
-  avgOccupancyBefore: number
-  avgOccupancyAfter: number
-  avgOccupancyImpactPp: number
   totalAdditionalDischarges: number
-  avgFractionations: number
   maxFractionations: number
   topDeviatedItinerary: {
     code: string
@@ -445,18 +450,35 @@ export function calculateItinerarySummaryCards(
     }
   })
 
+  const distinctExecutedItineraries = new Set(rows.map((r) => r.originalItineraryId)).size
+  let totalAddedWeightKg = 0
+  let totalRoutesAddedCount = 0
+
+  additions.forEach((r) => {
+    const addedKg = Math.max(0, r.weightAfterKg - (r.weightBeforeKg || 0))
+    totalAddedWeightKg += addedKg
+    // Contagem de rotas adicionadas (pode haver mais de uma se separadas por '+')
+    const addedRoutesList = r.addedItineraryId.split('+').filter(Boolean)
+    totalRoutesAddedCount += Math.max(1, addedRoutesList.length)
+  })
+
+  const totalAddedWeightTon = Math.round((totalAddedWeightKg / 1000) * 10) / 10
+
   return {
+    totalItinerariesExecuted: distinctExecutedItineraries,
     totalLoads,
     loadsWithAddition,
     additionPercentage,
-    totalWeightWithAdditionKg,
+    totalRoutesAddedCount,
     totalAdditionalKm,
     totalEstimatedAdditionalCost,
+    totalAddedWeightTon,
+    avgFractionations,
     avgOccupancyBefore,
     avgOccupancyAfter,
     avgOccupancyImpactPp,
+    totalWeightWithAdditionKg,
     totalAdditionalDischarges,
-    avgFractionations,
     maxFractionations,
     topDeviatedItinerary,
   }

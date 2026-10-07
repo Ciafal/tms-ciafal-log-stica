@@ -1132,40 +1132,52 @@ export const LoadPlannerPage: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     {activeRouteAddition ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={async () => {
-                          const confirmed = window.confirm(
-                            'Deseja remover esta rota adicional do itinerário?',
-                          )
-                          if (!confirmed) return
-                          try {
-                            await TmsService.removeRouteAddition({
-                              additionId: activeRouteAddition.id || '',
-                              removedBy: (user?.email as string) || 'operador@ciafal.logistica',
-                              removedByRole: 'planejador_cargas',
-                              removalReason: 'Removido pelo operador no Planejador',
-                            })
-                            toast({
-                              title: 'Rota adicional removida',
-                              description:
-                                'A rota adicional foi removida e o histórico de auditoria preservado.',
-                            })
-                            loadActiveRouteAdditionForAssembly()
-                          } catch (err: any) {
-                            toast({
-                              title: 'Erro ao remover',
-                              description: err?.message || 'Falha ao remover rota.',
-                              variant: 'destructive',
-                            })
-                          }
-                        }}
-                        className="h-6 text-[10px] text-rose-700 border-rose-300 hover:bg-rose-50 font-bold px-2"
-                      >
-                        <XCircle className="w-3 h-3 mr-1" />
-                        Remover rota
-                      </Button>
+                      <div className="flex items-center gap-1.5">
+                        <Badge
+                          onClick={() => {
+                            setMatchForRouteAddition(null)
+                            setRouteAdditionModalOpen(true)
+                          }}
+                          className="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold text-[10px] cursor-pointer"
+                          title="Clique para ver ou gerenciar as rotas adicionadas"
+                        >
+                          +1 rota adicionada
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            const confirmed = window.confirm(
+                              'Deseja remover esta rota adicional do itinerário?',
+                            )
+                            if (!confirmed) return
+                            try {
+                              await TmsService.removeRouteAddition({
+                                additionId: activeRouteAddition.id || '',
+                                removedBy: (user?.email as string) || 'operador@ciafal.logistica',
+                                removedByRole: 'planejador_cargas',
+                                removalReason: 'Removido pelo operador no Planejador',
+                              })
+                              toast({
+                                title: 'Rota adicional removida',
+                                description:
+                                  'A rota adicional foi removida e o histórico de auditoria preservado.',
+                              })
+                              loadActiveRouteAdditionForAssembly()
+                            } catch (err: any) {
+                              toast({
+                                title: 'Erro ao remover',
+                                description: err?.message || 'Falha ao remover rota.',
+                                variant: 'destructive',
+                              })
+                            }
+                          }}
+                          className="h-6 text-[10px] text-rose-700 border-rose-300 hover:bg-rose-50 font-bold px-2"
+                        >
+                          <XCircle className="w-3 h-3 mr-1" />
+                          Remover rota
+                        </Button>
+                      </div>
                     ) : (
                       <Button
                         size="sm"
@@ -1176,7 +1188,7 @@ export const LoadPlannerPage: React.FC = () => {
                         }}
                         className="h-6 text-[10px] text-[#005596] border-[#005596]/40 hover:bg-sky-50 font-bold px-2"
                       >
-                        <PlusCircle className="w-3 h-3 mr-1" />+ Adicionar rota ao itinerário
+                        <PlusCircle className="w-3 h-3 mr-1" />+ Adicionar Rotas
                       </Button>
                     )}
                     <Badge
@@ -1630,13 +1642,16 @@ export const LoadPlannerPage: React.FC = () => {
         }}
       />
 
-      {/* MODAL DE ADIÇÃO EXCEPCIONAL DE ROTAS AO ITINERÁRIO */}
+      {/* MODAL DE ADIÇÃO EXCEPCIONAL DE ROTAS AO ITINERÁRIO (MULTI-ROTAS) */}
       <RouteAdditionModal
         open={routeAdditionModalOpen}
         onOpenChange={(isOpen) => {
           setRouteAdditionModalOpen(isOpen)
           if (!isOpen) setMatchForRouteAddition(null)
         }}
+        availableOrders={orders}
+        availableItineraries={itineraries}
+        currentUserEmail={(user?.email as string) || 'operador@ciafal.logistica'}
         candidateLoad={
           matchForRouteAddition
             ? matchForRouteAddition.candidateLoad

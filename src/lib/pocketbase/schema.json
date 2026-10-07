@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-07T16:58:04.220Z",
+  "generatedAt": "2026-10-07T17:51:40.281Z",
   "collections": [
     {
       "name": "users",
@@ -17036,8 +17036,8 @@
       "apiRules": {
         "list": "",
         "view": "",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
+        "create": "",
+        "update": "",
         "delete": "@request.auth.id != ''"
       },
       "fields": [
@@ -17345,6 +17345,48 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "transport_order_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fractions_before",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fractions_after",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "remessas_before",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "remessas_after",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_alignment",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_risk",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

@@ -726,190 +726,177 @@ export const ItineraryReportPage: React.FC = () => {
         )}
       </Card>
 
-      {/* BLOCO A: 11 CARDS EXECUTIVOS NO TOPO */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-3">
-        {/* 1. Total de Cargas */}
-        <Card className="border-slate-200 bg-white shadow-sm p-3 flex flex-col justify-between">
+      {/* BLOCO A: OS 12 CARDS EXECUTIVOS OFICIAIS (Requisito 16) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-2.5">
+        {/* 1. Total de Itinerários Executados */}
+        <Card className="border-slate-200 bg-white shadow-2xs p-2.5 flex flex-col justify-between">
           <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-            Total de Cargas
+            1. Itinerários Executados
           </div>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl font-black text-slate-900">
+            <span className="text-lg font-black text-slate-900">
+              {summaryCards.totalItinerariesExecuted.toLocaleString('pt-BR')}
+            </span>
+            <Route className="w-3.5 h-3.5 text-[#005596]/70" />
+          </div>
+          <div className="text-[9px] text-slate-400 mt-1">Códigos SAP TVROT</div>
+        </Card>
+
+        {/* 2. Cargas Planejadas */}
+        <Card className="border-slate-200 bg-white shadow-2xs p-2.5 flex flex-col justify-between">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+            2. Cargas Planejadas
+          </div>
+          <div className="mt-1 flex items-baseline justify-between">
+            <span className="text-lg font-black text-slate-900">
               {summaryCards.totalLoads.toLocaleString('pt-BR')}
             </span>
-            <Layers className="w-4 h-4 text-[#005596]/60" />
+            <Layers className="w-3.5 h-3.5 text-[#005596]/60" />
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">Recorte analisado</div>
+          <div className="text-[9px] text-slate-400 mt-1">Total de viagens</div>
         </Card>
 
-        {/* 2. Cargas com Rota Adicionada */}
-        <Card className="border-amber-200 bg-amber-50/40 shadow-sm p-3 flex flex-col justify-between">
+        {/* 3. Cargas com Adição de Rota */}
+        <Card className="border-amber-200 bg-amber-50/40 shadow-2xs p-2.5 flex flex-col justify-between">
           <div className="text-[10px] font-bold text-amber-800 uppercase tracking-tight">
-            Cargas c/ Rota Adic.
+            3. Cargas c/ Adição Rota
           </div>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl font-black text-amber-700">
+            <span className="text-lg font-black text-amber-700">
               {summaryCards.loadsWithAddition.toLocaleString('pt-BR')}
             </span>
-            <MapPin className="w-4 h-4 text-amber-600" />
+            <MapPin className="w-3.5 h-3.5 text-amber-600" />
           </div>
-          <div className="text-[10px] text-amber-700 mt-1 font-medium">Exceções registradas</div>
+          <div className="text-[9px] text-amber-700 mt-1 font-medium">Exceções ativas</div>
         </Card>
 
-        {/* 3. % de Cargas com Adição */}
-        <Card className="border-slate-200 bg-white shadow-sm p-3 flex flex-col justify-between">
+        {/* 4. % com Adição de Rota */}
+        <Card className="border-slate-200 bg-white shadow-2xs p-2.5 flex flex-col justify-between">
           <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-            % c/ Adição
+            4. % c/ Adição Rota
           </div>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl font-black text-slate-900">
+            <span className="text-lg font-black text-slate-900">
               {formatPercent(summaryCards.additionPercentage)}
             </span>
-            <TrendingUp className="w-4 h-4 text-sky-600" />
+            <TrendingUp className="w-3.5 h-3.5 text-sky-600" />
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">Adicionadas ÷ Total</div>
+          <div className="text-[9px] text-slate-400 mt-1">Taxa de complementação</div>
         </Card>
 
-        {/* 4. Peso Movimentado com Adição */}
-        <Card className="border-slate-200 bg-white shadow-sm p-3 flex flex-col justify-between">
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-            Peso com Adição
+        {/* 5. Nº Total de Rotas Adicionadas */}
+        <Card className="border-amber-200 bg-amber-50/20 shadow-2xs p-2.5 flex flex-col justify-between">
+          <div className="text-[10px] font-bold text-amber-900 uppercase tracking-tight">
+            5. Nº Rotas Adicionadas
           </div>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-base font-black text-slate-900">
-              {formatWeight(summaryCards.totalWeightWithAdditionKg, { unit: 'kg', decimals: 1 })}
+            <span className="text-lg font-black text-amber-800">
+              {summaryCards.totalRoutesAddedCount.toLocaleString('pt-BR')}
             </span>
-            <Scale className="w-4 h-4 text-emerald-600" />
+            <Plus className="w-3.5 h-3.5 text-amber-700" />
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">Tonelagem pós-inclusão</div>
+          <div className="text-[9px] text-amber-700 mt-1 font-medium">Trechos extras</div>
         </Card>
 
-        {/* 5. Km Adicionais */}
-        <Card className="border-slate-200 bg-white shadow-sm p-3 flex flex-col justify-between">
+        {/* 6. Km Adicionais */}
+        <Card className="border-slate-200 bg-white shadow-2xs p-2.5 flex flex-col justify-between">
           <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-            Km Adicionais
+            6. Km Adicionais
           </div>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl font-black text-amber-600">
+            <span className="text-lg font-black text-amber-600">
               +{formatDistance(summaryCards.totalAdditionalKm)}
             </span>
-            <TrendingUp className="w-4 h-4 text-amber-500" />
+            <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">Desvio físico total</div>
+          <div className="text-[9px] text-slate-400 mt-1">Desvio físico total</div>
         </Card>
 
-        {/* 6. Custo Adicional Estimado */}
-        <Card className="border-slate-200 bg-white shadow-sm p-3 flex flex-col justify-between">
+        {/* 7. Custo Adicional */}
+        <Card className="border-slate-200 bg-white shadow-2xs p-2.5 flex flex-col justify-between">
           <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-            Custo Adicional
+            7. Custo Adicional
           </div>
           <div className="mt-1 flex items-baseline justify-between">
             <span className="text-base font-black text-rose-600">
               {formatCurrency(summaryCards.totalEstimatedAdditionalCost)}
             </span>
-            <DollarSign className="w-4 h-4 text-rose-500" />
+            <DollarSign className="w-3.5 h-3.5 text-rose-500" />
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">Frete + pedágio extra</div>
+          <div className="text-[9px] text-slate-400 mt-1">Frete + pedágio extra</div>
         </Card>
 
-        {/* 7. Média Ocupação Antes */}
-        <Card className="border-slate-200 bg-white shadow-sm p-3 flex flex-col justify-between">
+        {/* 8. Peso Adicionado */}
+        <Card className="border-slate-200 bg-white shadow-2xs p-2.5 flex flex-col justify-between">
           <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-            Ocupação Antes
+            8. Peso Adicionado
           </div>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl font-black text-slate-700">
-              {formatPercent(summaryCards.avgOccupancyBefore)}
+            <span className="text-base font-black text-emerald-700">
+              +{summaryCards.totalAddedWeightTon.toFixed(1)} t
             </span>
-            <Truck className="w-4 h-4 text-slate-400" />
+            <Scale className="w-3.5 h-3.5 text-emerald-600" />
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">Média pré-inclusão</div>
+          <div className="text-[9px] text-slate-400 mt-1">Carga complementar</div>
         </Card>
 
-        {/* 8. Média Ocupação Depois */}
-        <Card className="border-slate-200 bg-white shadow-sm p-3 flex flex-col justify-between">
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-            Ocupação Depois
-          </div>
-          <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl font-black text-emerald-600">
-              {formatPercent(summaryCards.avgOccupancyAfter)}
-            </span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          </div>
-          <div className="text-[10px] text-slate-400 mt-1">Média pós-inclusão</div>
-        </Card>
-
-        {/* 9. Impacto Médio Ocupação */}
-        <Card className="border-emerald-200 bg-emerald-50/40 shadow-sm p-3 flex flex-col justify-between">
-          <div className="text-[10px] font-bold text-emerald-800 uppercase tracking-tight">
-            Ganho Ocupação
-          </div>
-          <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl font-black text-emerald-700">
-              +{formatPercent(summaryCards.avgOccupancyImpactPp)}
-            </span>
-            <TrendingUp className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="text-[10px] text-emerald-700 mt-1 font-medium">Pontos percentuais</div>
-        </Card>
-
-        {/* 10. Descargas Adicionais */}
-        <Card className="border-slate-200 bg-white shadow-sm p-3 flex flex-col justify-between">
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-            Descargas Extras
-          </div>
-          <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl font-black text-slate-800">
-              +{summaryCards.totalAdditionalDischarges.toLocaleString('pt-BR')}
-            </span>
-            <Building className="w-4 h-4 text-slate-400" />
-          </div>
-          <div className="text-[10px] text-slate-400 mt-1">Paradas a mais</div>
-        </Card>
-
-        {/* 11. Média de Fracionamentos */}
-        <Card className="border-blue-200 bg-blue-50/40 shadow-sm p-3 flex flex-col justify-between">
+        {/* 9. Média de Fracionamentos */}
+        <Card className="border-blue-200 bg-blue-50/40 shadow-2xs p-2.5 flex flex-col justify-between">
           <div className="text-[10px] font-bold text-[#005596] uppercase tracking-tight">
-            Média de Fracionamentos
+            9. Média Fracionamentos
           </div>
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xl font-black text-[#005596]">
+            <span className="text-lg font-black text-[#005596]">
               {summaryCards.avgFractionations.toLocaleString('pt-BR', {
                 minimumFractionDigits: 1,
                 maximumFractionDigits: 1,
               })}
             </span>
-            <Users className="w-4 h-4 text-[#005596]" />
+            <Users className="w-3.5 h-3.5 text-[#005596]" />
           </div>
-          <div className="text-[10px] text-blue-700 mt-1">
-            Máximo: <strong className="font-mono">{summaryCards.maxFractionations}</strong>{' '}
-            clientes/carga
-          </div>
+          <div className="text-[9px] text-blue-700 mt-1">Clientes por carga</div>
         </Card>
 
-        {/* 12. Itinerário com Maior Quantidade de Desvios */}
-        <Card className="border-sky-200 bg-sky-50/40 shadow-sm p-3 flex flex-col justify-between col-span-2 sm:col-span-1">
-          <div className="text-[10px] font-bold text-[#005596] uppercase tracking-tight truncate">
-            Maior Desvio
+        {/* 10. Média de Ocupação Antes */}
+        <Card className="border-slate-200 bg-white shadow-2xs p-2.5 flex flex-col justify-between">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+            10. Ocupação Antes
           </div>
           <div className="mt-1 flex items-baseline justify-between">
-            <span
-              className="text-base font-black text-[#005596] truncate max-w-[90px]"
-              title={summaryCards.topDeviatedItinerary?.code || 'N/A'}
-            >
-              {summaryCards.topDeviatedItinerary?.code || 'Nenhum'}
+            <span className="text-lg font-black text-slate-700">
+              {formatPercent(summaryCards.avgOccupancyBefore)}
             </span>
-            <Badge className="bg-[#005596] text-white text-[9px] px-1 py-0">
-              {summaryCards.topDeviatedItinerary?.count || 0}x
-            </Badge>
+            <Truck className="w-3.5 h-3.5 text-slate-400" />
           </div>
-          <div
-            className="text-[10px] text-sky-800 mt-1 truncate"
-            title={summaryCards.topDeviatedItinerary?.description}
-          >
-            {summaryCards.topDeviatedItinerary?.description || 'Sem desvios'}
+          <div className="text-[9px] text-slate-400 mt-1">Média pré-inclusão</div>
+        </Card>
+
+        {/* 11. Média de Ocupação Depois */}
+        <Card className="border-slate-200 bg-white shadow-2xs p-2.5 flex flex-col justify-between">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+            11. Ocupação Depois
           </div>
+          <div className="mt-1 flex items-baseline justify-between">
+            <span className="text-lg font-black text-emerald-600">
+              {formatPercent(summaryCards.avgOccupancyAfter)}
+            </span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+          </div>
+          <div className="text-[9px] text-slate-400 mt-1">Média pós-inclusão</div>
+        </Card>
+
+        {/* 12. Ganho Médio de Ocupação */}
+        <Card className="border-emerald-200 bg-emerald-50/40 shadow-2xs p-2.5 flex flex-col justify-between">
+          <div className="text-[10px] font-bold text-emerald-800 uppercase tracking-tight">
+            12. Ganho Médio Ocup.
+          </div>
+          <div className="mt-1 flex items-baseline justify-between">
+            <span className="text-lg font-black text-emerald-700">
+              +{formatPercent(summaryCards.avgOccupancyImpactPp)}
+            </span>
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+          </div>
+          <div className="text-[9px] text-emerald-700 mt-1 font-medium">Pontos percentuais</div>
         </Card>
       </div>
 

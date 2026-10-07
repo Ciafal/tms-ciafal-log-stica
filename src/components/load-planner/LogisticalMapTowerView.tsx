@@ -778,9 +778,9 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                         setRouteAdditionModalOpen(true)
                       }}
                       className="h-6 text-[10px] font-bold text-[#005596] border-[#005596]/40 hover:bg-sky-50 px-2"
-                      title="Adicionar rota complementar ao itinerário"
+                      title="Adicionar rotas complementares ao itinerário"
                     >
-                      + Adicionar rota
+                      + Adicionar Rotas
                     </Button>
                   )}
                   <Button
