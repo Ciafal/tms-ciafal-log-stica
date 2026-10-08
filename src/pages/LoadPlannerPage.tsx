@@ -67,8 +67,10 @@ import { customerLogisticInfoService } from '@/services/customerLogisticInfoServ
 import { CustomerLogisticDetailModal } from '@/components/CustomerLogisticDetailModal'
 import { useLocation } from 'react-router-dom'
 import { RouteAdditionModal } from '@/components/load-planner/RouteAdditionModal'
+import { CreateMixedLoadModal } from '@/components/load-planner/CreateMixedLoadModal'
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import type { RouteAdditionEntity } from '@/domain/routeAdditionEngine'
+import { formatTons } from '@/utils/format'
 
 export const LoadPlannerPage: React.FC = () => {
   const { user } = useAuth()
@@ -120,6 +122,7 @@ export const LoadPlannerPage: React.FC = () => {
 
   // Adição Excepcional de Rota ao Itinerário
   const [routeAdditionModalOpen, setRouteAdditionModalOpen] = useState<boolean>(false)
+  const [createMixedLoadModalOpen, setCreateMixedLoadModalOpen] = useState<boolean>(false)
   const [activeRouteAddition, setActiveRouteAddition] = useState<RouteAdditionEntity | null>(null)
   const [matchForRouteAddition, setMatchForRouteAddition] = useState<VehicleLoadMatch | null>(null)
 
@@ -255,7 +258,7 @@ export const LoadPlannerPage: React.FC = () => {
 
       toast({
         title: 'Sugestão da Operação Hoje Carregada para Revisão',
-        description: `Veículo ${m.vehiclePlate} (${itin}) com ${m.candidateLoad.orders.length} pedidos (${((m.candidateLoad.totalWeightKg || 0) / 1000).toFixed(1)} t) pré-montado. Revise e confirme.`,
+        description: `Veículo ${m.vehiclePlate} (${itin}) com ${m.candidateLoad.orders.length} pedidos (${formatTons(m.candidateLoad.totalWeightKg, { fromKg: true })}) pré-montado. Revise e confirme.`,
       })
     }
   }, [location.state, toast])
@@ -475,7 +478,7 @@ export const LoadPlannerPage: React.FC = () => {
       if (opp) {
         toast({
           title: 'Oportunidade de Complemento Gerada',
-          description: `Identificado saldo de ${(complementOpportunity.balance_kg / 1000).toFixed(1)}t. Enviado para análise comercial / CRM.`,
+          description: `Identificado saldo de ${formatTons(complementOpportunity.balance_kg, { fromKg: true })}. Enviado para análise comercial / CRM.`,
         })
       }
     } catch (err: any) {
@@ -598,14 +601,25 @@ export const LoadPlannerPage: React.FC = () => {
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <Button
-              onClick={() => setIsEncontrosOpen(true)}
+              onClick={() => setCreateMixedLoadModalOpen(true)}
               size="sm"
               className="bg-[#005596] hover:bg-[#004275] text-white text-xs h-8 font-bold shadow-xs flex items-center gap-1.5 shrink-0"
+              title="Criar carga mista combinando múltiplos itinerários ou rotas SAP"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Criar Carga Mista</span>
+            </Button>
+
+            <Button
+              onClick={() => setIsEncontrosOpen(true)}
+              size="sm"
+              variant="outline"
+              className="border-[#005596]/40 text-[#005596] bg-sky-50/50 hover:bg-sky-100 text-xs h-8 font-bold shadow-xs flex items-center gap-1.5 shrink-0"
               title="Abrir painel de encontros automáticos veículo × carga"
             >
               <Link2 className="w-3.5 h-3.5" />
               <span>Encontros Veículo × Carga</span>
-              <Badge className="bg-white/20 hover:bg-white/30 text-white font-mono text-[10px] px-1.5 py-0 border-none font-extrabold ml-0.5">
+              <Badge className="bg-[#005596] text-white font-mono text-[10px] px-1.5 py-0 border-none font-extrabold ml-0.5">
                 {viableMatchesCount}
               </Badge>
             </Button>
@@ -1003,7 +1017,7 @@ export const LoadPlannerPage: React.FC = () => {
                         <div>
                           Peso:{' '}
                           <strong className="text-slate-900 font-mono">
-                            {(order.weight_kg / 1000).toFixed(1)} t
+                            {formatTons(order.weight_kg, { fromKg: true })}
                           </strong>
                         </div>
                         <div>
@@ -1247,7 +1261,9 @@ export const LoadPlannerPage: React.FC = () => {
                         <strong className="text-slate-900 font-mono">
                           {selectedQueueVehicle.vehicle_capacity_kg_cached &&
                           selectedQueueVehicle.vehicle_capacity_kg_cached > 0
-                            ? `${(selectedQueueVehicle.vehicle_capacity_kg_cached / 1000).toFixed(1)} t`
+                            ? formatTons(selectedQueueVehicle.vehicle_capacity_kg_cached, {
+                                fromKg: true,
+                              })
                             : 'Não informada'}
                         </strong>
                       </span>
@@ -1265,14 +1281,14 @@ export const LoadPlannerPage: React.FC = () => {
                   <div>
                     <span className="text-[10px] text-slate-400 uppercase block">Peso Total</span>
                     <strong className="text-sm font-mono text-sky-400">
-                      {(assemblyEvaluation.calculatedWeightKg / 1000).toFixed(1)} t
+                      {formatTons(assemblyEvaluation.calculatedWeightKg, { fromKg: true })}
                     </strong>
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-400 uppercase block">Capacidade</span>
                     <strong className="text-sm font-mono text-emerald-400">
                       {assemblyEvaluation.capacityKg && assemblyEvaluation.capacityKg > 0
-                        ? `${(assemblyEvaluation.capacityKg / 1000).toFixed(1)} t`
+                        ? formatTons(assemblyEvaluation.capacityKg, { fromKg: true })
                         : 'Não informada'}
                     </strong>
                   </div>
@@ -1286,7 +1302,7 @@ export const LoadPlannerPage: React.FC = () => {
                       }`}
                     >
                       {assemblyEvaluation.balanceKg !== undefined
-                        ? `${(assemblyEvaluation.balanceKg / 1000).toFixed(1)} t`
+                        ? formatTons(assemblyEvaluation.balanceKg, { fromKg: true })
                         : '—'}
                     </strong>
                   </div>
@@ -1326,7 +1342,7 @@ export const LoadPlannerPage: React.FC = () => {
                         Oportunidade de Complemento Detectada!
                       </span>
                       <Badge className="bg-purple-600 text-white text-[9px]">
-                        Saldo: {(complementOpportunity.balance_kg / 1000).toFixed(1)} t
+                        Saldo: {formatTons(complementOpportunity.balance_kg, { fromKg: true })}
                       </Badge>
                     </div>
                     <p className="text-[11px] text-purple-800">
@@ -1361,7 +1377,7 @@ export const LoadPlannerPage: React.FC = () => {
                           <strong className="font-mono text-slate-900">{order.order_number}</strong>{' '}
                           — <span className="text-slate-700">{order.customer_name}</span>
                           <div className="text-[10px] text-slate-500">
-                            {(order.weight_kg / 1000).toFixed(1)} t • {order.material}
+                            {formatTons(order.weight_kg, { fromKg: true })} • {order.material}
                           </div>
                         </div>
                         <Button
@@ -1420,7 +1436,7 @@ export const LoadPlannerPage: React.FC = () => {
                           <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
                           <span className="text-slate-500 font-mono">
                             {v.vehicle_capacity_kg_cached && v.vehicle_capacity_kg_cached > 0
-                              ? `${(v.vehicle_capacity_kg_cached / 1000).toFixed(1)} t`
+                              ? formatTons(v.vehicle_capacity_kg_cached, { fromKg: true })
                               : 'Cap. N/I'}
                           </span>
                         </div>
@@ -1501,7 +1517,7 @@ export const LoadPlannerPage: React.FC = () => {
                           <span className="font-mono text-slate-900">{v.vehicle_plate_cached}</span>
                           <span className="text-slate-500 font-mono">
                             {v.vehicle_capacity_kg_cached && v.vehicle_capacity_kg_cached > 0
-                              ? `${(v.vehicle_capacity_kg_cached / 1000).toFixed(1)} t`
+                              ? formatTons(v.vehicle_capacity_kg_cached, { fromKg: true })
                               : 'Cap. N/I'}
                           </span>
                         </div>
@@ -1735,6 +1751,24 @@ export const LoadPlannerPage: React.FC = () => {
         onClose={() => {
           setCustomerModalOpen(false)
           setSelectedCustomerDetail(null)
+        }}
+      />
+
+      {/* Modal + Criar Carga Mista (Passo 2) */}
+      <CreateMixedLoadModal
+        open={createMixedLoadModalOpen}
+        onOpenChange={setCreateMixedLoadModalOpen}
+        orders={orders}
+        itineraries={itineraries}
+        defaultItinerary={filterItinerary}
+        userEmail={user?.email || 'operador@ciafal.logistica'}
+        userName={user?.name || 'Operador Logístico'}
+        onLoadCreated={(loadId) => {
+          fetchData()
+          toast({
+            title: 'Carga Mista Integrada',
+            description: `Carga ${loadId} gerada e incluída nas propostas.`,
+          })
         }}
       />
     </div>

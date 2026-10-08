@@ -69,9 +69,11 @@ import { MapPinOff } from 'lucide-react'
 import { CityDetailDrawer } from '@/components/load-planner/CityDetailDrawer'
 import { CityDemandCluster } from '@/domain/geographicClusterEngine'
 import { RouteAdditionModal } from '@/components/load-planner/RouteAdditionModal'
+import { CreateMixedLoadModal } from '@/components/load-planner/CreateMixedLoadModal'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { tmsService } from '@/services/tmsService'
 import { useToast } from '@/hooks/use-toast'
+import { formatTons } from '@/utils/format'
 
 interface LogisticalMapTowerViewProps {
   orders: SapSalesOrderEntity[]
@@ -259,6 +261,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
   const [routeAdditionModalOpen, setRouteAdditionModalOpen] = useState(false)
   const [clusterForRouteAddition, setClusterForRouteAddition] =
     useState<ProposedLoadCluster | null>(null)
+  const [createMixedLoadModalOpen, setCreateMixedLoadModalOpen] = useState(false)
 
   const loadRouteAdditions = useCallback(async () => {
     try {
@@ -467,88 +470,97 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
 
   return (
     <div className="space-y-3">
-      {/* 1. FILTROS COMPACTOS NO TOPO (#6, #11, #18) */}
-      <Card className="border-slate-200 shadow-xs bg-white">
-        <CardContent className="p-2.5">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2">
+      {/* 1. FILTROS COMPACTOS NO TOPO E BARRA DE AÇÕES (#6, #11, #18) */}
+      <Card className="border-slate-200 shadow-xs bg-white w-full box-border min-w-0">
+        <CardContent className="p-2.5 space-y-2.5">
+          {/* Linha 1: Filtros da Central */}
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2 w-full min-w-0">
             {/* Linha de Filtros Compactos */}
-            <div className="flex flex-wrap items-center gap-2 flex-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 shrink-0">
                 <Filter className="w-3.5 h-3.5 text-[#005596]" />
                 <span>Filtros da Central:</span>
               </div>
 
               {/* Origem */}
-              <Select value={filterOriginPlant} onValueChange={setFilterOriginPlant}>
-                <SelectTrigger className="h-8 text-xs w-[135px] bg-slate-50 border-slate-200">
-                  <SelectValue placeholder="Origem" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Todas Origens</SelectItem>
-                  <SelectItem value="CIAFAL_CONTAGEM">CIAFAL Matriz (1010)</SelectItem>
-                  <SelectItem value="SIDERCENTRO">Sidercentro (1020)</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="min-w-[130px] flex-1 sm:flex-none">
+                <Select value={filterOriginPlant} onValueChange={setFilterOriginPlant}>
+                  <SelectTrigger className="h-8 text-xs w-full bg-slate-50 border-slate-200">
+                    <SelectValue placeholder="Origem" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Todas Origens</SelectItem>
+                    <SelectItem value="CIAFAL_CONTAGEM">CIAFAL Matriz (1010)</SelectItem>
+                    <SelectItem value="SIDERCENTRO">Sidercentro (1020)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               {/* UF */}
-              <Select value={filterUf} onValueChange={setFilterUf}>
-                <SelectTrigger className="h-8 text-xs w-[95px] bg-slate-50 border-slate-200">
-                  <SelectValue placeholder="UF" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Todas UFs</SelectItem>
-                  {Array.from(new Set(orders.map((o) => (o.uf || 'MG').toUpperCase()))).map(
-                    (uf) => (
-                      <SelectItem key={uf} value={uf}>
-                        {uf}
-                      </SelectItem>
-                    ),
-                  )}
-                </SelectContent>
-              </Select>
+              <div className="min-w-[90px] flex-1 sm:flex-none">
+                <Select value={filterUf} onValueChange={setFilterUf}>
+                  <SelectTrigger className="h-8 text-xs w-full bg-slate-50 border-slate-200">
+                    <SelectValue placeholder="UF" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Todas UFs</SelectItem>
+                    {Array.from(new Set(orders.map((o) => (o.uf || 'MG').toUpperCase()))).map(
+                      (uf) => (
+                        <SelectItem key={uf} value={uf}>
+                          {uf}
+                        </SelectItem>
+                      ),
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
 
               {/* Itinerário SAP (#11 e #7: limpa seleções e propaga para o mapa) */}
-              <Select
-                value={filterItinerary}
-                onValueChange={(val) => {
-                  setSelectedClusterId(null)
-                  setSelectedStop(null)
-                  setFilterItinerary(val)
-                }}
-              >
-                <SelectTrigger className="h-8 text-xs w-[160px] bg-slate-50 border-slate-200">
-                  <SelectValue placeholder="Itinerário SAP" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Todos Itinerários SAP</SelectItem>
-                  {itineraries.map((it) => (
-                    <SelectItem key={it.sap_code} value={it.sap_code}>
-                      {it.sap_code} — {it.description.slice(0, 22)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="min-w-[170px] flex-1 sm:flex-none">
+                <Select
+                  value={filterItinerary}
+                  onValueChange={(val) => {
+                    setSelectedClusterId(null)
+                    setSelectedStop(null)
+                    setFilterItinerary(val)
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs w-full bg-slate-50 border-slate-200">
+                    <SelectValue placeholder="Itinerário SAP" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Todos Itinerários SAP</SelectItem>
+                    {itineraries.map((it) => (
+                      <SelectItem key={it.sap_code} value={it.sap_code}>
+                        {it.sap_code} — {it.description.slice(0, 22)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               {/* Disponibilidade de Estoque */}
-              <Select value={filterStockStatus} onValueChange={setFilterStockStatus}>
-                <SelectTrigger className="h-8 text-xs w-[135px] bg-slate-50 border-slate-200">
-                  <SelectValue placeholder="Estoque" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Todos os Estoques</SelectItem>
-                  <SelectItem value="READY">Disponível DP34</SelectItem>
-                  <SelectItem value="PENDING">Em Produção / PCP</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="min-w-[130px] flex-1 sm:flex-none">
+                <Select value={filterStockStatus} onValueChange={setFilterStockStatus}>
+                  <SelectTrigger className="h-8 text-xs w-full bg-slate-50 border-slate-200">
+                    <SelectValue placeholder="Estoque" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Todos os Estoques</SelectItem>
+                    <SelectItem value="READY">Disponível DP34</SelectItem>
+                    <SelectItem value="PENDING">Em Produção / PCP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               {/* Busca Livre */}
-              <div className="relative min-w-[150px] flex-1">
+              <div className="relative min-w-[160px] flex-1">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
                 <Input
                   placeholder="Buscar cliente, cidade, pedido..."
                   value={filterSearchQuery}
                   onChange={(e) => setFilterSearchQuery(e.target.value)}
-                  className="h-8 pl-8 text-xs bg-slate-50 border-slate-200"
+                  className="h-8 pl-8 text-xs bg-slate-50 border-slate-200 w-full"
                 />
               </div>
 
@@ -567,7 +579,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                     setFilterStockStatus('ALL')
                     setFilterSearchQuery('')
                   }}
-                  className="h-8 px-2 text-xs text-slate-500 hover:text-slate-800"
+                  className="h-8 px-2 text-xs text-slate-500 hover:text-slate-800 shrink-0"
                 >
                   <RotateCcw className="w-3 h-3 mr-1" />
                   Limpar
@@ -575,8 +587,19 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               )}
             </div>
 
-            {/* Ações Especiais: Comparar Cenários + Recalcular com Prioridade (#4, #5, #18) */}
-            <div className="flex items-center gap-2 border-t lg:border-t-0 pt-2 lg:pt-0 border-slate-100 shrink-0">
+            {/* Barra de Ações: Responsiva (flex row no desktop, grid no mobile/tablet) */}
+            <div className="flex flex-wrap items-center gap-2 border-t lg:border-t-0 pt-2 lg:pt-0 border-slate-100 shrink-0">
+              {/* Botão + Criar Carga Mista (Passo 2) */}
+              <Button
+                size="sm"
+                onClick={() => setCreateMixedLoadModalOpen(true)}
+                className="h-8 text-xs font-bold bg-[#005596] hover:bg-[#004275] text-white shadow-xs px-3"
+                title="Criar carga mista combinando múltiplos itinerários ou rotas SAP"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                <span>+ Criar Carga Mista</span>
+              </Button>
+
               {/* Botão Comparar Roteirização (A vs B) (#5) */}
               <Button
                 size="sm"
@@ -594,7 +617,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
 
               {/* Seletor de Priorização da IA (#18) */}
               <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-lg text-xs">
-                <span className="text-[10px] font-bold text-slate-500 px-1.5 uppercase">
+                <span className="text-[10px] font-bold text-slate-500 px-1.5 uppercase hidden sm:inline">
                   Priorizar:
                 </span>
                 <select
@@ -625,18 +648,18 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
             </div>
           </div>
 
-          {/* 8 KPIs Compactos Responsivos do Topo do Mapa (Passo 3) */}
-          <div className="mt-2.5 pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs">
+          {/* 8 KPIs Compactos Responsivos do Topo do Mapa (Passo 1 e 3) — CSS Grid responsivo com formatTons ABNT */}
+          <div className="mt-2.5 pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2">
+            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
               <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
                 Carteira Liberada
               </span>
               <strong className="text-sm font-black font-mono text-[#005596]">
-                {summaryKpis.carteiraLiberadaTon.toFixed(1)} t
+                {formatTons(summaryKpis.carteiraLiberadaTon, { decimals: 2 })}
               </strong>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs">
+            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
               <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
                 Clientes Distintos
               </span>
@@ -645,7 +668,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               </strong>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs">
+            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
               <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
                 Pedidos Elegíveis
               </span>
@@ -654,7 +677,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               </strong>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs">
+            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
               <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
                 Municípios
               </span>
@@ -663,7 +686,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               </strong>
             </div>
 
-            <div className="bg-purple-50/60 border border-purple-200/80 p-2 rounded-lg text-center shadow-xs">
+            <div className="bg-purple-50/60 border border-purple-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
               <span className="text-[9px] font-bold text-purple-700 uppercase block tracking-wider truncate">
                 Cargas Propostas
               </span>
@@ -672,25 +695,25 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               </strong>
             </div>
 
-            <div className="bg-emerald-50/60 border border-emerald-200/80 p-2 rounded-lg text-center shadow-xs">
+            <div className="bg-emerald-50/60 border border-emerald-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
               <span className="text-[9px] font-bold text-emerald-700 uppercase block tracking-wider truncate">
                 Planejadas
               </span>
               <strong className="text-sm font-black font-mono text-emerald-800">
-                {summaryKpis.toneladasPlanejadas.toFixed(1)} t
+                {formatTons(summaryKpis.toneladasPlanejadas, { decimals: 2 })}
               </strong>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs">
+            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
               <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
                 Saldo Não Planej.
               </span>
               <strong className="text-sm font-black font-mono text-slate-700">
-                {summaryKpis.saldoNaoPlanejado.toFixed(1)} t
+                {formatTons(summaryKpis.saldoNaoPlanejado, { decimals: 2 })}
               </strong>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs">
+            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
               <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
                 Ocupação Estim.
               </span>
@@ -878,7 +901,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                         {/* Métricas e Ocupação */}
                         <div className="text-right">
                           <div className="font-mono font-bold text-slate-900 text-xs">
-                            {cl.totalWeightTon.toFixed(1)} t
+                            {formatTons(cl.totalWeightTon, { decimals: 2 })}
                           </div>
                           <Badge
                             className={`text-[9px] px-1.5 py-0 font-bold ${
@@ -996,7 +1019,9 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5 font-mono text-[10px]">
-                          <span className="text-slate-700">{st.totalWeightTon.toFixed(1)}t</span>
+                          <span className="text-slate-700">
+                            {formatTons(st.totalWeightTon, { decimals: 2 })}
+                          </span>
                           <button
                             onClick={() => handleRemoveStopFromCluster(st.id)}
                             className="text-slate-400 hover:text-rose-600 font-bold px-1"
@@ -1081,7 +1106,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                     <div>
                       <span className="text-[10px] text-slate-500 block">Peso Total:</span>
                       <strong className="text-slate-900 font-mono text-sm">
-                        {selectedStop.totalWeightTon.toFixed(1)} t
+                        {formatTons(selectedStop.totalWeightTon, { decimals: 2 })}
                       </strong>
                     </div>
                     <div>
@@ -1112,7 +1137,8 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                         </option>
                         {clusters.map((c) => (
                           <option key={c.id} value={c.id}>
-                            {c.code} ({c.totalWeightTon.toFixed(1)}t - {c.occupancyPct}%)
+                            {c.code} ({formatTons(c.totalWeightTon, { decimals: 2 })} -{' '}
+                            {c.occupancyPct}%)
                           </option>
                         ))}
                       </select>
@@ -1131,7 +1157,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                 <span>Não Planejados ({unplannedStops.length} clientes)</span>
               </div>
               <span className="font-mono text-xs font-bold text-slate-800">
-                {summaryKpis.saldoNaoPlanejado.toFixed(1)} t
+                {formatTons(summaryKpis.saldoNaoPlanejado, { decimals: 2 })}
               </span>
             </div>
 
@@ -1149,7 +1175,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                   >
                     <span className="truncate max-w-[170px] text-slate-800">{st.customerName}</span>
                     <span className="font-mono font-bold text-slate-700">
-                      {st.totalWeightTon.toFixed(1)} t
+                      {formatTons(st.totalWeightTon, { decimals: 2 })}
                     </span>
                   </div>
                 ))
@@ -1159,18 +1185,18 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
         </div>
       </div>
 
-      {/* 3. INDICADORES RESUMIDOS NO RODAPÉ (#6, #17) */}
+      {/* 3. INDICADORES RESUMIDOS NO RODAPÉ (#6, #17) com unidades formatTons ABNT */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1">
-        <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs text-center">
+        <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs text-center h-full flex flex-col justify-center">
           <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">
             Carteira Disponível
           </span>
           <strong className="text-base font-black font-mono text-[#005596]">
-            {summaryKpis.carteiraLiberadaTon.toFixed(1)} t
+            {formatTons(summaryKpis.carteiraLiberadaTon, { decimals: 2 })}
           </strong>
         </div>
 
-        <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs text-center">
+        <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs text-center h-full flex flex-col justify-center">
           <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">
             Clientes Ativos
           </span>
@@ -1179,7 +1205,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
           </strong>
         </div>
 
-        <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs text-center">
+        <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs text-center h-full flex flex-col justify-center">
           <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">
             Cargas IA Propostas
           </span>
@@ -1188,16 +1214,16 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
           </strong>
         </div>
 
-        <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs text-center">
+        <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs text-center h-full flex flex-col justify-center">
           <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">
             Não Planejado
           </span>
           <strong className="text-base font-black font-mono text-slate-600">
-            {summaryKpis.saldoNaoPlanejado.toFixed(1)} t
+            {formatTons(summaryKpis.saldoNaoPlanejado, { decimals: 2 })}
           </strong>
         </div>
 
-        <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs text-center">
+        <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs text-center h-full flex flex-col justify-center">
           <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">
             Ocupação Média
           </span>
@@ -1206,7 +1232,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
           </strong>
         </div>
 
-        <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs text-center">
+        <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs text-center h-full flex flex-col justify-center">
           <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">
             Economia Estimada
           </span>
@@ -1251,34 +1277,60 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
         />
       )}
 
-      {/* 4. MODAL DE COMPARAÇÃO DE CENÁRIOS (A vs B) (#5) */}
+      {/* 4. MODAL DE COMPARAÇÃO DE CENÁRIOS (A vs B) COM JUSTIFICATIVA IA E APROVAÇÃO HUMANA OBRIGATÓRIA */}
       {isComparisonModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 bg-[#005596] text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Scale className="w-4 h-4 text-purple-400" />
-                <h4 className="text-sm font-bold">
-                  Comparação de Roteirização: Convencional × Clusterização IA
-                </h4>
+                <Scale className="w-5 h-5 text-white" />
+                <div>
+                  <h4 className="text-sm font-bold flex items-center gap-2">
+                    <span>
+                      Comparador de Cenários: Cenário A (Convencional) × Cenário B (Cargas Mistas
+                      IA)
+                    </span>
+                    <Badge className="bg-white/20 text-white font-mono text-[9px] uppercase border-none">
+                      Simulação Multicritério
+                    </Badge>
+                  </h4>
+                  <p className="text-[11px] text-sky-100">
+                    Avaliação comparativa de veículos necessários, ocupação, km e frete total.
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setIsComparisonModalOpen(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-white/80 hover:text-white font-bold text-sm"
               >
                 ✕
               </button>
             </div>
 
             <div className="p-4 overflow-y-auto space-y-4 text-xs">
-              {/* Resumo de Economia no Topo (#5) */}
+              {/* Alerta de Governança: Aprovação Humana Obrigatória */}
+              <Alert className="border-amber-300 bg-amber-50/90 text-amber-900 py-2.5 px-3">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                <div className="ml-2">
+                  <AlertTitle className="text-xs font-bold text-amber-900">
+                    Aprovação Humana Obrigatória — Governança CIAFAL
+                  </AlertTitle>
+                  <AlertDescription className="text-[11px] text-amber-800">
+                    A IA calcula e recomenda o agrupamento otimizado, mas nunca confirma ou grava
+                    transportes no SAP automaticamente. A decisão de efetivar o transporte cabe
+                    exclusivamente ao operador logístico.
+                  </AlertDescription>
+                </div>
+              </Alert>
+
+              {/* Resumo de Economia no Topo */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-center">
                 <div>
                   <span className="text-[10px] text-emerald-700 uppercase font-bold block">
                     Redução de Veículos
                   </span>
                   <strong className="text-xl font-black font-mono text-emerald-900">
-                    -{scenarioComparison.savings.vehiclesReduced} veículos
+                    -{scenarioComparison.savings.vehiclesReduced} veículo(s)
                   </strong>
                 </div>
                 <div>
@@ -1309,24 +1361,25 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
 
               {/* Tabela de Comparação Lado a Lado (Cenário A vs Cenário B) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Cenário A */}
+                {/* Cenário A (Convencional SAP) */}
                 <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
                     <strong className="text-slate-900 font-bold text-xs">
-                      {scenarioComparison.scenarioA.name}
+                      Cenário A: Convencional (Itinerário Padrão)
                     </strong>
                     <Badge variant="outline" className="text-[10px] text-slate-600 bg-white">
-                      Baseline
+                      Baseline SAP
                     </Badge>
                   </div>
                   <p className="text-[11px] text-slate-500">
-                    {scenarioComparison.scenarioA.description}
+                    Roteirização segmentada estritamente por código de itinerário original, sem
+                    mescla de rotas.
                   </p>
                   <div className="space-y-1.5 pt-1 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-slate-600">Número de Cargas:</span>
+                      <span className="text-slate-600">Veículos Necessários:</span>
                       <strong className="font-mono text-slate-900">
-                        {scenarioComparison.scenarioA.loadsCount} cargas
+                        {scenarioComparison.scenarioA.loadsCount} veículos
                       </strong>
                     </div>
                     <div className="flex justify-between">
@@ -1336,7 +1389,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                       </strong>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-600">Distância Total Estimada:</span>
+                      <span className="text-slate-600">Distância Total:</span>
                       <strong className="font-mono text-slate-900">
                         {scenarioComparison.scenarioA.totalDistanceKm} km
                       </strong>
@@ -1349,7 +1402,20 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                       </strong>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-600">Descargas Improdutivas:</span>
+                      <span className="text-slate-600">Custo Médio / Tonelada:</span>
+                      <strong className="font-mono text-slate-900">
+                        R${' '}
+                        {summaryKpis.carteiraLiberadaTon > 0
+                          ? (
+                              scenarioComparison.scenarioA.estimatedFreightBrl /
+                              summaryKpis.carteiraLiberadaTon
+                            ).toFixed(2)
+                          : '0,00'}{' '}
+                        / t
+                      </strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Paradas Improdutivas:</span>
                       <strong className="font-mono text-amber-700">
                         {scenarioComparison.scenarioA.unproductiveStops} paradas
                       </strong>
@@ -1357,22 +1423,23 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                   </div>
                 </div>
 
-                {/* Cenário B */}
-                <div className="p-3.5 bg-purple-50/50 rounded-xl border border-purple-200 space-y-2">
-                  <div className="flex items-center justify-between border-b border-purple-200 pb-1.5">
-                    <strong className="text-purple-900 font-bold text-xs">
-                      {scenarioComparison.scenarioB.name}
+                {/* Cenário B (Cargas Mistas IA) */}
+                <div className="p-3.5 bg-sky-50/40 rounded-xl border border-sky-300 space-y-2">
+                  <div className="flex items-center justify-between border-b border-sky-200 pb-1.5">
+                    <strong className="text-[#005596] font-bold text-xs">
+                      Cenário B: Cargas Mistas Otimizadas (IA)
                     </strong>
-                    <Badge className="bg-purple-600 text-white text-[10px]">Recomendado IA</Badge>
+                    <Badge className="bg-[#005596] text-white text-[10px]">Recomendado IA</Badge>
                   </div>
-                  <p className="text-[11px] text-slate-500">
-                    {scenarioComparison.scenarioB.description}
+                  <p className="text-[11px] text-slate-600">
+                    Agrupamento geográfico multicritério combinando itinerários contíguos com
+                    maximização de ocupação.
                   </p>
                   <div className="space-y-1.5 pt-1 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-slate-600">Número de Cargas:</span>
-                      <strong className="font-mono text-purple-900 font-black">
-                        {scenarioComparison.scenarioB.loadsCount} cargas
+                      <span className="text-slate-600">Veículos Necessários:</span>
+                      <strong className="font-mono text-[#005596] font-black">
+                        {scenarioComparison.scenarioB.loadsCount} veículos
                       </strong>
                     </div>
                     <div className="flex justify-between">
@@ -1383,8 +1450,8 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                       </strong>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-600">Distância Total Estimada:</span>
-                      <strong className="font-mono text-purple-900 font-black">
+                      <span className="text-slate-600">Distância Total:</span>
+                      <strong className="font-mono text-[#005596] font-black">
                         {scenarioComparison.scenarioB.totalDistanceKm} km
                       </strong>
                     </div>
@@ -1396,7 +1463,20 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                       </strong>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-600">Descargas Improdutivas:</span>
+                      <span className="text-slate-600">Custo Médio / Tonelada:</span>
+                      <strong className="font-mono text-emerald-700 font-black">
+                        R${' '}
+                        {summaryKpis.carteiraLiberadaTon > 0
+                          ? (
+                              scenarioComparison.scenarioB.estimatedFreightBrl /
+                              summaryKpis.carteiraLiberadaTon
+                            ).toFixed(2)
+                          : '0,00'}{' '}
+                        / t
+                      </strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Paradas Otimizadas:</span>
                       <strong className="font-mono text-emerald-700">
                         {scenarioComparison.scenarioB.unproductiveStops} paradas (-
                         {scenarioComparison.savings.unproductiveStopsAvoided})
@@ -1404,6 +1484,23 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Parecer / Justificativa Explicável da IA */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-purple-900 font-bold text-xs">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Justificativa da IA para a Roteirização Mista:</span>
+                </div>
+                <p className="text-[11px] text-slate-700 leading-relaxed italic">
+                  "O Cenário B consolida pedidos vizinhos ao longo do mesmo corredor rodoviário,
+                  elevando a ocupação média para {scenarioComparison.scenarioB.avgOccupancyPct}% e
+                  poupando
+                  {scenarioComparison.savings.vehiclesReduced} veículo(s) de grande porte. A
+                  economia líquida de frete atinge R${' '}
+                  {scenarioComparison.savings.freightSavingsBrl.toLocaleString('pt-BR')}, mantendo
+                  as janelas de descarga dos clientes e conformidade fiscal integral."
+                </p>
               </div>
             </div>
 
@@ -1424,14 +1521,32 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                     handleSendLoadToPlanner(clusters[0])
                   }
                 }}
-                className="bg-[#005596] hover:bg-[#004275] text-white text-xs h-8 font-bold"
+                className="bg-[#005596] hover:bg-[#004275] text-white text-xs h-8 font-bold px-3 shadow-xs"
               >
-                Aplicar Carga IA no Planejador
+                Aprovar & Aplicar Cenário B no Planejador
               </Button>
             </div>
           </div>
         </div>
       )}
+
+      {/* MODAL DE CRIAÇÃO DE CARGA MISTA (Passo 2) */}
+      <CreateMixedLoadModal
+        open={createMixedLoadModalOpen}
+        onOpenChange={setCreateMixedLoadModalOpen}
+        orders={orders}
+        itineraries={itineraries}
+        defaultItinerary={filterItinerary}
+        userEmail="operador@ciafal.logistica"
+        userName="Operador Logístico"
+        onLoadCreated={(loadId) => {
+          loadRouteAdditions()
+          toast({
+            title: 'Carga Mista Integrada',
+            description: `Carga ${loadId} gerada e pronta na carteira de simulações.`,
+          })
+        }}
+      />
 
       {/* Drawer de Cidade mantido para retrocompatibilidade */}
       <CityDetailDrawer
