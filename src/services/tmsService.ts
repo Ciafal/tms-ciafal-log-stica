@@ -270,22 +270,6 @@ export const TmsService = {
   },
 
   // ----------------------------------------------------
-  // TOTEM / PORTAL ACCESS COMPATIBILITY
-  // ----------------------------------------------------
-  async submitTotemEntry(params: CreateQueueEntryParams): Promise<{
-    success: boolean
-    message: string
-    data?: any
-    isPreReg?: boolean
-    transitionedFromFora?: boolean
-  }> {
-    return this.submitDriverAvailability({
-      ...params,
-      type: 'PORTA',
-    })
-  },
-
-  // ----------------------------------------------------
   // PUBLIC CHECK-IN FLOW (PORTA, FORA, PROGRAMADO, PRÉ-CADASTRO)
   // ----------------------------------------------------
   async submitDriverAvailability(params: CreateQueueEntryParams): Promise<{
@@ -468,7 +452,8 @@ export const TmsService = {
         const preItineraryName =
           params.preferredItineraryName ||
           (preItinerary === 'SEM_PREFERENCIA' ? 'Sem preferência' : '')
-        const channelUsed = params.channel || (assignedGroup === 'PORTA' ? 'TOTEM' : 'LINK_PUBLICO')
+        const channelUsed =
+          params.channel || (assignedGroup === 'PORTA' ? 'PORTARIA' : 'LINK_PUBLICO')
 
         const pre = await pb.collection('pre_registrations').create({
           document: cleanDoc,
@@ -607,7 +592,8 @@ export const TmsService = {
       const itinCode = params.preferredItinerary || 'SEM_PREFERENCIA'
       const itinName =
         params.preferredItineraryName || (itinCode === 'SEM_PREFERENCIA' ? 'Sem preferência' : '')
-      const entryChannel = params.channel || (assignedGroup === 'PORTA' ? 'TOTEM' : 'LINK_PUBLICO')
+      const entryChannel =
+        params.channel || (assignedGroup === 'PORTA' ? 'PORTARIA' : 'LINK_PUBLICO')
 
       const entry = await pb.collection('queue_entries').create({
         driver: driver.id,
@@ -636,7 +622,9 @@ export const TmsService = {
         last_event: `Entrada na Fila (${assignedGroup})`,
         last_operator:
           params.operatorName ||
-          (entryChannel === 'TOTEM' ? 'Totem PORTA' : 'Motorista via Web App'),
+          (entryChannel === 'PORTARIA' || entryChannel === 'TOTEM'
+            ? 'Portaria PORTA'
+            : 'Motorista via Web App'),
       })
 
       // Audit Queue Entry

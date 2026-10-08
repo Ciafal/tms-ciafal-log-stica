@@ -533,7 +533,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
                     Parecer e Recomendação da IA (Fred & Torre):
                   </div>
                   <p className="text-slate-800">
-                    <strong>Evidências Cruzadas:</strong> O registro da portaria no Totem confirmou
+                    <strong>Evidências Cruzadas:</strong> O registro da portaria física confirmou
                     entrada às 07:10 e saída do pátio apenas às 09:40. O trânsito na Dutra esteve
                     livre (velocidade média 68 km/h).
                   </p>

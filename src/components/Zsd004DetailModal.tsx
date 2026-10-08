@@ -105,8 +105,8 @@ export const Zsd004DetailModal: React.FC<Zsd004DetailModalProps> = ({
             const itin = q.preferred_itinerary || 'SEM_PREFERENCIA'
             const itinName =
               q.preferred_itinerary_name || (itin === 'SEM_PREFERENCIA' ? 'Sem preferência' : '')
-            let channel = q.last_operator?.includes('Totem') ? 'Totem' : 'Link Público'
-            if (q.type === 'PORTA') channel = 'Totem'
+            let channel = q.last_operator?.includes('Totem') ? 'Portaria' : 'Link Público'
+            if (q.type === 'PORTA') channel = 'Portaria'
             if (q.last_operator?.includes('@')) channel = 'Operador HUB'
             if (q.last_operator?.toLowerCase().includes('portaria')) channel = 'Portaria'
 
@@ -133,7 +133,7 @@ export const Zsd004DetailModal: React.FC<Zsd004DetailModalProps> = ({
             const itin = pr.preferred_itinerary || 'SEM_PREFERENCIA'
             const itinName =
               pr.preferred_itinerary_name || (itin === 'SEM_PREFERENCIA' ? 'Sem preferência' : '')
-            const channel = pr.origin === 'PORTA' ? 'Totem' : 'Link Público'
+            const channel = pr.origin === 'PORTA' ? 'Portaria' : 'Link Público'
 
             historyList.push({
               id: `pr-${pr.id}`,
@@ -410,13 +410,11 @@ export const Zsd004DetailModal: React.FC<Zsd004DetailModalProps> = ({
                         <Badge
                           variant="outline"
                           className={
-                            item.channel === 'Totem'
-                              ? 'border-indigo-300 text-indigo-700 bg-indigo-50 text-[10px]'
-                              : item.channel === 'Portaria'
-                                ? 'border-emerald-300 text-emerald-700 bg-emerald-50 text-[10px]'
-                                : item.channel === 'Operador HUB'
-                                  ? 'border-amber-300 text-amber-700 bg-amber-50 text-[10px]'
-                                  : 'border-blue-300 text-blue-700 bg-blue-50 text-[10px]'
+                            item.channel === 'Totem' || item.channel === 'Portaria'
+                              ? 'border-emerald-300 text-emerald-700 bg-emerald-50 text-[10px]'
+                              : item.channel === 'Operador HUB'
+                                ? 'border-amber-300 text-amber-700 bg-amber-50 text-[10px]'
+                                : 'border-blue-300 text-blue-700 bg-blue-50 text-[10px]'
                           }
                         >
                           {item.channel}

@@ -86,7 +86,7 @@ export const ExecutiveView: React.FC<ExecutiveViewProps> = ({ metrics, onSelectS
                 </strong>
               </div>
               <div className="bg-sky-50 p-2 rounded border border-sky-200">
-                <span className="text-sky-700 block text-[10px]">Porta (Totem)</span>
+                <span className="text-sky-700 block text-[10px]">Porta (Portaria)</span>
                 <strong className="text-sky-900 font-bold">
                   {metrics.queue.subdivision.porta}
                 </strong>

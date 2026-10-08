@@ -132,7 +132,7 @@ export const TelegramIntegrationPage: React.FC = () => {
               QR Code de Acesso & Vinculação de Motorista
             </CardTitle>
             <CardDescription className="text-xs text-slate-500">
-              Para uso na portaria / totem para o motorista iniciar a conversa segura com o Bot.
+              Para uso na portaria para o motorista iniciar a conversa segura com o Bot.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-4 flex flex-col items-center justify-center text-center space-y-3">
@@ -143,8 +143,8 @@ export const TelegramIntegrationPage: React.FC = () => {
               </span>
             </div>
             <div className="text-xs text-slate-600 max-w-sm">
-              Ao escanear este QR Code no totem ou portaria, o motorista abre o canal e realiza o
-              opt-in de recebimento das ofertas de carga com vinculação do <code>chat_id</code>.
+              Ao escanear este QR Code na portaria, o motorista abre o canal e realiza o opt-in de
+              recebimento das ofertas de carga com vinculação do <code>chat_id</code>.
             </div>
           </CardContent>
         </Card>

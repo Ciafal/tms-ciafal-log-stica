@@ -1,5 +1,5 @@
 // TMS CIAFAL — Testes de Integração de Itinerário Preferencial na Fila (Testes A a G)
-// Cobre: persistência com auditoria (Link Público, Totem, SEM_PREFERENCIA), bônus de ranking,
+// Cobre: persistência com auditoria (Link Público, Portaria, SEM_PREFERENCIA), bônus de ranking,
 // comportamento da Torre de Controle (visões e filtros) e consistência de badges.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -127,11 +127,11 @@ describe('Integração de Itinerário Preferencial na Fila e Torre de Controle (
   })
 
   // -------------------------------------------------------------------------
-  // TESTE B: Totem — persiste preferred_itinerary, canal TOTEM e auditoria CREATE_QUEUE_ENTRY
+  // TESTE B: Portaria — persiste preferred_itinerary, canal PORTARIA e auditoria CREATE_QUEUE_ENTRY
   // -------------------------------------------------------------------------
-  it('Teste B: Entrada via Totem persiste itinerário preferencial com canal TOTEM e gera auditoria CREATE_QUEUE_ENTRY', async () => {
+  it('Teste B: Entrada via Portaria persiste itinerário preferencial com canal PORTARIA e gera auditoria CREATE_QUEUE_ENTRY', async () => {
     const mockDriver = {
-      id: 'drv-totem-02',
+      id: 'drv-portaria-02',
       name: 'Marcos Vinicius Portaria',
       document: '98765432100',
       whatsapp: '11911223344',
@@ -139,15 +139,15 @@ describe('Integração de Itinerário Preferencial na Fila e Torre de Controle (
     }
 
     const mockVehicle = {
-      id: 'veh-totem-02',
+      id: 'veh-portaria-02',
       plate: 'XYZ9K88',
       type: 'Vanderleia',
       capacity_kg: 32000,
-      driver: 'drv-totem-02',
+      driver: 'drv-portaria-02',
     }
 
     const createdQueueRecord = {
-      id: 'queue-entry-totem-02',
+      id: 'queue-entry-portaria-02',
       driver: mockDriver.id,
       vehicle: mockVehicle.id,
       type: 'PORTA',
@@ -204,14 +204,16 @@ describe('Integração de Itinerário Preferencial na Fila e Torre de Controle (
       } as any
     })
 
-    const result = await TmsService.submitTotemEntry({
+    const result = await TmsService.submitDriverAvailability({
       document: '98765432100',
       whatsapp: '11911223344',
       plate: 'XYZ9K88',
       vehicleType: 'Vanderleia',
       preferredItinerary: 'SP-01',
       preferredItineraryName: 'Grande São Paulo / ABC',
-      channel: 'TOTEM',
+      channel: 'PORTARIA',
+      latitude: -23.5186,
+      longitude: -46.7865,
     })
 
     expect(result.success).toBe(true)
@@ -220,7 +222,7 @@ describe('Integração de Itinerário Preferencial na Fila e Torre de Controle (
 
     expect(auditLogCreated).not.toBeNull()
     expect(auditLogCreated.action).toBe('CREATE_QUEUE_ENTRY')
-    expect(auditLogCreated.payload.channel).toBe('TOTEM')
+    expect(auditLogCreated.payload.channel).toBe('PORTARIA')
     expect(auditLogCreated.payload.preferred_itinerary).toBe('SP-01')
     expect(auditLogCreated.payload.group).toBe('PORTA')
   })

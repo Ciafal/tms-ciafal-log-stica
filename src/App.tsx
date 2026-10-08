@@ -7,7 +7,6 @@ import { GlobalErrorBoundary } from '@/components/GlobalErrorBoundary'
 
 // Existing & New Pages
 import { QueueDashboard } from '@/pages/QueueDashboard'
-import { TotemEntry } from '@/pages/TotemEntry'
 import { ExternalCheckin } from '@/pages/ExternalCheckin'
 import { PreRegistrationsPage } from '@/pages/PreRegistrationsPage'
 import { DriversVehiclesPage } from '@/pages/DriversVehiclesPage'
@@ -85,7 +84,7 @@ export const App: React.FC = () => {
             {/* Public Driver Routes (Acesso Celular sem Login Corporativo) */}
             <Route path="/tms/fila-publica" element={<ExternalCheckin />} />
             <Route path="/checkin-externo" element={<ExternalCheckin />} />
-            <Route path="/totem" element={<TotemEntry />} />
+            <Route path="/totem" element={<NotFound />} />
             <Route path="/tms/oferta/:id" element={<DriverOfferPublicPage />} />
             <Route path="/oferta/:id" element={<DriverOfferPublicPage />} />
             <Route path="/motorista/:sapNumber" element={<DriverMobileCompanionPage />} />

@@ -308,7 +308,7 @@ export const ProductionReadinessPage: React.FC = () => {
       weight: 5,
       status: 'HOMOLOGADO',
       technicalOwner: 'TI & Operações',
-      fallbackStrategy: 'Painel da Mesa de Fretes e Totem PORTA como canais diretos.',
+      fallbackStrategy: 'Painel da Mesa de Fretes e Fila PORTA como canais diretos.',
     },
     {
       id: 'SEC-TG-02',
@@ -358,7 +358,7 @@ export const ProductionReadinessPage: React.FC = () => {
         'Classificação por geofence, ordenação por antiguidade e vínculo com placa/documento.',
       isMandatory: true,
       isReady: true,
-      verificationDetails: 'QueueDashboard e TotemEntry ativos com cálculo de tempo.',
+      verificationDetails: 'QueueDashboard e ExternalCheckin ativos com cálculo de tempo.',
     },
     {
       id: 'CHK-CHI-05',

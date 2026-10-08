@@ -547,16 +547,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 <ExternalLink className="w-3 h-3 text-sky-200" />
               </Link>
 
-              <Link
-                to="/totem"
-                target="_blank"
-                className="text-white hover:bg-white/20 bg-white/10 px-3 py-1.5 rounded-lg flex items-center gap-1.5 border border-white/15 transition"
-              >
-                <Building className="w-3.5 h-3.5 text-sky-200" />
-                <span className="font-semibold">Totem PORTA</span>
-                <ExternalLink className="w-3 h-3 text-sky-200" />
-              </Link>
-
               <button
                 type="button"
                 onClick={() => setCollectorModalOpen(true)}
@@ -776,17 +766,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 <span className="flex items-center gap-1.5 truncate">
                   <Smartphone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                   <span className="truncate">Link Fila (/tms/fila-publica)</span>
-                </span>
-                <ExternalLink className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
-              </Link>
-              <Link
-                to="/totem"
-                target="_blank"
-                className="flex items-center justify-between px-2 py-1.5 rounded text-slate-600 hover:bg-slate-50 hover:text-[#005596] transition-colors"
-              >
-                <span className="flex items-center gap-1.5 truncate">
-                  <Building className="w-3.5 h-3.5 text-[#005596] shrink-0" />
-                  <span className="truncate">Totem Portaria (/totem)</span>
                 </span>
                 <ExternalLink className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
               </Link>

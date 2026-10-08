@@ -1,5 +1,5 @@
-// Totem Gatekeeper & Geofence Hardening Hook
-// Validates IP allowlist for PORTA (Fail-Closed)
+// Queue Gatekeeper & Geofence Hardening Hook
+// Validates IP allowlist for internal PORTA access (Fail-Closed)
 // Validates GPS accuracy and 60km geofence for FORA on the server-side
 // Prevents active duplication in queue
 
@@ -45,7 +45,7 @@ onRecordCreateRequest((e) => {
   }
 
   if (queueType === 'PORTA') {
-    // FAIL-CLOSED POLICY:
+    // FAIL-CLOSED POLICY para acesso de portaria:
     if (!clientIp) {
       return e.badRequestError(
         'Acesso negado: Não foi possível determinar o endereço IP da portaria.',
@@ -81,7 +81,7 @@ onRecordCreateRequest((e) => {
       return e.forbiddenError(
         'Acesso negado: Requisição originada de IP não autorizado (' +
           clientIp +
-          ') para entrada no Totem Portaria.',
+          ') para entrada na Fila PORTA.',
       )
     }
 

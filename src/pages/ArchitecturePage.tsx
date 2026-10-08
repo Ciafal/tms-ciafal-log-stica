@@ -193,7 +193,7 @@ export const ArchitecturePage: React.FC = () => {
             {[
               {
                 step: '1',
-                title: 'Fila & Totem',
+                title: 'Fila & Check-in',
                 desc: 'Geofence PORTA/FORA e antiguidade',
                 badge: 'Check-in',
                 color: 'bg-slate-800',

@@ -246,7 +246,7 @@ export const PreRegistrationsPage: React.FC = () => {
       {/* Header Padronizado */}
       <PageHeader
         title="Painel de Triagem de Pré-Cadastros"
-        subtitle="Gestão de motoristas sem cadastro SAP ativo que tentaram entrada no Totem ou Check-in Externo."
+        subtitle="Gestão de motoristas sem cadastro SAP ativo que solicitaram entrada na fila ou Check-in Externo."
         icon={UserCheck}
         badge={<Badge className="bg-[#005596] text-white text-xs">Kanban Operacional</Badge>}
         breadcrumbs={[
@@ -318,7 +318,7 @@ export const PreRegistrationsPage: React.FC = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todas as Origens</SelectItem>
-              <SelectItem value="PORTA">Origem PORTA (Totem)</SelectItem>
+              <SelectItem value="PORTA">Origem PORTA (Portaria / Pátio)</SelectItem>
               <SelectItem value="FORA">Origem FORA (Link Externo)</SelectItem>
             </SelectContent>
           </Select>
