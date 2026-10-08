@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 import type { OrderStockCreditClassification } from '@/domain/operacaoHojeWalletEngine'
 import { Link } from 'react-router-dom'
+import { formatTons, formatDate } from '@/utils/format'
 
 interface CarteiraSemEstoqueModalProps {
   open: boolean
@@ -298,12 +299,12 @@ export const CarteiraSemEstoqueModal: React.FC<CarteiraSemEstoqueModalProps> = (
                           <span className="text-red-600">0,00 t</span>
                         ) : (
                           <span className="text-amber-700">
-                            {item.effectiveStockTon.toFixed(2)} t
+                            {formatTons(item.effectiveStockTon, { decimals: 2 })}
                           </span>
                         )}
                       </TableCell>
                       <TableCell className="text-right font-mono font-bold text-red-700">
-                        {item.deficitTon.toFixed(2)} t
+                        {formatTons(item.deficitTon, { decimals: 2 })}
                       </TableCell>
                       <TableCell>
                         {isZero ? (
@@ -336,14 +337,14 @@ export const CarteiraSemEstoqueModal: React.FC<CarteiraSemEstoqueModalProps> = (
                       </TableCell>
                       <TableCell className="font-mono text-[11px] text-slate-600">
                         {ord.pcp_forecast_date
-                          ? new Date(ord.pcp_forecast_date).toLocaleDateString('pt-BR')
+                          ? formatDate(ord.pcp_forecast_date)
                           : ord.production_forecast_date
-                            ? new Date(ord.production_forecast_date).toLocaleDateString('pt-BR')
+                            ? formatDate(ord.production_forecast_date)
                             : ord.delivery_week || '—'}
                       </TableCell>
                       <TableCell className="font-mono text-[11px] text-slate-600">
                         {ord.desired_date
-                          ? new Date(ord.desired_date).toLocaleDateString('pt-BR')
+                          ? formatDate(ord.desired_date)
                           : '—'}
                       </TableCell>
                       <TableCell>

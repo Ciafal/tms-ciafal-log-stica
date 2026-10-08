@@ -32,7 +32,7 @@ import {
   TimeOutlier,
   FinancialAnomaly,
 } from '@/domain/transportAnalyticsEngine'
-import { formatCurrency, formatWeight } from '@/lib/utils'
+import { formatCurrency, formatWeight, formatPercent } from '@/lib/utils'
 
 interface ReportAiAnalysisModalProps {
   open: boolean
@@ -184,7 +184,7 @@ export const ReportAiAnalysisModal: React.FC<ReportAiAnalysisModalProps> = ({
                     Ocupação Média
                   </span>
                   <div className="text-lg font-black text-emerald-700 mt-0.5">
-                    {exec.avgOccupancyPct.toFixed(1)}%
+                    {formatPercent(exec.avgOccupancyPct, 1)}
                   </div>
                   <span className="text-[9px] text-slate-400">Capacidade útil aferida</span>
                 </CardContent>
@@ -495,7 +495,7 @@ export const ReportAiAnalysisModal: React.FC<ReportAiAnalysisModalProps> = ({
                     </div>
                     <div className="flex justify-between items-center py-1">
                       <span className="text-slate-600">Divergência média percentual</span>
-                      <span className="font-bold text-slate-900">{w.avgDiffPct.toFixed(2)}%</span>
+                      <span className="font-bold text-slate-900">{formatPercent(w.avgDiffPct, 2)}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -571,7 +571,7 @@ export const ReportAiAnalysisModal: React.FC<ReportAiAnalysisModalProps> = ({
                               {anom.diffTon > 0 ? `+${anom.diffTon}` : anom.diffTon} t
                             </td>
                             <td className="p-2 text-right font-bold text-amber-700">
-                              {anom.diffPct?.toFixed(2)}%
+                              {formatPercent(anom.diffPct, 2)}
                             </td>
                             <td className="p-2 truncate max-w-[180px] text-slate-500">
                               {anom.reason || '—'}

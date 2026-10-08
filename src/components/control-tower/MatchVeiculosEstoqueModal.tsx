@@ -33,6 +33,7 @@ import {
 } from 'lucide-react'
 import type { VehicleLoadMatch } from '@/domain/vehicleLoadMatchingEngine'
 import { useNavigate } from 'react-router-dom'
+import { formatTons, formatPercent, formatCurrency } from '@/utils/format'
 import { TmsService } from '@/services/tmsService'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
@@ -329,7 +330,7 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-mono font-semibold text-slate-700">
-                          {capTon.toFixed(1)} t
+                          {formatTons(capTon, { decimals: 1 })}
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -347,10 +348,10 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                           {match.candidateLoad.customersCount}
                         </TableCell>
                         <TableCell className="text-right font-mono font-semibold text-slate-600">
-                          {elegivelTon.toFixed(1)} t
+                          {formatTons(elegivelTon, { decimals: 1 })}
                         </TableCell>
                         <TableCell className="text-right font-mono font-bold text-emerald-800">
-                          {loadTon.toFixed(2)} t
+                          {formatTons(loadTon, { decimals: 2 })}
                         </TableCell>
                         <TableCell className="text-center">
                           <span
@@ -362,7 +363,7 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                                   : 'text-amber-700'
                             }`}
                           >
-                            {match.occupancyPct.toFixed(0)}%
+                            {formatPercent(match.occupancyPct, 0)}
                           </span>
                         </TableCell>
                         <TableCell className="text-center">
@@ -443,10 +444,10 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                     Peso Total Carga
                   </span>
                   <span className="text-sm font-extrabold text-slate-900 font-mono">
-                    {(selectedMatch.candidateLoad.totalWeightKg / 1000).toFixed(2)} t
+                    {formatTons(selectedMatch.candidateLoad.totalWeightKg / 1000, { decimals: 2 })}
                   </span>
                   <span className="text-[10px] text-slate-500 block">
-                    Capacidade: {(selectedMatch.vehicleCapacityKg / 1000).toFixed(1)} t
+                    Capacidade: {formatTons(selectedMatch.vehicleCapacityKg / 1000, { decimals: 1 })}
                   </span>
                 </div>
 
@@ -455,7 +456,7 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                     Ocupação do Veículo
                   </span>
                   <span className="text-sm font-extrabold text-emerald-700 font-mono">
-                    {selectedMatch.occupancyPct.toFixed(1)}%
+                    {formatPercent(selectedMatch.occupancyPct, 1)}
                   </span>
                   <span className="text-[10px] text-slate-500 block">Aproveitamento otimizado</span>
                 </div>
@@ -477,13 +478,10 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                     Frete Estimado (ANTT)
                   </span>
                   <span className="text-sm font-extrabold text-slate-900 font-mono">
-                    {selectedMatch.totalSuggestedFreight.toLocaleString('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                    })}
+                    {formatCurrency(selectedMatch.totalSuggestedFreight)}
                   </span>
                   <span className="text-[10px] text-slate-500 block">
-                    Piso ANTT: R$ {selectedMatch.anttFloorValue.toFixed(2)}
+                    Piso ANTT: {formatCurrency(selectedMatch.anttFloorValue)}
                   </span>
                 </div>
               </div>
@@ -496,7 +494,7 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                 </div>
                 <p className="text-xs text-slate-700 leading-relaxed">
                   {selectedMatch.score.explanations?.join(' · ') ||
-                    `Match de alta aderência com capacidade de ${(selectedMatch.vehicleCapacityKg / 1000).toFixed(1)}t, ocupação de ${selectedMatch.occupancyPct.toFixed(0)}% e itinerário ${selectedMatch.candidateLoad.itineraryCode}.`}
+                    `Match de alta aderência com capacidade de ${formatTons(selectedMatch.vehicleCapacityKg / 1000, { decimals: 1 })}, ocupação de ${formatPercent(selectedMatch.occupancyPct, 0)} e itinerário ${selectedMatch.candidateLoad.itineraryCode}.`}
                 </p>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
@@ -586,7 +584,7 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                             </div>
                           </TableCell>
                           <TableCell className="text-right font-mono font-bold">
-                            {(ord.weight_kg / 1000).toFixed(2)} t
+                            {formatTons(ord.weight_kg / 1000, { decimals: 2 })}
                           </TableCell>
                           <TableCell className="text-[11px] text-slate-600">
                             {ord.discharge_type || 'Livre'}

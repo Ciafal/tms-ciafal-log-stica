@@ -9,6 +9,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { CustomerLogisticInfoEntity } from '@/domain/customerLogisticInfoEngine'
+import { formatTons, formatKg, formatDate } from '@/utils/format'
 import {
   Building2,
   Package,
@@ -206,11 +207,11 @@ export const CustomerLogisticDetailModal: React.FC<CustomerLogisticDetailModalPr
                   <p>
                     <strong>Validade:</strong>{' '}
                     {customer.valid_from
-                      ? new Date(customer.valid_from).toLocaleDateString('pt-BR')
+                      ? formatDate(customer.valid_from)
                       : 'Indeterminada'}{' '}
                     até{' '}
                     {customer.valid_to
-                      ? new Date(customer.valid_to).toLocaleDateString('pt-BR')
+                      ? formatDate(customer.valid_to)
                       : 'Indeterminada'}
                   </p>
                 </div>
@@ -274,7 +275,7 @@ export const CustomerLogisticDetailModal: React.FC<CustomerLogisticDetailModalPr
                     <span>Limite Total por Carga:</span>
                     <strong className="text-blue-700 font-bold">
                       {load.maxTotalWeightTons
-                        ? `${load.maxTotalWeightTons} t`
+                        ? formatTons(load.maxTotalWeightTons)
                         : 'Conforme PBT do veículo'}
                     </strong>
                   </div>
@@ -282,7 +283,7 @@ export const CustomerLogisticDetailModal: React.FC<CustomerLogisticDetailModalPr
                     <span>Limite Máximo por Descarga:</span>
                     <strong>
                       {load.maxWeightPerDischargeKg
-                        ? `${(load.maxWeightPerDischargeKg / 1000).toFixed(1)} t (${load.maxWeightPerDischargeKg} kg)`
+                        ? `${formatTons(load.maxWeightPerDischargeKg / 1000, { decimals: 1 })} (${formatKg(load.maxWeightPerDischargeKg)})`
                         : 'Conforme veículo'}
                     </strong>
                   </div>
@@ -339,7 +340,7 @@ export const CustomerLogisticDetailModal: React.FC<CustomerLogisticDetailModalPr
                   <div className="flex justify-between border-b pb-1">
                     <span>Peso Máximo por Unidade/Fardo:</span>
                     <strong>
-                      {mat.maxUnitWeightKg ? `${mat.maxUnitWeightKg} kg` : 'Padrão Usina'}
+                      {mat.maxUnitWeightKg ? formatKg(mat.maxUnitWeightKg) : 'Padrão Usina'}
                     </strong>
                   </div>
                 </div>
@@ -448,7 +449,7 @@ export const CustomerLogisticDetailModal: React.FC<CustomerLogisticDetailModalPr
                   <div className="flex justify-between border-b pb-1">
                     <span>PBT Máximo Aceito:</span>
                     <strong>
-                      {veh.maxGrossWeightTons ? `${veh.maxGrossWeightTons} t` : 'Livre'}
+                      {veh.maxGrossWeightTons ? formatTons(veh.maxGrossWeightTons) : 'Livre'}
                     </strong>
                   </div>
                   <div className="flex justify-between border-b pb-1">
@@ -535,7 +536,7 @@ export const CustomerLogisticDetailModal: React.FC<CustomerLogisticDetailModalPr
                     <span>Capacidade do Equipamento:</span>
                     <strong>
                       {dis.equipmentCapacityTons
-                        ? `${dis.equipmentCapacityTons} t`
+                        ? formatTons(dis.equipmentCapacityTons)
                         : 'Não informada'}
                     </strong>
                   </div>

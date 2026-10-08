@@ -29,6 +29,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { formatTons, formatPercent, formatCurrency, formatCostPerTon } from '@/utils/format'
 import {
   Link2,
   Truck,
@@ -211,7 +212,7 @@ export const EncontrosDrawer: React.FC<EncontrosDrawerProps> = ({
         errs.push({
           matchId: m.matchId,
           plate: m.vehiclePlate,
-          reason: `Peso (${(weight / 1000).toFixed(1)}t) excede a capacidade (${(cap / 1000).toFixed(1)}t).`,
+          reason: `Peso (${formatTons(weight / 1000, { decimals: 1 })}) excede a capacidade (${formatTons(cap / 1000, { decimals: 1 })}).`,
         })
         continue
       }
@@ -484,7 +485,7 @@ export const EncontrosDrawer: React.FC<EncontrosDrawerProps> = ({
         resource: 'freight_offers',
         resource_id: offer.id,
         details: {
-          reason: `Encontro ${match.matchId} enviado para a Mesa de Fretes. ANTT: R$ ${match.anttFloorValue.toFixed(2)}, Pedágio: R$ ${match.tollCost.toFixed(2)}`,
+          reason: `Encontro ${match.matchId} enviado para a Mesa de Fretes. ANTT: ${formatCurrency(match.anttFloorValue)}, Pedágio: ${formatCurrency(match.tollCost)}`,
           matchId: match.matchId,
           vehiclePlate: match.vehiclePlate,
           driverName: match.driverName,
@@ -520,11 +521,11 @@ export const EncontrosDrawer: React.FC<EncontrosDrawerProps> = ({
       const prompt = `Você é o Agente IA Planejador de Cargas do TMS CIAFAL.
 Analise a combinação sugerida pelo motor determinístico:
 - Encontro: ${match.matchId} (Score: ${match.score.totalScore}%)
-- Veículo: Placa ${match.vehiclePlate}, Tipo ${match.vehicleType}, Capacidade ${(match.vehicleCapacityKg / 1000).toFixed(1)}t, Fila ${match.driverQueueGroup} (Espera: ${match.waitingMinutes} min).
+- Veículo: Placa ${match.vehiclePlate}, Tipo ${match.vehicleType}, Capacidade ${formatTons(match.vehicleCapacityKg / 1000, { decimals: 1 })}, Fila ${match.driverQueueGroup} (Espera: ${match.waitingMinutes} min).
 - Motorista: ${match.driverName} (Itinerário Preferencial: ${match.driverPreferredItinerary || 'Nenhum'}).
-- Carga: ${match.candidateLoad.title}, Peso ${(match.candidateLoad.totalWeightKg / 1000).toFixed(1)}t, ${match.candidateLoad.customersCount} cliente(s), ${match.candidateLoad.dischargesCount} descarga(s), Rota ${match.candidateLoad.itineraryCode}.
-- Ocupação: ${match.occupancyPct}% (Saldo: ${(match.balanceKg / 1000).toFixed(1)}t).
-- Custos: Piso ANTT R$ ${match.anttFloorValue.toFixed(2)}, Pedágio R$ ${match.tollCost.toFixed(2)}, Frete Total Sugerido R$ ${match.totalSuggestedFreight.toFixed(2)} (R$ ${match.costPerTon.toFixed(2)}/t).
+- Carga: ${match.candidateLoad.title}, Peso ${formatTons(match.candidateLoad.totalWeightKg / 1000, { decimals: 1 })}, ${match.candidateLoad.customersCount} cliente(s), ${match.candidateLoad.dischargesCount} descarga(s), Rota ${match.candidateLoad.itineraryCode}.
+- Ocupação: ${formatPercent(match.occupancyPct, 0)} (Saldo: ${formatTons(match.balanceKg / 1000, { decimals: 1 })}).
+- Custos: Piso ANTT ${formatCurrency(match.anttFloorValue)}, Pedágio ${formatCurrency(match.tollCost)}, Frete Total Sugerido ${formatCurrency(match.totalSuggestedFreight)} (${formatCostPerTon(match.costPerTon)}).
 - Checks: Estoque (${match.checks.stock}), Crédito (${match.checks.credit}), PCP (${match.checks.pcp}).
 
 Explique de forma técnica e compacta (máx 3 parágrafos) ao gestor logístico:
@@ -539,7 +540,7 @@ Explique de forma técnica e compacta (máx 3 parágrafos) ao gestor logístico:
       setAiExplanation(response?.explanation || 'Análise concluída pelo motor de IA.')
     } catch (err: any) {
       setAiExplanation(
-        `Alocação de alta aderência operacional: veículo ${match.vehiclePlate} atende integralmente à cubagem e peso (${match.occupancyPct}% de ocupação) com rota convergente ao perfil do motorista. O valor sugerido de R$ ${match.totalSuggestedFreight.toFixed(2)} cumpre o piso regulatório ANTT com margem de segurança para pedágios.`,
+        `Alocação de alta aderência operacional: veículo ${match.vehiclePlate} atende integralmente à cubagem e peso (${formatPercent(match.occupancyPct, 0)} de ocupação) com rota convergente ao perfil do motorista. O valor sugerido de ${formatCurrency(match.totalSuggestedFreight)} cumpre o piso regulatório ANTT com margem de segurança para pedágios.`,
       )
     } finally {
       setAiLoading(false)
@@ -968,7 +969,7 @@ Explique de forma técnica e compacta (máx 3 parágrafos) ao gestor logístico:
                             </div>
                           </td>
                           <td className="p-2.5 text-right font-mono text-slate-800">
-                            {(m.candidateLoad.totalWeightKg / 1000).toFixed(2)} t
+                            {formatTons(m.candidateLoad.totalWeightKg / 1000, { decimals: 2 })}
                           </td>
                           <td className="p-2.5 text-center font-mono">
                             {m.candidateLoad.dischargesCount}

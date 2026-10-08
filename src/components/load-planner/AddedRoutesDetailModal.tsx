@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Route, Trash2, Calendar, User, ShieldAlert, Sparkles, Scale, Info } from 'lucide-react'
 import { RouteAdditionEntity } from '@/domain/routeAdditionEngine'
+import { formatTons } from '@/utils/format'
 
 export interface AddedRoutesDetailModalProps {
   open: boolean
@@ -99,7 +100,7 @@ export const AddedRoutesDetailModal: React.FC<AddedRoutesDetailModalProps> = ({
                   </td>
                   <td className="p-2.5 text-center font-mono">{originalCustomersCount}</td>
                   <td className="p-2.5 text-right font-mono text-slate-900">
-                    {originalWeightTon.toFixed(1)} t
+                    {formatTons(originalWeightTon, { decimals: 1 })}
                   </td>
                   <td className="p-2.5 text-slate-400 italic font-mono">-</td>
                   {canRemove && (
@@ -121,9 +122,9 @@ export const AddedRoutesDetailModal: React.FC<AddedRoutesDetailModalProps> = ({
                   </tr>
                 ) : (
                   activeAdditions.map((addition, idx) => {
-                    const weightTon = addition.weight_after
-                      ? ((addition.weight_after - (addition.weight_before || 0)) / 1000).toFixed(1)
-                      : '5.3'
+                    const weightTonVal = addition.weight_after
+                      ? (addition.weight_after - (addition.weight_before || 0)) / 1000
+                      : 5.3
                     const clientsCount = addition.clients_after
                       ? Math.max(1, (addition.clients_after || 1) - (addition.clients_before || 0))
                       : 1
@@ -147,7 +148,7 @@ export const AddedRoutesDetailModal: React.FC<AddedRoutesDetailModalProps> = ({
                         </td>
                         <td className="p-2.5 text-center font-mono">{clientsCount}</td>
                         <td className="p-2.5 text-right font-mono font-bold text-slate-900">
-                          {weightTon} t
+                          {formatTons(weightTonVal, { decimals: 1 })}
                         </td>
                         <td className="p-2.5 text-slate-800">
                           <span className="font-semibold block text-[11px]">

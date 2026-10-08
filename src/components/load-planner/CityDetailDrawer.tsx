@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { formatTons, formatCurrency, formatDate } from '@/utils/format'
 import { Card, CardContent } from '@/components/ui/card'
 import { SapSalesOrderEntity } from '@/domain/rules'
 import { CityDemandCluster } from '@/domain/geographicClusterEngine'
@@ -164,10 +165,10 @@ export const CityDetailDrawer: React.FC<CityDetailDrawerProps> = ({
             <Package className="w-3 h-3 text-[#005596]" /> Carteira Total
           </span>
           <div className="text-sm font-black font-mono text-slate-900 mt-0.5">
-            {city.totalWeightTon.toFixed(1)} t
+            {formatTons(city.totalWeightTon, { decimals: 1 })}
           </div>
           <span className="text-[10px] text-slate-500">
-            Disp: <strong>{city.availableWeightTon.toFixed(1)} t</strong>
+            Disp: <strong>{formatTons(city.availableWeightTon, { decimals: 1 })}</strong>
           </span>
         </div>
 
@@ -196,12 +197,12 @@ export const CityDetailDrawer: React.FC<CityDetailDrawerProps> = ({
             <DollarSign className="w-3 h-3 text-emerald-600" /> Valor Carteira
           </span>
           <div className="text-xs font-black font-mono text-slate-900 mt-0.5 truncate">
-            R$ {city.totalValueBrl.toLocaleString('pt-BR')}
+            {formatCurrency(city.totalValueBrl)}
           </div>
           <span className="text-[10px] text-slate-500">
             Desde:{' '}
             {city.oldestOrderDate
-              ? new Date(city.oldestOrderDate).toLocaleDateString('pt-BR')
+              ? formatDate(city.oldestOrderDate)
               : '—'}
           </span>
         </div>
@@ -242,7 +243,7 @@ export const CityDetailDrawer: React.FC<CityDetailDrawerProps> = ({
           <span className="text-[11px] text-slate-600">
             Peso Selecionado:{' '}
             <strong className="text-slate-900 font-mono text-xs">
-              {selectedWeightTon.toFixed(1)} t
+              {formatTons(selectedWeightTon, { decimals: 1 })}
             </strong>
           </span>
         </div>
@@ -309,10 +310,10 @@ export const CityDetailDrawer: React.FC<CityDetailDrawerProps> = ({
 
                 <div className="text-right">
                   <span className="text-xs font-mono font-black text-slate-900 block">
-                    {((order.weight_kg || 0) / 1000).toFixed(1)} t
+                    {formatTons((order.weight_kg || 0) / 1000, { decimals: 1 })}
                   </span>
                   <span className="text-[10px] text-slate-500 font-mono">
-                    R$ {(order.total_value || order.order_value || 0).toLocaleString('pt-BR')}
+                    {formatCurrency(order.total_value || order.order_value || 0)}
                   </span>
                 </div>
               </div>
@@ -329,7 +330,7 @@ export const CityDetailDrawer: React.FC<CityDetailDrawerProps> = ({
                   <span className="text-slate-400 block text-[9px] uppercase">Data Desejada</span>
                   <span className="text-slate-700 font-mono">
                     {order.desired_date
-                      ? new Date(order.desired_date).toLocaleDateString('pt-BR')
+                      ? formatDate(order.desired_date)
                       : '—'}
                   </span>
                 </div>
@@ -392,10 +393,10 @@ export const CityDetailDrawer: React.FC<CityDetailDrawerProps> = ({
           <span className="text-xs text-slate-400 block">Total da Carga a Simular:</span>
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-black font-mono text-sky-400">
-              {selectedWeightTon.toFixed(1)} t
+              {formatTons(selectedWeightTon, { decimals: 1 })}
             </span>
             <span className="text-xs text-slate-300">
-              ({selectedOrders.length} pedidos • R$ {selectedValueBrl.toLocaleString('pt-BR')})
+              ({selectedOrders.length} pedidos • {formatCurrency(selectedValueBrl)})
             </span>
           </div>
         </div>

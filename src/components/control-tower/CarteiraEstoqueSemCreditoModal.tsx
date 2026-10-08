@@ -35,6 +35,7 @@ import type { SapSalesOrderEntity } from '@/domain/rules'
 import { TmsService } from '@/services/tmsService'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
+import { formatTons, formatCurrency, formatDate } from '@/utils/format'
 import { Link } from 'react-router-dom'
 
 interface CarteiraEstoqueSemCreditoModalProps {
@@ -108,7 +109,7 @@ export const CarteiraEstoqueSemCreditoModal: React.FC<CarteiraEstoqueSemCreditoM
     setReassessmentOrder(order)
     setReassessmentValue(order.total_value || order.order_value || 0)
     setReassessmentReason(
-      `Liberação emergencial de crédito para pedido com estoque físico já disponível (${(order.weight_kg / 1000).toFixed(2)} t).`,
+      `Liberação emergencial de crédito para pedido com estoque físico já disponível (${formatTons(order.weight_kg / 1000, { decimals: 2 })}).`,
     )
   }
 
@@ -215,7 +216,7 @@ export const CarteiraEstoqueSemCreditoModal: React.FC<CarteiraEstoqueSemCreditoM
                   Tonelagem Retida
                 </span>
                 <span className="text-base font-extrabold text-amber-900 font-mono">
-                  {totals.totalTons.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} t
+                  {formatTons(totals.totalTons, { decimals: 2 })}
                 </span>
               </div>
               <div className="p-2 bg-white rounded-lg border border-amber-200 text-xs">
@@ -223,7 +224,7 @@ export const CarteiraEstoqueSemCreditoModal: React.FC<CarteiraEstoqueSemCreditoM
                   Estoque Físico Disponível
                 </span>
                 <span className="text-base font-extrabold text-emerald-700 font-mono">
-                  {totals.totalStockTons.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} t
+                  {formatTons(totals.totalStockTons, { decimals: 2 })}
                 </span>
               </div>
               <div className="p-2 bg-white rounded-lg border border-amber-200 text-xs">
@@ -231,10 +232,7 @@ export const CarteiraEstoqueSemCreditoModal: React.FC<CarteiraEstoqueSemCreditoM
                   Valor Retido em Carteira
                 </span>
                 <span className="text-base font-extrabold text-slate-900 font-mono">
-                  {totals.totalValue.toLocaleString('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL',
-                  })}
+                  {formatCurrency(totals.totalValue)}
                 </span>
               </div>
             </div>
@@ -339,10 +337,10 @@ export const CarteiraEstoqueSemCreditoModal: React.FC<CarteiraEstoqueSemCreditoM
                           {item.pendingQty.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}
                         </TableCell>
                         <TableCell className="text-right font-mono font-bold text-amber-900">
-                          {item.pendingWeightTon.toFixed(2)} t
+                          {formatTons(item.pendingWeightTon, { decimals: 2 })}
                         </TableCell>
                         <TableCell className="text-right font-mono font-bold text-emerald-700">
-                          {item.effectiveStockTon.toFixed(2)} t
+                          {formatTons(item.effectiveStockTon, { decimals: 2 })}
                         </TableCell>
                         <TableCell className="font-mono text-[11px] text-slate-600">
                           {ord.plant_code || ord.supplying_plant || '1010'} /{' '}
@@ -363,17 +361,14 @@ export const CarteiraEstoqueSemCreditoModal: React.FC<CarteiraEstoqueSemCreditoM
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-mono text-slate-700">
-                          {(ord.total_value || ord.order_value || 0).toLocaleString('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                          })}
+                          {formatCurrency(ord.total_value || ord.order_value || 0)}
                         </TableCell>
                         <TableCell className="text-slate-600 text-[11px] truncate max-w-[110px]">
                           {ord.sales_rep || 'Comercial CIAFAL'}
                         </TableCell>
                         <TableCell className="font-mono text-[11px] text-slate-600">
                           {ord.desired_date
-                            ? new Date(ord.desired_date).toLocaleDateString('pt-BR')
+                            ? formatDate(ord.desired_date)
                             : ord.delivery_week || '—'}
                         </TableCell>
                         <TableCell>
@@ -452,15 +447,11 @@ export const CarteiraEstoqueSemCreditoModal: React.FC<CarteiraEstoqueSemCreditoM
                 </div>
                 <div>
                   <strong className="text-slate-800">Peso:</strong>{' '}
-                  {(reassessmentOrder.weight_kg / 1000).toFixed(2)} t
+                  {formatTons(reassessmentOrder.weight_kg / 1000, { decimals: 2 })}
                 </div>
                 <div>
                   <strong className="text-slate-800">Valor do Pedido:</strong>{' '}
-                  {(
-                    reassessmentOrder.total_value ||
-                    reassessmentOrder.order_value ||
-                    0
-                  ).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  {formatCurrency(reassessmentOrder.total_value || reassessmentOrder.order_value || 0)}
                 </div>
                 <div>
                   <strong className="text-slate-800">Status Atual:</strong>{' '}

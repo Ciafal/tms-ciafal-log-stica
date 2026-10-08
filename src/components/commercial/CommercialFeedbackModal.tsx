@@ -29,6 +29,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { formatTons } from '@/utils/format'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
@@ -190,7 +191,7 @@ export const CommercialFeedbackModal: React.FC<CommercialFeedbackModalProps> = (
             <div className="flex justify-between">
               <span className="text-slate-500">Capacidade Residual Carga:</span>
               <strong className="text-amber-700">
-                {((opportunity.missing_weight_kg || 0) / 1000).toFixed(1)} t
+                {formatTons((opportunity.missing_weight_kg || 0) / 1000, { decimals: 1 })}
               </strong>
             </div>
           </div>

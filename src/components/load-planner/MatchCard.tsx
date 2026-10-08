@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { formatTons, formatPercent, formatCostPerTon } from '@/utils/format'
 import {
   Truck,
   User,
@@ -245,7 +246,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({
               <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px]">
                 <span className="text-slate-500">Capacidade Veículo:</span>
                 <span className="font-bold text-slate-800 font-mono">
-                  {(vehicleCapacityKg / 1000).toFixed(1)} t
+                  {formatTons(vehicleCapacityKg / 1000, { decimals: 1 })}
                 </span>
               </div>
 
@@ -269,14 +270,10 @@ export const MatchCard: React.FC<MatchCardProps> = ({
                 <div className="flex items-center gap-1 font-semibold text-slate-800 text-[11px]">
                   <Package className="h-3.5 w-3.5 text-amber-600 shrink-0" />
                   <span className="font-mono">
-                    {(candidateLoad.totalWeightKg / 1000).toLocaleString('pt-BR', {
-                      minimumFractionDigits: 1,
-                      maximumFractionDigits: 1,
-                    })}{' '}
-                    t
+                    {formatTons(candidateLoad.totalWeightKg / 1000, { decimals: 1 })}
                   </span>
                   <span className="text-slate-300">|</span>
-                  <span className="font-mono font-bold text-slate-700">{occupancyPct}%</span>
+                  <span className="font-mono font-bold text-slate-700">{formatPercent(occupancyPct, 0)}</span>
                   <span className="text-slate-300">|</span>
                   <span className="text-slate-600">
                     {candidateLoad.customersCount} cliente
@@ -308,7 +305,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({
               <div>
                 <div className="flex justify-between items-center mb-1 text-[11px]">
                   <span className="text-slate-500">Ocupação do Veículo</span>
-                  <span className="font-bold font-mono text-slate-800">{occupancyPct}%</span>
+                  <span className="font-bold font-mono text-slate-800">{formatPercent(occupancyPct, 0)}</span>
                 </div>
                 <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                   <div
@@ -324,7 +321,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({
                 </div>
                 <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
                   <span>Distância: {distanceKm} km</span>
-                  <span>Saldo livre: {(balanceKg / 1000).toFixed(1)} t</span>
+                  <span>Saldo livre: {formatTons(balanceKg / 1000, { decimals: 1 })}</span>
                 </div>
               </div>
 
@@ -367,7 +364,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({
                 variant="outline"
                 className="bg-white border-slate-300 font-mono text-[11px] text-slate-700"
               >
-                R$ {costPerTon.toFixed(2)} / t
+                {formatCostPerTon(costPerTon)}
               </Badge>
             </div>
           </div>
