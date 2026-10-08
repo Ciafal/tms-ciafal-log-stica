@@ -842,6 +842,8 @@ export const LoadPlannerPage: React.FC = () => {
         <LogisticalMapTowerView
           orders={orders}
           itineraries={itineraries}
+          selectedItinerary={filterItinerary}
+          onSelectItinerary={setFilterItinerary}
           onSimulateLoadFromMap={(injectedOrders, label) => {
             setSelectedOrders(injectedOrders)
             setCargoName(`CARGA-MAPA-${new Date().getTime().toString().slice(-4)}`)

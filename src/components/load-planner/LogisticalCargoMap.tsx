@@ -49,10 +49,11 @@ import {
 } from '@/domain/geographicEngine'
 
 export interface VisualMapLayers {
-  showClients: boolean
-  showClusters: boolean
-  showItineraries: boolean
-  showHeatmap: boolean
+  showClients: boolean // Clientes e Entregas
+  showClusters: boolean // Cargas Propostas
+  showItineraries: boolean // Rotas Planejadas
+  showHeatmap: boolean // Mapa de Calor
+  showConsolidationOpportunities: boolean // Oportunidades de Consolidação
   showStockAvailable: boolean
   showFutureStock: boolean
   showLogisticAlerts: boolean
@@ -72,6 +73,8 @@ interface LogisticalCargoMapProps {
   onSelectStop: (stop: ClientDeliveryStop) => void
   onSelectUf?: (uf: string) => void
   onSelectItinerary?: (itineraryCode: string) => void
+  onSwitchToPlannerTab?: () => void
+  onOpenCustomerProfile?: (customerCode?: string, customerName?: string) => void
 }
 
 // Contornos e posições aproximadas para renderização SVG nítida dos 26 estados + DF
@@ -127,6 +130,8 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
   onSelectStop,
   onSelectUf,
   onSelectItinerary,
+  onSwitchToPlannerTab,
+  onOpenCustomerProfile,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null)
 
@@ -146,12 +151,17 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
     showClients: true,
     showClusters: true,
     showItineraries: true,
-    showHeatmap: false, // OFF por padrão
+    showHeatmap: true, // Mapa de Calor ativo como camada combinável do heatmap inteligente
+    showConsolidationOpportunities: true,
     showStockAvailable: false,
     showFutureStock: false,
     showLogisticAlerts: true,
-    showAllRoutes: false, // OFF por padrão (#9)
+    showAllRoutes: false,
   })
+
+  // Modal / Popup Responsivo Detalhado por Parada/Cluster (Passo 3)
+  const [activePopupStop, setActivePopupStop] = useState<ClientDeliveryStop | null>(null)
+  const [aiAnalysisRationale, setAiAnalysisRationale] = useState<string | null>(null)
 
   // Tooltip Hover Rico no Cliente (#2)
   const [hoveredStop, setHoveredStop] = useState<{
@@ -174,8 +184,7 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev * 1.3, 5))
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev / 1.3, 0.8))
   const handleResetZoom = () => {
-    setZoomLevel(1)
-    setPanOffset({ x: 0, y: 0 })
+    autoFitBoundingBox()
   }
 
   // Arraste (Pan)
@@ -213,11 +222,143 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
     return clusters.find((c) => c.id === selectedClusterId) || null
   }, [clusters, selectedClusterId])
 
-  // Normalização do Heatmap quando ativado (#10)
-  const maxHeatWeight = useMemo(() => {
-    if (stops.length === 0) return 10
-    return Math.max(...stops.map((s) => s.totalWeightTon), 1)
+  // Escala Térmica Dinâmica de 5 Faixas por Toneladas Liberadas (Passo 2)
+  // Faixa 1 (0–20%): Azul-claro #38bdf8
+  // Faixa 2 (20–40%): Verde #10b981
+  // Faixa 3 (40–65%): Amarelo #eab308
+  // Faixa 4 (65–85%): Laranja #f97316
+  // Faixa 5 (85–100%): Vermelho #ef4444
+  const activeStopsWithValidCoords = useMemo(() => {
+    return stops.filter((s) => !s.isPendingGeo && (s.lat !== 0 || s.lng !== 0))
   }, [stops])
+
+  const maxHeatWeight = useMemo(() => {
+    if (activeStopsWithValidCoords.length === 0) return 10
+    const maxVal = Math.max(...activeStopsWithValidCoords.map((s) => s.totalWeightTon))
+    return Math.max(maxVal, 5) // mínimo de 5t para não estourar em volumes mínimos
+  }, [activeStopsWithValidCoords])
+
+  // Cortes térmicos reais em toneladas para a legenda
+  const heatThresholds = useMemo(() => {
+    return {
+      t1: Math.round(maxHeatWeight * 0.2 * 10) / 10,
+      t2: Math.round(maxHeatWeight * 0.4 * 10) / 10,
+      t3: Math.round(maxHeatWeight * 0.65 * 10) / 10,
+      t4: Math.round(maxHeatWeight * 0.85 * 10) / 10,
+      t5: Math.round(maxHeatWeight * 10) / 10,
+    }
+  }, [maxHeatWeight])
+
+  // Função para mapear peso em faixa térmica, cor e opacidade
+  const getThermalProperties = useCallback(
+    (weightTon: number) => {
+      const ratio = Math.min(1, Math.max(0, weightTon / maxHeatWeight))
+      if (ratio <= 0.2) {
+        return {
+          color: '#38bdf8',
+          label: '0–20% (Muito Baixa)',
+          band: 1,
+          opacity: 0.35,
+          radiusMultiplier: 1.0,
+        }
+      } else if (ratio <= 0.4) {
+        return {
+          color: '#10b981',
+          label: '20–40% (Baixa)',
+          band: 2,
+          opacity: 0.45,
+          radiusMultiplier: 1.3,
+        }
+      } else if (ratio <= 0.65) {
+        return {
+          color: '#eab308',
+          label: '40–65% (Média)',
+          band: 3,
+          opacity: 0.55,
+          radiusMultiplier: 1.7,
+        }
+      } else if (ratio <= 0.85) {
+        return {
+          color: '#f97316',
+          label: '65–85% (Alta)',
+          band: 4,
+          opacity: 0.65,
+          radiusMultiplier: 2.1,
+        }
+      } else {
+        return {
+          color: '#ef4444',
+          label: '85–100% (Crítica/Máxima)',
+          band: 5,
+          opacity: 0.75,
+          radiusMultiplier: 2.6,
+        }
+      }
+    },
+    [maxHeatWeight],
+  )
+
+  // Auto-enquadramento de Zoom Dinâmico por Bounding Box (Passo 2)
+  // Calcula minLat, maxLat, minLng, maxLng das paradas ativas com padding de 40px
+  const autoFitBoundingBox = useCallback(() => {
+    if (activeStopsWithValidCoords.length === 0) {
+      setZoomLevel(1)
+      setPanOffset({ x: 0, y: 0 })
+      return
+    }
+
+    const svgWidth = 800
+    const svgHeight = 640
+    const padding = 40
+
+    // Converte todas as paradas ativas para pontos SVG não transformados
+    const points = activeStopsWithValidCoords.map((st) =>
+      latLngToSvgPoint(st.lat, st.lng, svgWidth, svgHeight, 40),
+    )
+
+    let minX = Infinity
+    let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
+
+    points.forEach((p) => {
+      if (p.x < minX) minX = p.x
+      if (p.x > maxX) maxX = p.x
+      if (p.y < minY) minY = p.y
+      if (p.y > maxY) maxY = p.y
+    })
+
+    const boxWidth = Math.max(maxX - minX, 60)
+    const boxHeight = Math.max(maxY - minY, 60)
+
+    const availableWidth = svgWidth - padding * 2
+    const availableHeight = svgHeight - padding * 2
+
+    const scaleX = availableWidth / boxWidth
+    const scaleY = availableHeight / boxHeight
+    const targetZoom = Math.min(Math.max(Math.min(scaleX, scaleY) * 0.9, 1), 4.5)
+
+    const boxCenterX = (minX + maxX) / 2
+    const boxCenterY = (minY + maxY) / 2
+
+    const svgCenterX = svgWidth / 2
+    const svgCenterY = svgHeight / 2
+
+    const targetPanX = svgCenterX - boxCenterX * targetZoom
+    const targetPanY = svgCenterY - boxCenterY * targetZoom
+
+    setZoomLevel(targetZoom)
+    setPanOffset({ x: targetPanX, y: targetPanY })
+  }, [activeStopsWithValidCoords])
+
+  // Disparar auto-fit ao trocar de itinerário ou quando lista de paradas com coordenadas mudar
+  const prevItineraryRef = useRef<string>(selectedItinerary)
+  React.useEffect(() => {
+    if (prevItineraryRef.current !== selectedItinerary) {
+      prevItineraryRef.current = selectedItinerary
+      autoFitBoundingBox()
+    }
+  }, [selectedItinerary, autoFitBoundingBox])
 
   return (
     <div className="relative bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-md flex flex-col h-[640px] select-none">
@@ -321,7 +462,17 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
                 </div>
 
                 <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer">
-                  <span className="text-slate-700 text-[11px]">☑ Clientes / Pedidos</span>
+                  <span className="text-slate-700 text-[11px]">🔥 Mapa de Calor</span>
+                  <input
+                    type="checkbox"
+                    checked={layers.showHeatmap}
+                    onChange={() => toggleLayer('showHeatmap')}
+                    className="rounded text-amber-600"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer">
+                  <span className="text-slate-700 text-[11px]">📍 Clientes e Entregas</span>
                   <input
                     type="checkbox"
                     checked={layers.showClients}
@@ -331,7 +482,7 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
                 </label>
 
                 <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer">
-                  <span className="text-slate-700 text-[11px]">☑ Clusterização de Cargas</span>
+                  <span className="text-slate-700 text-[11px]">🚛 Cargas Propostas</span>
                   <input
                     type="checkbox"
                     checked={layers.showClusters}
@@ -341,7 +492,7 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
                 </label>
 
                 <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer">
-                  <span className="text-slate-700 text-[11px]">☑ Itinerários e Conexões</span>
+                  <span className="text-slate-700 text-[11px]">🛣 Rotas Planejadas</span>
                   <input
                     type="checkbox"
                     checked={layers.showItineraries}
@@ -351,7 +502,19 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
                 </label>
 
                 <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer">
-                  <span className="text-slate-700 text-[11px]">☐ Alertas Operacionais</span>
+                  <span className="text-slate-700 text-[11px]">
+                    ✨ Oportunidades de Consolidação
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={layers.showConsolidationOpportunities}
+                    onChange={() => toggleLayer('showConsolidationOpportunities')}
+                    className="rounded text-purple-600"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer border-t border-slate-100 pt-1.5">
+                  <span className="text-slate-700 text-[11px]">⚠ Alertas Operacionais</span>
                   <input
                     type="checkbox"
                     checked={layers.showLogisticAlerts}
@@ -361,7 +524,7 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
                 </label>
 
                 <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer">
-                  <span className="text-slate-700 text-[11px]">☐ Estoque Liberado (DP34)</span>
+                  <span className="text-slate-700 text-[11px]">📦 Estoque Liberado (DP34)</span>
                   <input
                     type="checkbox"
                     checked={layers.showStockAvailable}
@@ -371,22 +534,12 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
                 </label>
 
                 <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer">
-                  <span className="text-slate-700 text-[11px]">☐ Previsão PCP Futura</span>
+                  <span className="text-slate-700 text-[11px]">🏭 Previsão PCP Futura</span>
                   <input
                     type="checkbox"
                     checked={layers.showFutureStock}
                     onChange={() => toggleLayer('showFutureStock')}
                     className="rounded text-[#005596]"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-1 hover:bg-slate-50 rounded cursor-pointer border-t border-slate-100 pt-1.5">
-                  <span className="text-slate-700 text-[11px]">🔥 Mapa de Calor (Secundário)</span>
-                  <input
-                    type="checkbox"
-                    checked={layers.showHeatmap}
-                    onChange={() => toggleLayer('showHeatmap')}
-                    className="rounded text-amber-600"
                   />
                 </label>
               </div>
@@ -429,8 +582,8 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
           <g
             transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${zoomLevel})`}
             style={{
-              transformOrigin: '400px 320px',
-              transition: isPanning ? 'none' : 'transform 0.15s ease-out',
+              transformOrigin: '0px 0px',
+              transition: isPanning ? 'none' : 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
             {/* 1. Limites dos Estados Brasileiros (Fundo Cartográfico Clean) */}
@@ -475,21 +628,59 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
               })}
             </g>
 
-            {/* 2. Camada Secundária de Heatmap (Fica por trás dos marcadores) (#10) */}
+            {/* 2. Mapa de Calor por Toneladas Liberadas (Passo 2: 5 Faixas Térmicas Dinâmicas) */}
+            {/* NUNCA inventar coordenadas: renderiza SOMENTE paradas ativas com coordenadas válidas (!isPendingGeo && lat!=0) */}
             {layers.showHeatmap && (
-              <g className="heatmap-secondary-layer pointer-events-none">
-                {stops.map((st) => {
+              <g className="heatmap-layer pointer-events-none">
+                {activeStopsWithValidCoords.map((st) => {
                   const pt = latLngToSvgPoint(st.lat, st.lng, 800, 640)
-                  const intensity = Math.min(1, Math.max(0.2, st.totalWeightTon / maxHeatWeight))
-                  const radius = 18 + intensity * 28
+                  const thermal = getThermalProperties(st.totalWeightTon)
+                  // Intensidade e raio ditados pelo peso consolidado (totalWeightTon)
+                  // Garante que 3 pedidos/65 t sejam mais intensos que 12 pedidos/18 t
+                  const baseRadius = 14
+                  const heatRadius = baseRadius * thermal.radiusMultiplier
 
                   return (
-                    <circle
-                      key={`heat-${st.id}`}
-                      cx={pt.x}
-                      cy={pt.y}
-                      r={radius}
-                      fill="url(#heatSubtle)"
+                    <g key={`heat-group-${st.id}`}>
+                      {/* Halo difuso externo */}
+                      <circle
+                        cx={pt.x}
+                        cy={pt.y}
+                        r={heatRadius * 1.5}
+                        fill={thermal.color}
+                        opacity={thermal.opacity * 0.4}
+                      />
+                      {/* Núcleo térmico concentrado */}
+                      <circle
+                        cx={pt.x}
+                        cy={pt.y}
+                        r={heatRadius}
+                        fill={thermal.color}
+                        opacity={thermal.opacity}
+                      />
+                    </g>
+                  )
+                })}
+              </g>
+            )}
+
+            {/* Oportunidades de Consolidação (Camada combinável) */}
+            {layers.showConsolidationOpportunities && (
+              <g className="consolidation-layer pointer-events-none opacity-40">
+                {clusters.map((cl) => {
+                  if (cl.stops.length < 2) return null
+                  const originPt = latLngToSvgPoint(cl.originHub.lat, cl.originHub.lng, 800, 640)
+                  const firstStop = latLngToSvgPoint(cl.stops[0].lat, cl.stops[0].lng, 800, 640)
+                  return (
+                    <line
+                      key={`consolidation-hint-${cl.id}`}
+                      x1={originPt.x}
+                      y1={originPt.y}
+                      x2={firstStop.x}
+                      y2={firstStop.y}
+                      stroke="#8b5cf6"
+                      strokeWidth={1.5}
+                      strokeDasharray="3,3"
                     />
                   )
                 })}
@@ -499,71 +690,78 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
             {/* 3. Rotas Desenhadas (#8 e #9) */}
             {/* Por padrão desligadas; desenham a carga selecionada ou todas se showAllRoutes = true */}
             <g className="routes-layer">
-              {clusters.map((cluster) => {
-                const isSelected = selectedClusterId === cluster.id
-                const shouldDraw = isSelected || layers.showAllRoutes
-                if (!shouldDraw) return null
+              {layers.showItineraries &&
+                clusters.map((cluster) => {
+                  const isSelected = selectedClusterId === cluster.id
+                  const shouldDraw = isSelected || layers.showAllRoutes
+                  if (!shouldDraw) return null
 
-                const originPt = latLngToSvgPoint(
-                  cluster.originHub.lat,
-                  cluster.originHub.lng,
-                  800,
-                  640,
-                )
-                const stopsPts = cluster.stops.map((s) => latLngToSvgPoint(s.lat, s.lng, 800, 640))
+                  const originPt = latLngToSvgPoint(
+                    cluster.originHub.lat,
+                    cluster.originHub.lng,
+                    800,
+                    640,
+                  )
+                  const stopsPts = cluster.stops.map((s) =>
+                    latLngToSvgPoint(s.lat, s.lng, 800, 640),
+                  )
 
-                // Trajeto sequencial: Origem -> Parada 1 -> Parada 2 -> ... -> Parada N -> Origem
-                const allPoints = [originPt, ...stopsPts, originPt]
+                  // Trajeto sequencial: Origem -> Parada 1 -> Parada 2 -> ... -> Parada N -> Origem
+                  const allPoints = [originPt, ...stopsPts, originPt]
 
-                return (
-                  <g key={`route-${cluster.id}`} className="transition-opacity duration-200">
-                    {/* Linhas conectando os pontos */}
-                    {allPoints.slice(0, -1).map((p1, idx) => {
-                      const p2 = allPoints[idx + 1]
-                      const isReturnToBase = idx === allPoints.length - 2
-                      // Se a carga possui rota adicionada ativa: diferencia o trecho adicionado com traçado tracejado em tom distinto
-                      const hasAddition = !!cluster.hasRouteAddition
-                      const isAdditionSegment =
-                        hasAddition && idx >= Math.max(1, Math.floor(allPoints.length / 2))
+                  return (
+                    <g key={`route-${cluster.id}`} className="transition-opacity duration-200">
+                      {/* Linhas conectando os pontos */}
+                      {allPoints.slice(0, -1).map((p1, idx) => {
+                        const p2 = allPoints[idx + 1]
+                        const isReturnToBase = idx === allPoints.length - 2
+                        // Se a carga possui rota adicionada ativa: diferencia o trecho adicionado com traçado tracejado em tom distinto
+                        const hasAddition = !!cluster.hasRouteAddition
+                        const isAdditionSegment =
+                          hasAddition && idx >= Math.max(1, Math.floor(allPoints.length / 2))
 
-                      const strokeColor = isAdditionSegment ? '#f59e0b' : cluster.color.hex
-                      const strokeDash = isAdditionSegment ? '6,3' : isReturnToBase ? '5,4' : 'none'
-                      const strokeW = isAdditionSegment
-                        ? isSelected
-                          ? 3.5
-                          : 2.4
-                        : isSelected
-                          ? 3
-                          : 1.8
+                        const strokeColor = isAdditionSegment ? '#f59e0b' : cluster.color.hex
+                        const strokeDash = isAdditionSegment
+                          ? '6,3'
+                          : isReturnToBase
+                            ? '5,4'
+                            : 'none'
+                        const strokeW = isAdditionSegment
+                          ? isSelected
+                            ? 3.5
+                            : 2.4
+                          : isSelected
+                            ? 3
+                            : 1.8
 
-                      return (
-                        <line
-                          key={`seg-${cluster.id}-${idx}`}
-                          x1={p1.x}
-                          y1={p1.y}
-                          x2={p2.x}
-                          y2={p2.y}
-                          stroke={strokeColor}
-                          strokeWidth={strokeW}
-                          strokeDasharray={strokeDash}
-                          opacity={isSelected ? 0.95 : 0.65}
-                          filter={isSelected ? 'url(#routeGlow)' : undefined}
-                          className="cursor-pointer"
-                          onClick={() => onSelectCluster(cluster.id)}
-                        >
-                          <title>
-                            {isAdditionSegment
-                              ? `Trecho da Rota Adicionada (+${cluster.routeAdditionData?.complementary_itinerary_code || 'Adicional'})`
-                              : isReturnToBase
-                                ? 'Retorno à Origem'
-                                : `Rota Original (${cluster.code})`}
-                          </title>
-                        </line>
-                      )
-                    })}
-                  </g>
-                )
-              })}
+                        return (
+                          <line
+                            key={`seg-${cluster.id}-${idx}`}
+                            x1={p1.x}
+                            y1={p1.y}
+                            x2={p2.x}
+                            y2={p2.y}
+                            stroke={strokeColor}
+                            strokeWidth={strokeW}
+                            strokeDasharray={strokeDash}
+                            opacity={isSelected ? 0.95 : 0.65}
+                            filter={isSelected ? 'url(#routeGlow)' : undefined}
+                            className="cursor-pointer"
+                            onClick={() => onSelectCluster(cluster.id)}
+                          >
+                            <title>
+                              {isAdditionSegment
+                                ? `Trecho da Rota Adicionada (+${cluster.routeAdditionData?.complementary_itinerary_code || 'Adicional'})`
+                                : isReturnToBase
+                                  ? 'Retorno à Origem'
+                                  : `Rota Original (${cluster.code})`}
+                            </title>
+                          </line>
+                        )
+                      })}
+                    </g>
+                  )
+                })}
             </g>
 
             {/* 4. Origem Canônica CIAFAL / Sidercentro (#8: Ícone industrial clean 🏭) */}
@@ -642,7 +840,7 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
             {/* 5. Marcadores de Clientes / Locais de Descarga (#2, #3, #7, #8, #13, #14) */}
             {layers.showClients && (
               <g className="client-stops-layer">
-                {stops.map((stop) => {
+                {activeStopsWithValidCoords.map((stop) => {
                   const pt = latLngToSvgPoint(stop.lat, stop.lng, 800, 640)
 
                   // Verificação de seleção e Dimmed (#7)
@@ -668,6 +866,8 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
                       }`}
                       onClick={() => {
                         onSelectStop(stop)
+                        setActivePopupStop(stop)
+                        setAiAnalysisRationale(null)
                         if (stop.assignedClusterId) {
                           onSelectCluster(stop.assignedClusterId)
                         }
@@ -929,55 +1129,259 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
           </Button>
         </div>
 
-        {/* LEGENDA COMPACTA SEMÂNTICA NO MAPA (#12: NUNCA cor sem legenda) */}
-        <div className="absolute bottom-3 left-3 z-20 bg-white/95 backdrop-blur-md border border-slate-200 p-2.5 rounded-xl text-[10px] text-slate-700 shadow-md max-w-sm space-y-1.5">
-          <div className="font-bold text-slate-900 uppercase text-[9px] tracking-wider flex items-center justify-between border-b border-slate-100 pb-1">
-            <span className="flex items-center gap-1">
-              <Info className="w-3 h-3 text-[#005596]" /> Legenda de Clusters e Status
-            </span>
-            <span className="text-slate-400 font-mono text-[9px]">{clusters.length} Cargas IA</span>
-          </div>
-
-          {/* Cores das Cargas Atuais */}
-          <div className="flex items-center gap-2 flex-wrap max-h-16 overflow-y-auto pr-1">
-            {clusters.slice(0, 6).map((cl) => (
-              <span
-                key={cl.id}
-                onClick={() => onSelectCluster(selectedClusterId === cl.id ? null : cl.id)}
-                className={`flex items-center gap-1 cursor-pointer px-1.5 py-0.5 rounded transition ${
-                  selectedClusterId === cl.id ? 'bg-slate-200 font-bold' : 'hover:bg-slate-100'
-                }`}
-                title={`Filtrar somente clientes de ${cl.code}`}
+        {/* POPUP / MODAL RESPONSIVO POR PARADA / CLUSTER (Passo 3) */}
+        {activePopupStop && (
+          <div className="absolute top-12 left-1/2 transform -translate-x-1/2 z-40 max-w-md w-[92%] bg-white rounded-2xl shadow-2xl border border-slate-300 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Topo do Popup com Identificação */}
+            <div className="p-3 bg-[#005596] text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-sky-300" />
+                <div>
+                  <h4 className="text-xs font-bold leading-tight truncate max-w-[260px]">
+                    {activePopupStop.customerName}
+                  </h4>
+                  <span className="text-[10px] text-sky-200">
+                    Cód. SAP: {activePopupStop.customerCode || 'N/D'} • {activePopupStop.city}/
+                    {activePopupStop.uf}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setActivePopupStop(null)
+                  setAiAnalysisRationale(null)
+                }}
+                className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10"
               >
-                <span
-                  className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
-                  style={{ backgroundColor: cl.color.hex }}
-                />
-                <span className="text-[10px]">{cl.code}</span>
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3.5 space-y-3 text-xs max-h-[460px] overflow-y-auto">
+              {/* Informações da Entrega */}
+              <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                <div>
+                  <span className="text-[10px] text-slate-500 block">Itinerário SAP:</span>
+                  <strong className="text-slate-900 font-mono text-xs">
+                    {activePopupStop.itineraryCode || 'S/I'}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block">
+                    Data Solicitada / Prevista:
+                  </span>
+                  <strong className="text-slate-900 font-mono text-xs">
+                    {activePopupStop.requestedDate
+                      ? new Date(activePopupStop.requestedDate + 'T12:00:00').toLocaleDateString(
+                          'pt-BR',
+                        )
+                      : 'A combinar'}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block">Toneladas Liberadas:</span>
+                  <strong className="text-[#005596] font-mono text-sm font-black">
+                    {activePopupStop.totalWeightTon.toFixed(2)} t
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block">Qtd. Pedidos / Itens:</span>
+                  <strong className="text-slate-900 font-mono text-xs">
+                    {activePopupStop.ordersCount} pedidos ({activePopupStop.orders.length} itens)
+                  </strong>
+                </div>
+              </div>
+
+              {/* Status de Estoque DP34 + Carga Proposta */}
+              <div className="flex items-center justify-between gap-2 flex-wrap text-[11px] bg-slate-50/80 p-2 rounded-lg border border-slate-200">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500">Estoque DP34:</span>
+                  <Badge
+                    className={
+                      activePopupStop.hasStockShortage
+                        ? 'bg-amber-100 text-amber-800 border-amber-300'
+                        : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    }
+                  >
+                    {activePopupStop.hasStockShortage
+                      ? 'Pendente Produção'
+                      : 'Disponível em Estoque'}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500">Carga Proposta:</span>
+                  <Badge className="bg-purple-100 text-purple-900 border-purple-300 font-mono">
+                    {activePopupStop.assignedClusterId
+                      ? clusters.find((c) => c.id === activePopupStop.assignedClusterId)?.code ||
+                        'Vinculada'
+                      : 'Não Alocado'}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Lista dos Produtos / Materiais */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                  Produtos / Materiais Principais:
+                </span>
+                <div className="max-h-24 overflow-y-auto space-y-1 bg-white border border-slate-200 rounded-lg p-1.5">
+                  {activePopupStop.orders.slice(0, 4).map((ord, idx) => (
+                    <div
+                      key={idx}
+                      className="flex justify-between items-center text-[10px] text-slate-700"
+                    >
+                      <span className="truncate max-w-[240px]">
+                        Ped {ord.order_number}:{' '}
+                        {ord.material_description || ord.material || 'Material Aço CIAFAL'}
+                      </span>
+                      <strong className="font-mono text-slate-900">
+                        {((ord.weight_kg || 0) / 1000).toFixed(1)} t
+                      </strong>
+                    </div>
+                  ))}
+                  {activePopupStop.orders.length > 4 && (
+                    <div className="text-[9px] text-slate-400 text-center italic">
+                      +{activePopupStop.orders.length - 4} outros materiais
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Justificativa Explicável da IA (Passo 3) */}
+              {aiAnalysisRationale && (
+                <div className="p-2.5 bg-purple-50 border border-purple-200 rounded-xl space-y-1 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-1.5 text-purple-900 font-bold text-[11px]">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Parecer da IA Logística CIAFAL</span>
+                  </div>
+                  <p className="text-[11px] text-purple-950 italic leading-relaxed">
+                    "{aiAnalysisRationale}"
+                  </p>
+                  <span className="text-[9px] text-purple-600 block">
+                    * A IA recomenda oportunidades operacionais e não altera transportes confirmados
+                    sem autorização do operador.
+                  </span>
+                </div>
+              )}
+
+              {/* Ações: "Visualizar pedidos" e "Analisar consolidação" */}
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setActivePopupStop(null)
+                    if (onSwitchToPlannerTab) {
+                      onSwitchToPlannerTab()
+                    }
+                  }}
+                  className="flex-1 h-8 text-xs font-bold bg-[#005596] hover:bg-[#004275] text-white"
+                >
+                  Visualizar pedidos
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    // Motor de IA com justificativa explicável
+                    const nearbyStops = stops.filter(
+                      (s) =>
+                        s.id !== activePopupStop.id &&
+                        (s.city === activePopupStop.city || s.uf === activePopupStop.uf),
+                    )
+                    const totalConsolidationWeight =
+                      activePopupStop.totalWeightTon +
+                      nearbyStops.reduce((acc, s) => acc + s.totalWeightTon, 0)
+                    const totalClients = 1 + nearbyStops.length
+
+                    const rationale = `Identificados ${totalClients} clientes na região de ${activePopupStop.city}/${activePopupStop.uf}, com ${totalConsolidationWeight.toFixed(1)} t liberadas para transporte. Existe oportunidade de consolidação em uma carga, sujeita à validação da capacidade e das restrições de entrega.`
+                    setAiAnalysisRationale(rationale)
+                  }}
+                  className="h-8 text-xs font-bold border-purple-300 text-purple-800 bg-purple-50 hover:bg-purple-100"
+                >
+                  <Sparkles className="w-3 h-3 mr-1 text-purple-600" />
+                  Analisar consolidação
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* LEGENDA TÉRMICA DINÂMICA SEMPRE VISÍVEL NO RODAPÉ + LEGENDA DE CLUSTERS (Passo 2) */}
+        <div className="absolute bottom-3 left-3 z-20 bg-white/95 backdrop-blur-md border border-slate-200 p-2.5 rounded-xl text-[10px] text-slate-700 shadow-md max-w-md space-y-2">
+          {/* 1. Legenda Térmica Dinâmica de 5 Faixas por Toneladas Reais */}
+          <div>
+            <div className="font-bold text-slate-900 uppercase text-[9px] tracking-wider flex items-center justify-between border-b border-slate-100 pb-1">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>Escala Térmica por Toneladas Liberadas (Cortes Reais)</span>
               </span>
-            ))}
-
-            {/* Marcador Não Planejado (#13) */}
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-slate-600">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block shrink-0" />
-              <span>Não planejado ({unplannedStops.length})</span>
-            </span>
-
-            {/* Marcador Alerta (#14) */}
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-rose-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block shrink-0" />
-              <span>Restrição / Pendência</span>
-            </span>
+              <span className="font-mono text-slate-500 text-[9px]">
+                Máx: {maxHeatWeight.toFixed(1)} t
+              </span>
+            </div>
+            <div className="grid grid-cols-5 gap-1 pt-1.5 text-center">
+              <div className="bg-sky-50 border border-sky-200 p-1 rounded">
+                <div
+                  className="w-3 h-3 rounded-full mx-auto"
+                  style={{ backgroundColor: '#38bdf8' }}
+                />
+                <span className="text-[8px] font-bold text-sky-900 block mt-0.5">
+                  0 – {heatThresholds.t1} t
+                </span>
+                <span className="text-[7px] text-slate-500">0–20%</span>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-200 p-1 rounded">
+                <div
+                  className="w-3 h-3 rounded-full mx-auto"
+                  style={{ backgroundColor: '#10b981' }}
+                />
+                <span className="text-[8px] font-bold text-emerald-900 block mt-0.5">
+                  {heatThresholds.t1} – {heatThresholds.t2} t
+                </span>
+                <span className="text-[7px] text-slate-500">20–40%</span>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 p-1 rounded">
+                <div
+                  className="w-3 h-3 rounded-full mx-auto"
+                  style={{ backgroundColor: '#eab308' }}
+                />
+                <span className="text-[8px] font-bold text-amber-900 block mt-0.5">
+                  {heatThresholds.t2} – {heatThresholds.t3} t
+                </span>
+                <span className="text-[7px] text-slate-500">40–65%</span>
+              </div>
+              <div className="bg-orange-50 border border-orange-200 p-1 rounded">
+                <div
+                  className="w-3 h-3 rounded-full mx-auto"
+                  style={{ backgroundColor: '#f97316' }}
+                />
+                <span className="text-[8px] font-bold text-orange-900 block mt-0.5">
+                  {heatThresholds.t3} – {heatThresholds.t4} t
+                </span>
+                <span className="text-[7px] text-slate-500">65–85%</span>
+              </div>
+              <div className="bg-rose-50 border border-rose-200 p-1 rounded">
+                <div
+                  className="w-3 h-3 rounded-full mx-auto"
+                  style={{ backgroundColor: '#ef4444' }}
+                />
+                <span className="text-[8px] font-bold text-rose-900 block mt-0.5">
+                  {heatThresholds.t4} – {heatThresholds.t5} t
+                </span>
+                <span className="text-[7px] text-slate-500">85–100%</span>
+              </div>
+            </div>
           </div>
 
-          <div className="text-[9px] text-slate-500 pt-0.5 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
-            <span>🏭 Origem Matriz / Sidercentro</span>
+          {/* 2. Legenda de Clusters e Rotas */}
+          <div className="pt-1 border-t border-slate-100 flex items-center justify-between text-[9px] text-slate-500 flex-wrap gap-2">
+            <span>🏭 Origem Contagem</span>
             <span className="flex items-center gap-1">
-              <span className="w-3 h-0.5 bg-slate-700 inline-block" /> Rota original
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block" /> Não planejado
             </span>
-            <span className="flex items-center gap-1 text-amber-700 font-semibold">
-              <span className="w-3 h-0.5 border-b-2 border-dashed border-amber-500 inline-block" />{' '}
-              Trecho adicionado (+Rota)
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" /> Alerta
             </span>
             <span>1, 2, 3 = Ordem de descarga</span>
           </div>

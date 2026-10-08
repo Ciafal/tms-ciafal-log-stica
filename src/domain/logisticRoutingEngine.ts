@@ -403,8 +403,8 @@ export function buildClientDeliveryStops(orders: SapSalesOrderEntity[]): ClientD
     if (stop.isPendingGeo) {
       stop.alerts.push({
         type: 'GEO_PENDENTE',
-        label: 'Cadastro geográfico inconsistente (CEP/município)',
-        severity: 'MEDIA',
+        label: 'Localização pendente de geocodificação (coordenadas não atribuídas)',
+        severity: 'ALTA',
       })
     }
   })

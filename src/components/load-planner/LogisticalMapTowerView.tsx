@@ -62,6 +62,8 @@ import {
   RoutingScenarioComparison,
 } from '@/domain/logisticRoutingEngine'
 import { LogisticalCargoMap } from '@/components/load-planner/LogisticalCargoMap'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { MapPinOff } from 'lucide-react'
 import { CityDetailDrawer } from '@/components/load-planner/CityDetailDrawer'
 import { CityDemandCluster } from '@/domain/geographicClusterEngine'
 import { RouteAdditionModal } from '@/components/load-planner/RouteAdditionModal'
@@ -72,6 +74,8 @@ import { useToast } from '@/hooks/use-toast'
 interface LogisticalMapTowerViewProps {
   orders: SapSalesOrderEntity[]
   itineraries: SapItineraryEntity[]
+  selectedItinerary?: string
+  onSelectItinerary?: (itineraryCode: string) => void
   onSimulateLoadFromMap: (orders: SapSalesOrderEntity[], label: string) => void
   onOpenCustomerProfile?: (customerCode?: string, customerName?: string) => void
   onSwitchToPlannerTab?: () => void
@@ -80,6 +84,8 @@ interface LogisticalMapTowerViewProps {
 export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
   orders,
   itineraries,
+  selectedItinerary,
+  onSelectItinerary,
   onSimulateLoadFromMap,
   onOpenCustomerProfile,
   onSwitchToPlannerTab,
@@ -87,7 +93,13 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
   const { toast } = useToast()
   // Filtros compactos de topo (#6, #11)
   const [filterUf, setFilterUf] = useState<string>('ALL')
-  const [filterItinerary, setFilterItinerary] = useState<string>('ALL')
+  const effectiveFilterItinerary = selectedItinerary !== undefined ? selectedItinerary : 'ALL'
+  const setFilterItinerary = (val: string) => {
+    if (onSelectItinerary) {
+      onSelectItinerary(val)
+    }
+  }
+  const filterItinerary = effectiveFilterItinerary
   const [filterOriginPlant, setFilterOriginPlant] = useState<string>('ALL')
   const [filterStockStatus, setFilterStockStatus] = useState<string>('ALL')
   const [filterSearchQuery, setFilterSearchQuery] = useState<string>('')
@@ -112,16 +124,20 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
     {},
   )
 
-  // 1. Filtragem dos pedidos reais da carteira SAP (#20)
+  // 1. Filtragem dos pedidos reais da carteira SAP (#20) — Estritamente Liberados e não cancelados
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
       if (o.status === 'cancelado') return false
+      // Exigir status de crédito 'Liberado'
+      if (o.credit_status && o.credit_status !== 'Liberado') return false
+
       if (filterUf !== 'ALL' && (o.uf || '').toUpperCase() !== filterUf.toUpperCase()) {
         return false
       }
       if (
         filterItinerary !== 'ALL' &&
-        (o.itinerary_code || '').toUpperCase() !== filterItinerary.toUpperCase()
+        (o.itinerary_code || '').toUpperCase() !== filterItinerary.toUpperCase() &&
+        (o.route_code || '').toUpperCase() !== filterItinerary.toUpperCase()
       ) {
         return false
       }
@@ -334,7 +350,18 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
     })
   }, [stops, clusters, unplannedStops])
 
-  // 6. Indicadores Resumidos Objetivos (#17)
+  // Pedidos e paradas com geolocalização pendente (PENDING_GEOCODING) — Requisito #1 e #4
+  const pendingGeoStops = useMemo(() => {
+    return stops.filter((s) => s.isPendingGeo || (s.lat === 0 && s.lng === 0))
+  }, [stops])
+
+  const pendingGeoOrders = useMemo(() => {
+    return pendingGeoStops.flatMap((s) => s.orders)
+  }, [pendingGeoStops])
+
+  // 6. 8 KPIs Compactos Responsivos do Topo do Mapa (Passo 3)
+  // 1) Carteira Liberada (t), 2) Clientes distintos, 3) Pedidos elegíveis, 4) Municípios distintos,
+  // 5) Cargas Propostas, 6) Toneladas Planejadas (t), 7) Saldo Não Planejado (t), 8) Ocupação Estimada (%)
   const summaryKpis = useMemo(() => {
     const totalWeightTon = Math.round(stops.reduce((a, b) => a + b.totalWeightTon, 0) * 10) / 10
     const unplannedWeightTon =
@@ -344,20 +371,28 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
       Math.round((totalWeightTon - unplannedWeightTon) * 10) / 10,
     )
 
+    const distinctClientsCount = new Set(stops.map((s) => s.customerCode || s.customerName)).size
+    const eligibleOrdersCount = filteredOrders.length
+    const distinctCitiesCount = new Set(stops.map((s) => `${s.city}_${s.uf}`)).size
+    const proposedLoadsCount = clusters.length
+
     const avgOccupancy =
       clusters.length > 0
         ? Math.round(clusters.reduce((a, b) => a + b.occupancyPct, 0) / clusters.length)
         : 0
 
     return {
-      carteiraTotalTon: totalWeightTon,
-      clientesCount: stops.length,
-      cargasIaCount: clusters.length,
-      naoPlanejadoTon: unplannedWeightTon,
-      ocupacaoMediaPct: avgOccupancy,
+      carteiraLiberadaTon: totalWeightTon,
+      clientesDistintos: distinctClientsCount,
+      pedidosElegiveis: eligibleOrdersCount,
+      municipiosDistintos: distinctCitiesCount,
+      cargasPropostas: proposedLoadsCount,
+      toneladasPlanejadas: plannedWeightTon,
+      saldoNaoPlanejado: unplannedWeightTon,
+      ocupacaoEstimadaPct: avgOccupancy,
       economiaEstimadaBrl: scenarioComparison.savings.freightSavingsBrl,
     }
-  }, [stops, unplannedStops, clusters, scenarioComparison])
+  }, [stops, unplannedStops, clusters, filteredOrders, scenarioComparison])
 
   // Carga ativa em destaque (#7)
   const activeCluster = useMemo(() => {
@@ -555,24 +590,122 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
             </div>
           </div>
 
-          {/* Banner de Itinerário Ativo (#11) se filtrado */}
-          {filterItinerary !== 'ALL' && (
-            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs bg-sky-50/60 p-2 rounded-lg">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-[#005596]">Itinerário {filterItinerary}:</span>
-                <span className="text-slate-700">
-                  Carteira{' '}
-                  <strong className="text-slate-900">
-                    {summaryKpis.carteiraTotalTon.toFixed(1)} t
-                  </strong>{' '}
-                  | Clientes <strong className="text-slate-900">{summaryKpis.clientesCount}</strong>{' '}
-                  | Pedidos <strong className="text-slate-900">{filteredOrders.length}</strong> |
-                  Cargas IA <strong className="text-purple-700">{summaryKpis.cargasIaCount}</strong>
-                </span>
+          {/* 8 KPIs Compactos Responsivos do Topo do Mapa (Passo 3) */}
+          <div className="mt-2.5 pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs">
+              <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+                Carteira Liberada
+              </span>
+              <strong className="text-sm font-black font-mono text-[#005596]">
+                {summaryKpis.carteiraLiberadaTon.toFixed(1)} t
+              </strong>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs">
+              <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+                Clientes Distintos
+              </span>
+              <strong className="text-sm font-black font-mono text-slate-900">
+                {summaryKpis.clientesDistintos}
+              </strong>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs">
+              <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+                Pedidos Elegíveis
+              </span>
+              <strong className="text-sm font-black font-mono text-slate-900">
+                {summaryKpis.pedidosElegiveis}
+              </strong>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs">
+              <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+                Municípios
+              </span>
+              <strong className="text-sm font-black font-mono text-slate-900">
+                {summaryKpis.municipiosDistintos}
+              </strong>
+            </div>
+
+            <div className="bg-purple-50/60 border border-purple-200/80 p-2 rounded-lg text-center shadow-xs">
+              <span className="text-[9px] font-bold text-purple-700 uppercase block tracking-wider truncate">
+                Cargas Propostas
+              </span>
+              <strong className="text-sm font-black font-mono text-purple-800">
+                {summaryKpis.cargasPropostas}
+              </strong>
+            </div>
+
+            <div className="bg-emerald-50/60 border border-emerald-200/80 p-2 rounded-lg text-center shadow-xs">
+              <span className="text-[9px] font-bold text-emerald-700 uppercase block tracking-wider truncate">
+                Planejadas
+              </span>
+              <strong className="text-sm font-black font-mono text-emerald-800">
+                {summaryKpis.toneladasPlanejadas.toFixed(1)} t
+              </strong>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs">
+              <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+                Saldo Não Planej.
+              </span>
+              <strong className="text-sm font-black font-mono text-slate-700">
+                {summaryKpis.saldoNaoPlanejado.toFixed(1)} t
+              </strong>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs">
+              <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+                Ocupação Estim.
+              </span>
+              <strong className="text-sm font-black font-mono text-emerald-700">
+                {summaryKpis.ocupacaoEstimadaPct}%
+              </strong>
+            </div>
+          </div>
+
+          {/* Alerta de Qualidade Cadastral: Pedidos com PENDING_GEOCODING (#1, #4) */}
+          {pendingGeoOrders.length > 0 && (
+            <Alert className="mt-2 border-amber-300 bg-amber-50/90 text-amber-900 text-xs py-2 px-3">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <div className="ml-2">
+                <AlertTitle className="text-xs font-bold flex items-center gap-1.5 text-amber-900">
+                  <MapPinOff className="w-3.5 h-3.5 text-amber-700" />
+                  Alerta de Qualidade Cadastral — {pendingGeoOrders.length} pedido(s) pendente(s) de
+                  geocodificação
+                </AlertTitle>
+                <AlertDescription className="text-[11px] text-amber-800 space-y-1 mt-0.5">
+                  <p>
+                    Estes pedidos possuem pendência geográfica (município não mapeado ou sem
+                    coordenadas GPS). As coordenadas não foram inventadas para não distorcer o
+                    cálculo térmico do mapa:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {pendingGeoOrders.slice(0, 5).map((po) => (
+                      <span
+                        key={po.id || po.order_number}
+                        className="bg-white px-2 py-0.5 rounded border border-amber-300 font-mono text-[10px] text-slate-800"
+                      >
+                        Ped. {po.order_number} — {po.customer_name?.slice(0, 20)} (
+                        {po.destination_city || 'S/C'}/{po.uf || 'S/UF'})
+                      </span>
+                    ))}
+                    {pendingGeoOrders.length > 5 && (
+                      <span className="text-[10px] font-bold text-amber-900 self-center">
+                        +{pendingGeoOrders.length - 5} outros
+                      </span>
+                    )}
+                  </div>
+                </AlertDescription>
               </div>
-              <Badge className="bg-emerald-600 text-white font-mono text-[10px]">
-                Economia potencial: ~{scenarioComparison.savings.vehiclesReduced} viagem(ns)
-              </Badge>
+            </Alert>
+          )}
+
+          {/* Mensagem exata de estado vazio quando não há pedidos elegíveis no itinerário (#1) */}
+          {filterItinerary !== 'ALL' && filteredOrders.length === 0 && (
+            <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-center text-xs text-slate-600 font-medium">
+              Nenhum pedido liberado para transporte neste itinerário.
             </div>
           )}
         </CardContent>
@@ -603,6 +736,8 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
             }}
             onSelectUf={(uf) => setFilterUf(uf)}
             onSelectItinerary={(it) => setFilterItinerary(it)}
+            onSwitchToPlannerTab={onSwitchToPlannerTab}
+            onOpenCustomerProfile={onOpenCustomerProfile}
           />
         </div>
 
@@ -990,7 +1125,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
             Carteira Disponível
           </span>
           <strong className="text-base font-black font-mono text-[#005596]">
-            {summaryKpis.carteiraTotalTon.toFixed(1)} t
+            {summaryKpis.carteiraLiberadaTon.toFixed(1)} t
           </strong>
         </div>
 
@@ -999,7 +1134,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
             Clientes Ativos
           </span>
           <strong className="text-base font-black font-mono text-slate-900">
-            {summaryKpis.clientesCount}
+            {summaryKpis.clientesDistintos}
           </strong>
         </div>
 
@@ -1008,7 +1143,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
             Cargas IA Propostas
           </span>
           <strong className="text-base font-black font-mono text-purple-700">
-            {summaryKpis.cargasIaCount}
+            {summaryKpis.cargasPropostas}
           </strong>
         </div>
 
@@ -1017,7 +1152,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
             Não Planejado
           </span>
           <strong className="text-base font-black font-mono text-slate-600">
-            {summaryKpis.naoPlanejadoTon.toFixed(1)} t
+            {summaryKpis.saldoNaoPlanejado.toFixed(1)} t
           </strong>
         </div>
 
@@ -1026,7 +1161,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
             Ocupação Média
           </span>
           <strong className="text-base font-black font-mono text-emerald-700">
-            {summaryKpis.ocupacaoMediaPct}%
+            {summaryKpis.ocupacaoEstimadaPct}%
           </strong>
         </div>
 

@@ -1,5 +1,7 @@
 // TMS CIAFAL — Base Geográfica Oficial e Resolução de Coordenadas de Cidades e Centros Emissores
 // Prioridade: 1) Coordenadas cadastradas no registro; 2) Geocache / CEP; 3) Município + UF; 4) Pendente de geolocalização
+import { pb } from '@/lib/pocketbase/client'
+import { getCachedGeocoding, saveCachedGeocoding } from './routingAdapters'
 
 export interface GeoPoint {
   lat: number
@@ -273,11 +275,18 @@ export interface ResolvedLocation {
   region: string
   isPending: boolean
   warningMessage?: string
+  addressHash?: string
+  providerUsed?: string
 }
 
 /**
  * Normaliza nome de cidade (remove acentuações e espaços extras)
  */
+export function getRegionFromUf(uf: string): string {
+  const ufClean = (uf || '').trim().toUpperCase()
+  return BRAZIL_UF_CENTROIDS[ufClean]?.region || 'Sudeste'
+}
+
 export function normalizeCityName(city: string): string {
   if (!city) return ''
   return city
@@ -389,18 +398,153 @@ export function resolveOrderLocation(order: {
     }
   }
 
-  // 4) Localização Pendente (Fallback seguro)
+  // 4) Localização Pendente (NUNCA inventar coordenadas fictícias: lat: 0, lng: 0 para PENDING_GEOCODING)
   return {
-    lat: -19.9317,
-    lng: -44.0536,
+    lat: 0,
+    lng: 0,
     status: 'PENDING_GEOCODING',
-    confidencePct: 10,
+    confidencePct: 0,
     city: cityRaw || 'Desconhecida',
     uf: ufRaw || 'N/A',
     region: 'Indefinida',
     isPending: true,
     warningMessage:
-      'Localização pendente: cliente sem endereço válido ou município não identificado.',
+      'Localização pendente de geocodificação: cliente sem endereço válido ou município não identificado.',
+    addressHash: computeAddressHash(order),
+  }
+}
+
+/**
+ * Gera hash único do endereço/município para verificação em cache
+ */
+export function computeAddressHash(order: {
+  dest_latitude?: number | string | null
+  dest_longitude?: number | string | null
+  destination_city?: string | null
+  city?: string | null
+  uf?: string | null
+  order_number?: string | number | null
+  customer_name?: string | null
+}): string {
+  const city = (order.destination_city || order.city || '').trim().toLowerCase()
+  const uf = (order.uf || '').trim().toUpperCase()
+  return `geo_${uf}_${city.replace(/[^a-z0-9]/g, '_')}`
+}
+
+/**
+ * Cache assíncrono conectado com a coleção PocketBase `geocoding_cache`
+ * Campos: address_hash, city, uf, latitude, longitude, precision, confidence_pct, status
+ * Índice único: idx_geocache_hash
+ */
+export async function resolveOrderLocationWithCache(order: {
+  dest_latitude?: number | string | null
+  dest_longitude?: number | string | null
+  destination_city?: string | null
+  city?: string | null
+  uf?: string | null
+  order_number?: string | number | null
+  customer_name?: string | null
+}): Promise<ResolvedLocation> {
+  const hash = computeAddressHash(order)
+
+  // 1. Verificar cache em memória do routingAdapters
+  const memCached = getCachedGeocoding(hash)
+  if (memCached && (memCached.lat !== 0 || memCached.lng !== 0)) {
+    return {
+      lat: memCached.lat,
+      lng: memCached.lng,
+      status: memCached.precision === 'EXACT' ? 'EXACT_COORDINATE' : 'CITY_DATABASE',
+      confidencePct: memCached.confidencePct ?? 90,
+      city: memCached.city || String(order.destination_city || order.city || ''),
+      uf: memCached.uf || String(order.uf || ''),
+      region: getRegionFromUf(memCached.uf || String(order.uf || '')),
+      isPending: false,
+      addressHash: hash,
+      providerUsed: 'memory_cache',
+    }
+  }
+
+  // 2. Verificar coleção PocketBase geocoding_cache
+  try {
+    const record = await pb
+      .collection('geocoding_cache')
+      .getFirstListItem(`address_hash="${hash}"`, {
+        requestKey: `geo_${hash}`,
+      })
+    if (record && Number(record.latitude) !== 0 && Number(record.longitude) !== 0) {
+      const lat = Number(record.latitude)
+      const lng = Number(record.longitude)
+      const city = record.city || String(order.destination_city || order.city || '')
+      const uf = (record.uf || String(order.uf || '')).toUpperCase()
+
+      // Salva no cache de memória local
+      saveCachedGeocoding({
+        addressHash: hash,
+        lat,
+        lng,
+        city,
+        uf,
+        precision: record.precision === 'EXACT' ? 'EXACT' : 'APPROXIMATE',
+        confidencePct: Number(record.confidence_pct) || 90,
+      })
+
+      return {
+        lat,
+        lng,
+        status: record.precision === 'EXACT' ? 'EXACT_COORDINATE' : 'CITY_DATABASE',
+        confidencePct: Number(record.confidence_pct) || 90,
+        city,
+        uf,
+        region: getRegionFromUf(uf),
+        isPending: false,
+        addressHash: hash,
+        providerUsed: 'pocketbase_geocoding_cache',
+      }
+    }
+  } catch {
+    // Registro não existe no PocketBase ou offline - prossegue para resolução padrão
+  }
+
+  // 3. Resolução determinística padrão
+  const resolved = resolveOrderLocation({
+    destination_city: order.destination_city || order.city || '',
+    uf: order.uf || '',
+    dest_latitude: typeof order.dest_latitude === 'number' ? order.dest_latitude : Number(order.dest_latitude) || undefined,
+    dest_longitude: typeof order.dest_longitude === 'number' ? order.dest_longitude : Number(order.dest_longitude) || undefined,
+  })
+
+  // 4. Se encontrou coordenadas válidas (não pendente e lat/lng != 0), salvar em cache e PocketBase
+  if (!resolved.isPending && (resolved.lat !== 0 || resolved.lng !== 0)) {
+    saveCachedGeocoding({
+      addressHash: hash,
+      lat: resolved.lat,
+      lng: resolved.lng,
+      city: resolved.city,
+      uf: resolved.uf,
+      precision: resolved.status === 'EXACT_COORDINATE' ? 'EXACT' : 'APPROXIMATE',
+      confidencePct: resolved.confidencePct,
+    })
+
+    // Gravação assíncrona na coleção PocketBase
+    pb.collection('geocoding_cache')
+      .create({
+        address_hash: hash,
+        city: resolved.city,
+        uf: resolved.uf,
+        latitude: resolved.lat,
+        longitude: resolved.lng,
+        precision: resolved.status === 'EXACT_COORDINATE' ? 'EXACT' : 'APPROXIMATE',
+        confidence_pct: resolved.confidencePct,
+        status: 'RESOLVED',
+      })
+      .catch(() => {
+        // Ignora erro se registro já existir (idx_geocache_hash)
+      })
+  }
+
+  return {
+    ...resolved,
+    addressHash: hash,
   }
 }
 

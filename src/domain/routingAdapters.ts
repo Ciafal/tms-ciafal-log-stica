@@ -122,6 +122,34 @@ class GeocodingVersionedCache {
 
 export const geocodingCache = new GeocodingVersionedCache()
 
+export function getCachedGeocoding(hash: string): GeocodedAddress | null {
+  return geocodingCache.get(hash, '', '')
+}
+
+export function saveCachedGeocoding(data: {
+  addressHash: string
+  lat: number
+  lng: number
+  city?: string
+  uf?: string
+  precision?: 'EXACT' | 'APPROXIMATE' | 'CITY_CENTROID'
+  confidencePct?: number
+}) {
+  geocodingCache.set(data.addressHash, data.city || '', data.uf || '', {
+    rawAddress: data.addressHash,
+    city: data.city || '',
+    uf: data.uf || '',
+    latitude: data.lat,
+    longitude: data.lng,
+    precision: data.precision === 'EXACT' ? 'EXACT' : 'APPROXIMATE',
+    confidencePct: data.confidencePct ?? 90,
+    providerUsed: 'GeocodingCache',
+    isCached: true,
+    timestamp: new Date().toISOString(),
+    status: 'VALIDADO',
+  })
+}
+
 // ----------------------------------------------------
 // ADAPTERS IMPLEMENTATIONS
 // ----------------------------------------------------
