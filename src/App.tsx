@@ -73,6 +73,7 @@ import { DriverMobileCompanionPage } from '@/pages/DriverMobileCompanionPage'
 import SelectionGovernanceAndLoopPage from '@/pages/SelectionGovernanceAndLoopPage'
 import TmsIndicatorsPage from '@/pages/TmsIndicatorsPage'
 import { ItineraryReportPage } from '@/pages/ItineraryReportPage'
+import { ItineraryHeatmapPage } from '@/pages/ItineraryHeatmapPage'
 import NotFound from '@/pages/NotFound'
 
 export const App: React.FC = () => {
@@ -187,6 +188,22 @@ export const App: React.FC = () => {
                   <LoadPlannerPage />
                 </Layout>
               }
+            />
+            <Route
+              path="/tms/mapa-calor-itinerario"
+              element={
+                <Layout>
+                  <ItineraryHeatmapPage />
+                </Layout>
+              }
+            />
+            <Route
+              path="/tms/heatmap-itinerario"
+              element={<Navigate to="/tms/mapa-calor-itinerario" replace />}
+            />
+            <Route
+              path="/tms/mapa-calor"
+              element={<Navigate to="/tms/mapa-calor-itinerario" replace />}
             />
             <Route
               path="/tms/zsd35-importar"

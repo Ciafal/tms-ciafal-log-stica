@@ -151,6 +151,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           show: true,
         },
         {
+          title: 'Mapa de Calor por Itinerário',
+          path: '/tms/mapa-calor-itinerario',
+          badge: 'Heatmap & IA',
+          badgeColor: 'bg-[#005596]',
+          show: true,
+        },
+        {
           title: 'Roteirizador / Simulador',
           path: '/tms/roteirizador-simulador',
           badge: 'Rotas',
