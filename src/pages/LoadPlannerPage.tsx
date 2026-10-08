@@ -428,14 +428,20 @@ export const LoadPlannerPage: React.FC = () => {
   }
 
   // Carrega adição de rota ativa para a carga em montagem quando mudar cargoName ou filterItinerary
-  const loadActiveRouteAdditionForAssembly = useCallback(async () => {
-    try {
-      const addition = await TmsService.getActiveRouteAdditionForLoad(cargoName)
-      setActiveRouteAddition(addition)
-    } catch (e) {
-      console.warn('Erro ao carregar adição ativa:', e)
-    }
-  }, [cargoName])
+  const loadActiveRouteAdditionForAssembly = useCallback(
+    async (targetLoadId?: string) => {
+      try {
+        const loadIdToQuery = targetLoadId || cargoName
+        const addition = await TmsService.getActiveRouteAdditionForLoad(loadIdToQuery)
+        setActiveRouteAddition(addition)
+        return addition
+      } catch (e) {
+        console.warn('Erro ao carregar adição ativa:', e)
+        return null
+      }
+    },
+    [cargoName],
+  )
 
   useEffect(() => {
     loadActiveRouteAdditionForAssembly()
@@ -1661,8 +1667,13 @@ export const LoadPlannerPage: React.FC = () => {
                 itineraryCode:
                   filterItinerary !== 'ALL'
                     ? filterItinerary
-                    : selectedOrders[0]?.itinerary_code || 'MG-01',
-                itineraryDescription: `Itinerário ${filterItinerary !== 'ALL' ? filterItinerary : selectedOrders[0]?.itinerary_code || 'MG-01'}`,
+                    : selectedOrders[0]?.itinerary_code || '',
+                itineraryDescription:
+                  filterItinerary !== 'ALL'
+                    ? `Itinerário ${filterItinerary}`
+                    : selectedOrders[0]?.itinerary_code
+                      ? `Itinerário ${selectedOrders[0].itinerary_code}`
+                      : 'Itinerário Multi-rotas / Carteira Livre',
                 originPlant: selectedOrders[0]?.plant_code || '1010',
                 destinationCity: selectedOrders[0]?.destination_city || 'Belo Horizonte',
                 destinationUf: selectedOrders[0]?.uf || 'MG',
@@ -1688,11 +1699,30 @@ export const LoadPlannerPage: React.FC = () => {
                 orders: selectedOrders,
               }
         }
-        onSuccess={() => {
+        onConfirm={async (additionRecord, addedOrders) => {
+          await TmsService.createRouteAddition(additionRecord)
+          if (!matchForRouteAddition) {
+            setSelectedOrders((prevOrders) => {
+              const existingIds = new Set(prevOrders.map((o) => o.id))
+              const newOrdersToAdd = addedOrders.filter((o) => !existingIds.has(o.id))
+              return [...prevOrders, ...newOrdersToAdd]
+            })
+            setActiveRouteAddition(additionRecord)
+          }
+          toast({
+            title: 'Carga Atualizada',
+            description: `${addedOrders.length} pedido(s) incorporado(s). Recálculo de peso, ocupação e fracionamentos concluído.`,
+          })
+        }}
+        onSuccess={async () => {
+          const targetId =
+            matchForRouteAddition?.candidateLoad?.id ||
+            matchForRouteAddition?.candidateLoad?.title ||
+            cargoName
           setRouteAdditionModalOpen(false)
           setMatchForRouteAddition(null)
-          loadActiveRouteAdditionForAssembly()
-          fetchData()
+          await loadActiveRouteAdditionForAssembly(targetId)
+          await fetchData()
         }}
       />
 

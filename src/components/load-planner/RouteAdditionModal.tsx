@@ -102,9 +102,13 @@ export const RouteAdditionModal: React.FC<RouteAdditionModalProps> = ({
   const cargoNumber =
     cargoNumberProp || candidateLoad?.id || candidateLoad?.cargo_number || 'CARGA-NOVA'
   const originalItineraryCode =
-    origItinProp || candidateLoad?.itineraryCode || candidateLoad?.original_itinerary_id || 'MG-01'
+    origItinProp || candidateLoad?.itineraryCode || candidateLoad?.original_itinerary_id || ''
   const originalItineraryDesc =
-    origDescProp || candidateLoad?.itineraryDescription || `Itinerário ${originalItineraryCode}`
+    origDescProp ||
+    candidateLoad?.itineraryDescription ||
+    (originalItineraryCode
+      ? `Itinerário ${originalItineraryCode}`
+      : 'Itinerário Multi-rotas / Carteira Livre')
   const currentOrders = currentOrdersProp || candidateLoad?.orders || []
   const availableOrders = availableOrdersProp || []
   const availableItineraries = availableItinProp || []
@@ -150,8 +154,12 @@ export const RouteAdditionModal: React.FC<RouteAdditionModalProps> = ({
     validOrders.forEach((o) => {
       // Chave da rota: route_code se houver, ou itinerary_code
       const rKey = o.route_code || o.itinerary_code || 'ROTA-LIVRE'
-      // Exclui se for o mesmo itinerário principal
-      if (rKey === originalItineraryCode && o.itinerary_code === originalItineraryCode) {
+      // Exclui se for o mesmo itinerário principal (somente se originalItineraryCode estiver definido)
+      if (
+        originalItineraryCode &&
+        rKey === originalItineraryCode &&
+        o.itinerary_code === originalItineraryCode
+      ) {
         // Pode ser pedido remanescente, mas se for a rota principal não é rota complementar
       }
       const list = routeMap.get(rKey) || []
@@ -163,8 +171,8 @@ export const RouteAdditionModal: React.FC<RouteAdditionModalProps> = ({
     const evaluated: AiRouteRecommendation[] = []
     routeMap.forEach((orders, rCode) => {
       const itinCode = orders[0]?.itinerary_code || rCode
-      // Exclui a rota original se for exatamente igual
-      if (rCode === originalItineraryCode) return
+      // Exclui a rota original se for exatamente igual (somente quando houver originalItineraryCode)
+      if (originalItineraryCode && rCode === originalItineraryCode) return
 
       const evalResult = evaluateEligibleRouteWithAi({
         routeCode: rCode,

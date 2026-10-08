@@ -1051,7 +1051,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
           candidateLoad={{
             id: clusterForRouteAddition.id,
             title: `Carga ${clusterForRouteAddition.code} - ${clusterForRouteAddition.destinationCities.join('/')}`,
-            itineraryCode: clusterForRouteAddition.code.replace('CL-', '') || 'MG-01',
+            itineraryCode: clusterForRouteAddition.code.replace('CL-', '') || '',
             itineraryDescription: `Itinerário ${clusterForRouteAddition.code}`,
             originPlant: clusterForRouteAddition.originHub.plantCode || '1010',
             destinationCity: clusterForRouteAddition.destinationCities[0] || 'Belo Horizonte',

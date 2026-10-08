@@ -1197,7 +1197,7 @@ export function buildDetailedReportRows(params: {
       : '—'
 
     const itinObj = itineraryMap.get(hist.itinerary_code || '')
-    const itinCode = hist.itinerary_code || itinObj?.sap_code || 'MG-01'
+    const itinCode = hist.itinerary_code || itinObj?.sap_code || 'SEM_ITINERARIO'
     const itinDesc = hist.itinerary_description || itinObj?.description || itinCode
 
     const weight = hist.weight_kg || 24000
