@@ -200,10 +200,7 @@ export const CityDetailDrawer: React.FC<CityDetailDrawerProps> = ({
             {formatCurrency(city.totalValueBrl)}
           </div>
           <span className="text-[10px] text-slate-500">
-            Desde:{' '}
-            {city.oldestOrderDate
-              ? formatDate(city.oldestOrderDate)
-              : '—'}
+            Desde: {city.oldestOrderDate ? formatDate(city.oldestOrderDate) : '—'}
           </span>
         </div>
       </div>
@@ -329,9 +326,7 @@ export const CityDetailDrawer: React.FC<CityDetailDrawerProps> = ({
                 <div>
                   <span className="text-slate-400 block text-[9px] uppercase">Data Desejada</span>
                   <span className="text-slate-700 font-mono">
-                    {order.desired_date
-                      ? formatDate(order.desired_date)
-                      : '—'}
+                    {order.desired_date ? formatDate(order.desired_date) : '—'}
                   </span>
                 </div>
                 <div>

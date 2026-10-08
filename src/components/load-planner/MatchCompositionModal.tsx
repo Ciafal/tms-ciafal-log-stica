@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { formatTons, formatKg, formatPercent } from '@/utils/format'
 import {
   CheckCircle2,
   AlertTriangle,
@@ -117,9 +118,9 @@ export const MatchCompositionModal: React.FC<MatchCompositionModalProps> = ({
                         </div>
                       </td>
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                        {((ord.weight_kg || 0) / 1000).toFixed(2)} t
+                        {formatTons((ord.weight_kg || 0) / 1000, { decimals: 2 })}
                         <span className="text-[10px] text-slate-400 block font-normal">
-                          {(ord.weight_kg || 0).toLocaleString('pt-BR')} kg
+                          {formatKg(ord.weight_kg || 0)}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-center">
@@ -201,23 +202,25 @@ export const MatchCompositionModal: React.FC<MatchCompositionModalProps> = ({
             <div>
               <span className="text-slate-500 block text-[11px]">Peso Total da Carga</span>
               <span className="font-bold text-sm text-slate-900 font-mono">
-                {(candidateLoad.totalWeightKg / 1000).toFixed(2)} t
+                {formatTons(candidateLoad.totalWeightKg / 1000, { decimals: 2 })}
               </span>
             </div>
             <div>
               <span className="text-slate-500 block text-[11px]">Capacidade do Veículo</span>
               <span className="font-bold text-sm text-slate-900 font-mono">
-                {(vehicleCapacityKg / 1000).toFixed(2)} t
+                {formatTons(vehicleCapacityKg / 1000, { decimals: 2 })}
               </span>
             </div>
             <div>
               <span className="text-slate-500 block text-[11px]">Ocupação</span>
-              <span className="font-bold text-sm text-blue-700 font-mono">{occupancyPct}%</span>
+              <span className="font-bold text-sm text-blue-700 font-mono">
+                {formatPercent(occupancyPct, 0)}
+              </span>
             </div>
             <div>
               <span className="text-slate-500 block text-[11px]">Saldo Disponível</span>
               <span className="font-bold text-sm text-slate-800 font-mono">
-                {(balanceKg / 1000).toFixed(2)} t ({balanceKg.toLocaleString('pt-BR')} kg)
+                {formatTons(balanceKg / 1000, { decimals: 2 })} ({formatKg(balanceKg)})
               </span>
             </div>
           </div>

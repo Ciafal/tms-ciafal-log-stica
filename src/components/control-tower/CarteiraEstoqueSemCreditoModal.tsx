@@ -451,7 +451,9 @@ export const CarteiraEstoqueSemCreditoModal: React.FC<CarteiraEstoqueSemCreditoM
                 </div>
                 <div>
                   <strong className="text-slate-800">Valor do Pedido:</strong>{' '}
-                  {formatCurrency(reassessmentOrder.total_value || reassessmentOrder.order_value || 0)}
+                  {formatCurrency(
+                    reassessmentOrder.total_value || reassessmentOrder.order_value || 0,
+                  )}
                 </div>
                 <div>
                   <strong className="text-slate-800">Status Atual:</strong>{' '}

@@ -206,13 +206,8 @@ export const CustomerLogisticDetailModal: React.FC<CustomerLogisticDetailModalPr
                   </p>
                   <p>
                     <strong>Validade:</strong>{' '}
-                    {customer.valid_from
-                      ? formatDate(customer.valid_from)
-                      : 'Indeterminada'}{' '}
-                    até{' '}
-                    {customer.valid_to
-                      ? formatDate(customer.valid_to)
-                      : 'Indeterminada'}
+                    {customer.valid_from ? formatDate(customer.valid_from) : 'Indeterminada'} até{' '}
+                    {customer.valid_to ? formatDate(customer.valid_to) : 'Indeterminada'}
                   </p>
                 </div>
               </div>

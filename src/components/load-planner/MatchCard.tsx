@@ -273,7 +273,9 @@ export const MatchCard: React.FC<MatchCardProps> = ({
                     {formatTons(candidateLoad.totalWeightKg / 1000, { decimals: 1 })}
                   </span>
                   <span className="text-slate-300">|</span>
-                  <span className="font-mono font-bold text-slate-700">{formatPercent(occupancyPct, 0)}</span>
+                  <span className="font-mono font-bold text-slate-700">
+                    {formatPercent(occupancyPct, 0)}
+                  </span>
                   <span className="text-slate-300">|</span>
                   <span className="text-slate-600">
                     {candidateLoad.customersCount} cliente
@@ -305,7 +307,9 @@ export const MatchCard: React.FC<MatchCardProps> = ({
               <div>
                 <div className="flex justify-between items-center mb-1 text-[11px]">
                   <span className="text-slate-500">Ocupação do Veículo</span>
-                  <span className="font-bold font-mono text-slate-800">{formatPercent(occupancyPct, 0)}</span>
+                  <span className="font-bold font-mono text-slate-800">
+                    {formatPercent(occupancyPct, 0)}
+                  </span>
                 </div>
                 <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                   <div

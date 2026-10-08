@@ -343,9 +343,7 @@ export const CarteiraSemEstoqueModal: React.FC<CarteiraSemEstoqueModalProps> = (
                             : ord.delivery_week || '—'}
                       </TableCell>
                       <TableCell className="font-mono text-[11px] text-slate-600">
-                        {ord.desired_date
-                          ? formatDate(ord.desired_date)
-                          : '—'}
+                        {ord.desired_date ? formatDate(ord.desired_date) : '—'}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-mono text-[10px] border-slate-300">

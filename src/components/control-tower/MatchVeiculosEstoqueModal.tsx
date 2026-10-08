@@ -447,7 +447,8 @@ export const MatchVeiculosEstoqueModal: React.FC<MatchVeiculosEstoqueModalProps>
                     {formatTons(selectedMatch.candidateLoad.totalWeightKg / 1000, { decimals: 2 })}
                   </span>
                   <span className="text-[10px] text-slate-500 block">
-                    Capacidade: {formatTons(selectedMatch.vehicleCapacityKg / 1000, { decimals: 1 })}
+                    Capacidade:{' '}
+                    {formatTons(selectedMatch.vehicleCapacityKg / 1000, { decimals: 1 })}
                   </span>
                 </div>
 

@@ -495,7 +495,9 @@ export const ReportAiAnalysisModal: React.FC<ReportAiAnalysisModalProps> = ({
                     </div>
                     <div className="flex justify-between items-center py-1">
                       <span className="text-slate-600">Divergência média percentual</span>
-                      <span className="font-bold text-slate-900">{formatPercent(w.avgDiffPct, 2)}</span>
+                      <span className="font-bold text-slate-900">
+                        {formatPercent(w.avgDiffPct, 2)}
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
