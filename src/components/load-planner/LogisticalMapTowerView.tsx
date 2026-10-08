@@ -59,7 +59,9 @@ import {
   buildClientDeliveryStops,
   runMulticriteriaClusterization,
   calculateScenarioComparison,
+  buildItineraryRouteInfo,
   RoutingScenarioComparison,
+  ItineraryRouteInfo,
 } from '@/domain/logisticRoutingEngine'
 import { LogisticalCargoMap } from '@/components/load-planner/LogisticalCargoMap'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -350,6 +352,32 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
     })
   }, [stops, clusters, unplannedStops])
 
+  // 5.B Rota Consolidada do Itinerário Selecionado (Requisitos 1, 2, 3, 5, 6, 8, 9, 11)
+  const itineraryRouteInfo: ItineraryRouteInfo | null = useMemo(() => {
+    if (!filterItinerary || filterItinerary === 'ALL') {
+      return null
+    }
+
+    const matchedItin = itineraries.find((it) => it.sap_code === filterItinerary)
+    const itinDescription = matchedItin
+      ? `${matchedItin.sap_code} — ${matchedItin.description}`
+      : undefined
+
+    return buildItineraryRouteInfo({
+      itineraryCode: filterItinerary,
+      itineraryDescription: itinDescription,
+      stops,
+      proposedLoadsCount: clusters.length,
+      savingsPotentialBrl: scenarioComparison.savings.freightSavingsBrl,
+    })
+  }, [
+    filterItinerary,
+    itineraries,
+    stops,
+    clusters.length,
+    scenarioComparison.savings.freightSavingsBrl,
+  ])
+
   // Pedidos e paradas com geolocalização pendente (PENDING_GEOCODING) — Requisito #1 e #4
   const pendingGeoStops = useMemo(() => {
     return stops.filter((s) => s.isPendingGeo || (s.lat === 0 && s.lng === 0))
@@ -479,8 +507,15 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                 </SelectContent>
               </Select>
 
-              {/* Itinerário SAP (#11) */}
-              <Select value={filterItinerary} onValueChange={setFilterItinerary}>
+              {/* Itinerário SAP (#11 e #7: limpa seleções e propaga para o mapa) */}
+              <Select
+                value={filterItinerary}
+                onValueChange={(val) => {
+                  setSelectedClusterId(null)
+                  setSelectedStop(null)
+                  setFilterItinerary(val)
+                }}
+              >
                 <SelectTrigger className="h-8 text-xs w-[160px] bg-slate-50 border-slate-200">
                   <SelectValue placeholder="Itinerário SAP" />
                 </SelectTrigger>
@@ -702,10 +737,10 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
             </Alert>
           )}
 
-          {/* Mensagem exata de estado vazio quando não há pedidos elegíveis no itinerário (#1) */}
+          {/* Mensagem exata de estado vazio quando não há pedidos elegíveis no itinerário (#1 e #11) */}
           {filterItinerary !== 'ALL' && filteredOrders.length === 0 && (
             <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-center text-xs text-slate-600 font-medium">
-              Nenhum pedido liberado para transporte neste itinerário.
+              Nenhum pedido liberado para este itinerário.
             </div>
           )}
         </CardContent>
@@ -724,6 +759,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
             heatmapVariable="TONELADAS"
             selectedUf={filterUf}
             selectedItinerary={filterItinerary}
+            itineraryRouteInfo={itineraryRouteInfo}
             onSelectCluster={(cid) => {
               setSelectedClusterId(cid)
               setSelectedStop(null)
@@ -735,7 +771,12 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               }
             }}
             onSelectUf={(uf) => setFilterUf(uf)}
-            onSelectItinerary={(it) => setFilterItinerary(it)}
+            onSelectItinerary={(it) => {
+              // Limpa seleções anteriores ao trocar de itinerário (Requisito 7)
+              setSelectedClusterId(null)
+              setSelectedStop(null)
+              setFilterItinerary(it)
+            }}
             onSwitchToPlannerTab={onSwitchToPlannerTab}
             onOpenCustomerProfile={onOpenCustomerProfile}
           />
@@ -1090,7 +1131,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                 <span>Não Planejados ({unplannedStops.length} clientes)</span>
               </div>
               <span className="font-mono text-xs font-bold text-slate-800">
-                {summaryKpis.naoPlanejadoTon.toFixed(1)} t
+                {summaryKpis.saldoNaoPlanejado.toFixed(1)} t
               </span>
             </div>
 

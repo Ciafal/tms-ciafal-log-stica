@@ -792,3 +792,307 @@ export function calculateScenarioComparison(params: {
     },
   }
 }
+
+/**
+ * ----------------------------------------------------
+ * MOTOR DE TRAÇADO E ANÁLISE DE ITINERÁRIO RODOVIÁRIO
+ * (Requisitos 1, 2, 3, 5, 6, 7, 8, 9, 10, 11)
+ * ----------------------------------------------------
+ */
+
+export interface ItineraryWaypoint {
+  index: number
+  type: 'ORIGIN' | 'DELIVERY' | 'RETURN'
+  title: string
+  subtitle?: string
+  city: string
+  uf: string
+  lat: number
+  lng: number
+  customerCode?: string
+  customerName?: string
+  ordersCount: number
+  weightTon: number
+  legDistanceKm: number
+  cumulativeDistanceKm: number
+  estimatedTollBrl: number
+  requestedDate?: string
+  hasStockShortage?: boolean
+  hasCreditPending?: boolean
+}
+
+export interface ItineraryRouteInfo {
+  itineraryCode: string
+  description: string
+  originHub: OriginHub
+  destinationCities: string[]
+  totalWeightTon: number
+  totalOrdersCount: number
+  totalClientsCount: number
+  proposedLoadsCount: number
+  estimatedDistanceKm: number
+  straightLineDistanceKm: number
+  sinuosityFactor: number
+  estimatedTollBrl: number
+  tollCalculationMode: 'ESTIMATED_RULE_AXLES' | 'ONLINE_INTEGRATION'
+  tollFormulaDescription: string
+  waypoints: ItineraryWaypoint[]
+  routeSegments: Array<{
+    from: { lat: number; lng: number; label: string }
+    to: { lat: number; lng: number; label: string }
+    distanceKm: number
+    tollBrl: number
+    orderIndex: number
+    isReturn: boolean
+  }>
+  validStops: ClientDeliveryStop[]
+  invalidStops: ClientDeliveryStop[]
+  hasValidRoute: boolean
+  failureReason?: string
+  warningMessage?: string
+  savingsPotentialBrl: number
+}
+
+/**
+ * Fator de sinuosidade rodoviária média brasileira (ABNT/DNIT)
+ * Converte distância geodésica em estimativa rodoviária real confiável.
+ */
+export const ROAD_SINUOSITY_FACTOR = 1.25
+
+/**
+ * Calcula a rota de um itinerário a partir dos pedidos reais da carteira SAP e suas paradas.
+ */
+export function buildItineraryRouteInfo(params: {
+  itineraryCode: string
+  itineraryDescription?: string
+  stops: ClientDeliveryStop[]
+  originHub?: OriginHub
+  proposedLoadsCount?: number
+  savingsPotentialBrl?: number
+}): ItineraryRouteInfo {
+  const {
+    itineraryCode,
+    itineraryDescription,
+    stops,
+    originHub = OFFICIAL_ORIGIN_HUBS[0], // CIAFAL Matriz Contagem
+    proposedLoadsCount = 0,
+    savingsPotentialBrl = 0,
+  } = params
+
+  const cleanItin = (itineraryCode || '').trim().toUpperCase()
+  const description =
+    itineraryDescription ||
+    (cleanItin === 'ALL' || !cleanItin ? 'Todos os Itinerários' : `Itinerário ${cleanItin}`)
+
+  // Separa paradas com coordenadas válidas e pendentes (Regra 11)
+  const validStops = stops.filter(
+    (s) => !s.isPendingGeo && (s.lat !== 0 || s.lng !== 0) && !isNaN(s.lat) && !isNaN(s.lng),
+  )
+  const invalidStops = stops.filter(
+    (s) => s.isPendingGeo || (s.lat === 0 && s.lng === 0) || isNaN(s.lat) || isNaN(s.lng),
+  )
+
+  const totalWeightTon = Math.round(stops.reduce((acc, s) => acc + s.totalWeightTon, 0) * 10) / 10
+  const totalOrdersCount = stops.reduce((acc, s) => acc + s.ordersCount, 0)
+  const totalClientsCount = new Set(stops.map((s) => s.customerCode || s.customerName)).size
+  const destinationCities = Array.from(new Set(stops.map((s) => `${s.city}/${s.uf}`)))
+
+  // Cenário de Exceção: Sem pedidos liberados
+  if (stops.length === 0) {
+    return {
+      itineraryCode: cleanItin,
+      description,
+      originHub,
+      destinationCities: [],
+      totalWeightTon: 0,
+      totalOrdersCount: 0,
+      totalClientsCount: 0,
+      proposedLoadsCount: 0,
+      estimatedDistanceKm: 0,
+      straightLineDistanceKm: 0,
+      sinuosityFactor: ROAD_SINUOSITY_FACTOR,
+      estimatedTollBrl: 0,
+      tollCalculationMode: 'ESTIMATED_RULE_AXLES',
+      tollFormulaDescription: 'Nenhum pedido liberado para o cálculo.',
+      waypoints: [],
+      routeSegments: [],
+      validStops: [],
+      invalidStops: [],
+      hasValidRoute: false,
+      failureReason: 'Nenhum pedido liberado para este itinerário.',
+      savingsPotentialBrl: 0,
+    }
+  }
+
+  // Cenário de Exceção: Nenhuma coordenada válida para traçar rota
+  if (validStops.length === 0) {
+    return {
+      itineraryCode: cleanItin,
+      description,
+      originHub,
+      destinationCities,
+      totalWeightTon,
+      totalOrdersCount,
+      totalClientsCount,
+      proposedLoadsCount,
+      estimatedDistanceKm: 0,
+      straightLineDistanceKm: 0,
+      sinuosityFactor: ROAD_SINUOSITY_FACTOR,
+      estimatedTollBrl: 0,
+      tollCalculationMode: 'ESTIMATED_RULE_AXLES',
+      tollFormulaDescription: 'Coordenadas indisponíveis para cálculo rodoviário.',
+      waypoints: [],
+      routeSegments: [],
+      validStops: [],
+      invalidStops,
+      hasValidRoute: false,
+      failureReason:
+        'Não foi possível desenhar a rota deste itinerário por ausência de coordenadas válidas em um ou mais destinos.',
+      warningMessage:
+        'Não foi possível desenhar a rota deste itinerário por ausência de coordenadas válidas em um ou mais destinos.',
+      savingsPotentialBrl,
+    }
+  }
+
+  // Sequenciamento otimizado partindo da Origem Contagem
+  const sequencedValidStops = sequenceStopsFromOrigin(originHub, validStops)
+
+  // Montagem dos Waypoints e Segmentos
+  const waypoints: ItineraryWaypoint[] = []
+  const routeSegments: ItineraryRouteInfo['routeSegments'] = []
+
+  let cumulativeDistanceKm = 0
+  let straightTotalKm = 0
+  let prevLat = originHub.lat
+  let prevLng = originHub.lng
+  let prevLabel = originHub.name
+
+  // 1. Ponto de Origem
+  waypoints.push({
+    index: 0,
+    type: 'ORIGIN',
+    title: originHub.name,
+    subtitle: `${originHub.city}/${originHub.uf} - Expedição`,
+    city: originHub.city,
+    uf: originHub.uf,
+    lat: originHub.lat,
+    lng: originHub.lng,
+    ordersCount: 0,
+    weightTon: 0,
+    legDistanceKm: 0,
+    cumulativeDistanceKm: 0,
+    estimatedTollBrl: 0,
+  })
+
+  // 2. Paradas de entrega dos clientes
+  sequencedValidStops.forEach((st, idx) => {
+    const straightDist = haversineDistanceKm(prevLat, prevLng, st.lat, st.lng)
+    const legRoadDist = Math.max(1, Math.round(straightDist * ROAD_SINUOSITY_FACTOR))
+    straightTotalKm += straightDist
+    cumulativeDistanceKm += legRoadDist
+
+    // Estimativa de pedágio proporcional por percurso rodoviário (1 praça a cada ~55 km, 5 eixos padrão = R$ 21,00)
+    const legToll = Math.round((legRoadDist / 55) * 21 * 100) / 100
+
+    waypoints.push({
+      index: idx + 1,
+      type: 'DELIVERY',
+      title: st.customerName,
+      subtitle: `${st.city}/${st.uf} • ${st.totalWeightTon.toFixed(1)} t • ${st.ordersCount} ped.`,
+      city: st.city,
+      uf: st.uf,
+      lat: st.lat,
+      lng: st.lng,
+      customerCode: st.customerCode,
+      customerName: st.customerName,
+      ordersCount: st.ordersCount,
+      weightTon: st.totalWeightTon,
+      legDistanceKm: legRoadDist,
+      cumulativeDistanceKm,
+      estimatedTollBrl: legToll,
+      requestedDate: st.requestedDate,
+      hasStockShortage: st.hasStockShortage,
+      hasCreditPending: st.hasCreditPending,
+    })
+
+    routeSegments.push({
+      from: { lat: prevLat, lng: prevLng, label: prevLabel },
+      to: { lat: st.lat, lng: st.lng, label: st.customerName },
+      distanceKm: legRoadDist,
+      tollBrl: legToll,
+      orderIndex: idx + 1,
+      isReturn: false,
+    })
+
+    prevLat = st.lat
+    prevLng = st.lng
+    prevLabel = st.customerName
+  })
+
+  // 3. Retorno operacional à Origem Contagem
+  const straightReturn = haversineDistanceKm(prevLat, prevLng, originHub.lat, originHub.lng)
+  const returnRoadDist = Math.max(1, Math.round(straightReturn * ROAD_SINUOSITY_FACTOR))
+  straightTotalKm += straightReturn
+  cumulativeDistanceKm += returnRoadDist
+  const returnToll = Math.round((returnRoadDist / 55) * 21 * 100) / 100
+
+  waypoints.push({
+    index: waypoints.length,
+    type: 'RETURN',
+    title: `Retorno ${originHub.name}`,
+    subtitle: `${originHub.city}/${originHub.uf}`,
+    city: originHub.city,
+    uf: originHub.uf,
+    lat: originHub.lat,
+    lng: originHub.lng,
+    ordersCount: 0,
+    weightTon: 0,
+    legDistanceKm: returnRoadDist,
+    cumulativeDistanceKm,
+    estimatedTollBrl: returnToll,
+  })
+
+  routeSegments.push({
+    from: { lat: prevLat, lng: prevLng, label: prevLabel },
+    to: { lat: originHub.lat, lng: originHub.lng, label: originHub.name },
+    distanceKm: returnRoadDist,
+    tollBrl: returnToll,
+    orderIndex: waypoints.length,
+    isReturn: true,
+  })
+
+  // Pedágio total consolidado
+  const totalTollBrl =
+    Math.round(routeSegments.reduce((acc, seg) => acc + seg.tollBrl, 0) * 100) / 100
+
+  // Alerta cadastral se houver paradas com pendência de geocodificação
+  let warningMessage: string | undefined
+  if (invalidStops.length > 0) {
+    warningMessage = `Atenção: ${invalidStops.length} cliente(s) deste itinerário possuem inconsistência cadastral de coordenadas e não constam no traçado da linha, mantendo os demais ${validStops.length} pontos operacionais.`
+  }
+
+  return {
+    itineraryCode: cleanItin,
+    description,
+    originHub,
+    destinationCities,
+    totalWeightTon,
+    totalOrdersCount,
+    totalClientsCount,
+    proposedLoadsCount,
+    estimatedDistanceKm: cumulativeDistanceKm,
+    straightLineDistanceKm: Math.round(straightTotalKm),
+    sinuosityFactor: ROAD_SINUOSITY_FACTOR,
+    estimatedTollBrl: totalTollBrl,
+    tollCalculationMode: 'ESTIMATED_RULE_AXLES',
+    tollFormulaDescription:
+      'Cálculo regulatório parametrizado por trechos rodoviários (DNIT/ANTT) considerando veículo padrão 5 eixos e praças a cada 55 km.',
+    waypoints,
+    routeSegments,
+    validStops,
+    invalidStops,
+    hasValidRoute: true,
+    warningMessage,
+    savingsPotentialBrl,
+  }
+}

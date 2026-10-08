@@ -449,11 +449,11 @@ export async function resolveOrderLocationWithCache(order: {
 
   // 1. Verificar cache em memória do routingAdapters
   const memCached = getCachedGeocoding(hash)
-  if (memCached && (memCached.lat !== 0 || memCached.lng !== 0)) {
+  if (memCached && (memCached.latitude !== 0 || memCached.longitude !== 0)) {
     return {
-      lat: memCached.lat,
-      lng: memCached.lng,
-      status: memCached.precision === 'EXACT' ? 'EXACT_COORDINATE' : 'CITY_DATABASE',
+      lat: memCached.latitude,
+      lng: memCached.longitude,
+      status: memCached.precision === 'ROOFTOP' ? 'EXACT_COORDINATE' : 'CITY_DATABASE',
       confidencePct: memCached.confidencePct ?? 90,
       city: memCached.city || String(order.destination_city || order.city || ''),
       uf: memCached.uf || String(order.uf || ''),
@@ -509,8 +509,14 @@ export async function resolveOrderLocationWithCache(order: {
   const resolved = resolveOrderLocation({
     destination_city: order.destination_city || order.city || '',
     uf: order.uf || '',
-    dest_latitude: typeof order.dest_latitude === 'number' ? order.dest_latitude : Number(order.dest_latitude) || undefined,
-    dest_longitude: typeof order.dest_longitude === 'number' ? order.dest_longitude : Number(order.dest_longitude) || undefined,
+    dest_latitude:
+      typeof order.dest_latitude === 'number'
+        ? order.dest_latitude
+        : Number(order.dest_latitude) || undefined,
+    dest_longitude:
+      typeof order.dest_longitude === 'number'
+        ? order.dest_longitude
+        : Number(order.dest_longitude) || undefined,
   })
 
   // 4. Se encontrou coordenadas válidas (não pendente e lat/lng != 0), salvar em cache e PocketBase

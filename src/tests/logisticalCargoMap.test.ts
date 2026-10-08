@@ -7,6 +7,7 @@ import {
 import {
   buildClientDeliveryStops,
   runMulticriteriaClusterization,
+  buildItineraryRouteInfo,
 } from '@/domain/logisticRoutingEngine'
 import { SapSalesOrderEntity } from '@/domain/rules'
 
@@ -211,5 +212,235 @@ describe('Mapa de Calor Inteligente por Itinerário - Requisitos de Negócio (v0
     expect(cluster.clientsCount).toBe(2)
     expect(cluster.occupancyPct).toBeGreaterThanOrEqual(90)
     expect(cluster.aiRationale).toContain('t disponíveis')
+  })
+
+  /**
+   * --------------------------------------------------------------------
+   * TESTES OBRIGATÓRIOS DO ITINERÁRIO (Cenários A, B, C, D e E do Usuário)
+   * --------------------------------------------------------------------
+   */
+
+  // Teste A — Itinerário com pedidos e múltiplos destinos: desenhar rota + km + pedágios + heatmap
+  it('Teste A: Itinerário com pedidos e múltiplos destinos calcula rota, km total consolidado, pedágios e waypoints', () => {
+    const ordersGoiás: SapSalesOrderEntity[] = [
+      {
+        id: 'ord-go-1',
+        order_number: 101,
+        customer_code: 501,
+        customer_name: 'AÇOS GOIÁS LTDA',
+        destination_city: 'GOIANIA',
+        uf: 'GO',
+        weight_kg: 24000,
+        itinerary_code: 'G0001A',
+        credit_status: 'Liberado',
+      } as any,
+      {
+        id: 'ord-go-2',
+        order_number: 102,
+        customer_code: 502,
+        customer_name: 'ESTRUTURAS ANÁPOLIS S/A',
+        destination_city: 'ANAPOLIS',
+        uf: 'GO',
+        weight_kg: 18500,
+        itinerary_code: 'G0001A',
+        credit_status: 'Liberado',
+      } as any,
+      {
+        id: 'ord-go-3',
+        order_number: 103,
+        customer_code: 503,
+        customer_name: 'METALÚRGICA RIO VERDE',
+        destination_city: 'RIO VERDE',
+        uf: 'GO',
+        weight_kg: 21000,
+        itinerary_code: 'G0001A',
+        credit_status: 'Liberado',
+      } as any,
+    ]
+
+    const stops = buildClientDeliveryStops(ordersGoiás)
+    expect(stops).toHaveLength(3)
+
+    const routeInfo = buildItineraryRouteInfo({
+      itineraryCode: 'G0001A',
+      itineraryDescription: 'G0001A — Goiânia / Anápolis / Rio Verde',
+      stops,
+      proposedLoadsCount: 3,
+    })
+
+    expect(routeInfo.hasValidRoute).toBe(true)
+    expect(routeInfo.itineraryCode).toBe('G0001A')
+    expect(routeInfo.totalWeightTon).toBe(63.5)
+    expect(routeInfo.totalClientsCount).toBe(3)
+    expect(routeInfo.totalOrdersCount).toBe(3)
+    expect(routeInfo.proposedLoadsCount).toBe(3)
+
+    // Distância estimada total > 0 (considerando percurso rodoviário com sinuosidade 1.25x e retorno)
+    expect(routeInfo.estimatedDistanceKm).toBeGreaterThan(1000)
+    expect(routeInfo.straightLineDistanceKm).toBeLessThan(routeInfo.estimatedDistanceKm)
+
+    // Pedágio calculado e atualizado
+    expect(routeInfo.estimatedTollBrl).toBeGreaterThan(100)
+    expect(routeInfo.tollCalculationMode).toBe('ESTIMATED_RULE_AXLES')
+
+    // Waypoints sequenciados (Origem -> Paradas -> Retorno)
+    expect(routeInfo.waypoints.length).toBe(5) // 1 Origem + 3 Paradas + 1 Retorno
+    expect(routeInfo.waypoints[0].type).toBe('ORIGIN')
+    expect(routeInfo.waypoints[4].type).toBe('RETURN')
+    expect(routeInfo.routeSegments.length).toBe(4)
+  })
+
+  // Teste B — Trocar para outro itinerário: limpar dados anteriores e recalcular novo traçado
+  it('Teste B: Troca de itinerário recalcula e reflete exclusivamente os dados do novo itinerário selecionado', () => {
+    // 1. Itinerário inicial (MG001A)
+    const ordersMG: SapSalesOrderEntity[] = [
+      {
+        id: 'ord-mg-1',
+        order_number: 201,
+        customer_code: 601,
+        customer_name: 'METALÚRGICA SETE LAGOAS',
+        destination_city: 'SETE LAGOAS',
+        uf: 'MG',
+        weight_kg: 15000,
+        itinerary_code: 'MG001A',
+      } as any,
+    ]
+    const stopsMG = buildClientDeliveryStops(ordersMG)
+    const routeMG = buildItineraryRouteInfo({
+      itineraryCode: 'MG001A',
+      stops: stopsMG,
+    })
+
+    expect(routeMG.itineraryCode).toBe('MG001A')
+    expect(routeMG.totalWeightTon).toBe(15)
+    expect(routeMG.destinationCities).toEqual(['SETE LAGOAS/MG'])
+
+    // 2. Troca para SP001A (São Paulo)
+    const ordersSP: SapSalesOrderEntity[] = [
+      {
+        id: 'ord-sp-1',
+        order_number: 301,
+        customer_code: 701,
+        customer_name: 'DISTRIBUIDORA CAMPINAS',
+        destination_city: 'CAMPINAS',
+        uf: 'SP',
+        weight_kg: 32000,
+        itinerary_code: 'SP001A',
+      } as any,
+    ]
+    const stopsSP = buildClientDeliveryStops(ordersSP)
+    const routeSP = buildItineraryRouteInfo({
+      itineraryCode: 'SP001A',
+      stops: stopsSP,
+    })
+
+    expect(routeSP.itineraryCode).toBe('SP001A')
+    expect(routeSP.totalWeightTon).toBe(32)
+    expect(routeSP.destinationCities).toEqual(['CAMPINAS/SP'])
+    expect(routeSP.estimatedDistanceKm).toBeGreaterThan(routeMG.estimatedDistanceKm)
+  })
+
+  // Teste C — Itinerário sem pedidos: sem rota, sem heatmap indevido e mensagem adequada
+  it('Teste C: Itinerário sem pedidos resulta em rota desativada com mensagem exata de estado vazio', () => {
+    const emptyStops: any[] = []
+    const routeInfo = buildItineraryRouteInfo({
+      itineraryCode: 'G0001A',
+      stops: emptyStops,
+    })
+
+    expect(routeInfo.hasValidRoute).toBe(false)
+    expect(routeInfo.failureReason).toBe('Nenhum pedido liberado para este itinerário.')
+    expect(routeInfo.waypoints).toHaveLength(0)
+    expect(routeInfo.routeSegments).toHaveLength(0)
+    expect(routeInfo.totalWeightTon).toBe(0)
+    expect(routeInfo.estimatedDistanceKm).toBe(0)
+    expect(routeInfo.estimatedTollBrl).toBe(0)
+  })
+
+  // Teste D — Itinerário com pedidos mas cliente sem coordenada válida
+  it('Teste D: Itinerário com cliente sem coordenada válida mantém os demais pontos válidos e emite alerta de inconsistência', () => {
+    const ordersMistas: SapSalesOrderEntity[] = [
+      {
+        id: 'ord-valid-1',
+        order_number: 401,
+        customer_code: 801,
+        customer_name: 'CLIENTE VÁLIDO BH',
+        destination_city: 'BELO HORIZONTE',
+        uf: 'MG',
+        weight_kg: 10000,
+        itinerary_code: 'MG001A',
+      } as any,
+      {
+        id: 'ord-invalid-2',
+        order_number: 402,
+        customer_code: 802,
+        customer_name: 'CLIENTE SEM COORDENADA',
+        destination_city: 'MUNICIPIO_INEXISTENTE_SEM_GPS',
+        uf: '',
+        weight_kg: 5000,
+        itinerary_code: 'MG001A',
+      } as any,
+    ]
+
+    const stops = buildClientDeliveryStops(ordersMistas)
+    const routeInfo = buildItineraryRouteInfo({
+      itineraryCode: 'MG001A',
+      stops,
+    })
+
+    // Deve traçar a rota com o cliente válido
+    expect(routeInfo.hasValidRoute).toBe(true)
+    expect(routeInfo.validStops).toHaveLength(1)
+    expect(routeInfo.invalidStops).toHaveLength(1)
+    expect(routeInfo.warningMessage).toContain('inconsistência cadastral de coordenadas')
+    expect(routeInfo.warningMessage).toContain('mantendo os demais 1 pontos operacionais')
+    // Waypoints traçados apenas para a origem + 1 cliente válido + retorno
+    expect(routeInfo.waypoints.length).toBe(3)
+  })
+
+  // Teste E — Totais de toneladas, km e pedágios correspondem estritamente ao itinerário selecionado
+  it('Teste E: Totais de toneladas, km e pedágios exibidos correspondem ao itinerário selecionado', () => {
+    const orders: SapSalesOrderEntity[] = [
+      {
+        id: 'ord-e1',
+        order_number: 501,
+        customer_code: 901,
+        customer_name: 'CLIENTE UBERABA',
+        destination_city: 'UBERABA',
+        uf: 'MG',
+        weight_kg: 22400,
+        itinerary_code: 'MG_TRIANGULO',
+      } as any,
+      {
+        id: 'ord-e2',
+        order_number: 502,
+        customer_code: 902,
+        customer_name: 'CLIENTE UBERLÂNDIA',
+        destination_city: 'UBERLANDIA',
+        uf: 'MG',
+        weight_kg: 17600,
+        itinerary_code: 'MG_TRIANGULO',
+      } as any,
+    ]
+
+    const stops = buildClientDeliveryStops(orders)
+    const routeInfo = buildItineraryRouteInfo({
+      itineraryCode: 'MG_TRIANGULO',
+      stops,
+      proposedLoadsCount: 2,
+    })
+
+    expect(routeInfo.totalWeightTon).toBe(40.0) // 22.4 + 17.6
+    expect(routeInfo.totalOrdersCount).toBe(2)
+    expect(routeInfo.totalClientsCount).toBe(2)
+    expect(routeInfo.proposedLoadsCount).toBe(2)
+
+    // O somatório dos trechos deve bater exatamente com a distância estimada total
+    const sumSegmentsDist = routeInfo.routeSegments.reduce((acc, s) => acc + s.distanceKm, 0)
+    expect(sumSegmentsDist).toBe(routeInfo.estimatedDistanceKm)
+
+    // O somatório dos pedágios de cada trecho deve bater com o total estimado
+    const sumSegmentsToll = Math.round(routeInfo.routeSegments.reduce((acc, s) => acc + s.tollBrl, 0) * 100) / 100
+    expect(sumSegmentsToll).toBe(routeInfo.estimatedTollBrl)
   })
 })

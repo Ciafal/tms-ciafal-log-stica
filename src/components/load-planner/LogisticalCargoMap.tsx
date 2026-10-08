@@ -40,6 +40,8 @@ import {
   UNPLANNED_COLOR,
   ALERT_COLOR,
   CLUSTER_COLOR_PALETTE,
+  ItineraryRouteInfo,
+  ItineraryWaypoint,
 } from '@/domain/logisticRoutingEngine'
 import {
   latLngToSvgPoint,
@@ -69,6 +71,7 @@ interface LogisticalCargoMapProps {
   heatmapVariable: 'TONELADAS' | 'PEDIDOS' | 'CLIENTES' | 'VALOR' | 'CARGAS' | 'ITENS'
   selectedUf: string
   selectedItinerary: string
+  itineraryRouteInfo?: ItineraryRouteInfo | null
   onSelectCluster: (clusterId: string | null) => void
   onSelectStop: (stop: ClientDeliveryStop) => void
   onSelectUf?: (uf: string) => void
@@ -126,6 +129,7 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
   heatmapVariable,
   selectedUf,
   selectedItinerary,
+  itineraryRouteInfo,
   onSelectCluster,
   onSelectStop,
   onSelectUf,
@@ -161,6 +165,7 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
 
   // Modal / Popup Responsivo Detalhado por Parada/Cluster (Passo 3)
   const [activePopupStop, setActivePopupStop] = useState<ClientDeliveryStop | null>(null)
+  const [activeRouteModalOpen, setActiveRouteModalOpen] = useState(false)
   const [aiAnalysisRationale, setAiAnalysisRationale] = useState<string | null>(null)
 
   // Tooltip Hover Rico no Cliente (#2)
@@ -576,6 +581,17 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
               <feGaussianBlur stdDeviation="2.5" result="blur" />
               <feComposite in="SourceGraphic" in2="blur" operator="over" />
             </filter>
+
+            {/* Sombra e brilho forte para a Rota do Itinerário selecionado (Azul Institucional CIAFAL) */}
+            <filter id="itineraryGlow" x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow
+                dx="0"
+                dy="2"
+                stdDeviation="3"
+                floodColor="#005596"
+                floodOpacity="0.45"
+              />
+            </filter>
           </defs>
 
           {/* Grupo com Pan e Zoom */}
@@ -687,13 +703,80 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
               </g>
             )}
 
-            {/* 3. Rotas Desenhadas (#8 e #9) */}
-            {/* Por padrão desligadas; desenham a carga selecionada ou todas se showAllRoutes = true */}
+            {/* 3. Rotas Desenhadas (#8 e #9) e Traçado Oficial do Itinerário Selecionado (#1) */}
             <g className="routes-layer">
+              {/* 3.A: Traçado em Destaque do Itinerário Selecionado (Azul Institucional CIAFAL Pantone 2945 #005596) */}
+              {layers.showItineraries &&
+                selectedItinerary &&
+                selectedItinerary !== 'ALL' &&
+                itineraryRouteInfo &&
+                itineraryRouteInfo.hasValidRoute && (
+                  <g
+                    key={`itin-highlight-${selectedItinerary}`}
+                    className="itinerary-highlight-layer"
+                  >
+                    {itineraryRouteInfo.routeSegments.map((seg, sIdx) => {
+                      const p1 = latLngToSvgPoint(seg.from.lat, seg.from.lng, 800, 640)
+                      const p2 = latLngToSvgPoint(seg.to.lat, seg.to.lng, 800, 640)
+
+                      return (
+                        <g key={`itin-seg-${sIdx}`}>
+                          {/* Halo azul translúcido de fundo para máximo contraste */}
+                          <line
+                            x1={p1.x}
+                            y1={p1.y}
+                            x2={p2.x}
+                            y2={p2.y}
+                            stroke="#005596"
+                            strokeWidth={7}
+                            opacity={0.2}
+                            strokeLinecap="round"
+                          />
+                          {/* Linha principal destacada */}
+                          <line
+                            x1={p1.x}
+                            y1={p1.y}
+                            x2={p2.x}
+                            y2={p2.y}
+                            stroke="#005596"
+                            strokeWidth={3.8}
+                            strokeDasharray={seg.isReturn ? '6,4' : 'none'}
+                            strokeLinecap="round"
+                            className="cursor-pointer hover:stroke-[#003d6d] transition-all"
+                            onClick={() => setActiveRouteModalOpen(true)}
+                          >
+                            <title>
+                              {seg.isReturn
+                                ? `Retorno à Expedição (${itineraryRouteInfo.originHub.name}): ${seg.distanceKm} km • Pedágio: R$ ${seg.tollBrl.toFixed(2)}`
+                                : `Trecho ${sIdx + 1}: ${seg.from.label} → ${seg.to.label} (${seg.distanceKm} km • Pedágio: R$ ${seg.tollBrl.toFixed(2)})`}
+                            </title>
+                          </line>
+
+                          {/* Marcador direcional no meio do trecho */}
+                          {!seg.isReturn && (
+                            <circle
+                              cx={(p1.x + p2.x) / 2}
+                              cy={(p1.y + p2.y) / 2}
+                              r={3.5}
+                              fill="#005596"
+                              stroke="#ffffff"
+                              strokeWidth={1.5}
+                            />
+                          )}
+                        </g>
+                      )
+                    })}
+                  </g>
+                )}
+
+              {/* 3.B: Rotas das Cargas Propostas / Clusters individuais */}
               {layers.showItineraries &&
                 clusters.map((cluster) => {
+                  // Se já desenhamos o itinerário selecionado acima, suaviza rotas de cluster conflitantes
                   const isSelected = selectedClusterId === cluster.id
-                  const shouldDraw = isSelected || layers.showAllRoutes
+                  const shouldDraw =
+                    isSelected ||
+                    (layers.showAllRoutes && (!selectedItinerary || selectedItinerary === 'ALL'))
                   if (!shouldDraw) return null
 
                   const originPt = latLngToSvgPoint(
@@ -1301,6 +1384,252 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
                 >
                   <Sparkles className="w-3 h-3 mr-1 text-purple-600" />
                   Analisar consolidação
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CARD RESUMO EXECUTIVO DO ITINERÁRIO SELECIONADO (Requisito #6 & #2) */}
+        {selectedItinerary && selectedItinerary !== 'ALL' && itineraryRouteInfo && (
+          <div className="absolute top-14 left-4 z-20 max-w-sm w-[90%] sm:w-80 bg-white/95 backdrop-blur-md border-2 border-[#005596] rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="p-2.5 bg-[#005596] text-white flex items-center justify-between">
+              <div className="flex items-center gap-1.5 truncate">
+                <Navigation className="w-3.5 h-3.5 text-sky-300 shrink-0" />
+                <span className="font-bold text-xs uppercase tracking-wide truncate">
+                  Itinerário: {itineraryRouteInfo.itineraryCode}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setActiveRouteModalOpen(true)}
+                className="h-5 px-1.5 text-[10px] text-white hover:bg-white/20 font-semibold"
+                title="Ver detalhes completos do itinerário e sequência"
+              >
+                Detalhar rota
+              </Button>
+            </div>
+
+            <div className="p-2.5 text-xs space-y-2">
+              {/* Alerta de Exceção se não puder traçar rota (#11) */}
+              {!itineraryRouteInfo.hasValidRoute ? (
+                <div className="p-2 bg-amber-50 border border-amber-200 rounded text-amber-900 text-[11px] leading-snug">
+                  {itineraryRouteInfo.failureReason ||
+                    'Não foi possível desenhar a rota deste itinerário por ausência de coordenadas válidas em um ou mais destinos.'}
+                </div>
+              ) : (
+                <>
+                  {/* Grid de Métricas Principais (ABNT: km com ponto de milhar, R$ com vírgula) */}
+                  <div className="grid grid-cols-2 gap-1.5 bg-slate-50 p-2 rounded-lg border border-slate-200 text-[11px]">
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Origem:</span>
+                      <strong className="text-slate-900 font-semibold truncate block">
+                        {itineraryRouteInfo.originHub.name}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Clientes / Pedidos:</span>
+                      <strong className="text-slate-900 font-mono">
+                        {itineraryRouteInfo.totalClientsCount} clientes •{' '}
+                        {itineraryRouteInfo.totalOrdersCount} ped.
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Toneladas Liberadas:</span>
+                      <strong className="text-[#005596] font-mono font-bold text-xs">
+                        {itineraryRouteInfo.totalWeightTon.toLocaleString('pt-BR', {
+                          minimumFractionDigits: 1,
+                          maximumFractionDigits: 1,
+                        })}{' '}
+                        t
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Cargas Propostas:</span>
+                      <strong className="text-purple-700 font-mono font-bold">
+                        {itineraryRouteInfo.proposedLoadsCount} carga(s)
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Destaque Consolidado: Distância Total + Pedágios Estimados (Requisitos 2 e 3) */}
+                  <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                    <div className="p-2 bg-sky-50 rounded-lg border border-sky-200 text-center">
+                      <span className="text-[9px] font-bold text-sky-800 uppercase block">
+                        Distância Total
+                      </span>
+                      <strong className="text-xs font-black font-mono text-sky-950">
+                        {itineraryRouteInfo.estimatedDistanceKm.toLocaleString('pt-BR')} km
+                      </strong>
+                    </div>
+                    <div className="p-2 bg-emerald-50 rounded-lg border border-emerald-200 text-center">
+                      <span className="text-[9px] font-bold text-emerald-800 uppercase block">
+                        Pedágios Estimados
+                      </span>
+                      <strong className="text-xs font-black font-mono text-emerald-950">
+                        R${' '}
+                        {itineraryRouteInfo.estimatedTollBrl.toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Alerta de Inconsistência Cadastral (#11) se houver paradas com geocoding pendente */}
+                  {itineraryRouteInfo.warningMessage && (
+                    <div className="text-[10px] text-amber-800 bg-amber-50/80 p-1.5 rounded border border-amber-300">
+                      ⚠ {itineraryRouteInfo.warningMessage}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* MODAL DETALHADO DO ITINERÁRIO E SEQUÊNCIA DE DESCARGAS (Requisitos 1, 2, 3, 8) */}
+        {activeRouteModalOpen && itineraryRouteInfo && (
+          <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-150">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
+              <div className="p-3.5 bg-[#005596] text-white flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Navigation className="w-4 h-4 text-sky-300" />
+                  <div>
+                    <h4 className="text-xs font-bold leading-tight">
+                      Detalhamento do Itinerário: {itineraryRouteInfo.itineraryCode}
+                    </h4>
+                    <span className="text-[10px] text-sky-100">
+                      {itineraryRouteInfo.description} • Expedição:{' '}
+                      {itineraryRouteInfo.originHub.name}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveRouteModalOpen(false)}
+                  className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-4 space-y-3 overflow-y-auto text-xs">
+                {/* 4 Cards de Resumo */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                  <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg">
+                    <span className="text-[9px] uppercase font-bold text-slate-500 block">
+                      Distância Total
+                    </span>
+                    <strong className="text-xs font-black font-mono text-[#005596]">
+                      {itineraryRouteInfo.estimatedDistanceKm.toLocaleString('pt-BR')} km
+                    </strong>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg">
+                    <span className="text-[9px] uppercase font-bold text-slate-500 block">
+                      Pedágios Estimados
+                    </span>
+                    <strong className="text-xs font-black font-mono text-emerald-800">
+                      R${' '}
+                      {itineraryRouteInfo.estimatedTollBrl.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                      })}
+                    </strong>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg">
+                    <span className="text-[9px] uppercase font-bold text-slate-500 block">
+                      Toneladas
+                    </span>
+                    <strong className="text-xs font-black font-mono text-slate-900">
+                      {itineraryRouteInfo.totalWeightTon.toFixed(1)} t
+                    </strong>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg">
+                    <span className="text-[9px] uppercase font-bold text-slate-500 block">
+                      Destinos / Paradas
+                    </span>
+                    <strong className="text-xs font-black font-mono text-purple-800">
+                      {itineraryRouteInfo.waypoints.length - 2 > 0
+                        ? itineraryRouteInfo.waypoints.length - 2
+                        : 0}{' '}
+                      clientes
+                    </strong>
+                  </div>
+                </div>
+
+                {/* Nota Técnica sobre Pedágio e Rota Rodoviária (#3) */}
+                <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg space-y-1 text-[11px] text-slate-600">
+                  <div className="font-bold text-slate-800 flex items-center gap-1">
+                    <Info className="w-3.5 h-3.5 text-[#005596]" />
+                    <span>Metodologia do Cálculo Rodoviário & Pedágios:</span>
+                  </div>
+                  <p>
+                    {itineraryRouteInfo.tollFormulaDescription} (Fator sinuosidade rodoviária{' '}
+                    <strong>{itineraryRouteInfo.sinuosityFactor}×</strong> sobre a distância em
+                    linha reta, conforme padrão DNIT/ABNT).
+                  </p>
+                  <p className="text-[10px] text-slate-500 italic">
+                    * Natureza do valor: <strong>Cálculo Parametrizado por Regra Rodoviária</strong>{' '}
+                    (suporta integração de provedor homologado em tempo real quando habilitado na
+                    Central de Parâmetros).
+                  </p>
+                </div>
+
+                {/* Lista Sequencial de Waypoints (#1 e #8) */}
+                <div className="space-y-1.5">
+                  <span className="font-bold text-slate-800 text-[11px] uppercase block">
+                    Sequência Prevista do Percurso:
+                  </span>
+                  <div className="space-y-1.5 border border-slate-200 rounded-xl p-2 bg-white max-h-48 overflow-y-auto">
+                    {itineraryRouteInfo.waypoints.map((wp) => (
+                      <div
+                        key={wp.index}
+                        className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 border-b border-slate-100 last:border-b-0 text-[11px]"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`w-5 h-5 rounded-full flex items-center justify-center font-mono font-bold text-[10px] text-white shrink-0 ${
+                              wp.type === 'ORIGIN'
+                                ? 'bg-emerald-600'
+                                : wp.type === 'RETURN'
+                                  ? 'bg-slate-600'
+                                  : 'bg-[#005596]'
+                            }`}
+                          >
+                            {wp.type === 'ORIGIN' ? 'O' : wp.type === 'RETURN' ? 'R' : wp.index}
+                          </span>
+                          <div>
+                            <strong className="text-slate-900 block truncate max-w-[240px]">
+                              {wp.title}
+                            </strong>
+                            <span className="text-[10px] text-slate-500">
+                              {wp.city}/{wp.uf}{' '}
+                              {wp.weightTon > 0 ? `• ${wp.weightTon.toFixed(1)} t` : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right text-[10px] font-mono shrink-0">
+                          <span className="text-slate-700 font-bold block">
+                            +{wp.legDistanceKm} km ({wp.cumulativeDistanceKm} km)
+                          </span>
+                          <span className="text-slate-500">
+                            Pedágio: R$ {wp.estimatedTollBrl.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <Button
+                  size="sm"
+                  onClick={() => setActiveRouteModalOpen(false)}
+                  className="h-7 text-xs font-bold bg-[#005596] text-white px-4"
+                >
+                  Fechar
                 </Button>
               </div>
             </div>

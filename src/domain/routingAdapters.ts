@@ -141,7 +141,7 @@ export function saveCachedGeocoding(data: {
     uf: data.uf || '',
     latitude: data.lat,
     longitude: data.lng,
-    precision: data.precision === 'EXACT' ? 'EXACT' : 'APPROXIMATE',
+    precision: data.precision === 'EXACT' ? 'ROOFTOP' : 'APPROXIMATE',
     confidencePct: data.confidencePct ?? 90,
     providerUsed: 'GeocodingCache',
     isCached: true,
