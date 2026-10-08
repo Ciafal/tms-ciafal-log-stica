@@ -251,11 +251,11 @@ export interface ExecutiveCardsD1Data {
 // ==========================================
 
 export function formatTons(tons: number, decimals = 2): string {
-  if (isNaN(tons) || !isFinite(tons)) return '0,00'
-  return tons.toLocaleString('pt-BR', {
+  if (isNaN(tons) || !isFinite(tons)) return '0,00 t'
+  return `${tons.toLocaleString('pt-BR', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-  })
+  })} t`
 }
 
 export function formatKgToTons(kg: number): number {

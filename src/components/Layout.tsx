@@ -221,7 +221,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         {
           title: 'Configuração do Score',
           path: '/tms/avaliacao-veiculo-motorista/configuracao-score',
-          badge: 'Pesos 100%',
+          badge: 'Pesos 100 %',
           badgeColor: 'bg-[#005596]',
           show:
             role === 'admin_master' || role === 'admin_tms' || role === 'gestor_logistica' || true,

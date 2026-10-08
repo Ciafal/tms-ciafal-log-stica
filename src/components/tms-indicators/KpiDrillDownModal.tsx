@@ -319,7 +319,11 @@ export const KpiDrillDownModal: React.FC<KpiDrillDownModalProps> = ({
                             </div>
                           </td>
                           <td className="py-2 px-3 text-right font-medium">
-                            {rec.weightTon.toFixed(2)} t
+                            {rec.weightTon.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{' '}
+                            t
                           </td>
                           <td className="py-2 px-3 text-center">
                             <Badge
@@ -370,7 +374,9 @@ export const KpiDrillDownModal: React.FC<KpiDrillDownModalProps> = ({
                   Média Mensal
                 </span>
                 <div className="text-base font-bold text-foreground mt-0.5">
-                  {averageReal !== null ? `${averageReal.toFixed(1)} ${kpi.unit}` : '—'}
+                  {averageReal !== null
+                    ? `${averageReal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${kpi.unit}`
+                    : '—'}
                 </div>
                 <span className="text-[10px] text-muted-foreground">
                   {validMonths.length} meses apurados

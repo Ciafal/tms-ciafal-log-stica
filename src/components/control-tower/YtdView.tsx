@@ -40,7 +40,11 @@ export const YtdView: React.FC<YtdViewProps> = ({ metrics }) => {
             Índice de Pontualidade (OTIF)
           </span>
           <span className="text-2xl font-black text-emerald-300">
-            {metrics.delivered.ytd.onTimePct}%
+            {metrics.delivered.ytd.onTimePct.toLocaleString('pt-BR', {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            })}{' '}
+            %
           </span>
         </div>
       </div>
@@ -136,7 +140,11 @@ export const YtdView: React.FC<YtdViewProps> = ({ metrics }) => {
                     {metrics.delivered.currentMonth.ton.toLocaleString('pt-BR')} t
                   </td>
                   <td className="py-2.5 font-bold text-emerald-700">
-                    {metrics.delivered.currentMonth.onTimePct}%
+                    {metrics.delivered.currentMonth.onTimePct.toLocaleString('pt-BR', {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })}{' '}
+                    %
                   </td>
                   <td className="py-2.5 font-mono">110 min</td>
                   <td className="py-2.5">
@@ -147,7 +155,7 @@ export const YtdView: React.FC<YtdViewProps> = ({ metrics }) => {
                   <td className="py-2.5 font-semibold text-slate-500">Julho / 2026</td>
                   <td className="py-2.5">142</td>
                   <td className="py-2.5">3.820 t</td>
-                  <td className="py-2.5 text-emerald-600 font-bold">96.4%</td>
+                  <td className="py-2.5 text-emerald-600 font-bold">96,40 %</td>
                   <td className="py-2.5 font-mono">124 min</td>
                   <td className="py-2.5">
                     <Badge variant="outline" className="text-[10px]">
@@ -159,7 +167,7 @@ export const YtdView: React.FC<YtdViewProps> = ({ metrics }) => {
                   <td className="py-2.5 font-semibold text-slate-500">Junho / 2026</td>
                   <td className="py-2.5">138</td>
                   <td className="py-2.5">3.690 t</td>
-                  <td className="py-2.5 text-emerald-600 font-bold">95.8%</td>
+                  <td className="py-2.5 text-emerald-600 font-bold">95,80 %</td>
                   <td className="py-2.5 font-mono">132 min</td>
                   <td className="py-2.5">
                     <Badge variant="outline" className="text-[10px]">

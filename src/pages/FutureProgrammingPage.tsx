@@ -509,7 +509,7 @@ export const FutureProgrammingPage: React.FC = () => {
 
       toast({
         title: 'Complemento Aplicado ao Planejamento D+1',
-        description: `Veículo ${selectedVehicleForComplement.plate}: Ocupação elevada de ${simulationResult.beforeOccupancyPct}% para ${simulationResult.afterOccupancyPct}% (+${simulationResult.weightGainTons} t). Reserva provisória garantida.`,
+        description: `Veículo ${selectedVehicleForComplement.plate}: Ocupação elevada de ${simulationResult.beforeOccupancyPct} % para ${simulationResult.afterOccupancyPct} % (+${formatTons(simulationResult.weightGainTons)}). Reserva provisória garantida.`,
       })
 
       setIsComplementModalOpen(false)
@@ -726,7 +726,7 @@ export const FutureProgrammingPage: React.FC = () => {
             Capacidade Prevista (t)
           </div>
           <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100 mt-1 font-mono">
-            {formatTons(executiveCards.totalCapacityTons)} t
+            {formatTons(executiveCards.totalCapacityTons)}
           </div>
           <div className="text-[10px] text-slate-400 mt-0.5">Total frota programada</div>
         </Card>
@@ -736,7 +736,7 @@ export const FutureProgrammingPage: React.FC = () => {
             Carga Programada (t)
           </div>
           <div className="text-xl font-extrabold text-blue-700 mt-1 font-mono">
-            {formatTons(executiveCards.programmedWeightTons)} t
+            {formatTons(executiveCards.programmedWeightTons)}
           </div>
           <div className="text-[10px] text-slate-400 mt-0.5">Confirmado / alocado</div>
         </Card>
@@ -746,7 +746,7 @@ export const FutureProgrammingPage: React.FC = () => {
             Capacidade Disp. (t)
           </div>
           <div className="text-xl font-extrabold text-emerald-700 mt-1 font-mono">
-            {formatTons(executiveCards.availableCapacityTons)} t
+            {formatTons(executiveCards.availableCapacityTons)}
           </div>
           <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">
             Livre para complemento
@@ -758,7 +758,11 @@ export const FutureProgrammingPage: React.FC = () => {
             Ocupação Média %
           </div>
           <div className="text-xl font-extrabold text-indigo-700 mt-1 font-mono">
-            {executiveCards.avgOccupancyPct}%
+            {executiveCards.avgOccupancyPct.toLocaleString('pt-BR', {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            })}{' '}
+            %
           </div>
           <div className="text-[10px] text-slate-400 mt-0.5">Média ponderada frota</div>
         </Card>
@@ -780,7 +784,7 @@ export const FutureProgrammingPage: React.FC = () => {
             Produção PCP D+1 (t)
           </div>
           <div className="text-xl font-extrabold text-sky-700 mt-1 font-mono">
-            {formatTons(executiveCards.pcpProductionD1Tons)} t
+            {formatTons(executiveCards.pcpProductionD1Tons)}
           </div>
           <div className="text-[10px] text-sky-600 font-semibold mt-0.5">Previsto Robô PCP</div>
         </Card>
@@ -794,7 +798,7 @@ export const FutureProgrammingPage: React.FC = () => {
               executiveCards.insufficientStockCount > 0 ? 'text-rose-600' : 'text-emerald-700'
             }`}
           >
-            {formatTons(executiveCards.projectedStockTons)} t
+            {formatTons(executiveCards.projectedStockTons)}
           </div>
           <div className="text-[10px] text-slate-400 mt-0.5">
             {executiveCards.insufficientStockCount > 0
@@ -1111,7 +1115,7 @@ export const FutureProgrammingPage: React.FC = () => {
                           <td className="p-2.5 w-44">
                             <div className="flex items-center justify-between text-[10px] font-mono mb-1">
                               <span className="font-bold text-slate-700 dark:text-slate-300">
-                                {v.occupancyPct}%
+                                {v.occupancyPct} %
                               </span>
                               <Badge
                                 variant="outline"
@@ -1589,7 +1593,7 @@ export const FutureProgrammingPage: React.FC = () => {
               <span className="text-[#005596]">
                 COMPLEMENTO DE CARGA / {selectedVehicleForComplement?.plate} /{' '}
                 {selectedVehicleForComplement?.itineraryCode} / Capacidade livre:{' '}
-                {formatTons(selectedVehicleForComplement?.availableCapacityTons || 0)} t
+                {formatTons(selectedVehicleForComplement?.availableCapacityTons || 0)}
               </span>
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
@@ -1605,7 +1609,7 @@ export const FutureProgrammingPage: React.FC = () => {
                 <span className="text-[10px] text-slate-400 uppercase font-bold block">ANTES</span>
                 <div className="text-sm font-extrabold text-slate-800 dark:text-slate-200 font-mono mt-0.5">
                   {formatTons(simulationResult.beforeWeightTons)} /{' '}
-                  {formatTons(simulationResult.capacityTons)} t
+                  {formatTons(simulationResult.capacityTons)}
                 </div>
                 <div className="text-xs font-bold text-blue-700 font-mono">
                   {simulationResult.beforeOccupancyPct}%
@@ -1616,7 +1620,7 @@ export const FutureProgrammingPage: React.FC = () => {
                 <span className="text-[10px] text-[#005596] uppercase font-bold block">DEPOIS</span>
                 <div className="text-sm font-extrabold text-[#005596] font-mono mt-0.5">
                   {formatTons(simulationResult.afterWeightTons)} /{' '}
-                  {formatTons(simulationResult.capacityTons)} t
+                  {formatTons(simulationResult.capacityTons)}
                 </div>
                 <div className="text-xs font-bold text-emerald-700 font-mono">
                   {simulationResult.afterOccupancyPct}%
@@ -1628,7 +1632,7 @@ export const FutureProgrammingPage: React.FC = () => {
                   GANHO OPERACIONAL
                 </span>
                 <div className="text-sm font-extrabold text-emerald-700 font-mono mt-0.5">
-                  +{formatTons(simulationResult.weightGainTons)} t
+                  +{formatTons(simulationResult.weightGainTons)}
                 </div>
                 <div className="text-xs font-bold text-emerald-800 font-mono">
                   +{simulationResult.occupancyGainPct}%
@@ -1716,13 +1720,13 @@ export const FutureProgrammingPage: React.FC = () => {
                             {cand.material}
                           </td>
                           <td className="p-2 text-right font-mono font-semibold">
-                            {formatTons(cand.walletBalanceTons)} t
+                            {formatTons(cand.walletBalanceTons)}
                           </td>
                           <td className="p-2 text-right font-mono text-emerald-700 font-semibold">
-                            {formatTons(cand.projectedStockD1Tons)} t
+                            {formatTons(cand.projectedStockD1Tons)}
                           </td>
                           <td className="p-2 text-right font-mono font-bold text-[#005596]">
-                            +{formatTons(cand.suggestedQuantityTons)} t
+                            +{formatTons(cand.suggestedQuantityTons)}
                           </td>
                           <td className="p-2 text-center font-mono font-bold text-blue-700">
                             {cand.resultingOccupancyPct}%

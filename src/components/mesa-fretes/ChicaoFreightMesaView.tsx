@@ -543,7 +543,11 @@ export const ChicaoFreightMesaView: React.FC = () => {
             <CardContent className="p-3">
               <p className="text-[10px] font-bold text-sky-800 uppercase">Taxa de Resposta</p>
               <div className="text-xl font-mono font-black text-[#005596] mt-0.5">
-                {metrics.responseRate.toFixed(1)}%
+                {metrics.responseRate.toLocaleString('pt-BR', {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}{' '}
+                %
               </div>
               <p className="text-[10px] text-sky-700">{metrics.answeredCount} responderam</p>
             </CardContent>
@@ -553,7 +557,11 @@ export const ChicaoFreightMesaView: React.FC = () => {
             <CardContent className="p-3">
               <p className="text-[10px] font-bold text-emerald-800 uppercase">Taxa de Aceite</p>
               <div className="text-xl font-mono font-black text-emerald-700 mt-0.5">
-                {metrics.acceptanceRate.toFixed(1)}%
+                {metrics.acceptanceRate.toLocaleString('pt-BR', {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}{' '}
+                %
               </div>
               <p className="text-[10px] text-emerald-700">{metrics.acceptedCount} fechadas</p>
             </CardContent>
@@ -563,7 +571,11 @@ export const ChicaoFreightMesaView: React.FC = () => {
             <CardContent className="p-3">
               <p className="text-[10px] font-bold text-rose-800 uppercase">Taxa de Recusa</p>
               <div className="text-xl font-mono font-black text-rose-700 mt-0.5">
-                {metrics.refusalRate.toFixed(1)}%
+                {metrics.refusalRate.toLocaleString('pt-BR', {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}{' '}
+                %
               </div>
               <p className="text-[10px] text-rose-700">{metrics.refusedCount} recusadas</p>
             </CardContent>
@@ -573,10 +585,18 @@ export const ChicaoFreightMesaView: React.FC = () => {
             <CardContent className="p-3">
               <p className="text-[10px] font-bold text-amber-900 uppercase">Autonomia Chicão</p>
               <div className="text-xl font-mono font-black text-amber-800 mt-0.5">
-                {metrics.fullyAiPct.toFixed(0)}% IA
+                {metrics.fullyAiPct.toLocaleString('pt-BR', {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })}{' '}
+                % IA
               </div>
               <p className="text-[10px] text-amber-700">
-                {metrics.humanPct.toFixed(0)}% intervenção
+                {metrics.humanPct.toLocaleString('pt-BR', {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })}{' '}
+                % intervenção
               </p>
             </CardContent>
           </Card>
@@ -621,12 +641,15 @@ export const ChicaoFreightMesaView: React.FC = () => {
               <Badge variant="outline" className="bg-white text-[11px] font-bold">
                 Spread:{' '}
                 {metrics.totalInitialAccepted > 0
-                  ? (
+                  ? `${(
                       ((metrics.totalContracted - metrics.totalInitialAccepted) /
                         metrics.totalInitialAccepted) *
                       100
-                    ).toFixed(1) + '%'
-                  : '0.0%'}
+                    ).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })} %`
+                  : '0,00 %'}
               </Badge>
             </div>
           </div>
@@ -739,7 +762,9 @@ export const ChicaoFreightMesaView: React.FC = () => {
                           <div className="text-[11px] text-slate-500 font-mono flex items-center justify-between mt-0.5">
                             <span>{offer.vehicle_plate}</span>
                             <span>
-                              {offer.weight_ton ? `${offer.weight_ton.toFixed(1)} t` : ''}
+                              {offer.weight_ton
+                                ? `${offer.weight_ton.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} t`
+                                : ''}
                             </span>
                           </div>
                         </div>
@@ -882,7 +907,7 @@ export const ChicaoFreightMesaView: React.FC = () => {
                 <DialogDescription className="text-xs text-slate-500 mt-1">
                   Criada em {new Date(selectedOffer.created || Date.now()).toLocaleString('pt-BR')}{' '}
                   • Ator Atual: <strong>{selectedOffer.active_actor || 'CHICAO'}</strong> • IA
-                  Handled: <strong>{selectedOffer.ai_handled_pct ?? 100}%</strong>
+                  Handled: <strong>{selectedOffer.ai_handled_pct ?? 100} %</strong>
                 </DialogDescription>
               </DialogHeader>
 
@@ -1335,7 +1360,7 @@ export const ChicaoFreightMesaView: React.FC = () => {
                   </strong>
                 </div>
                 <div className="flex justify-between border-t pt-1 font-bold">
-                  <span>Teto Máximo do Chicão (+3%):</span>
+                  <span>Teto Máximo do Chicão (+3 %):</span>
                   <strong className="font-mono">
                     {formatCurrency(selectedOffer.max_autonomy_value || 0)}
                   </strong>

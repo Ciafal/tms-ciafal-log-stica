@@ -1407,7 +1407,7 @@ export const MesaFretesPage: React.FC = () => {
                   </span>
                   <Sparkles className="w-4 h-4 text-amber-500" />
                 </div>
-                <div className="text-3xl font-black text-[#005596]">82,4%</div>
+                <div className="text-3xl font-black text-[#005596]">82,4 %</div>
                 <p className="text-xs text-slate-500">
                   42 de 51 negociações fechadas sem intervenção humana.
                 </p>
@@ -1420,7 +1420,7 @@ export const MesaFretesPage: React.FC = () => {
                   </span>
                   <Users className="w-4 h-4 text-emerald-600" />
                 </div>
-                <div className="text-3xl font-black text-emerald-700">68,2%</div>
+                <div className="text-3xl font-black text-emerald-700">68,2 %</div>
                 <p className="text-xs text-slate-500">
                   Motoristas com score &gt; 90 aceitando na 1ª ou 2ª rodada.
                 </p>
@@ -1454,13 +1454,13 @@ export const MesaFretesPage: React.FC = () => {
               <div className="space-y-3 pt-2">
                 <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50 space-y-1.5 text-xs">
                   <div className="flex items-center justify-between font-bold text-amber-900">
-                    <span>Aumento de 13% nas contrapropostas no Vale do Paraíba</span>
+                    <span>Aumento de 13 % nas contrapropostas no Vale do Paraíba</span>
                     <Badge className="bg-amber-600 text-white text-[10px]">
-                      Confiança Alta (88%)
+                      Confiança Alta (88 %)
                     </Badge>
                   </div>
                   <p className="text-slate-700">
-                    <strong>Fato:</strong> 72% dos motoristas da região responderam acima da meta
+                    <strong>Fato:</strong> 72 % dos motoristas da região responderam acima da meta
                     inicial da CIAFAL.
                   </p>
                   <p className="text-slate-700">
@@ -1479,7 +1479,7 @@ export const MesaFretesPage: React.FC = () => {
                   </div>
                   <p className="text-slate-700">
                     <strong>Evidência:</strong> Motorista João Silva (R$ 2.750) apresenta índice
-                    96/100 (98% pontualidade, 0 cancelamentos), enquanto propostas R$ 80 mais
+                    96/100 (98 % pontualidade, 0 cancelamentos), enquanto propostas R$ 80 mais
                     baratas causaram +42 min de espera em doca.
                   </p>
                   <p className="text-emerald-800 font-semibold">
@@ -1709,7 +1709,9 @@ export const MesaFretesPage: React.FC = () => {
                                   </strong>
                                   • Pontualidade:{' '}
                                   <strong>
-                                    {support.onTimePct ? `${support.onTimePct.toFixed(0)}%` : 'N/A'}
+                                    {support.onTimePct
+                                      ? `${support.onTimePct.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} %`
+                                      : 'N/A'}
                                   </strong>
                                   • Reclamações procedentes:{' '}
                                   <strong>{support.complaintsProcedenteCount}</strong>
@@ -1894,7 +1896,7 @@ export const MesaFretesPage: React.FC = () => {
                         </td>
                         <td className="p-2.5 font-black text-[#005596]">{cand.fitnessScore}/100</td>
                         <td className="p-2.5 text-emerald-700 font-bold">
-                          {cand.subscores.punctuality}%
+                          {cand.subscores.punctuality} %
                         </td>
                         <td className="p-2.5">
                           {cand.isRecommended ? (

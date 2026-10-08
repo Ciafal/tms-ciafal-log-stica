@@ -651,23 +651,28 @@ export function LoadRouterAndSimulatorPage() {
                 <SelectValue placeholder="Tipo de veículo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Toco 2 Eixos">Toco 2 Eixos (8.0t)</SelectItem>
-                <SelectItem value="Truck 3 Eixos">Truck 3 Eixos (14.0t)</SelectItem>
-                <SelectItem value="Carreta 5 Eixos">Carreta 5 Eixos (28.0t Padrão)</SelectItem>
-                <SelectItem value="Carreta 6 Eixos">Carreta 6 Eixos (32.0t)</SelectItem>
-                <SelectItem value="Bitrem 7 Eixos">Bitrem 7 Eixos (37.0t)</SelectItem>
+                <SelectItem value="Toco 2 Eixos">Toco 2 Eixos (8,00 t)</SelectItem>
+                <SelectItem value="Truck 3 Eixos">Truck 3 Eixos (14,00 t)</SelectItem>
+                <SelectItem value="Carreta 5 Eixos">Carreta 5 Eixos (28,00 t)</SelectItem>
+                <SelectItem value="Carreta 6 Eixos">Carreta 6 Eixos (32,00 t)</SelectItem>
+                <SelectItem value="Bitrem 7 Eixos">Bitrem 7 Eixos (37,00 t)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-1">
               <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                <Sliders className="h-3.5 w-3.5 text-indigo-600" />
-                Faixa de Ocupação Alvo
+                <Sliders className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                <span>Faixa de Ocupação Alvo</span>
               </Label>
-              <span className="text-[10px] text-slate-500 font-mono">
-                Capacidade: {(vehicleCapacityKg / 1000).toFixed(1)}t (auto)
+              <span className="text-[11px] text-slate-600 dark:text-slate-400 font-mono font-semibold">
+                Capacidade:{' '}
+                {((vehicleCapacityKg || 28000) / 1000).toLocaleString('pt-BR', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{' '}
+                t (auto)
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2 mt-1">
@@ -708,97 +713,135 @@ export function LoadRouterAndSimulatorPage() {
 
       {/* BLOCO PRINCIPAL: CARDS EXECUTIVOS DAS CARGAS PROPOSTAS PELO TMS */}
       {globalResult && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3 min-w-0">
           <Card
-            className="border-indigo-200 bg-indigo-50/50 dark:bg-indigo-950/20 p-3 cursor-pointer hover:border-indigo-400 hover:shadow-md transition-all"
+            className="border-indigo-200 bg-indigo-50/50 dark:bg-indigo-950/20 p-3 flex flex-col justify-between min-w-0 min-h-[96px] cursor-pointer hover:border-indigo-400 hover:shadow-md transition-all"
             onClick={() => setActiveTab('proposed_cargos')}
           >
-            <span className="text-[10px] font-semibold text-indigo-700 uppercase block flex items-center justify-between">
-              <span>Cargas Propostas</span>
-              <Sparkles className="h-3 w-3 text-indigo-600" />
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-tight truncate">
+                Cargas Propostas
+              </span>
+              <Sparkles className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+            </div>
+            <div className="my-1">
+              <span className="text-2xl font-black tracking-tight text-indigo-900 dark:text-indigo-100 block">
+                {globalResult.kpis.totalProposedCargos}
+              </span>
+            </div>
+            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 truncate block">
+              Soluções calculadas
             </span>
-            <span className="text-2xl font-black text-indigo-900 dark:text-indigo-200">
-              {globalResult.kpis.totalProposedCargos}
-            </span>
-            <span className="text-[10px] text-indigo-600 block">Soluções calculadas</span>
           </Card>
 
-          <Card className="border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 p-3">
-            <span className="text-[10px] font-semibold text-emerald-700 uppercase block">
+          <Card className="border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 p-3 flex flex-col justify-between min-w-0 min-h-[96px]">
+            <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-tight truncate block">
               Saída Imediata
             </span>
-            <span className="text-2xl font-black text-emerald-900 dark:text-emerald-200">
-              {globalResult.kpis.readyForImmediateExitCount}
+            <div className="my-1">
+              <span className="text-2xl font-black tracking-tight text-emerald-900 dark:text-emerald-100 block">
+                {globalResult.kpis.readyForImmediateExitCount}
+              </span>
+            </div>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 truncate block">
+              DP34 + Crédito OK
             </span>
-            <span className="text-[10px] text-emerald-600 block">DP34 + Crédito OK</span>
           </Card>
 
-          <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-3">
-            <span className="text-[10px] font-semibold text-blue-700 uppercase block">
-              t Roteirizadas
+          <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-3 flex flex-col justify-between min-w-0 min-h-[96px]">
+            <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-tight truncate block">
+              Toneladas Roteirizadas
             </span>
-            <span className="text-2xl font-black text-blue-900 dark:text-blue-200">
-              {((globalResult.kpis.totalPlannedWeightKg || 0) / 1000).toLocaleString('pt-BR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}{' '}
-              t
+            <div className="my-1">
+              <span className="text-xl sm:text-2xl font-black tracking-tight text-blue-900 dark:text-blue-100 block truncate">
+                {((globalResult.kpis.totalPlannedWeightKg || 0) / 1000).toLocaleString('pt-BR', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{' '}
+                t
+              </span>
+            </div>
+            <span className="text-[10px] text-blue-600 dark:text-blue-400 truncate block">
+              Peso em propostas
             </span>
-            <span className="text-[10px] text-blue-600 block">Peso em propostas</span>
           </Card>
 
-          <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 p-3">
-            <span className="text-[10px] font-semibold text-purple-700 uppercase block">
+          <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 p-3 flex flex-col justify-between min-w-0 min-h-[96px]">
+            <span className="text-[11px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-tight truncate block">
               Ocupação Média
             </span>
-            <span className="text-2xl font-black text-purple-900 dark:text-purple-200">
-              {globalResult.kpis.avgOccupancyPct}%
+            <div className="my-1">
+              <span className="text-2xl font-black tracking-tight text-purple-900 dark:text-purple-100 block">
+                {globalResult.kpis.avgOccupancyPct.toLocaleString('pt-BR', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{' '}
+                %
+              </span>
+            </div>
+            <span className="text-[10px] text-purple-600 dark:text-purple-400 truncate block">
+              Aproveitamento
             </span>
-            <span className="text-[10px] text-purple-600 block">Aproveitamento</span>
           </Card>
 
-          <Card className="border-emerald-200 bg-emerald-50/30 p-3">
-            <span className="text-[10px] font-semibold text-emerald-700 uppercase block">
+          <Card className="border-emerald-200 bg-emerald-50/30 p-3 flex flex-col justify-between min-w-0 min-h-[96px]">
+            <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-tight truncate block">
               Pedidos Atendidos
             </span>
-            <span className="text-2xl font-black text-emerald-900 dark:text-emerald-200">
-              {globalResult.kpis.attendedOrdersCount}
+            <div className="my-1">
+              <span className="text-2xl font-black tracking-tight text-emerald-900 dark:text-emerald-100 block">
+                {globalResult.kpis.attendedOrdersCount}
+              </span>
+            </div>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 truncate block">
+              Em cargas sugeridas
             </span>
-            <span className="text-[10px] text-emerald-600 block">Em cargas sugeridas</span>
           </Card>
 
           <Card
-            className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 p-3 cursor-pointer hover:border-amber-400 hover:shadow-md transition-all"
+            className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 p-3 flex flex-col justify-between min-w-0 min-h-[96px] cursor-pointer hover:border-amber-400 hover:shadow-md transition-all"
             onClick={() => setIsWaitingComplementModalOpen(true)}
           >
-            <span className="text-[10px] font-semibold text-amber-700 uppercase block flex items-center justify-between">
-              <span>Aguard. Complemento</span>
-              <Eye className="h-3 w-3 text-amber-600" />
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300 uppercase tracking-tight truncate">
+                Aguard. Complemento
+              </span>
+              <Eye className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+            </div>
+            <div className="my-1">
+              <span className="text-2xl font-black tracking-tight text-amber-900 dark:text-amber-100 block">
+                {globalResult.kpis.waitingComplementCount}
+              </span>
+            </div>
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 truncate block">
+              Clique para detalhar
             </span>
-            <span className="text-2xl font-black text-amber-900 dark:text-amber-200">
-              {globalResult.kpis.waitingComplementCount}
-            </span>
-            <span className="text-[10px] text-amber-600 block">Clique para detalhar</span>
           </Card>
 
-          <Card className="border-slate-200 bg-slate-50 dark:bg-slate-900 p-3">
-            <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase block">
+          <Card className="border-slate-200 bg-slate-50 dark:bg-slate-900 p-3 flex flex-col justify-between min-w-0 min-h-[96px]">
+            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight truncate block">
               Prog. Futura (PCP)
             </span>
-            <span className="text-2xl font-black text-slate-900 dark:text-slate-100">
-              {globalResult.kpis.futureProgrammingCount}
-            </span>
-            <span className="text-[10px] text-slate-500 block">Previsão de produção</span>
+            <div className="my-1">
+              <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 block">
+                {globalResult.kpis.futureProgrammingCount}
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-500 block truncate">Previsão de produção</span>
           </Card>
 
-          <Card className="border-rose-200 bg-rose-50/50 dark:bg-rose-950/20 p-3">
-            <span className="text-[10px] font-semibold text-rose-700 uppercase block">
+          <Card className="border-rose-200 bg-rose-50/50 dark:bg-rose-950/20 p-3 flex flex-col justify-between min-w-0 min-h-[96px]">
+            <span className="text-[11px] font-bold text-rose-700 dark:text-rose-300 uppercase tracking-tight truncate block">
               Exceções / Pendentes
             </span>
-            <span className="text-2xl font-black text-rose-900 dark:text-rose-200">
-              {globalResult.kpis.pendingOrdersCount}
+            <div className="my-1">
+              <span className="text-2xl font-black tracking-tight text-rose-900 dark:text-rose-100 block">
+                {globalResult.kpis.pendingOrdersCount}
+              </span>
+            </div>
+            <span className="text-[10px] text-rose-600 dark:text-rose-400 truncate block">
+              Crédito / Data / Saldo
             </span>
-            <span className="text-[10px] text-rose-600 block">Crédito / Data / Saldo</span>
           </Card>
         </div>
       )}
@@ -1031,7 +1074,11 @@ export function LoadRouterAndSimulatorPage() {
                                   : 'text-amber-600'
                             }`}
                           >
-                            {cargo.occupancyPct}%
+                            {cargo.occupancyPct.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{' '}
+                            %
                           </span>
                         </div>
                       </div>
@@ -1043,8 +1090,16 @@ export function LoadRouterAndSimulatorPage() {
                         <div>
                           <span className="text-slate-500 block text-[10px]">Carga / Cap.</span>
                           <span className="font-bold text-slate-800 dark:text-slate-200">
-                            {(cargo.totalWeightKg / 1000).toFixed(1)}t /{' '}
-                            {(cargo.vehicleCapacityKg / 1000).toFixed(1)}t
+                            {((cargo.totalWeightKg || 0) / 1000).toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{' '}
+                            t /{' '}
+                            {((cargo.vehicleCapacityKg || 0) / 1000).toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{' '}
+                            t
                           </span>
                         </div>
                         <div>
@@ -1121,9 +1176,18 @@ export function LoadRouterAndSimulatorPage() {
                             Frete Estimado Total:
                           </span>
                           <span className="font-black text-indigo-700 dark:text-indigo-400 text-sm">
-                            R$ {cargo.estimatedCost.toLocaleString('pt-BR')}
+                            R${' '}
+                            {cargo.estimatedCost.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
                             <span className="text-[10px] font-normal text-slate-500 ml-1">
-                              (R$ {cargo.costPerTon}/t)
+                              (R${' '}
+                              {Number(cargo.costPerTon || 0).toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                              /t)
                             </span>
                           </span>
                         </div>
@@ -1239,7 +1303,13 @@ export function LoadRouterAndSimulatorPage() {
                 <CardContent className="p-4 space-y-2 text-xs">
                   <div className="flex justify-between py-1 border-b">
                     <span className="text-slate-500">Peso Total:</span>
-                    <span className="font-bold">{(cargo.totalWeightKg / 1000).toFixed(1)}t</span>
+                    <span className="font-bold">
+                      {((cargo.totalWeightKg || 0) / 1000).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      t
+                    </span>
                   </div>
                   <div className="flex justify-between py-1 border-b">
                     <span className="text-slate-500">Pedidos / Clientes:</span>
@@ -1313,7 +1383,13 @@ export function LoadRouterAndSimulatorPage() {
                 <CardContent className="p-4 space-y-2 text-xs">
                   <div className="flex justify-between py-1 border-b">
                     <span className="text-slate-500">Peso Total:</span>
-                    <span className="font-bold">{(cargo.totalWeightKg / 1000).toFixed(1)}t</span>
+                    <span className="font-bold">
+                      {((cargo.totalWeightKg || 0) / 1000).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      t
+                    </span>
                   </div>
                   <div className="flex justify-between py-1">
                     <span className="text-slate-500">Pedidos:</span>
@@ -1370,14 +1446,29 @@ export function LoadRouterAndSimulatorPage() {
                   <div className="flex justify-between py-1 border-b">
                     <span className="text-slate-500">Peso Atual / Capacidade:</span>
                     <span className="font-bold">
-                      {(cargo.totalWeightKg / 1000).toFixed(1)}t /{' '}
-                      {(cargo.vehicleCapacityKg / 1000).toFixed(1)}t
+                      {((cargo.totalWeightKg || 0) / 1000).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      t /{' '}
+                      {((cargo.vehicleCapacityKg || 0) / 1000).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      t
                     </span>
                   </div>
                   <div className="flex justify-between py-1 text-amber-800 font-semibold">
                     <span>Espaço Livre:</span>
                     <span>
-                      {((cargo.vehicleCapacityKg - cargo.totalWeightKg) / 1000).toFixed(1)}t
+                      {(
+                        ((cargo.vehicleCapacityKg || 0) - (cargo.totalWeightKg || 0)) /
+                        1000
+                      ).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      t
                     </span>
                   </div>
                 </CardContent>
@@ -1570,14 +1661,21 @@ export function LoadRouterAndSimulatorPage() {
                   <span className="text-slate-400 block text-[10px]">Veículo & Capacidade</span>
                   <span className="font-bold">
                     {selectedCargoDetail.vehicleType} (
-                    {(selectedCargoDetail.vehicleCapacityKg / 1000).toFixed(1)}t)
+                    {((selectedCargoDetail.vehicleCapacityKg || 0) / 1000).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    t)
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px]">Peso & Ocupação</span>
                   <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                    {(selectedCargoDetail.totalWeightKg / 1000).toFixed(1)}t (
-                    {selectedCargoDetail.occupancyPct}%)
+                    {((selectedCargoDetail.totalWeightKg || 0) / 1000).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    t ({selectedCargoDetail.occupancyPct} %)
                   </span>
                 </div>
                 <div>
@@ -1585,8 +1683,17 @@ export function LoadRouterAndSimulatorPage() {
                     Frete Estimado / Piso ANTT
                   </span>
                   <span className="font-bold">
-                    R$ {selectedCargoDetail.estimatedCost.toLocaleString('pt-BR')} (R${' '}
-                    {selectedCargoDetail.costPerTon}/t)
+                    R${' '}
+                    {selectedCargoDetail.estimatedCost.toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    (R${' '}
+                    {Number(selectedCargoDetail.costPerTon || 0).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                    /t)
                   </span>
                 </div>
                 <div>
@@ -1648,7 +1755,11 @@ export function LoadRouterAndSimulatorPage() {
                           </td>
                           <td className="py-2.5 px-3">{ord.material}</td>
                           <td className="py-2.5 px-3 text-right font-mono font-bold">
-                            {(ord.weight_kg / 1000).toFixed(1)}t
+                            {((ord.weight_kg || 0) / 1000).toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{' '}
+                            t
                           </td>
                           <td className="py-2.5 px-3 font-mono">
                             {ord.desired_date?.split('T')[0] || 'N/I'}
@@ -1764,7 +1875,12 @@ export function LoadRouterAndSimulatorPage() {
                 <div>
                   <span className="text-slate-400 block text-[10px]">Custo por Tonelada</span>
                   <span className="font-bold text-indigo-700 dark:text-indigo-400">
-                    R$ {selectedWhyCargo.costPerTon} / t
+                    R${' '}
+                    {Number(selectedWhyCargo.costPerTon || 0).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                    /t
                   </span>
                 </div>
               </div>
@@ -1846,9 +1962,17 @@ export function LoadRouterAndSimulatorPage() {
                     <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
                     <span>
                       <strong>Critério de Capacidade:</strong> O peso atual (
-                      {(selectedWhyCargo.totalWeightKg / 1000).toFixed(1)}t) já atinge{' '}
-                      {selectedWhyCargo.occupancyPct}% da capacidade física do veículo (
-                      {(selectedWhyCargo.vehicleCapacityKg / 1000).toFixed(1)}t).
+                      {((selectedWhyCargo.totalWeightKg || 0) / 1000).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      t) já atinge {selectedWhyCargo.occupancyPct} % da capacidade física do veículo
+                      (
+                      {((selectedWhyCargo.vehicleCapacityKg || 0) / 1000).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      t).
                     </span>
                   </div>
                 </div>
@@ -1893,8 +2017,11 @@ export function LoadRouterAndSimulatorPage() {
                 <div>
                   <span className="text-slate-400 block text-[10px]">Peso / Ocupação</span>
                   <span className="font-bold">
-                    {(selectedCargoForApproval.totalWeightKg / 1000).toFixed(1)}t (
-                    {selectedCargoForApproval.occupancyPct}%)
+                    {((selectedCargoForApproval.totalWeightKg || 0) / 1000).toLocaleString(
+                      'pt-BR',
+                      { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+                    )}{' '}
+                    t ({selectedCargoForApproval.occupancyPct} %)
                   </span>
                 </div>
                 <div>

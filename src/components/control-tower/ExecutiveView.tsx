@@ -283,7 +283,7 @@ export const ExecutiveView: React.FC<ExecutiveViewProps> = ({ metrics, onSelectS
 
           <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex items-center justify-between">
             <span>Integração de agendamento & Portaria</span>
-            <span className="font-mono text-slate-700 font-bold">100% Sincronizado</span>
+            <span className="font-mono text-slate-700 font-bold">100 % Sincronizado</span>
           </div>
         </CardContent>
       </Card>

@@ -214,7 +214,11 @@ export const FreightIntelligencePage: React.FC = () => {
                   R$ {execSummary.economiaRealizadaTotal.toLocaleString('pt-BR')}
                 </span>
                 <span className="text-[10px] text-emerald-700 font-bold">
-                  {execSummary.margemLogisticaMediaPct.toFixed(1)}% vs Baseline
+                  {execSummary.margemLogisticaMediaPct.toLocaleString('pt-BR', {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  })}{' '}
+                  % vs Baseline
                 </span>
               </CardContent>
             </Card>
@@ -239,7 +243,7 @@ export const FreightIntelligencePage: React.FC = () => {
                   % Apoio Inteligência IA
                 </span>
                 <span className="text-base font-black text-purple-800 font-mono mt-0.5 block">
-                  {execSummary.pctCargasSelecionadasComIA}%
+                  {execSummary.pctCargasSelecionadasComIA} %
                 </span>
                 <span className="text-[10px] text-purple-700 font-semibold">
                   Mesa Carlão + Seleção
@@ -366,7 +370,11 @@ export const FreightIntelligencePage: React.FC = () => {
                           })}
                         </td>
                         <td className="p-2.5 text-right font-bold text-emerald-700">
-                          {Number(rec.realized_savings_pct || 0).toFixed(1)}%
+                          {Number(rec.realized_savings_pct || 0).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 1,
+                            maximumFractionDigits: 1,
+                          })}{' '}
+                          %
                         </td>
                         <td className="p-2.5 text-center font-sans">
                           <Button size="sm" variant="ghost" className="h-7 text-xs text-[#005596]">
@@ -469,10 +477,10 @@ export const FreightIntelligencePage: React.FC = () => {
                         </div>
                       </td>
                       <td className="p-3 font-semibold text-slate-800">
-                        {d.accept_rate_pct || 88}%
+                        {d.accept_rate_pct || 88} %
                       </td>
                       <td className="p-3 font-semibold text-slate-800">
-                        {d.avg_punctuality_pct || 96}%
+                        {d.avg_punctuality_pct || 96} %
                       </td>
                       <td className="p-3">
                         <Badge
@@ -571,11 +579,11 @@ export const FreightIntelligencePage: React.FC = () => {
               <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/40 space-y-2">
                 <div className="flex items-center justify-between font-bold text-rose-900">
                   <span>Queda na Taxa de Aceite — Rota ITIN-SP-SJC-02 (Vale do Paraíba)</span>
-                  <Badge className="bg-rose-600 text-white text-[10px]">Confiança 92%</Badge>
+                  <Badge className="bg-rose-600 text-white text-[10px]">Confiança 92 %</Badge>
                 </div>
-                <p className="text-slate-700">
-                  <strong>Fato / Observação:</strong> A taxa de aceite de ofertas caiu de 74% para
-                  48.2% nas últimas duas semanas.
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  <strong>Fato / Observação:</strong> A taxa de aceite de ofertas caiu de 74 % para
+                  48,2 % nas últimas duas semanas.{' '}
                 </p>
                 <p className="text-slate-700">
                   <strong>Hipótese IA:</strong> Ofertas concorrentes na região do Vale estão pagando
@@ -590,11 +598,11 @@ export const FreightIntelligencePage: React.FC = () => {
               <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/40 space-y-2">
                 <div className="flex items-center justify-between font-bold text-amber-900">
                   <span>Concentração de Contratações em Horário Não Habitual (Madrugada)</span>
-                  <Badge className="bg-amber-600 text-white text-[10px]">Confiança 81%</Badge>
+                  <Badge className="bg-amber-600 text-white text-[10px]">Confiança 81 %</Badge>
                 </div>
-                <p className="text-slate-700">
-                  <strong>Fato / Observação:</strong> 4 fretes para Belo Horizonte foram fechados
-                  manualmente com valor 12% acima da tabela entre 01:00 e 03:00.
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  <strong>Fato / Observação:</strong> 4 cargas noturnas consecutivas foram fechadas
+                  manualmente com valor 12 % acima da tabela entre 01:00 e 03:00.{' '}
                 </p>
                 <p className="text-slate-700">
                   <strong>Hipótese IA:</strong> Cargas urgentes de reposição PCP com negociação fora
@@ -658,13 +666,13 @@ export const FreightIntelligencePage: React.FC = () => {
                         <span className="text-[10px] text-slate-400 font-sans block">
                           Peso Atual:
                         </span>
-                        <strong>{prop.current_weight_pct}%</strong>
+                        <strong>{prop.current_weight_pct} %</strong>
                       </div>
                       <div>
                         <span className="text-[10px] text-purple-700 font-sans font-bold block">
                           Peso Sugerido IA:
                         </span>
-                        <strong className="text-purple-700">{prop.suggested_weight_pct}%</strong>
+                        <strong className="text-purple-700">{prop.suggested_weight_pct} %</strong>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 font-sans block">
@@ -678,7 +686,7 @@ export const FreightIntelligencePage: React.FC = () => {
                         <span className="text-[10px] text-slate-400 font-sans block">
                           Confiança Estatística:
                         </span>
-                        <strong className="text-emerald-700">{prop.confidence_pct}%</strong>
+                        <strong className="text-emerald-700">{prop.confidence_pct} %</strong>
                       </div>
                     </div>
 
@@ -735,7 +743,12 @@ export const FreightIntelligencePage: React.FC = () => {
                 <div className="text-slate-600">
                   Itinerário:{' '}
                   <strong className="font-mono">{selectedDrilldown.itinerary_code}</strong> •
-                  Veículo: {selectedDrilldown.vehicle_type} ({selectedDrilldown.weight_ton}t)
+                  Veículo: {selectedDrilldown.vehicle_type} (
+                  {Number(selectedDrilldown.weight_ton || 0).toLocaleString('pt-BR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{' '}
+                  t)
                 </div>
                 <div className="text-slate-600">
                   Motorista Contratado: <strong>{selectedDrilldown.selected_driver_name}</strong>{' '}
@@ -749,7 +762,11 @@ export const FreightIntelligencePage: React.FC = () => {
                     Baseline
                   </span>
                   <span className="font-mono font-bold text-slate-800">
-                    R$ {Number(selectedDrilldown.baseline_value).toFixed(2)}
+                    R${' '}
+                    {Number(selectedDrilldown.baseline_value).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                   </span>
                 </div>
                 <div className="p-2.5 bg-sky-50 rounded-lg border border-sky-200">
@@ -757,7 +774,11 @@ export const FreightIntelligencePage: React.FC = () => {
                     Fechado Carlão
                   </span>
                   <span className="font-mono font-bold text-[#005596]">
-                    R$ {Number(selectedDrilldown.total_negotiated_cost).toFixed(2)}
+                    R${' '}
+                    {Number(selectedDrilldown.total_negotiated_cost).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                   </span>
                 </div>
                 <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200">
@@ -765,8 +786,12 @@ export const FreightIntelligencePage: React.FC = () => {
                     Economia Real
                   </span>
                   <span className="font-mono font-bold text-emerald-700">
-                    R$ {Number(selectedDrilldown.realized_savings).toFixed(2)} (
-                    {selectedDrilldown.realized_savings_pct}%)
+                    R${' '}
+                    {Number(selectedDrilldown.realized_savings).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    ({selectedDrilldown.realized_savings_pct} %)
                   </span>
                 </div>
               </div>
@@ -777,7 +802,7 @@ export const FreightIntelligencePage: React.FC = () => {
                   Explicabilidade da Recomendação IA
                 </div>
                 <p className="text-[11px] text-slate-700 leading-relaxed">
-                  "Motorista recomendado com score 93/100 devido a 94% de pontualidade histórica na
+                  "Motorista recomendado com score 93/100 devido a 94 % de pontualidade histórica na
                   rota {selectedDrilldown.itinerary_code}, veículo compatível verificado no cadastro
                   SAP e negociação concluída em {selectedDrilldown.rounds_count} rodadas pelo Carlão
                   dentro do teto estipulado."
