@@ -679,38 +679,40 @@ export const ItineraryHeatmapPage: React.FC = () => {
           </div>
         </div>
 
-        {/* SELETOR DE ITINERÁRIO SAP */}
-        <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-1 max-w-xl">
+        {/* SELETOR DE ITINERÁRIO SAP E NAVEGAÇÃO DE ABAS */}
+        <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 w-full min-w-0">
+          <div className="flex items-center gap-2 flex-1 max-w-xl min-w-0">
             <span className="text-xs font-bold text-slate-700 uppercase tracking-wider shrink-0 flex items-center gap-1.5">
               <Filter className="w-3.5 h-3.5 text-[#005596]" />
-              Itinerário SAP:
+              <span className="whitespace-nowrap">Itinerário SAP:</span>
             </span>
-            <Select
-              value={selectedItinerary}
-              onValueChange={(val) => {
-                setSelectedItinerary(val)
-              }}
-            >
-              <SelectTrigger className="h-9 text-xs bg-slate-50 border-slate-300 font-semibold text-slate-800">
-                <SelectValue placeholder="Selecione o Itinerário SAP" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                <SelectItem value="ALL">Todos os Itinerários da Carteira Real</SelectItem>
-                {availableItineraries.map((it) => (
-                  <SelectItem key={it.code} value={it.code}>
-                    {it.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex-1 min-w-0">
+              <Select
+                value={selectedItinerary}
+                onValueChange={(val) => {
+                  setSelectedItinerary(val)
+                }}
+              >
+                <SelectTrigger className="h-9 text-xs bg-slate-50 border-slate-300 font-semibold text-slate-800 w-full">
+                  <SelectValue placeholder="Selecione o Itinerário SAP" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="ALL">Todos os Itinerários da Carteira Real</SelectItem>
+                  {availableItineraries.map((it) => (
+                    <SelectItem key={it.code} value={it.code}>
+                      {it.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             {selectedItinerary !== 'ALL' && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedItinerary('ALL')}
-                className="h-9 px-2 text-xs text-slate-500 hover:text-slate-800"
+                className="h-9 px-2.5 text-xs text-slate-500 hover:text-slate-800 shrink-0"
                 title="Limpar seleção de itinerário"
               >
                 <RotateCcw className="w-3.5 h-3.5 mr-1" />
@@ -719,179 +721,195 @@ export const ItineraryHeatmapPage: React.FC = () => {
             )}
           </div>
 
-          {/* Abas Superiores */}
-          <Tabs
-            value={activeTab}
-            onValueChange={(v) => setActiveTab(v as any)}
-            className="w-full md:w-auto"
-          >
-            <TabsList className="bg-slate-100 p-1 rounded-xl h-9">
-              <TabsTrigger
-                value="MAPA"
-                className="text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-[#005596]"
-              >
-                <MapPin className="w-3.5 h-3.5 mr-1.5" />
-                Mapa & Propostas
-              </TabsTrigger>
-              <TabsTrigger
-                value="OPORTUNIDADES"
-                className="text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-purple-700"
-              >
-                <Zap className="w-3.5 h-3.5 mr-1.5 text-purple-600" />
-                Oportunidades ({opportunities.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="ANALISE_IA"
-                className="text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700"
-              >
-                <Sparkles className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
-                Análise Logística IA
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {/* Abas Superiores com overflow-x suave */}
+          <div className="w-full lg:w-auto overflow-x-auto scrollbar-thin">
+            <Tabs
+              value={activeTab}
+              onValueChange={(v) => setActiveTab(v as any)}
+              className="w-full lg:w-auto"
+            >
+              <TabsList className="bg-slate-100 p-1 rounded-xl h-9 inline-flex shrink-0">
+                <TabsTrigger
+                  value="MAPA"
+                  className="text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-[#005596] shrink-0"
+                >
+                  <MapPin className="w-3.5 h-3.5 mr-1.5" />
+                  Mapa & Propostas
+                </TabsTrigger>
+                <TabsTrigger
+                  value="OPORTUNIDADES"
+                  className="text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-purple-700 shrink-0"
+                >
+                  <Zap className="w-3.5 h-3.5 mr-1.5 text-purple-600" />
+                  Oportunidades ({opportunities.length})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="ANALISE_IA"
+                  className="text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 shrink-0"
+                >
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+                  Análise Logística IA
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
       </div>
 
-      {/* 2. 8 INDICADORES OFICIAIS COM INVARIANTE: CARTEIRA = PLANEJADA + SALDO PENDENTE */}
+      {/* 2. 8 INDICADORES OFICIAIS COM INVARIANTE: CARTEIRA = PLANEJADA + SALDO PENDENTE (Grid responsivo sem truncamento) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
         {/* 1) Carteira Liberada */}
         <Card className="border-slate-200 bg-white shadow-xs">
-          <CardContent className="p-3 text-center">
-            <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+          <CardContent className="p-3 text-center flex flex-col justify-center min-h-[82px]">
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block leading-tight">
               1. Carteira Liberada
             </span>
-            <strong className="text-base font-black font-mono text-[#005596]">
+            <strong className="text-base font-black font-mono text-[#005596] mt-0.5">
               {formatTons(indicators.carteiraLiberadaTon)}
             </strong>
-            <span className="text-[9px] text-slate-400 block mt-0.5">Elegível ao TMS</span>
+            <span className="text-[9px] text-slate-400 block mt-0.5 leading-none">
+              Elegível ao TMS
+            </span>
           </CardContent>
         </Card>
 
         {/* 2) Clientes Distintos */}
         <Card className="border-slate-200 bg-white shadow-xs">
-          <CardContent className="p-3 text-center">
-            <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+          <CardContent className="p-3 text-center flex flex-col justify-center min-h-[82px]">
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block leading-tight">
               2. Clientes
             </span>
-            <strong className="text-base font-black font-mono text-slate-900">
+            <strong className="text-base font-black font-mono text-slate-900 mt-0.5">
               {indicators.clientesCount}
             </strong>
-            <span className="text-[9px] text-slate-400 block mt-0.5">Compradores ativos</span>
+            <span className="text-[9px] text-slate-400 block mt-0.5 leading-none">
+              Compradores ativos
+            </span>
           </CardContent>
         </Card>
 
         {/* 3) Pedidos Elegíveis */}
         <Card className="border-slate-200 bg-white shadow-xs">
-          <CardContent className="p-3 text-center">
-            <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+          <CardContent className="p-3 text-center flex flex-col justify-center min-h-[82px]">
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block leading-tight">
               3. Pedidos
             </span>
-            <strong className="text-base font-black font-mono text-slate-900">
+            <strong className="text-base font-black font-mono text-slate-900 mt-0.5">
               {indicators.pedidosCount}
             </strong>
-            <span className="text-[9px] text-slate-400 block mt-0.5">Itens liberados</span>
+            <span className="text-[9px] text-slate-400 block mt-0.5 leading-none">
+              Itens liberados
+            </span>
           </CardContent>
         </Card>
 
         {/* 4) Municípios Distintos */}
         <Card className="border-slate-200 bg-white shadow-xs">
-          <CardContent className="p-3 text-center">
-            <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+          <CardContent className="p-3 text-center flex flex-col justify-center min-h-[82px]">
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block leading-tight">
               4. Municípios
             </span>
-            <strong className="text-base font-black font-mono text-slate-900">
+            <strong className="text-base font-black font-mono text-slate-900 mt-0.5">
               {indicators.municipiosCount}
             </strong>
-            <span className="text-[9px] text-slate-400 block mt-0.5">Destinos rodoviários</span>
+            <span className="text-[9px] text-slate-400 block mt-0.5 leading-none">
+              Destinos rodoviários
+            </span>
           </CardContent>
         </Card>
 
         {/* 5) Cargas Propostas */}
         <Card className="border-purple-200 bg-purple-50/50 shadow-xs">
-          <CardContent className="p-3 text-center">
-            <span className="text-[10px] font-bold text-purple-700 uppercase block tracking-wider truncate">
+          <CardContent className="p-3 text-center flex flex-col justify-center min-h-[82px]">
+            <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block leading-tight">
               5. Cargas Propostas
             </span>
-            <strong className="text-base font-black font-mono text-purple-900">
+            <strong className="text-base font-black font-mono text-purple-900 mt-0.5">
               {indicators.cargasCount}
             </strong>
-            <span className="text-[9px] text-purple-600 block mt-0.5">Motor IA automático</span>
+            <span className="text-[9px] text-purple-600 block mt-0.5 leading-none">
+              Motor IA automático
+            </span>
           </CardContent>
         </Card>
 
         {/* 6) Toneladas Planejadas */}
         <Card className="border-emerald-200 bg-emerald-50/50 shadow-xs">
-          <CardContent className="p-3 text-center">
-            <span className="text-[10px] font-bold text-emerald-700 uppercase block tracking-wider truncate">
+          <CardContent className="p-3 text-center flex flex-col justify-center min-h-[82px]">
+            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block leading-tight">
               6. Planejadas
             </span>
-            <strong className="text-base font-black font-mono text-emerald-900">
+            <strong className="text-base font-black font-mono text-emerald-900 mt-0.5">
               {formatTons(indicators.toneladasPlanejadasTon)}
             </strong>
-            <span className="text-[9px] text-emerald-600 block mt-0.5">Em propostas ativas</span>
+            <span className="text-[9px] text-emerald-600 block mt-0.5 leading-none">
+              Em propostas ativas
+            </span>
           </CardContent>
         </Card>
 
         {/* 7) Saldo Pendente */}
         <Card className="border-amber-200 bg-amber-50/50 shadow-xs">
-          <CardContent className="p-3 text-center">
-            <span className="text-[10px] font-bold text-amber-700 uppercase block tracking-wider truncate">
+          <CardContent className="p-3 text-center flex flex-col justify-center min-h-[82px]">
+            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block leading-tight">
               7. Saldo Pendente
             </span>
-            <strong className="text-base font-black font-mono text-amber-900">
+            <strong className="text-base font-black font-mono text-amber-900 mt-0.5">
               {formatTons(indicators.saldoPendenteTon)}
             </strong>
-            <span className="text-[9px] text-amber-600 block mt-0.5">Não alocado</span>
+            <span className="text-[9px] text-amber-600 block mt-0.5 leading-none">Não alocado</span>
           </CardContent>
         </Card>
 
         {/* 8) Ocupação Veicular Estimada */}
         <Card className="border-slate-200 bg-white shadow-xs">
-          <CardContent className="p-3 text-center">
-            <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+          <CardContent className="p-3 text-center flex flex-col justify-center min-h-[82px]">
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block leading-tight">
               8. Ocupação Média
             </span>
-            <strong className="text-base font-black font-mono text-emerald-700">
+            <strong className="text-base font-black font-mono text-emerald-700 mt-0.5">
               {formatPercent(indicators.ocupacaoMediaPct, 1)}
             </strong>
-            <span className="text-[9px] text-slate-400 block mt-0.5">Capacidade veicular</span>
+            <span className="text-[9px] text-slate-400 block mt-0.5 leading-none">
+              Capacidade veicular
+            </span>
           </CardContent>
         </Card>
       </div>
 
       {/* PAINEL DE DISCRIMINAÇÃO CONTÁBIL (TOTAL / LIBERADA / BLOQUEIOS) */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-bold text-slate-800 uppercase tracking-wide text-[11px] flex items-center gap-1.5">
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-3.5 text-xs text-slate-700 flex flex-wrap items-center justify-between gap-3 w-full box-border min-w-0">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <span className="font-bold text-slate-800 uppercase tracking-wide text-[11px] flex items-center gap-1.5 shrink-0">
             <Info className="w-3.5 h-3.5 text-[#005596]" />
             Composição da Carteira:
           </span>
-          <span className="bg-white px-2 py-0.5 rounded border border-slate-200 font-medium">
+          <span className="bg-white px-2 py-0.5 rounded border border-slate-200 font-medium whitespace-nowrap">
             Total:{' '}
             <strong className="font-mono text-slate-900">
               {formatTons(walletBreakdown.totalTon)}
             </strong>
           </span>
-          <span className="bg-emerald-50 text-emerald-900 px-2 py-0.5 rounded border border-emerald-200 font-bold">
+          <span className="bg-emerald-50 text-emerald-900 px-2 py-0.5 rounded border border-emerald-200 font-bold whitespace-nowrap">
             Liberada: <span className="font-mono">{formatTons(walletBreakdown.liberadaTon)}</span>
           </span>
-          <span className="bg-rose-50 text-rose-800 px-2 py-0.5 rounded border border-rose-200">
+          <span className="bg-rose-50 text-rose-800 px-2 py-0.5 rounded border border-rose-200 whitespace-nowrap">
             Bloq. Crédito:{' '}
             <strong className="font-mono">{formatTons(walletBreakdown.bloqueadaCreditoTon)}</strong>
           </span>
-          <span className="bg-amber-50 text-amber-800 px-2 py-0.5 rounded border border-amber-200">
+          <span className="bg-amber-50 text-amber-800 px-2 py-0.5 rounded border border-amber-200 whitespace-nowrap">
             Bloq. Estoque:{' '}
             <strong className="font-mono">{formatTons(walletBreakdown.bloqueadaEstoqueTon)}</strong>
           </span>
           {walletBreakdown.bloqueadaProgTon > 0 && (
-            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-300">
+            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-300 whitespace-nowrap">
               Bloq. Programação:{' '}
               <strong className="font-mono">{formatTons(walletBreakdown.bloqueadaProgTon)}</strong>
             </span>
           )}
         </div>
 
-        <div className="text-[11px] text-slate-500 font-mono">
+        <div className="text-[11px] text-slate-600 font-mono bg-white px-2.5 py-1 rounded-md border border-slate-200 shrink-0">
           Invariante: Liberada ({formatTons(indicators.carteiraLiberadaTon)}) = Planejadas (
           {formatTons(indicators.toneladasPlanejadasTon)}) + Saldo (
           {formatTons(indicators.saldoPendenteTon)})

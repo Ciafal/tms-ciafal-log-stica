@@ -493,13 +493,13 @@ export const LoadPlannerPage: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* Seletor Canônico de Visualização (#1): Lista | Planejamento | Mapa Logístico | Comparação de Cenários */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-slate-900 p-2.5 rounded-xl shadow-xs border border-slate-800 text-white">
-        <div className="flex items-center gap-1.5 p-1 bg-slate-800/80 rounded-lg overflow-x-auto">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-900 p-2.5 sm:p-3 rounded-xl shadow-xs border border-slate-800 text-white w-full box-border min-w-0">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-800/80 rounded-lg overflow-x-auto max-w-full scrollbar-thin">
           <Button
             size="sm"
             variant={plannerViewMode === 'MAPA_LOGISTICO' ? 'default' : 'ghost'}
             onClick={() => setPlannerViewMode('MAPA_LOGISTICO')}
-            className={`h-8 text-xs font-bold px-3 transition-all ${
+            className={`h-8 text-xs font-bold px-3 transition-all shrink-0 ${
               plannerViewMode === 'MAPA_LOGISTICO'
                 ? 'bg-[#005596] text-white shadow-xs'
                 : 'text-slate-300 hover:text-white hover:bg-slate-700'
@@ -516,7 +516,7 @@ export const LoadPlannerPage: React.FC = () => {
             size="sm"
             variant={plannerViewMode === 'PLANEJAMENTO' ? 'default' : 'ghost'}
             onClick={() => setPlannerViewMode('PLANEJAMENTO')}
-            className={`h-8 text-xs font-bold px-3 transition-all ${
+            className={`h-8 text-xs font-bold px-3 transition-all shrink-0 ${
               plannerViewMode === 'PLANEJAMENTO'
                 ? 'bg-[#005596] text-white shadow-xs'
                 : 'text-slate-300 hover:text-white hover:bg-slate-700'
@@ -530,7 +530,7 @@ export const LoadPlannerPage: React.FC = () => {
             size="sm"
             variant={plannerViewMode === 'LISTA' ? 'default' : 'ghost'}
             onClick={() => setPlannerViewMode('LISTA')}
-            className={`h-8 text-xs font-bold px-3 transition-all ${
+            className={`h-8 text-xs font-bold px-3 transition-all shrink-0 ${
               plannerViewMode === 'LISTA'
                 ? 'bg-[#005596] text-white shadow-xs'
                 : 'text-slate-300 hover:text-white hover:bg-slate-700'
@@ -544,7 +544,7 @@ export const LoadPlannerPage: React.FC = () => {
             size="sm"
             variant={plannerViewMode === 'COMPARACAO_CENARIOS' ? 'default' : 'ghost'}
             onClick={() => setPlannerViewMode('COMPARACAO_CENARIOS')}
-            className={`h-8 text-xs font-bold px-3 transition-all ${
+            className={`h-8 text-xs font-bold px-3 transition-all shrink-0 ${
               plannerViewMode === 'COMPARACAO_CENARIOS'
                 ? 'bg-[#005596] text-white shadow-xs'
                 : 'text-slate-300 hover:text-white hover:bg-slate-700'
@@ -555,9 +555,14 @@ export const LoadPlannerPage: React.FC = () => {
           </Button>
         </div>
 
-        <div className="flex items-center gap-2 justify-end text-xs text-slate-300">
-          <span className="text-[11px] hidden md:inline">Visualização ativa:</span>
-          <Badge variant="outline" className="border-sky-400 text-sky-300 font-mono text-[10px]">
+        <div className="flex items-center gap-2 justify-start md:justify-end text-xs text-slate-300 shrink-0">
+          <span className="text-[11px] hidden sm:inline text-slate-400 font-medium">
+            Visualização ativa:
+          </span>
+          <Badge
+            variant="outline"
+            className="border-sky-400 text-sky-300 font-mono text-[10px] px-2 py-0.5"
+          >
             {plannerViewMode === 'MAPA_LOGISTICO' && 'TORRE GEOGRÁFICA INTERATIVA'}
             {plannerViewMode === 'PLANEJAMENTO' && 'MONTAGEM DETERMINÍSTICA'}
             {plannerViewMode === 'LISTA' && 'ZSD35 TABELADA'}

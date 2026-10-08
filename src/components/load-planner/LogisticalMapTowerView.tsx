@@ -73,7 +73,7 @@ import { CreateMixedLoadModal } from '@/components/load-planner/CreateMixedLoadM
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { tmsService } from '@/services/tmsService'
 import { useToast } from '@/hooks/use-toast'
-import { formatTons } from '@/utils/format'
+import { formatTons, formatPercent } from '@/utils/format'
 
 interface LogisticalMapTowerViewProps {
   orders: SapSalesOrderEntity[]
@@ -472,20 +472,19 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
     <div className="space-y-3">
       {/* 1. FILTROS COMPACTOS NO TOPO E BARRA DE AÇÕES (#6, #11, #18) */}
       <Card className="border-slate-200 shadow-xs bg-white w-full box-border min-w-0">
-        <CardContent className="p-2.5 space-y-2.5">
-          {/* Linha 1: Filtros da Central */}
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2 w-full min-w-0">
-            {/* Linha de Filtros Compactos */}
-            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+        <CardContent className="p-3 sm:p-4 space-y-3">
+          {/* CONTAINER EXCLUSIVO 1: FILTROS DA CENTRAL (Linha horizontal responsiva com quebra automática) */}
+          <div className="w-full box-border min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5 w-full">
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 shrink-0">
-                <Filter className="w-3.5 h-3.5 text-[#005596]" />
-                <span>Filtros da Central:</span>
+                <Filter className="w-4 h-4 text-[#005596]" />
+                <span className="whitespace-nowrap">Filtros da Central:</span>
               </div>
 
               {/* Origem */}
-              <div className="min-w-[130px] flex-1 sm:flex-none">
+              <div className="min-w-[140px] flex-1 sm:flex-initial">
                 <Select value={filterOriginPlant} onValueChange={setFilterOriginPlant}>
-                  <SelectTrigger className="h-8 text-xs w-full bg-slate-50 border-slate-200">
+                  <SelectTrigger className="h-9 text-xs w-full bg-slate-50 border-slate-200">
                     <SelectValue placeholder="Origem" />
                   </SelectTrigger>
                   <SelectContent>
@@ -497,9 +496,9 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               </div>
 
               {/* UF */}
-              <div className="min-w-[90px] flex-1 sm:flex-none">
+              <div className="min-w-[95px] flex-1 sm:flex-initial">
                 <Select value={filterUf} onValueChange={setFilterUf}>
-                  <SelectTrigger className="h-8 text-xs w-full bg-slate-50 border-slate-200">
+                  <SelectTrigger className="h-9 text-xs w-full bg-slate-50 border-slate-200">
                     <SelectValue placeholder="UF" />
                   </SelectTrigger>
                   <SelectContent>
@@ -516,7 +515,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               </div>
 
               {/* Itinerário SAP (#11 e #7: limpa seleções e propaga para o mapa) */}
-              <div className="min-w-[170px] flex-1 sm:flex-none">
+              <div className="min-w-[180px] flex-1 sm:flex-initial">
                 <Select
                   value={filterItinerary}
                   onValueChange={(val) => {
@@ -525,7 +524,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                     setFilterItinerary(val)
                   }}
                 >
-                  <SelectTrigger className="h-8 text-xs w-full bg-slate-50 border-slate-200">
+                  <SelectTrigger className="h-9 text-xs w-full bg-slate-50 border-slate-200">
                     <SelectValue placeholder="Itinerário SAP" />
                   </SelectTrigger>
                   <SelectContent>
@@ -540,9 +539,9 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               </div>
 
               {/* Disponibilidade de Estoque */}
-              <div className="min-w-[130px] flex-1 sm:flex-none">
+              <div className="min-w-[140px] flex-1 sm:flex-initial">
                 <Select value={filterStockStatus} onValueChange={setFilterStockStatus}>
-                  <SelectTrigger className="h-8 text-xs w-full bg-slate-50 border-slate-200">
+                  <SelectTrigger className="h-9 text-xs w-full bg-slate-50 border-slate-200">
                     <SelectValue placeholder="Estoque" />
                   </SelectTrigger>
                   <SelectContent>
@@ -554,13 +553,13 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               </div>
 
               {/* Busca Livre */}
-              <div className="relative min-w-[160px] flex-1">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+              <div className="relative min-w-[200px] flex-1">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
                 <Input
                   placeholder="Buscar cliente, cidade, pedido..."
                   value={filterSearchQuery}
                   onChange={(e) => setFilterSearchQuery(e.target.value)}
-                  className="h-8 pl-8 text-xs bg-slate-50 border-slate-200 w-full"
+                  className="h-9 pl-9 text-xs bg-slate-50 border-slate-200 w-full"
                 />
               </div>
 
@@ -579,24 +578,26 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                     setFilterStockStatus('ALL')
                     setFilterSearchQuery('')
                   }}
-                  className="h-8 px-2 text-xs text-slate-500 hover:text-slate-800 shrink-0"
+                  className="h-9 px-2.5 text-xs text-slate-500 hover:text-slate-800 shrink-0"
                 >
-                  <RotateCcw className="w-3 h-3 mr-1" />
+                  <RotateCcw className="w-3.5 h-3.5 mr-1" />
                   Limpar
                 </Button>
               )}
             </div>
+          </div>
 
-            {/* Barra de Ações: Responsiva (flex row no desktop, grid no mobile/tablet) */}
-            <div className="flex flex-wrap items-center gap-2 border-t lg:border-t-0 pt-2 lg:pt-0 border-slate-100 shrink-0">
+          {/* CONTAINER EXCLUSIVO 2: BARRA DE AÇÕES INDEPENDENTE (Linha própria sem sobreposição) */}
+          <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5 w-full min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Botão + Criar Carga Mista (Passo 2) */}
               <Button
                 size="sm"
                 onClick={() => setCreateMixedLoadModalOpen(true)}
-                className="h-8 text-xs font-bold bg-[#005596] hover:bg-[#004275] text-white shadow-xs px-3"
+                className="h-9 text-xs font-bold bg-[#005596] hover:bg-[#004275] text-white shadow-xs px-3.5 shrink-0"
                 title="Criar carga mista combinando múltiplos itinerários ou rotas SAP"
               >
-                <Plus className="w-3.5 h-3.5 mr-1" />
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
                 <span>+ Criar Carga Mista</span>
               </Button>
 
@@ -605,20 +606,22 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                 size="sm"
                 variant="outline"
                 onClick={() => setIsComparisonModalOpen(true)}
-                className="h-8 text-xs font-bold border-purple-300 text-purple-700 bg-purple-50/50 hover:bg-purple-100 hover:text-purple-900 shadow-xs"
+                className="h-9 text-xs font-bold border-purple-300 text-purple-700 bg-purple-50/50 hover:bg-purple-100 hover:text-purple-900 shadow-xs px-3 shrink-0"
                 title="Comparar Cenário Convencional SAP vs Cenário IA Otimizado"
               >
-                <Scale className="w-3.5 h-3.5 mr-1 text-purple-600" />
+                <Scale className="w-3.5 h-3.5 mr-1.5 text-purple-600" />
                 <span>Comparar Cenários (A × B)</span>
-                <Badge className="bg-purple-600 text-white font-mono text-[9px] px-1.5 py-0 ml-1">
+                <Badge className="bg-purple-600 text-white font-mono text-[9px] px-1.5 py-0 ml-1.5">
                   -{scenarioComparison.savings.vehiclesReduced} v.
                 </Badge>
               </Button>
+            </div>
 
+            <div className="flex flex-wrap items-center gap-2">
               {/* Seletor de Priorização da IA (#18) */}
-              <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-lg text-xs">
-                <span className="text-[10px] font-bold text-slate-500 px-1.5 uppercase hidden sm:inline">
-                  Priorizar:
+              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg text-xs shrink-0">
+                <span className="text-[10px] font-bold text-slate-500 px-1 uppercase tracking-wider">
+                  Priorização:
                 </span>
                 <select
                   value={priorityMode}
@@ -639,86 +642,88 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                 size="sm"
                 onClick={() => handleRecalculate()}
                 disabled={isRecalculating}
-                className="bg-[#005596] hover:bg-[#004275] text-white text-xs h-8 font-bold px-3 shadow-xs"
+                className="bg-[#005596] hover:bg-[#004275] text-white text-xs h-9 font-bold px-3.5 shadow-xs shrink-0"
                 title="Recalcular agrupamentos e roteirização da IA"
               >
-                <Sparkles className={`w-3.5 h-3.5 mr-1 ${isRecalculating ? 'animate-spin' : ''}`} />
+                <Sparkles
+                  className={`w-3.5 h-3.5 mr-1.5 ${isRecalculating ? 'animate-spin' : ''}`}
+                />
                 <span>Recalcular Clusterização</span>
               </Button>
             </div>
           </div>
 
-          {/* 8 KPIs Compactos Responsivos do Topo do Mapa (Passo 1 e 3) — CSS Grid responsivo com formatTons ABNT */}
-          <div className="mt-2.5 pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2">
-            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
-              <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+          {/* 8 KPIs Compactos Responsivos do Topo do Mapa (Passo 1 e 3) — CSS Grid responsivo com formatTons e formatPercent ABNT, sem truncamento */}
+          <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2.5">
+            <div className="bg-slate-50 border border-slate-200/80 p-2.5 rounded-lg text-center shadow-xs min-h-[72px] flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block leading-tight">
                 Carteira Liberada
               </span>
-              <strong className="text-sm font-black font-mono text-[#005596]">
+              <strong className="text-sm sm:text-base font-black font-mono text-[#005596] mt-0.5">
                 {formatTons(summaryKpis.carteiraLiberadaTon, { decimals: 2 })}
               </strong>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
-              <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+            <div className="bg-slate-50 border border-slate-200/80 p-2.5 rounded-lg text-center shadow-xs min-h-[72px] flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block leading-tight">
                 Clientes Distintos
               </span>
-              <strong className="text-sm font-black font-mono text-slate-900">
+              <strong className="text-sm sm:text-base font-black font-mono text-slate-900 mt-0.5">
                 {summaryKpis.clientesDistintos}
               </strong>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
-              <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+            <div className="bg-slate-50 border border-slate-200/80 p-2.5 rounded-lg text-center shadow-xs min-h-[72px] flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block leading-tight">
                 Pedidos Elegíveis
               </span>
-              <strong className="text-sm font-black font-mono text-slate-900">
+              <strong className="text-sm sm:text-base font-black font-mono text-slate-900 mt-0.5">
                 {summaryKpis.pedidosElegiveis}
               </strong>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
-              <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
+            <div className="bg-slate-50 border border-slate-200/80 p-2.5 rounded-lg text-center shadow-xs min-h-[72px] flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block leading-tight">
                 Municípios
               </span>
-              <strong className="text-sm font-black font-mono text-slate-900">
+              <strong className="text-sm sm:text-base font-black font-mono text-slate-900 mt-0.5">
                 {summaryKpis.municipiosDistintos}
               </strong>
             </div>
 
-            <div className="bg-purple-50/60 border border-purple-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
-              <span className="text-[9px] font-bold text-purple-700 uppercase block tracking-wider truncate">
+            <div className="bg-purple-50/70 border border-purple-200/80 p-2.5 rounded-lg text-center shadow-xs min-h-[72px] flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block leading-tight">
                 Cargas Propostas
               </span>
-              <strong className="text-sm font-black font-mono text-purple-800">
+              <strong className="text-sm sm:text-base font-black font-mono text-purple-900 mt-0.5">
                 {summaryKpis.cargasPropostas}
               </strong>
             </div>
 
-            <div className="bg-emerald-50/60 border border-emerald-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
-              <span className="text-[9px] font-bold text-emerald-700 uppercase block tracking-wider truncate">
-                Planejadas
+            <div className="bg-emerald-50/70 border border-emerald-200/80 p-2.5 rounded-lg text-center shadow-xs min-h-[72px] flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block leading-tight">
+                Toneladas Planejadas
               </span>
-              <strong className="text-sm font-black font-mono text-emerald-800">
+              <strong className="text-sm sm:text-base font-black font-mono text-emerald-900 mt-0.5">
                 {formatTons(summaryKpis.toneladasPlanejadas, { decimals: 2 })}
               </strong>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
-              <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
-                Saldo Não Planej.
+            <div className="bg-slate-50 border border-slate-200/80 p-2.5 rounded-lg text-center shadow-xs min-h-[72px] flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block leading-tight">
+                Saldo Não Planejado
               </span>
-              <strong className="text-sm font-black font-mono text-slate-700">
+              <strong className="text-sm sm:text-base font-black font-mono text-slate-700 mt-0.5">
                 {formatTons(summaryKpis.saldoNaoPlanejado, { decimals: 2 })}
               </strong>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-lg text-center shadow-xs h-full flex flex-col justify-center">
-              <span className="text-[9px] font-bold text-slate-500 uppercase block tracking-wider truncate">
-                Ocupação Estim.
+            <div className="bg-slate-50 border border-slate-200/80 p-2.5 rounded-lg text-center shadow-xs min-h-[72px] flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block leading-tight">
+                Ocupação Estimada
               </span>
-              <strong className="text-sm font-black font-mono text-emerald-700">
-                {summaryKpis.ocupacaoEstimadaPct}%
+              <strong className="text-sm sm:text-base font-black font-mono text-emerald-700 mt-0.5">
+                {formatPercent(summaryKpis.ocupacaoEstimadaPct, 1)}
               </strong>
             </div>
           </div>
