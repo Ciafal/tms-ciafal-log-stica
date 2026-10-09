@@ -19,15 +19,18 @@ import { KpiTargetConfigModal } from '@/components/tms-indicators/KpiTargetConfi
 import { KpiDeviationActionModal } from '@/components/tms-indicators/KpiDeviationActionModal'
 import { KpiIndividualGraphicAnalysisModal } from '@/components/tms-indicators/KpiIndividualGraphicAnalysisModal'
 import { KpiDeviationTreatmentWorkflowModal } from '@/components/tms-indicators/KpiDeviationTreatmentWorkflowModal'
+import { KpiWidgetErrorBoundary } from '@/components/tms-indicators/KpiWidgetErrorBoundary'
 import { TmsDeviationTreatment } from '@/domain/tmsDeviationTreatmentEngine'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/contexts/AuthContext'
 import { PageHeader } from '@/components/ui-custom/PageHeader'
 import { RefreshCw, BarChart3, Sparkles, Download, AlertCircle } from 'lucide-react'
 
 export const TmsIndicatorsPage: React.FC = () => {
   const { toast } = useToast()
+  const { user } = useAuth()
   const currentYear = new Date().getFullYear()
 
   // Estados principais
@@ -138,11 +141,32 @@ export const TmsIndicatorsPage: React.FC = () => {
     monthCell?: KpiMonthCell,
     chartSummary?: string,
   ) => {
-    // Escolhe mês fornecido, ou o primeiro mês com desvio fora da meta, ou o mês mais recente
+    if (!kpi) {
+      toast({
+        title: 'Indicador não informado',
+        description: 'Selecione um indicador para iniciar o tratamento de desvio.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Proteção estrita contra kpi.months vazio ou sem meses com dados
+    const hasMonths = Array.isArray(kpi.months) && kpi.months.length > 0
     const targetCell =
       monthCell ||
-      kpi.months.find((m) => m.hasData && m.status === 'FORA_DA_META') ||
-      kpi.months[kpi.months.length - 1]
+      (hasMonths
+        ? kpi.months.find((m) => m.hasData && m.status === 'FORA_DA_META') ||
+          kpi.months.find((m) => m.hasData) ||
+          kpi.months[kpi.months.length - 1]
+        : null)
+
+    if (!targetCell) {
+      toast({
+        title: 'Sem dados para tratamento',
+        description: `O indicador ${kpi.name} não possui meses cadastrados no período. Registre apontamentos operacionais antes de abrir o workflow.`,
+      })
+      return
+    }
 
     setSelectedKpiTreatment(kpi)
     setSelectedMonthTreatment(targetCell)
@@ -150,7 +174,8 @@ export const TmsIndicatorsPage: React.FC = () => {
 
     // Busca tratamento existente no banco para não duplicar registros de desvio aberto
     try {
-      const existingList = await tmsIndicatorsService.fetchTreatmentsByKpi(kpi.id, targetCell.year)
+      const yearToFetch = targetCell.year || filters.year
+      const existingList = await tmsIndicatorsService.fetchTreatmentsByKpi(kpi.id, yearToFetch)
       const foundMatch = existingList.find(
         (t) => t.month === targetCell.month && t.status !== 'CANCELADO',
       )
@@ -277,42 +302,63 @@ export const TmsIndicatorsPage: React.FC = () => {
       />
 
       {/* Cards Executivos de Resumo / Filtros Rápidos */}
-      <KpiExecutiveCards
-        rows={rows}
-        activeStatusFilter={filters.status}
-        onFilterStatus={(newStatus) =>
-          setFilters((prev) => ({ ...prev, status: newStatus || 'TODOS' }))
-        }
-      />
+      <KpiWidgetErrorBoundary
+        widgetName="Cards Executivos"
+        userEmail={user?.email}
+        userName={user?.name}
+        onRetry={loadData}
+      >
+        <KpiExecutiveCards
+          rows={rows}
+          activeStatusFilter={filters.status}
+          onFilterStatus={(newStatus) =>
+            setFilters((prev) => ({ ...prev, status: newStatus || 'TODOS' }))
+          }
+        />
+      </KpiWidgetErrorBoundary>
 
       {/* Barra de Filtros Combináveis */}
-      <KpiFilterBar
-        filters={filters}
-        filterOptions={filterOptions}
-        onChange={(updated) => setFilters((prev) => ({ ...prev, ...updated }))}
-        onReset={handleResetFilters}
-      />
+      <KpiWidgetErrorBoundary
+        widgetName="Barra de Filtros de Indicadores"
+        userEmail={user?.email}
+        userName={user?.name}
+        onRetry={handleResetFilters}
+      >
+        <KpiFilterBar
+          filters={filters}
+          filterOptions={filterOptions}
+          onChange={(updated) => setFilters((prev) => ({ ...prev, ...updated }))}
+          onReset={handleResetFilters}
+        />
+      </KpiWidgetErrorBoundary>
 
       {/* Matriz Consolidada Anual */}
-      {isLoading ? (
-        <div className="bg-card border border-border rounded-xl p-12 text-center space-y-3">
-          <RefreshCw className="w-8 h-8 text-sky-500 animate-spin mx-auto" />
-          <h4 className="text-sm font-semibold text-foreground">
-            Consolidando 22 Indicadores TMS...
-          </h4>
-          <p className="text-xs text-muted-foreground">
-            Cruzando dados reais de carrier_operational_history, SAP ECC, portaria e faturamento
-          </p>
-        </div>
-      ) : (
-        <KpiConsolidatedMatrix
-          rows={rows}
-          onOpenDrillDown={handleOpenDrillDown}
-          onOpenTargetConfig={handleOpenTargetConfig}
-          onOpenGraphicAnalysis={handleOpenGraphicAnalysis}
-          onOpenTreatmentWorkflow={(kpi, cell) => handleOpenTreatmentWorkflow(kpi, cell)}
-        />
-      )}
+      <KpiWidgetErrorBoundary
+        widgetName="Matriz Consolidada de Indicadores"
+        userEmail={user?.email}
+        userName={user?.name}
+        onRetry={loadData}
+      >
+        {isLoading ? (
+          <div className="bg-card border border-border rounded-xl p-12 text-center space-y-3">
+            <RefreshCw className="w-8 h-8 text-sky-500 animate-spin mx-auto" />
+            <h4 className="text-sm font-semibold text-foreground">
+              Consolidando 22 Indicadores TMS...
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              Cruzando dados reais de carrier_operational_history, SAP ECC, portaria e faturamento
+            </p>
+          </div>
+        ) : (
+          <KpiConsolidatedMatrix
+            rows={rows}
+            onOpenDrillDown={handleOpenDrillDown}
+            onOpenTargetConfig={handleOpenTargetConfig}
+            onOpenGraphicAnalysis={handleOpenGraphicAnalysis}
+            onOpenTreatmentWorkflow={(kpi, cell) => handleOpenTreatmentWorkflow(kpi, cell)}
+          />
+        )}
+      </KpiWidgetErrorBoundary>
 
       {/* Rodapé Informativo e Integridade dos Dados */}
       <div className="flex flex-wrap items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border/40">
@@ -368,17 +414,24 @@ export const TmsIndicatorsPage: React.FC = () => {
       />
 
       {/* Modal 5: Workflow de Tratamento de Desvios (8 Etapas canônicas do PCP Robotizado) */}
-      <KpiDeviationTreatmentWorkflowModal
-        isOpen={isTreatmentWorkflowOpen}
-        onClose={() => setIsTreatmentWorkflowOpen(false)}
-        kpi={selectedKpiTreatment}
-        monthCell={selectedMonthTreatment}
-        initialGraphicSummary={initialTreatmentSummary}
-        existingTreatment={existingTreatmentRecord}
-        onSuccessSave={() => {
-          loadData()
-        }}
-      />
+      <KpiWidgetErrorBoundary
+        widgetName="Modal de Tratamento de Desvios"
+        userEmail={user?.email}
+        userName={user?.name}
+        onRetry={() => setIsTreatmentWorkflowOpen(false)}
+      >
+        <KpiDeviationTreatmentWorkflowModal
+          isOpen={isTreatmentWorkflowOpen}
+          onClose={() => setIsTreatmentWorkflowOpen(false)}
+          kpi={selectedKpiTreatment}
+          monthCell={selectedMonthTreatment}
+          initialGraphicSummary={initialTreatmentSummary}
+          existingTreatment={existingTreatmentRecord}
+          onSuccessSave={() => {
+            loadData()
+          }}
+        />
+      </KpiWidgetErrorBoundary>
     </div>
   )
 }

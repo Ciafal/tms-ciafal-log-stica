@@ -285,8 +285,8 @@ export function generateAutomaticDeviationDescription(
 // Analisa carrier_operational_history e sap_sales_orders reais
 // -------------------------------------------------------------
 export function generateAiKpiInvestigation(
-  kpi: KpiRowData,
-  monthCell: KpiMonthCell,
+  kpi: KpiRowData | null | undefined,
+  monthCell: KpiMonthCell | null | undefined,
   operationalRecords: any[],
 ): {
   identifiedFact: string
@@ -295,9 +295,22 @@ export function generateAiKpiInvestigation(
   recommendations: string[]
   aiText: string
 } {
+  if (!kpi || !monthCell) {
+    const fallbackFact = 'Dados insuficientes para a geração de investigação automatizada.'
+    return {
+      identifiedFact: fallbackFact,
+      hypotheses: [
+        'Aguardando seleção válida de indicador e período com apontamentos operacionais.',
+      ],
+      necessaryEvidences: ['Conferir registros no SAP ECC ou histórico de transporte.'],
+      recommendations: ['Selecionar um indicador com mês de referência preenchido.'],
+      aiText: `=== FATO IDENTIFICADO ===\n${fallbackFact}\n\n=== RECOMENDAÇÕES DA IA ===\n→ Selecionar um período válido.`,
+    }
+  }
+
   const records = monthCell.drillDownRecords || []
   const count = records.length
-  const unit = kpi.unit
+  const unit = kpi.unit || ''
   const realVal = monthCell.realValue ?? 0
   const targetVal = monthCell.targetValue ?? 0
   const diff = realVal - targetVal

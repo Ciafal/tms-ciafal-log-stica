@@ -94,8 +94,9 @@ export const KpiDeviationTreatmentWorkflowModal: React.FC<
   const [isAiGenerating, setIsAiGenerating] = useState(false)
   const [newUpdateComment, setNewUpdateComment] = useState('')
 
-  // Estado completo do tratamento (8 etapas)
-  const [treatment, setTreatment] = useState<TmsDeviationTreatment>(() => {
+  // Estado completo do tratamento (8 etapas) - null-safe quando fechado ou sem dados válidos
+  const [treatment, setTreatment] = useState<TmsDeviationTreatment | null>(() => {
+    if (!isOpen || !kpi || !monthCell) return null
     return buildInitialTreatment(kpi, monthCell, user, initialGraphicSummary, existingTreatment)
   })
 
@@ -108,19 +109,33 @@ export const KpiDeviationTreatmentWorkflowModal: React.FC<
 
   // Inicializa estado quando abre modal ou seleciona outro KPI/Mês
   useEffect(() => {
-    if (kpi && monthCell) {
-      setTreatment(
-        buildInitialTreatment(kpi, monthCell, user, initialGraphicSummary, existingTreatment),
-      )
-      if (existingTreatment?.current_step) {
-        setActiveStep(existingTreatment.current_step)
-      } else {
-        setActiveStep(1)
-      }
+    if (!isOpen) {
+      // Quando fechado, pode liberar ou manter nulo
+      return
     }
-  }, [kpi, monthCell, user, initialGraphicSummary, existingTreatment])
 
-  if (!kpi || !monthCell) return null
+    if (!kpi || !monthCell) {
+      toast({
+        title: 'Dados do indicador indisponíveis',
+        description: 'Não há mês de referência com dados cadastrados para iniciar o tratamento.',
+        variant: 'destructive',
+      })
+      onClose()
+      return
+    }
+
+    setTreatment(
+      buildInitialTreatment(kpi, monthCell, user, initialGraphicSummary, existingTreatment),
+    )
+    if (existingTreatment?.current_step) {
+      setActiveStep(existingTreatment.current_step)
+    } else {
+      setActiveStep(1)
+    }
+  }, [isOpen, kpi, monthCell, user, initialGraphicSummary, existingTreatment, onClose, toast])
+
+  // Guard de render cobrindo modal fechado, props ausentes ou estado de tratamento não inicializado
+  if (!isOpen || !kpi || !monthCell || !treatment) return null
 
   // -----------------------------------------------------------
   // GERAÇÃO DE ANÁLISE COM IA (DADOS REAIS, FATO, HIPÓTESES, EVIDÊNCIAS, RECOMENDAÇÃO)
@@ -1808,9 +1823,9 @@ export const KpiDeviationTreatmentWorkflowModal: React.FC<
 // -------------------------------------------------------------
 // FUNÇÕES AUXILIARES DE INICIALIZAÇÃO E CÁLCULO
 // -------------------------------------------------------------
-function buildInitialTreatment(
-  kpi: KpiRowData,
-  monthCell: KpiMonthCell,
+export function buildInitialTreatment(
+  kpi: KpiRowData | null | undefined,
+  monthCell: KpiMonthCell | null | undefined,
   user: any,
   initialGraphicSummary?: string,
   existing?: TmsDeviationTreatment | null,
@@ -1819,39 +1834,48 @@ function buildInitialTreatment(
     return existing
   }
 
-  const realVal = monthCell.realValue ?? 0
-  const targetVal = monthCell.targetValue ?? kpi.targetConfig.target_value
+  const kpiName = kpi?.name || 'Indicador TMS'
+  const kpiId = kpi?.id || 'kpi_desvio'
+  const kpiCategory = kpi?.category || 'LOGISTICA'
+  const kpiUnit = kpi?.unit || '%'
+
+  const realVal = monthCell?.realValue ?? 0
+  const fallbackTarget = kpi?.targetConfig?.target_value ?? 0
+  const targetVal = monthCell?.targetValue ?? fallbackTarget
   const diffAbs = realVal - targetVal
   const diffPct = targetVal !== 0 ? (diffAbs / targetVal) * 100 : 0
-  const periodLabel = `${monthCell.monthLabel}/${monthCell.year}`
+  const monthNum = monthCell?.month ?? new Date().getMonth() + 1
+  const yearNum = monthCell?.year ?? new Date().getFullYear()
+  const monthLbl = monthCell?.monthLabel || String(monthNum).padStart(2, '0')
+  const periodLabel = `${monthLbl}/${yearNum}`
 
   const autoDesc = generateAutomaticDeviationDescription(
-    kpi.name,
+    kpiName,
     periodLabel,
     realVal,
     targetVal,
-    kpi.unit,
+    kpiUnit,
   )
 
   const randomSuffix = Math.floor(1000 + Math.random() * 9000)
-  const code = `TRAT-TMS-${monthCell.year}-${String(monthCell.month).padStart(2, '0')}-${randomSuffix}`
+  const code = `TRAT-TMS-${yearNum}-${String(monthNum).padStart(2, '0')}-${randomSuffix}`
 
   return {
     treatment_code: code,
-    kpi_id: kpi.id,
-    kpi_name: kpi.name,
-    category: kpi.category,
+    kpi_id: kpiId,
+    kpi_name: kpiName,
+    category: kpiCategory,
     company: 'CIAFAL',
     center: 'Matriz Contagem',
     period_ref: periodLabel,
-    month: monthCell.month,
-    year: monthCell.year,
+    month: monthNum,
+    year: yearNum,
     target_value: targetVal,
     real_value: realVal,
-    unit: kpi.unit,
+    unit: kpiUnit,
     deviation_abs: Number(diffAbs.toFixed(2)),
     deviation_pct: Number(diffPct.toFixed(2)),
-    trend_label: kpi.trend === 'UP' ? 'Alta' : kpi.trend === 'DOWN' ? 'Queda' : 'Estável',
+    trend_label: kpi?.trend === 'UP' ? 'Alta' : kpi?.trend === 'DOWN' ? 'Queda' : 'Estável',
     status: 'EM_ANALISE',
     current_step: 1,
 
