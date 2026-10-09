@@ -53,6 +53,7 @@ import {
 } from '@/domain/rules'
 import { PageHeader } from '@/components/ui-custom/PageHeader'
 import { LoadingState, EmptyState } from '@/components/ui-custom/FeedbackStates'
+import { TMSFilterGrid, TMSFilterField, TMSDateField } from '@/components/ui-custom'
 import { EncontrosDrawer } from '@/components/load-planner/EncontrosDrawer'
 import { LogisticalMapTowerView } from '@/components/load-planner/LogisticalMapTowerView'
 import { OrdersListView } from '@/components/load-planner/OrdersListView'
@@ -725,49 +726,43 @@ export const LoadPlannerPage: React.FC = () => {
         </Card>
       )}
 
-      {/* Filter Bar (Central de Filtros com Nº de Fracionamentos) */}
-      <Card className="bg-white border-slate-200 shadow-sm">
-        <CardContent className="p-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2.5 text-xs">
-            {/* Itinerário */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-slate-500">
-                Itinerário SAP:
-              </label>
+      {/* Filter Bar (Central de Filtros com Nº de Fracionamentos - Padronização Responsiva) */}
+      <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm w-full min-w-0">
+        <CardContent className="p-3 sm:p-4">
+          <TMSFilterGrid minItemWidth={170} gapClassName="gap-3">
+            {/* 1. Itinerário SAP */}
+            <TMSFilterField label="Itinerário SAP">
               <Select value={filterItinerary} onValueChange={setFilterItinerary}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
+                <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50/70 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700">
+                  <SelectValue placeholder="Todos os Itinerários" />
                 </SelectTrigger>
-                <SelectContent className="text-xs">
+                <SelectContent className="text-xs max-h-64">
                   <SelectItem value="ALL">Todos os Itinerários ({orders.length} itens)</SelectItem>
                   {itineraries.map((it) => (
                     <SelectItem key={it.sap_code} value={it.sap_code}>
-                      {it.sap_code} — {it.description}
+                      <span className="font-mono font-bold mr-1">{it.sap_code}</span>
+                      <span>— {it.description}</span>
                     </SelectItem>
                   ))}
-                </SelectContent>{' '}
+                </SelectContent>
               </Select>
-            </div>
+            </TMSFilterField>
 
-            {/* Data Planejada */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-slate-500">
-                Data de Carregamento:
-              </label>
-              <Input
-                type="date"
+            {/* 2. Data de Carregamento Integral dd/MM/aaaa com calendário funcional */}
+            <TMSFilterField label="Data de Carregamento">
+              <TMSDateField
                 value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="h-8 text-xs font-mono"
+                onChange={(d) => setFilterDate(d)}
+                className="h-9 min-h-[38px] bg-slate-50/70 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700"
+                placeholder="dd/mm/aaaa"
               />
-            </div>
+            </TMSFilterField>
 
-            {/* Status Produção */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-slate-500">Status PCP:</label>
+            {/* 3. Status Produção / PCP */}
+            <TMSFilterField label="Status PCP">
               <Select value={filterProdStatus} onValueChange={setFilterProdStatus}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
+                <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50/70 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700">
+                  <SelectValue placeholder="Todos os Status" />
                 </SelectTrigger>
                 <SelectContent className="text-xs">
                   <SelectItem value="ALL">Todos os Status</SelectItem>
@@ -776,16 +771,13 @@ export const LoadPlannerPage: React.FC = () => {
                   <SelectItem value="Programado">Programado</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </TMSFilterField>
 
-            {/* Status Crédito */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-slate-500">
-                Crédito Financeiro:
-              </label>
+            {/* 4. Crédito Financeiro */}
+            <TMSFilterField label="Crédito Financeiro">
               <Select value={filterCreditStatus} onValueChange={setFilterCreditStatus}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
+                <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50/70 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700">
+                  <SelectValue placeholder="Todos os Créditos" />
                 </SelectTrigger>
                 <SelectContent className="text-xs">
                   <SelectItem value="ALL">Todos os Créditos</SelectItem>
@@ -794,16 +786,13 @@ export const LoadPlannerPage: React.FC = () => {
                   <SelectItem value="Em Análise">Em Análise</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </TMSFilterField>
 
-            {/* Tipo de Descarga */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-slate-500">
-                Tipo Descarga:
-              </label>
+            {/* 5. Tipo de Descarga */}
+            <TMSFilterField label="Tipo Descarga">
               <Select value={filterDischargeType} onValueChange={setFilterDischargeType}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
+                <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50/70 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700">
+                  <SelectValue placeholder="Todas as Descargas" />
                 </SelectTrigger>
                 <SelectContent className="text-xs">
                   <SelectItem value="ALL">Todas as Descargas</SelectItem>
@@ -812,16 +801,13 @@ export const LoadPlannerPage: React.FC = () => {
                   <SelectItem value="Empilhadeira">Empilhadeira</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </TMSFilterField>
 
-            {/* Tipo de Veículo Exigido */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-slate-500">
-                Veículo Exigido:
-              </label>
+            {/* 6. Veículo Exigido */}
+            <TMSFilterField label="Veículo Exigido">
               <Select value={filterVehicleType} onValueChange={setFilterVehicleType}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
+                <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50/70 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700">
+                  <SelectValue placeholder="Todos os Veículos" />
                 </SelectTrigger>
                 <SelectContent className="text-xs">
                   <SelectItem value="ALL">Todos os Veículos</SelectItem>
@@ -830,16 +816,13 @@ export const LoadPlannerPage: React.FC = () => {
                   <SelectItem value="Bitrem">Bitrem</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </TMSFilterField>
 
-            {/* Nº de Fracionamentos (Requisito 9) */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-slate-500">
-                Nº Fracionamentos:
-              </label>
+            {/* 7. Nº de Fracionamentos */}
+            <TMSFilterField label="Nº Fracionamentos">
               <Select value={filterFractionations} onValueChange={setFilterFractionations}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
+                <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50/70 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700">
+                  <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent className="text-xs">
                   <SelectItem value="ALL">Todos</SelectItem>
@@ -851,8 +834,8 @@ export const LoadPlannerPage: React.FC = () => {
                   <SelectItem value="6+">6+ fracionamentos</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-          </div>
+            </TMSFilterField>
+          </TMSFilterGrid>
         </CardContent>
       </Card>
 

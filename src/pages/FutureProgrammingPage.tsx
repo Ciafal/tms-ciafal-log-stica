@@ -52,6 +52,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/ui-custom/PageHeader'
 import { LoadingState } from '@/components/ui-custom/FeedbackStates'
+import { TMSQuickFilters, TMSFilterGrid, TMSFilterField } from '@/components/ui-custom'
 import { tmsService } from '@/services/tmsService'
 import { useAuth } from '@/contexts/AuthContext'
 import { Link, useNavigate } from 'react-router-dom'
@@ -809,176 +810,155 @@ export const FutureProgrammingPage: React.FC = () => {
       </div>
 
       {/* ========================================================
-          6. FILTROS COMPACTOS / RECOLHÍVEIS & FILTROS RÁPIDOS
+          6. FILTROS COMPACTOS / RECOLHÍVEIS & FILTROS RÁPIDOS (PADRÃO RESPONSIVO CIAFAL)
          ======================================================== */}
-      <Card className="bg-white dark:bg-slate-900 border-slate-200 shadow-sm">
-        <CardContent className="p-3 space-y-3">
-          {/* BARRA DE FILTROS RÁPIDOS */}
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center space-x-1.5 overflow-x-auto py-1">
-              <span className="text-xs font-bold text-slate-500 flex items-center mr-1">
-                <SlidersHorizontal className="w-3.5 h-3.5 mr-1 text-[#005596]" />
-                Filtros rápidos:
+      <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm w-full min-w-0">
+        <CardContent className="p-3 sm:p-4 space-y-3">
+          {/* BARRA DE FILTROS RÁPIDOS PADRONIZADA COM QUEBRA AUTOMÁTICA */}
+          <TMSQuickFilters
+            label={
+              <span className="flex items-center gap-1.5 font-bold text-slate-600 dark:text-slate-300">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#005596]" />
+                <span>Filtros rápidos:</span>
               </span>
-              {[
-                { id: 'todos', label: 'Todos' },
-                { id: 'veiculos_d1', label: 'Veículos D+1' },
-                { id: 'com_espaco', label: 'Com espaço disponível' },
-                { id: 'ocupacao_menor_80', label: 'Ocupação < 80%' },
-                { id: 'ocupacao_80_99', label: '80–99%' },
-                { id: 'carga_completa', label: 'Carga completa' },
-                { id: 'possivel_complemento', label: 'Possível complemento' },
-                { id: 'estoque_insuficiente', label: 'Estoque insuficiente' },
-                { id: 'aguardando_pcp', label: 'Aguardando produção PCP' },
-              ].map((btn) => (
-                <Button
-                  key={btn.id}
-                  variant={selectedQuickFilter === btn.id ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedQuickFilter(btn.id)}
-                  className={`text-xs h-7 px-2.5 rounded-full whitespace-nowrap ${
-                    selectedQuickFilter === btn.id
-                      ? 'bg-[#005596] hover:bg-[#004275] text-white font-bold'
-                      : 'text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  {btn.label}
-                </Button>
-              ))}
-            </div>
+            }
+            activeId={selectedQuickFilter}
+            onSelect={(id) => setSelectedQuickFilter(id)}
+            items={[
+              { id: 'todos', label: 'Todos' },
+              { id: 'veiculos_d1', label: 'Veículos D+1' },
+              { id: 'com_espaco', label: 'Com espaço disponível' },
+              { id: 'ocupacao_menor_80', label: 'Ocupação inferior a 80%' },
+              { id: 'ocupacao_80_99', label: 'Ocupação entre 80% e 99%' },
+              { id: 'carga_completa', label: 'Carga completa' },
+              { id: 'possivel_complemento', label: 'Possível complemento' },
+              { id: 'estoque_insuficiente', label: 'Estoque insuficiente' },
+              { id: 'aguardando_pcp', label: 'Aguardando produção PCP' },
+            ]}
+            actionSlot={
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
+                className="h-8 px-2.5 text-xs text-[#005596] hover:bg-sky-50 dark:hover:bg-slate-800 font-semibold shrink-0 cursor-pointer flex items-center gap-1"
+                aria-expanded={isFiltersExpanded}
+              >
+                <span>{isFiltersExpanded ? 'Menos filtros' : 'Filtros detalhados'}</span>
+                {isFiltersExpanded ? (
+                  <ChevronUp className="w-3.5 h-3.5 shrink-0" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+                )}
+              </Button>
+            }
+          />
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
-              className="text-xs h-7 text-[#005596] font-semibold"
-            >
-              {isFiltersExpanded ? (
-                <>
-                  Menos filtros <ChevronUp className="w-3.5 h-3.5 ml-1" />
-                </>
-              ) : (
-                <>
-                  Filtros detalhados <ChevronDown className="w-3.5 h-3.5 ml-1" />
-                </>
-              )}
-            </Button>
-          </div>
-
-          {/* FILTROS RECOLHÍVEIS DETALHADOS */}
+          {/* FILTROS RECOLHÍVEIS DETALHADOS — GRID RESPONSIVO FLUIDO SEM SOBREPOSIÇÃO */}
           {isFiltersExpanded && (
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                  Pesquisar
-                </label>
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
-                  <Input
-                    placeholder="Placa, motorista, itinerário..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-8 text-xs pl-8"
-                  />
-                </div>
-              </div>
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 animate-fade-in">
+              <TMSFilterGrid minItemWidth={170} gapClassName="gap-3">
+                {/* 1. Pesquisa livre */}
+                <TMSFilterField label="Pesquisar">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <Input
+                      placeholder="Placa, motorista, itinerário..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-9 min-h-[38px] text-xs pl-8 bg-slate-50/70 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700"
+                    />
+                  </div>
+                </TMSFilterField>
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                  Itinerário SAP
-                </label>
-                <Select value={filterItinerary} onValueChange={setFilterItinerary}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Todos os Itinerários" />
-                  </SelectTrigger>
-                  <SelectContent className="text-xs max-h-56">
-                    <SelectItem value="ALL">Todos os Itinerários</SelectItem>
-                    {itineraries.map((it) => (
-                      <SelectItem key={it.sap_code} value={it.sap_code}>
-                        {it.sap_code} — {it.description}
+                {/* 2. Itinerário SAP */}
+                <TMSFilterField label="Itinerário SAP">
+                  <Select value={filterItinerary} onValueChange={setFilterItinerary}>
+                    <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50/70 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700">
+                      <SelectValue placeholder="Todos os Itinerários" />
+                    </SelectTrigger>
+                    <SelectContent className="text-xs max-h-56">
+                      <SelectItem value="ALL">Todos os Itinerários</SelectItem>
+                      {itineraries.map((it) => (
+                        <SelectItem key={it.sap_code} value={it.sap_code}>
+                          <span className="font-mono font-bold mr-1">{it.sap_code}</span>
+                          <span>— {it.description}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TMSFilterField>
+
+                {/* 3. Região Logística */}
+                <TMSFilterField label="Região Logística">
+                  <Select value={filterRegion} onValueChange={setFilterRegion}>
+                    <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50/70 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700">
+                      <SelectValue placeholder="Todas as Regiões" />
+                    </SelectTrigger>
+                    <SelectContent className="text-xs">
+                      <SelectItem value="ALL">Todas as Regiões</SelectItem>
+                      {distinctRegions.map((reg) => (
+                        <SelectItem key={reg} value={reg}>
+                          {reg}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TMSFilterField>
+
+                {/* 4. Tipo de Veículo */}
+                <TMSFilterField label="Tipo de Veículo">
+                  <Select value={filterVehicleType} onValueChange={setFilterVehicleType}>
+                    <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50/70 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700">
+                      <SelectValue placeholder="Todos os Tipos" />
+                    </SelectTrigger>
+                    <SelectContent className="text-xs">
+                      <SelectItem value="ALL">Todos os Tipos</SelectItem>
+                      {distinctVehicleTypes.map((vt) => (
+                        <SelectItem key={vt} value={vt}>
+                          {vt}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TMSFilterField>
+
+                {/* 5. Transportadora */}
+                <TMSFilterField label="Transportadora">
+                  <Select value={filterCarrier} onValueChange={setFilterCarrier}>
+                    <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50/70 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent className="text-xs">
+                      <SelectItem value="ALL">Todas as Transportadoras</SelectItem>
+                      {distinctCarriers.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TMSFilterField>
+
+                {/* 6. Faixa de Ocupação */}
+                <TMSFilterField label="Faixa de Ocupação">
+                  <Select value={filterOccupancyBand} onValueChange={setFilterOccupancyBand}>
+                    <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50/70 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700">
+                      <SelectValue placeholder="Todas as Faixas" />
+                    </SelectTrigger>
+                    <SelectContent className="text-xs">
+                      <SelectItem value="ALL">Todas as Faixas</SelectItem>
+                      <SelectItem value="baixa">Baixa (&lt; 50%)</SelectItem>
+                      <SelectItem value="intermediaria">Intermediária (50% a 79%)</SelectItem>
+                      <SelectItem value="proxima_da_capacidade">
+                        Próxima da Capacidade (80% a 99%)
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                  Região Logística
-                </label>
-                <Select value={filterRegion} onValueChange={setFilterRegion}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Todas as Regiões" />
-                  </SelectTrigger>
-                  <SelectContent className="text-xs">
-                    <SelectItem value="ALL">Todas as Regiões</SelectItem>
-                    {distinctRegions.map((reg) => (
-                      <SelectItem key={reg} value={reg}>
-                        {reg}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                  Tipo de Veículo
-                </label>
-                <Select value={filterVehicleType} onValueChange={setFilterVehicleType}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Todos os Tipos" />
-                  </SelectTrigger>
-                  <SelectContent className="text-xs">
-                    <SelectItem value="ALL">Todos os Tipos</SelectItem>
-                    {distinctVehicleTypes.map((vt) => (
-                      <SelectItem key={vt} value={vt}>
-                        {vt}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                  Transportadora
-                </label>
-                <Select value={filterCarrier} onValueChange={setFilterCarrier}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Todas" />
-                  </SelectTrigger>
-                  <SelectContent className="text-xs">
-                    <SelectItem value="ALL">Todas as Transportadoras</SelectItem>
-                    {distinctCarriers.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                  Faixa de Ocupação
-                </label>
-                <Select value={filterOccupancyBand} onValueChange={setFilterOccupancyBand}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Todas as Faixas" />
-                  </SelectTrigger>
-                  <SelectContent className="text-xs">
-                    <SelectItem value="ALL">Todas as Faixas</SelectItem>
-                    <SelectItem value="baixa">Baixa (&lt; 50%)</SelectItem>
-                    <SelectItem value="intermediaria">Intermediária (50% a 79%)</SelectItem>
-                    <SelectItem value="proxima_da_capacidade">
-                      Próxima da Capacidade (80% a 99%)
-                    </SelectItem>
-                    <SelectItem value="carga_completa">Carga Completa (100%)</SelectItem>
-                    <SelectItem value="excedida">Capacidade Excedida (&gt; 100%)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                      <SelectItem value="carga_completa">Carga Completa (100%)</SelectItem>
+                      <SelectItem value="excedida">Capacidade Excedida (&gt; 100%)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TMSFilterField>
+              </TMSFilterGrid>
             </div>
           )}
         </CardContent>

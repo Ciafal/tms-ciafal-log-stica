@@ -484,7 +484,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               {/* Origem */}
               <div className="min-w-[140px] flex-1 sm:flex-initial">
                 <Select value={filterOriginPlant} onValueChange={setFilterOriginPlant}>
-                  <SelectTrigger className="h-9 text-xs w-full bg-slate-50 border-slate-200">
+                  <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50 border-slate-200">
                     <SelectValue placeholder="Origem" />
                   </SelectTrigger>
                   <SelectContent>
@@ -498,7 +498,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               {/* UF */}
               <div className="min-w-[95px] flex-1 sm:flex-initial">
                 <Select value={filterUf} onValueChange={setFilterUf}>
-                  <SelectTrigger className="h-9 text-xs w-full bg-slate-50 border-slate-200">
+                  <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50 border-slate-200">
                     <SelectValue placeholder="UF" />
                   </SelectTrigger>
                   <SelectContent>
@@ -524,7 +524,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                     setFilterItinerary(val)
                   }}
                 >
-                  <SelectTrigger className="h-9 text-xs w-full bg-slate-50 border-slate-200">
+                  <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50 border-slate-200">
                     <SelectValue placeholder="Itinerário SAP" />
                   </SelectTrigger>
                   <SelectContent>
@@ -541,7 +541,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               {/* Disponibilidade de Estoque */}
               <div className="min-w-[140px] flex-1 sm:flex-initial">
                 <Select value={filterStockStatus} onValueChange={setFilterStockStatus}>
-                  <SelectTrigger className="h-9 text-xs w-full bg-slate-50 border-slate-200">
+                  <SelectTrigger className="h-9 min-h-[38px] text-xs w-full bg-slate-50 border-slate-200">
                     <SelectValue placeholder="Estoque" />
                   </SelectTrigger>
                   <SelectContent>
@@ -559,7 +559,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                   placeholder="Buscar cliente, cidade, pedido..."
                   value={filterSearchQuery}
                   onChange={(e) => setFilterSearchQuery(e.target.value)}
-                  className="h-9 pl-9 text-xs bg-slate-50 border-slate-200 w-full"
+                  className="h-9 min-h-[38px] pl-9 text-xs bg-slate-50 border-slate-200 w-full"
                 />
               </div>
 
