@@ -63,7 +63,7 @@ import {
   RoutingScenarioComparison,
   ItineraryRouteInfo,
 } from '@/domain/logisticRoutingEngine'
-import { LogisticalCargoMap } from '@/components/load-planner/LogisticalCargoMap'
+import { RealGeographicMap } from '@/components/load-planner/RealGeographicMap'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MapPinOff } from 'lucide-react'
 import { CityDetailDrawer } from '@/components/load-planner/CityDetailDrawer'
@@ -394,6 +394,20 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
   // 1) Carteira Liberada (t), 2) Clientes distintos, 3) Pedidos elegíveis, 4) Municípios distintos,
   // 5) Cargas Propostas, 6) Toneladas Planejadas (t), 7) Saldo Não Planejado (t), 8) Ocupação Estimada (%)
   const summaryKpis = useMemo(() => {
+    if (stops.length === 0 || filteredOrders.length === 0) {
+      return {
+        carteiraLiberadaTon: 0,
+        clientesDistintos: 0,
+        pedidosElegiveis: 0,
+        municipiosDistintos: 0,
+        cargasPropostas: 0,
+        toneladasPlanejadas: 0,
+        saldoNaoPlanejado: 0,
+        ocupacaoEstimadaPct: 0,
+        economiaEstimadaBrl: 0,
+      }
+    }
+
     const totalWeightTon = Math.round(stops.reduce((a, b) => a + b.totalWeightTon, 0) * 10) / 10
     const unplannedWeightTon =
       Math.round(unplannedStops.reduce((a, b) => a + b.totalWeightTon, 0) * 10) / 10
@@ -421,7 +435,8 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
       toneladasPlanejadas: plannedWeightTon,
       saldoNaoPlanejado: unplannedWeightTon,
       ocupacaoEstimadaPct: avgOccupancy,
-      economiaEstimadaBrl: scenarioComparison.savings.freightSavingsBrl,
+      economiaEstimadaBrl:
+        proposedLoadsCount > 0 ? scenarioComparison.savings.freightSavingsBrl : 0,
     }
   }, [stops, unplannedStops, clusters, filteredOrders, scenarioComparison])
 
@@ -776,15 +791,14 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
 
       {/* 2. ÁREA PRINCIPAL: MAPA À ESQUERDA + PAINEL DE CARGAS À DIREITA (#6) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
-        {/* MAPA À ESQUERDA (8 Colunas na tela grande — Protagonista) */}
+        {/* MAPA À ESQUERDA (8 Colunas na tela grande — Protagonista com Base Geográfica Real MapLibre/OSM) */}
         <div className="lg:col-span-8">
-          <LogisticalCargoMap
+          <RealGeographicMap
             stops={stops}
             clusters={clusters}
             unplannedStops={unplannedStops}
             selectedClusterId={selectedClusterId}
             selectedStopId={selectedStop?.id || null}
-            heatmapVariable="TONELADAS"
             selectedUf={filterUf}
             selectedItinerary={filterItinerary}
             itineraryRouteInfo={itineraryRouteInfo}
@@ -797,13 +811,6 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
               if (st.assignedClusterId) {
                 setSelectedClusterId(st.assignedClusterId)
               }
-            }}
-            onSelectUf={(uf) => setFilterUf(uf)}
-            onSelectItinerary={(it) => {
-              // Limpa seleções anteriores ao trocar de itinerário (Requisito 7)
-              setSelectedClusterId(null)
-              setSelectedStop(null)
-              setFilterItinerary(it)
             }}
             onSwitchToPlannerTab={onSwitchToPlannerTab}
             onOpenCustomerProfile={onOpenCustomerProfile}

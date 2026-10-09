@@ -68,6 +68,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.6.1",
     "tailwindcss-animate": "^1.0.7",
+    "maplibre-gl": "^5.2.0",
     "vaul": "^1.1.2",
     "vitest": "4.1.11",
     "xlsx": "0.18.5",

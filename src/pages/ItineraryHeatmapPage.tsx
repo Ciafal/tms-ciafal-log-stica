@@ -292,13 +292,27 @@ export const ItineraryHeatmapPage: React.FC = () => {
 
   // 8 Indicadores Oficiais com Invariante: Carteira Liberada = Planejadas + Saldo Pendente
   const indicators = useMemo(() => {
+    // Estado vazio estrito: se não há paradas nem pedidos liberados, todos os indicadores zeram
+    if (deliveryStops.length === 0 || eligibleLiberadosOrders.length === 0) {
+      return {
+        carteiraLiberadaTon: 0,
+        clientesCount: 0,
+        pedidosCount: 0,
+        municipiosCount: 0,
+        cargasCount: 0,
+        toneladasPlanejadasTon: 0,
+        saldoPendenteTon: 0,
+        ocupacaoMediaPct: 0,
+      }
+    }
+
     const carteiraLiberadaTon =
       Math.round(deliveryStops.reduce((sum, s) => sum + s.totalWeightTon, 0) * 10) / 10
 
     const saldoPendenteTon =
       Math.round(unplannedStops.reduce((sum, s) => sum + s.totalWeightTon, 0) * 10) / 10
 
-    // Garantia estrita do invariante contábil:
+    // Garantia estrita do invariante contábil: Carteira Liberada = Planejadas + Saldo
     const toneladasPlanejadasTon = Math.max(
       0,
       Math.round((carteiraLiberadaTon - saldoPendenteTon) * 10) / 10,
