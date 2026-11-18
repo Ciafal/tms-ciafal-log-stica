@@ -170,12 +170,27 @@ export interface SapIntegrationValidationResult {
  */
 export function evaluateStatusRules(
   status: TransportOperationalStatus | string,
-  userRole?: string,
+  _userRole?: string,
 ): StatusRulesCheck {
   const norm = String(status).trim()
   const blockedReasons: string[] = []
   const warningMessages: string[] = []
   const readOnlyFields: string[] = []
+  const camposEditaveis = [
+    'carrier_name',
+    'driver_name',
+    'driver_cpf',
+    'vehicle_plate',
+    'trailer_plate',
+    'vehicle_type',
+    'itinerary_code',
+    'itinerary_description',
+    'scheduled_loading_date',
+    'scheduled_loading_time',
+    'scheduled_delivery_date',
+    'logistics_notes',
+    'remessas',
+  ]
   let canEdit = true
   let isCriticalStatus = false
 
@@ -217,50 +232,14 @@ export function evaluateStatusRules(
       break
 
     case 'Faturado':
-      isCriticalStatus = true
-      readOnlyFields.push(
-        'remessas',
-        'carrier_name',
-        'driver_name',
-        'driver_cpf',
-        'vehicle_plate',
-        'trailer_plate',
-        'total_weight_kg',
-        'total_weight_ton',
-        'itinerary_code',
-        'destination_city',
-        'destination_uf',
-      )
-      blockedReasons.push(
-        'Transporte faturado: alterações operacionais que afetem documentos fiscais (NF-e, MDF-e, CT-e) estão estritamente bloqueadas.',
-      )
-      canEdit = userRole === 'admin_master' || userRole === 'admin_tms'
-      break
-
     case 'Em trânsito':
-      readOnlyFields.push(
-        'carrier_name',
-        'vehicle_plate',
-        'trailer_plate',
-        'remessas',
-        'total_weight_kg',
-        'itinerary_code',
-      )
-      warningMessages.push(
-        'Transporte em rota rodoviária: somente informações de previsão de entrega e observações de acompanhamento podem ser atualizadas.',
-      )
-      break
-
     case 'Entregue':
-      canEdit = userRole === 'admin_master' || userRole === 'admin_tms'
-      if (!canEdit) {
-        blockedReasons.push(
-          'Transporte concluído/entregue: modo somente leitura histórico. Apenas perfil administrativo master pode retificar.',
-        )
-      }
-      break
-
+    case 'Cancelado':
     default:
+      readOnlyFields.push(...camposEditaveis)
+      canEdit = false
+      isCriticalStatus = true
+      blockedReasons.push('Este status permite somente visualização e histórico do transporte.')
       break
   }
 
@@ -268,21 +247,7 @@ export function evaluateStatusRules(
     canEdit,
     blockedReasons,
     warningMessages,
-    allowedFields: [
-      'carrier_name',
-      'driver_name',
-      'driver_cpf',
-      'vehicle_plate',
-      'trailer_plate',
-      'vehicle_type',
-      'itinerary_code',
-      'itinerary_description',
-      'scheduled_loading_date',
-      'scheduled_loading_time',
-      'scheduled_delivery_date',
-      'logistics_notes',
-      'remessas',
-    ].filter((f) => !readOnlyFields.includes(f)),
+    allowedFields: camposEditaveis.filter((f) => canEdit && !readOnlyFields.includes(f)),
     readOnlyFields,
     isCriticalStatus,
   }

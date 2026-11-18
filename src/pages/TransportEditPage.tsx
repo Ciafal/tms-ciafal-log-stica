@@ -77,7 +77,7 @@ export default function TransportEditPage() {
   const [transports, setTransports] = useState<TransportEditableRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 10
+  const pageSize = 50
 
   // Modais
   const [viewRecord, setViewRecord] = useState<TransportEditableRecord | null>(null)
@@ -532,10 +532,9 @@ export default function TransportEditPage() {
                             Visualizar
                           </Button>
 
-                          <Button
+                          {canEditThis && <Button
                             size="sm"
                             variant="outline"
-                            disabled={!canEditThis}
                             onClick={() => setEditingTransportId(item.id)}
                             className="h-7 px-2 text-xs text-gray-800 border-gray-300 hover:bg-muted"
                             title={
@@ -546,7 +545,7 @@ export default function TransportEditPage() {
                           >
                             <Edit className="h-3.5 w-3.5 mr-1 text-primary" />
                             Editar
-                          </Button>
+                          </Button>}
 
                           <Button
                             size="sm"

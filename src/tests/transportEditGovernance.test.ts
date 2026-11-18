@@ -218,24 +218,24 @@ describe('Motor e Governança de Edição de Transporte (Editar Transporte - TMS
     it('"Faturado": bloqueia campos fiscais e impede edição por operador comum', () => {
       const ruleOp = evaluateStatusRules('Faturado', 'operador_logistica')
       expect(ruleOp.canEdit).toBe(false)
-      expect(ruleOp.blockedReasons.some((r) => r.includes('afetem documentos fiscais'))).toBe(true)
+      expect(ruleOp.blockedReasons.some((r) => r.includes('somente visualização'))).toBe(true)
       expect(ruleOp.readOnlyFields).toContain('remessas')
       expect(ruleOp.readOnlyFields).toContain('carrier_name')
       expect(ruleOp.readOnlyFields).toContain('driver_name')
       expect(ruleOp.readOnlyFields).toContain('vehicle_plate')
 
-      // Admin master tem permissão especial sob bloqueio
+      // Administrador também não pode editar status finalizado
       const ruleAdmin = evaluateStatusRules('Faturado', 'admin_master')
-      expect(ruleAdmin.canEdit).toBe(true)
+      expect(ruleAdmin.canEdit).toBe(false)
     })
 
     it('"Entregue": modo somente consulta/leitura para operadores padrão', () => {
       const ruleOp = evaluateStatusRules('Entregue', 'operador_logistica')
       expect(ruleOp.canEdit).toBe(false)
-      expect(ruleOp.blockedReasons.some((r) => r.includes('modo somente leitura histórico'))).toBe(true)
+      expect(ruleOp.blockedReasons.some((r) => r.includes('somente visualização'))).toBe(true)
 
       const ruleAdmin = evaluateStatusRules('Entregue', 'admin_tms')
-      expect(ruleAdmin.canEdit).toBe(true)
+      expect(ruleAdmin.canEdit).toBe(false)
     })
 
     it('"Planejado": permite livremente edição dos campos operacionais', () => {
