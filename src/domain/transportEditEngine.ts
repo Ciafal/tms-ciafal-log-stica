@@ -97,6 +97,9 @@ export interface TransportEditableRecord {
   origin_system_source: string // Ex: "SAP ECC (BAPI_SHIPMENT_CREATE / VT01N)"
   sync_version: number
   last_modified_at: string
+  sap_user?: string
+  sap_user_source?: 'alteracao' | 'criacao'
+  sap_created_by?: string
   last_modified_by: string
   last_change_reason?: string
   last_change_justification?: string

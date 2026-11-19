@@ -1,3 +1,4 @@
+import { TransportResults } from '@/components/transport/TransportResults'
 import { SapTransportFilter } from '@/components/transport/SapTransportFilter'
 import React, { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -30,7 +31,6 @@ import {
 } from '@/domain/transportEditEngine'
 import { transportEditService, TransportFilterParams } from '@/services/transportEditService'
 import { TransportStatusBadge } from '@/components/transport/TransportStatusBadge'
-import { TransportSyncBadge } from '@/components/transport/TransportSyncBadge'
 import { TransportEditModal } from '@/components/transport/TransportEditModal'
 import { TransportHistoryModal } from '@/components/transport/TransportHistoryModal'
 import { TransportViewModal } from '@/components/transport/TransportViewModal'
@@ -169,7 +169,7 @@ export default function TransportEditPage() {
   const canEditTransportPerm = permissions?.canEditTransport ?? true
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 w-full space-y-4">
       {/* 1. CABEÇALHO PADRÃO CIAFAL */}
       <PageHeader
         title="Cockpit de Edição e Governança de Transportes"
@@ -202,7 +202,7 @@ export default function TransportEditPage() {
         onClear={handleClearFilters}
         isSearching={loading}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 text-xs">
           {/* Busca Rápida Parcial */}
           <div className="sm:col-span-2">
             <Label className="text-[11px] font-semibold text-gray-700">
@@ -307,9 +307,9 @@ export default function TransportEditPage() {
           {/* Usuário Responsável / Última Alteração */}
           <div>
             <Label className="text-[11px] font-semibold text-gray-700">
-              Usuário da Última Alteração
+              Usuário SAP
             </Label>
-            <SapTransportFilter campo="responsible_user" titulo="Usuário da Última Alteração" value={responsibleUser} onChange={setResponsibleUser} />
+            <SapTransportFilter campo="responsible_user" titulo="Usuário SAP" value={responsibleUser} onChange={setResponsibleUser} />
           </div>
         </div>
       </RegionConsulta>
@@ -323,9 +323,7 @@ export default function TransportEditPage() {
               Transportes Cadastrados no HUB CIAFAL ({transports.length})
             </h3>
           </div>
-          <span className="text-[11px] text-muted-foreground">
-            Ações disponíveis: Visualizar | Editar | Histórico
-          </span>
+
         </div>
 
         {loading ? (
@@ -339,194 +337,15 @@ export default function TransportEditPage() {
             Nenhum transporte encontrado para os filtros informados.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-muted/30 sticky top-0">
-                <TableRow className="text-xs">
-                  <TableHead className="font-semibold text-gray-800">Transporte</TableHead>
-                  <TableHead className="font-semibold text-gray-800">Remessa</TableHead>
-                  <TableHead className="font-semibold text-gray-800">Pedido</TableHead>
-                  <TableHead className="font-semibold text-gray-800">Cliente</TableHead>
-                  <TableHead className="font-semibold text-gray-800">Transportadora</TableHead>
-                  <TableHead className="font-semibold text-gray-800">Motorista</TableHead>
-                  <TableHead className="font-semibold text-gray-800">Veículo / Placa</TableHead>
-                  <TableHead className="font-semibold text-gray-800">Itinerário</TableHead>
-                  <TableHead className="font-semibold text-gray-800 text-right">Peso</TableHead>
-                  <TableHead className="font-semibold text-gray-800">Data Prevista</TableHead>
-                  <TableHead className="font-semibold text-gray-800">Status</TableHead>
-                  <TableHead className="font-semibold text-gray-800">Origem</TableHead>
-                  <TableHead className="font-semibold text-gray-800">Última Alteração</TableHead>
-                  <TableHead className="font-semibold text-gray-800">Usuário</TableHead>
-                  <TableHead className="font-semibold text-gray-800 text-center">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedTransports.map((item) => {
-                  const statusRule = evaluateStatusRules(item.status, userRole)
-                  const canEditThis = canEditTransportPerm && statusRule.canEdit
-
-                  return (
-                    <TableRow key={item.id} className="hover:bg-muted/20 text-xs">
-                      {/* Transporte */}
-                      <TableCell className="font-mono font-bold text-gray-900">
-                        <div>{item.transport_number}</div>
-                        {item.sap_transport_number && item.sap_transport_number !== '—' && (
-                          <div className="text-[10px] text-primary font-semibold">
-                            SAP: {item.sap_transport_number}
-                          </div>
-                        )}
-                      </TableCell>
-
-                      {/* Remessa */}
-                      <TableCell className="font-mono text-gray-700">
-                        {item.delivery_number}
-                      </TableCell>
-
-                      {/* Pedido */}
-                      <TableCell className="font-mono text-gray-600">
-                        {item.order_number || '—'}
-                      </TableCell>
-
-                      {/* Cliente */}
-                      <TableCell className="max-w-[150px] truncate" title={item.customer_summary}>
-                        <div className="font-medium text-gray-800 truncate">
-                          {item.customer_summary}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          {item.destination_city} - {item.destination_uf}
-                        </div>
-                      </TableCell>
-
-                      {/* Transportadora */}
-                      <TableCell className="max-w-[140px] truncate" title={item.carrier_name}>
-                        {item.carrier_name}
-                      </TableCell>
-
-                      {/* Motorista */}
-                      <TableCell className="max-w-[130px] truncate" title={item.driver_name}>
-                        {item.driver_name}
-                      </TableCell>
-
-                      {/* Veículo / Placa */}
-                      <TableCell className="font-mono">
-                        <span className="font-bold text-gray-900">{item.vehicle_plate}</span>
-                        {item.trailer_plate && (
-                          <span className="text-muted-foreground block text-[10px]">
-                            {item.trailer_plate}
-                          </span>
-                        )}
-                      </TableCell>
-
-                      {/* Itinerário */}
-                      <TableCell
-                        className="max-w-[140px] truncate"
-                        title={item.itinerary_description}
-                      >
-                        <span className="font-mono text-[11px] font-semibold text-primary block">
-                          {item.itinerary_code}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground truncate block">
-                          {item.itinerary_description}
-                        </span>
-                      </TableCell>
-
-                      {/* Peso */}
-                      <TableCell className="text-right font-mono font-semibold">
-                        {item.total_weight_kg.toLocaleString('pt-BR')} kg
-                      </TableCell>
-
-                      {/* Data Prevista */}
-                      <TableCell>
-                        <div>
-                          {new Date(item.scheduled_loading_date).toLocaleDateString('pt-BR')}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          {item.scheduled_loading_time}
-                        </div>
-                      </TableCell>
-
-                      {/* Status */}
-                      <TableCell>
-                        <TransportStatusBadge status={item.status} />
-                      </TableCell>
-
-                      {/* Origem */}
-                      <TableCell className="text-[11px] text-muted-foreground max-w-[100px] truncate">
-                        <div>{item.origin_system_source.includes('SAP') ? 'SAP VT01N' : 'HUB CIAFAL'}</div>
-                        <TransportSyncBadge status={item.sap_sync_status} className="mt-1 text-[10px] px-1.5 py-0.5" />
-                      </TableCell>
-
-                      {/* Última Alteração */}
-                      <TableCell className="text-[11px] text-muted-foreground font-mono">
-                        {new Date(item.last_modified_at).toLocaleDateString('pt-BR')}
-                      </TableCell>
-
-                      {/* Usuário */}
-                      <TableCell
-                        className="text-[11px] max-w-[120px] truncate text-gray-700"
-                        title={item.last_modified_by}
-                      >
-                        {item.last_modified_by}
-                      </TableCell>
-
-                      {/* Ações (Visualizar | Editar | Histórico) */}
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setViewRecord(item)}
-                            className="h-7 px-2 text-xs text-primary hover:bg-primary/10"
-                            title="Visualizar detalhes do transporte"
-                          >
-                            <Eye className="h-3.5 w-3.5 mr-1" />
-                            Visualizar
-                          </Button>
-
-                          {canEditThis && <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingTransportId(item.id)}
-                            className="h-7 px-2 text-xs text-gray-800 border-gray-300 hover:bg-muted"
-                            title={
-                              canEditThis
-                                ? 'Editar dados logísticos e remessas'
-                                : 'Edição restrita para este status ou perfil'
-                            }
-                          >
-                            <Edit className="h-3.5 w-3.5 mr-1 text-primary" />
-                            Editar
-                          </Button>}
-
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              setHistoryModalState({
-                                open: true,
-                                transportNumber: item.transport_number,
-                                sapTransportNumber: item.sap_transport_number,
-                                transportId: item.id,
-                              })
-                            }
-                            className="h-7 px-2 text-xs text-gray-600 hover:bg-muted"
-                            title="Consultar histórico cronológico de auditoria"
-                          >
-                            <History className="h-3.5 w-3.5 mr-1" />
-                            Histórico
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
+          <TransportResults items={paginatedTransports}
+            canEdit={item=>canEditTransportPerm && evaluateStatusRules(item.status,userRole).canEdit}
+            onView={setViewRecord} onEdit={item=>setEditingTransportId(item.id)}
+            onHistory={item=>setHistoryModalState({open:true,transportNumber:item.transport_number,sapTransportNumber:item.sap_transport_number,transportId:item.id})}
+          />
         )}
 
         {/* PAGINAÇÃO */}
-        <div className="p-3 border-t bg-muted/10 flex items-center justify-between text-xs">
+        <div className="p-3 border-t bg-muted/10 flex flex-wrap items-center justify-between gap-3 text-xs">
           <span className="text-muted-foreground">
             Mostrando página {currentPage} de {totalPages} ({transports.length} registros)
           </span>
