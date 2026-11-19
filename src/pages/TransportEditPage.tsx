@@ -29,6 +29,7 @@ import {
   evaluateStatusRules,
 } from '@/domain/transportEditEngine'
 import { transportEditService, TransportFilterParams } from '@/services/transportEditService'
+import { TransportStatusBadge } from '@/components/transport/TransportStatusBadge'
 import { TransportSyncBadge } from '@/components/transport/TransportSyncBadge'
 import { TransportEditModal } from '@/components/transport/TransportEditModal'
 import { TransportHistoryModal } from '@/components/transport/TransportHistoryModal'
@@ -291,14 +292,14 @@ export default function TransportEditPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="TODOS">Todos os Status</SelectItem>
-                <SelectItem value="Planejado">Planejado</SelectItem>
-                <SelectItem value="Frete aceito">Frete aceito</SelectItem>
-                <SelectItem value="Veículo convocado">Veículo convocado</SelectItem>
-                <SelectItem value="Veículo na portaria">Veículo na portaria</SelectItem>
-                <SelectItem value="Em carregamento">Em carregamento</SelectItem>
-                <SelectItem value="Faturado">Faturado</SelectItem>
-                <SelectItem value="Em trânsito">Em trânsito</SelectItem>
-                <SelectItem value="Entregue">Entregue</SelectItem>
+                <SelectItem value="Planejado"><TransportStatusBadge status="Planejado" /></SelectItem>
+                <SelectItem value="Frete aceito"><TransportStatusBadge status="Frete aceito" /></SelectItem>
+                <SelectItem value="Veículo convocado"><TransportStatusBadge status="Veículo convocado" /></SelectItem>
+                <SelectItem value="Veículo na portaria"><TransportStatusBadge status="Veículo na portaria" /></SelectItem>
+                <SelectItem value="Em carregamento"><TransportStatusBadge status="Em carregamento" /></SelectItem>
+                <SelectItem value="Faturado"><TransportStatusBadge status="Faturado" /></SelectItem>
+                <SelectItem value="Em trânsito"><TransportStatusBadge status="Em trânsito" /></SelectItem>
+                <SelectItem value="Entregue"><TransportStatusBadge status="Entregue" /></SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -446,19 +447,13 @@ export default function TransportEditPage() {
 
                       {/* Status */}
                       <TableCell>
-                        <div className="space-y-1">
-                          <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-primary/10 text-primary">
-                            {item.status}
-                          </span>
-                          <div>
-                            <TransportSyncBadge status={item.sap_sync_status} showText={false} />
-                          </div>
-                        </div>
+                        <TransportStatusBadge status={item.status} />
                       </TableCell>
 
                       {/* Origem */}
                       <TableCell className="text-[11px] text-muted-foreground max-w-[100px] truncate">
-                        {item.origin_system_source.includes('SAP') ? 'SAP VT01N' : 'HUB CIAFAL'}
+                        <div>{item.origin_system_source.includes('SAP') ? 'SAP VT01N' : 'HUB CIAFAL'}</div>
+                        <TransportSyncBadge status={item.sap_sync_status} className="mt-1 text-[10px] px-1.5 py-0.5" />
                       </TableCell>
 
                       {/* Última Alteração */}
