@@ -31,6 +31,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { ItinerarySearchSelect } from '@/components/common/ItinerarySearchSelect'
 import { QueueSapVehicleSelect } from '@/components/common/QueueSapVehicleSelect'
+import { DriverHelenaLink } from '@/components/common/DriverHelenaLink'
 import { QueueSapVehicle, queueSapFields } from '@/services/queue-sap-vehicle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -715,11 +716,13 @@ export const QueueDashboard: React.FC = () => {
             <div className="flex items-center space-x-1 text-slate-500">
               <Phone className="w-3 h-3 text-emerald-600" />
               <span>WhatsApp:</span>
-              <strong className="text-slate-700 font-mono">
-                {isSensitiveAllowed
-                  ? formatPhone(entry.driver_whatsapp_cached || '')
-                  : maskPhone(entry.driver_whatsapp_cached || '')}
-              </strong>
+              <DriverHelenaLink telefone={entry.driver_whatsapp_cached || ''}>
+                <strong className="font-mono">
+                  {isSensitiveAllowed
+                    ? formatPhone(entry.driver_whatsapp_cached || '')
+                    : maskPhone(entry.driver_whatsapp_cached || '')}
+                </strong>
+              </DriverHelenaLink>
             </div>
 
             {entry.driver_notes && (
