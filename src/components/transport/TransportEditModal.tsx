@@ -689,6 +689,9 @@ export const TransportEditModal: React.FC<TransportEditModalProps> = ({
                         </Label>
                         <Input
                           value={carrierName}
+                          readOnly
+                          title={carrierName || 'Não informado no SAP'}
+                          placeholder="Não informado no SAP"
                           onChange={(e) => setCarrierName(e.target.value)}
                           disabled={isCarrierReadOnly}
                           className={`text-xs ${isCarrierReadOnly ? 'bg-muted/40' : 'bg-white'}`}
@@ -703,6 +706,9 @@ export const TransportEditModal: React.FC<TransportEditModalProps> = ({
                         </Label>
                         <Input
                           value={driverName}
+                          readOnly
+                          title={driverName || 'Não informado no SAP'}
+                          placeholder="Não informado no SAP"
                           onChange={(e) => setDriverName(e.target.value)}
                           disabled={isDriverReadOnly}
                           className={`text-xs ${isDriverReadOnly ? 'bg-muted/40' : 'bg-white'}`}
@@ -716,9 +722,12 @@ export const TransportEditModal: React.FC<TransportEditModalProps> = ({
                         </Label>
                         <Input
                           value={driverCpf}
+                          readOnly
+                          title={driverCpf || 'Não informado no SAP'}
+                          placeholder="Não informado no SAP"
                           onChange={(e) => setDriverCpf(e.target.value)}
                           disabled={isDriverReadOnly}
-                          placeholder="000.000.000-00"
+
                           className={`text-xs ${isDriverReadOnly ? 'bg-muted/40' : 'bg-white'}`}
                         />
                       </div>
@@ -748,6 +757,9 @@ export const TransportEditModal: React.FC<TransportEditModalProps> = ({
                         </Label>
                         <Input
                           value={trailerPlate}
+                          readOnly
+                          title={trailerPlate || 'Não informado no SAP'}
+                          placeholder="Não informado no SAP"
                           onChange={(e) => setTrailerPlate(e.target.value.toUpperCase())}
                           disabled={isVehicleReadOnly}
                           className={`text-xs font-mono ${isVehicleReadOnly ? 'bg-muted/40' : 'bg-white'}`}
@@ -761,6 +773,9 @@ export const TransportEditModal: React.FC<TransportEditModalProps> = ({
                         </Label>
                         <Input
                           value={vehicleType}
+                          readOnly
+                          title={vehicleType || 'Não informado no SAP'}
+                          placeholder="Não informado no SAP"
                           onChange={(e) => setVehicleType(e.target.value)}
                           disabled={isVehicleReadOnly}
                           className={`text-xs ${isVehicleReadOnly ? 'bg-muted/40' : 'bg-white'}`}
@@ -788,6 +803,9 @@ export const TransportEditModal: React.FC<TransportEditModalProps> = ({
                         </Label>
                         <Input
                           value={itineraryDescription}
+                          readOnly
+                          title={itineraryDescription || 'Não informado no SAP'}
+                          placeholder="Não informado no SAP"
                           onChange={(e) => setItineraryDescription(e.target.value)}
                           disabled={isRouteReadOnly}
                           className={`text-xs ${isRouteReadOnly ? 'bg-muted/40' : 'bg-white'}`}
@@ -801,6 +819,9 @@ export const TransportEditModal: React.FC<TransportEditModalProps> = ({
                         </Label>
                         <Input
                           value={routeCode}
+                          readOnly
+                          title={routeCode || 'Não informado no SAP'}
+                          placeholder="Não informado no SAP"
                           onChange={(e) => setRouteCode(e.target.value)}
                           disabled={isRouteReadOnly}
                           className={`text-xs ${isRouteReadOnly ? 'bg-muted/40' : 'bg-white'}`}
