@@ -1,6 +1,7 @@
 // TMS CIAFAL Centralized PocketBase Data Services
 
 import pb from '@/lib/pocketbase/client'
+import { queueSapFields } from './queue-sap-vehicle'
 import {
   DriverEntity,
   VehicleEntity,
@@ -45,6 +46,7 @@ import {
 } from '@/domain/integrationsCore'
 
 export interface CreateQueueEntryParams {
+  sapVehicleId?: string
   document: string
   whatsapp: string
   plate: string
@@ -304,13 +306,23 @@ export const TmsService = {
 
     // Consulta prioritária na base mestre SAP ZSD004
     try {
-      const zsdRecords = await pb.collection('sap_zsd004_vehicles_drivers').getList(1, 1, {
-        filter: `plate = "${cleanPlate}" || driver_cpf = "${cleanDoc}"`,
-      })
-      if (zsdRecords.items.length > 0) {
-        sapZsd004Record = zsdRecords.items[0]
+      if (params.sapVehicleId) {
+        sapZsd004Record = await pb.collection('sap_zsd004_vehicles_drivers').getOne(params.sapVehicleId)
+        if (sapZsd004Record.plate !== cleanPlate) {
+          return { success: false, message: 'O cadastro SAP não corresponde à placa selecionada.' }
+        }
+        const fields = queueSapFields(sapZsd004Record)
+        if (!fields.document || fields.document !== cleanDoc || fields.whatsapp !== params.whatsapp || fields.vehicleType !== params.vehicleType) {
+          return { success: false, message: 'Cadastro SAP alterado ou incompleto. Selecione novamente a placa.' }
+        }
+      } else {
+        const zsdRecords = await pb.collection('sap_zsd004_vehicles_drivers').getList(1, 1, {
+          filter: `plate = "${cleanPlate}" || driver_cpf = "${cleanDoc}"`,
+        })
+        if (zsdRecords.items.length > 0) sapZsd004Record = zsdRecords.items[0]
       }
-    } catch {
+    } catch (err: any) {
+      if (params.sapVehicleId) return { success: false, message: err.message }
       // tabela sap_zsd004 ainda não populada ou falha
     }
 
@@ -352,15 +364,8 @@ export const TmsService = {
         try {
           driver = await pb.collection('drivers').create<DriverEntity>({
             name: sapZsd004Record.driver_name || 'Motorista SAP ZSD004',
-            document:
-              sapZsd004Record.driver_cpf !== 'Não informado no SAP'
-                ? sapZsd004Record.driver_cpf.replace(/\D/g, '')
-                : cleanDoc,
-            whatsapp: (
-              sapZsd004Record.driver_phone ||
-              sapZsd004Record.driver_mobile ||
-              cleanPhone
-            ).replace(/\D/g, ''),
+            document: queueSapFields(sapZsd004Record).document || cleanDoc,
+            whatsapp: queueSapFields(sapZsd004Record).whatsapp || cleanPhone,
             status: sapZsd004Record.status === 'B' ? 'bloqueado' : 'ativo',
             sap_id: sapZsd004Record.technical_key || cleanPlate,
             notes: 'Sincronizado automaticamente da base mestre SAP ZSD004',

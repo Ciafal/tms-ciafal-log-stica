@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Layers,
@@ -30,6 +30,8 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { ItinerarySearchSelect } from '@/components/common/ItinerarySearchSelect'
+import { QueueSapVehicleSelect } from '@/components/common/QueueSapVehicleSelect'
+import { QueueSapVehicle, queueSapFields } from '@/services/queue-sap-vehicle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -133,7 +135,9 @@ export const QueueDashboard: React.FC = () => {
   const [manualDoc, setManualDoc] = useState('')
   const [manualPhone, setManualPhone] = useState('')
   const [manualGroup, setManualGroup] = useState<QueueGroup>('PORTA')
-  const [manualVehicleType, setManualVehicleType] = useState('Carreta LS')
+  const [manualVehicleType, setManualVehicleType] = useState('')
+  const [manualSapVehicle, setManualSapVehicle] = useState<QueueSapVehicle | null>(null)
+  const manualSubmitLock = useRef(false)
   const [manualItinerary, setManualItinerary] = useState<string>('SEM_PREFERENCIA')
   const [manualItineraryName, setManualItineraryName] = useState<string>('Sem preferência')
   const [manualNotes, setManualNotes] = useState('')
@@ -297,6 +301,11 @@ export const QueueDashboard: React.FC = () => {
   // Inclusão Manual por Operador / Portaria
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (manualSubmitLock.current) return
+    if (!manualSapVehicle || manualSapVehicle.plate !== manualPlate) {
+      toast({ title: 'Selecione a placa', description: 'Selecione um cadastro da ZSD004.', variant: 'destructive' })
+      return
+    }
     if (!manualPlate.trim() || !manualDoc.trim()) {
       toast({
         title: 'Dados obrigatórios',
@@ -306,11 +315,13 @@ export const QueueDashboard: React.FC = () => {
       return
     }
 
+    manualSubmitLock.current = true
     setIsSubmittingManual(true)
     try {
       const channel = user?.role === 'portaria' ? 'PORTARIA' : 'OPERADOR_HUB'
       const res = await TmsService.submitDriverAvailability({
         plate: manualPlate,
+        sapVehicleId: manualSapVehicle.id,
         document: manualDoc,
         whatsapp: manualPhone,
         vehicleType: manualVehicleType,
@@ -334,6 +345,8 @@ export const QueueDashboard: React.FC = () => {
         setManualPlate('')
         setManualDoc('')
         setManualPhone('')
+        setManualVehicleType('')
+        setManualSapVehicle(null)
         setManualNotes('')
         setManualItinerary('SEM_PREFERENCIA')
         setManualItineraryName('Sem preferência')
@@ -352,6 +365,7 @@ export const QueueDashboard: React.FC = () => {
         variant: 'destructive',
       })
     } finally {
+      manualSubmitLock.current = false
       setIsSubmittingManual(false)
     }
   }
@@ -1159,22 +1173,29 @@ export const QueueDashboard: React.FC = () => {
           <form onSubmit={handleManualSubmit} className="space-y-3.5 text-xs">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="font-bold text-slate-700 block">Placa do Veículo:</label>
-                <Input
-                  placeholder="Ex: ABC1D23"
+                <label htmlFor="manual-plate" className="font-bold text-slate-700 block">Placa do Veículo:</label>
+                <QueueSapVehicleSelect
                   value={manualPlate}
-                  onChange={(e) => setManualPlate(e.target.value.toUpperCase())}
-                  required
-                  className="font-mono text-xs uppercase"
+                  selectedId={manualSapVehicle?.id}
+                  disabled={isSubmittingManual}
+                  onChange={(plate, vehicle) => {
+                    setManualPlate(plate)
+                    setManualSapVehicle(vehicle)
+                    const fields = vehicle ? queueSapFields(vehicle) : { document: '', whatsapp: '', vehicleType: '' }
+                    setManualDoc(fields.document)
+                    setManualPhone(fields.whatsapp)
+                    setManualVehicleType(fields.vehicleType)
+                  }}
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-700 block">CPF / CNPJ:</label>
+                <label htmlFor="manual-document" className="font-bold text-slate-700 block">CPF / CNPJ:</label>
                 <Input
-                  placeholder="Apenas números ou formatado"
+                  id="manual-document"
+                  placeholder="Não informado no SAP"
                   value={manualDoc}
-                  onChange={(e) => setManualDoc(e.target.value)}
+                  readOnly
                   required
                   className="font-mono text-xs"
                 />
@@ -1183,11 +1204,12 @@ export const QueueDashboard: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="font-bold text-slate-700 block">WhatsApp:</label>
+                <label htmlFor="manual-phone" className="font-bold text-slate-700 block">WhatsApp:</label>
                 <Input
-                  placeholder="(31) 98765-4321"
+                  id="manual-phone"
+                  placeholder="Não informado no SAP"
                   value={manualPhone}
-                  onChange={(e) => setManualPhone(e.target.value)}
+                  readOnly
                   className="font-mono text-xs"
                 />
               </div>
@@ -1208,20 +1230,8 @@ export const QueueDashboard: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <label className="font-bold text-slate-700 block">Tipo de Veículo:</label>
-              <Select value={manualVehicleType} onValueChange={setManualVehicleType}>
-                <SelectTrigger className="text-xs h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="text-xs">
-                  <SelectItem value="Carreta LS">Carreta LS</SelectItem>
-                  <SelectItem value="Carreta Grade Baixa">Carreta Grade Baixa</SelectItem>
-                  <SelectItem value="Bitrem">Bitrem</SelectItem>
-                  <SelectItem value="Rodotrem">Rodotrem</SelectItem>
-                  <SelectItem value="Truck">Truck</SelectItem>
-                  <SelectItem value="Toco">Toco</SelectItem>
-                </SelectContent>
-              </Select>
+              <label htmlFor="manual-vehicle-type" className="font-bold text-slate-700 block">Tipo de Veículo:</label>
+              <Input id="manual-vehicle-type" value={manualVehicleType} readOnly placeholder="Não informado no SAP" className="text-xs" />
             </div>
 
             {/* Seletor Canônico de Itinerário */}
@@ -1231,6 +1241,8 @@ export const QueueDashboard: React.FC = () => {
               </label>
               <ItinerarySearchSelect
                 value={manualItinerary}
+                itineraries={itineraries.filter(it => it.is_active !== false).map(it => ({ code: it.sap_code, description: it.description }))}
+                disabled={isSubmittingManual}
                 onSelect={(code, desc) => {
                   setManualItinerary(code)
                   setManualItineraryName(desc)
@@ -1266,7 +1278,7 @@ export const QueueDashboard: React.FC = () => {
               <Button
                 type="submit"
                 size="sm"
-                disabled={isSubmittingManual}
+                disabled={isSubmittingManual || !manualSapVehicle || !manualDoc || manualSapVehicle.status === 'B'}
                 className="bg-[#005596] hover:bg-[#004275] text-white text-xs font-bold"
               >
                 {isSubmittingManual ? 'Gravando Entrada...' : 'Registrar na Fila e Auditar'}
