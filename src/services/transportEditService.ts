@@ -92,6 +92,10 @@ export interface SaveTransportChangeResponse {
 }
 
 class TransportEditService {
+  async searchFilterOptions(campo: string, termo = '', pagina = 1): Promise<{itens:{valor:string;rotulo:string}[];total:number;pagina:number;porPagina:number}> {
+    return pb.send('/backend/v1/tms/transportes/filtros/'+encodeURIComponent(campo), {method:'GET',query:{termo,pagina},requestKey:null})
+  }
+
   /**
    * Consulta paginada e com filtros ricos conforme item 2
    */

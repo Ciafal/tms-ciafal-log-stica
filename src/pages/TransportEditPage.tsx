@@ -1,3 +1,4 @@
+import { SapTransportFilter } from '@/components/transport/SapTransportFilter'
 import React, { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/ui-custom/PageHeader'
@@ -95,11 +96,11 @@ export default function TransportEditPage() {
   })
 
   // Consulta
-  const handleSearch = async (overrideNumber?: string) => {
+  const handleSearch = async (overrideNumber?: string, limpar = false) => {
     setLoading(true)
     try {
       const activeTransportNum = overrideNumber !== undefined ? overrideNumber : transportNumber
-      const filters: TransportFilterParams = {
+      const filters: TransportFilterParams = limpar ? {} : {
         transport_number: activeTransportNum || undefined,
         delivery_number: deliveryNumber || undefined,
         order_number: orderNumber || undefined,
@@ -143,7 +144,7 @@ export default function TransportEditPage() {
     setPlantOrCompany('')
     setResponsibleUser('')
     setPartialText('')
-    handleSearch()
+    handleSearch(undefined,true)
   }
 
   useEffect(() => {
@@ -219,12 +220,7 @@ export default function TransportEditPage() {
             <Label className="text-[11px] font-semibold text-gray-700">
               Nº do Transporte (HUB / SAP)
             </Label>
-            <Input
-              placeholder="Ex: TR-10001 ou 00900001"
-              value={transportNumber}
-              onChange={(e) => setTransportNumber(e.target.value)}
-              className="text-xs bg-white font-mono"
-            />
+            <SapTransportFilter campo="transport_number" titulo="Nº do Transporte (HUB / SAP)" value={transportNumber} onChange={setTransportNumber} />
           </div>
 
           {/* Número da Remessa */}
@@ -232,23 +228,13 @@ export default function TransportEditPage() {
             <Label className="text-[11px] font-semibold text-gray-700">
               Nº da Remessa (SAP Delivery)
             </Label>
-            <Input
-              placeholder="Ex: 10040001"
-              value={deliveryNumber}
-              onChange={(e) => setDeliveryNumber(e.target.value)}
-              className="text-xs bg-white font-mono"
-            />
+            <SapTransportFilter campo="delivery_number" titulo="Nº da Remessa (SAP Delivery)" value={deliveryNumber} onChange={setDeliveryNumber} />
           </div>
 
           {/* Pedido SAP */}
           <div>
             <Label className="text-[11px] font-semibold text-gray-700">Pedido SAP</Label>
-            <Input
-              placeholder="Ex: 4500001"
-              value={orderNumber}
-              onChange={(e) => setOrderNumber(e.target.value)}
-              className="text-xs bg-white font-mono"
-            />
+            <SapTransportFilter campo="order_number" titulo="Pedido SAP" value={orderNumber} onChange={setOrderNumber} />
           </div>
 
           {/* Cliente */}
@@ -256,23 +242,13 @@ export default function TransportEditPage() {
             <Label className="text-[11px] font-semibold text-gray-700">
               Cliente / Destinatário
             </Label>
-            <Input
-              placeholder="Razão social ou nome fantasia..."
-              value={customer}
-              onChange={(e) => setCustomer(e.target.value)}
-              className="text-xs bg-white"
-            />
+            <SapTransportFilter campo="customer" titulo="Cliente / Destinatário" value={customer} onChange={setCustomer} />
           </div>
 
           {/* CNPJ do Cliente */}
           <div>
             <Label className="text-[11px] font-semibold text-gray-700">CNPJ do Cliente</Label>
-            <Input
-              placeholder="00.000.000/0000-00"
-              value={customerCnpj}
-              onChange={(e) => setCustomerCnpj(e.target.value)}
-              className="text-xs bg-white font-mono"
-            />
+            <SapTransportFilter campo="customer_cnpj" titulo="CNPJ do Cliente" value={customerCnpj} onChange={setCustomerCnpj} />
           </div>
 
           {/* Transportadora */}
@@ -289,12 +265,7 @@ export default function TransportEditPage() {
           {/* Motorista */}
           <div>
             <Label className="text-[11px] font-semibold text-gray-700">Motorista</Label>
-            <Input
-              placeholder="Nome do condutor..."
-              value={driver}
-              onChange={(e) => setDriver(e.target.value)}
-              className="text-xs bg-white"
-            />
+            <SapTransportFilter campo="driver" titulo="Motorista" value={driver} onChange={setDriver} />
           </div>
 
           {/* Placa */}
@@ -302,23 +273,13 @@ export default function TransportEditPage() {
             <Label className="text-[11px] font-semibold text-gray-700">
               Placa (Cavalo ou Carreta)
             </Label>
-            <Input
-              placeholder="ABC-1234 ou ABC1D23"
-              value={plate}
-              onChange={(e) => setPlate(e.target.value.toUpperCase())}
-              className="text-xs bg-white font-mono"
-            />
+            <SapTransportFilter campo="plate" titulo="Placa (Cavalo ou Carreta)" value={plate} onChange={setPlate} />
           </div>
 
           {/* Itinerário */}
           <div>
             <Label className="text-[11px] font-semibold text-gray-700">Itinerário SAP</Label>
-            <Input
-              placeholder="Código ou descrição..."
-              value={itinerary}
-              onChange={(e) => setItinerary(e.target.value)}
-              className="text-xs bg-white"
-            />
+            <SapTransportFilter campo="itinerary" titulo="Itinerário SAP" value={itinerary} onChange={setItinerary} />
           </div>
 
           {/* Status Operacional */}
@@ -347,12 +308,7 @@ export default function TransportEditPage() {
             <Label className="text-[11px] font-semibold text-gray-700">
               Usuário da Última Alteração
             </Label>
-            <Input
-              placeholder="Nome ou e-mail..."
-              value={responsibleUser}
-              onChange={(e) => setResponsibleUser(e.target.value)}
-              className="text-xs bg-white"
-            />
+            <SapTransportFilter campo="responsible_user" titulo="Usuário da Última Alteração" value={responsibleUser} onChange={setResponsibleUser} />
           </div>
         </div>
       </RegionConsulta>
