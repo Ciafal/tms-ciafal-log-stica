@@ -30,7 +30,7 @@ export function SapTransportFilter({campo,titulo,value,onChange}:Props){
    <span className="truncate" title={label||value}>{label||value||'Selecione no SAP...'}</span><ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50"/>
   </Button></PopoverTrigger>
   <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] min-w-72 max-w-[calc(100vw-2rem)] p-2">
-   <Input autoFocus aria-label={'Buscar '+titulo} placeholder="Digite para buscar..." value={termo} maxLength={80} onChange={e=>{setTermo(e.target.value);setPagina(1)}} className="mb-2 h-9 text-xs"/>
+   <Input autoFocus aria-label={'Buscar '+titulo} placeholder="Buscar no SAP (até 80 caracteres)" value={termo} maxLength={80} onChange={e=>{setTermo(e.target.value);setPagina(1)}} className="mb-2 h-9 text-xs"/>
    <button type="button" onClick={()=>escolher('','')} className="mb-1 w-full rounded px-2 py-2 text-left text-xs text-slate-500 hover:bg-slate-100">Todos / Limpar seleção</button>
    {loading?<div className="flex items-center gap-2 p-3 text-xs"><Loader2 className="h-3 w-3 animate-spin"/>Consultando SAP...</div>:erro?<p role="alert" className="p-2 text-xs text-red-700">{erro}</p>:
     <div role="listbox" aria-label={'Opções de '+titulo} className="max-h-56 overflow-y-auto">
