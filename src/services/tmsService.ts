@@ -217,6 +217,7 @@ export const TmsService = {
   async getOperationalQueue(): Promise<QueueEntryEntity[]> {
     try {
       const records = await pb.collection('queue_entries').getFullList<QueueEntryEntity>({
+        filter: 'status != "removido" && status != "atribuido"',
         sort: '-type,entry_time',
         expand: 'driver,vehicle',
       })
@@ -2973,7 +2974,7 @@ export const TmsService = {
         pb.collection('drivers').getOne<DriverEntity>(driverId),
         pb.collection('freight_offers').getOne<FreightOfferEntity>(offerId),
         pb.collection('queue_entries').getList<QueueEntryEntity>(1, 1, {
-          filter: `driver = "${driverId}" && (status != "removido" && status != "bloqueado")`,
+          filter: `driver = "${driverId}" && (status != "removido" && status != "atribuido" && status != "bloqueado")`,
           sort: '-created',
         }),
       ])
@@ -3121,7 +3122,7 @@ export const TmsService = {
         pb.collection('freight_offers').getOne<FreightOfferEntity>(offerId),
         pb.collection('drivers').getOne<DriverEntity>(driverId),
         pb.collection('queue_entries').getList<QueueEntryEntity>(1, 1, {
-          filter: `driver = "${driverId}" && (status != "removido" && status != "bloqueado")`,
+          filter: `driver = "${driverId}" && (status != "removido" && status != "atribuido" && status != "bloqueado")`,
           sort: '-created',
         }),
       ])
