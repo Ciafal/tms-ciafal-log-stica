@@ -10,7 +10,6 @@
  *    - Fila de disponibilidade logística (Queue entries: PROGRAMADO, PORTA, FORA)
  *    - Pré-cadastros de veículos aprovados/agendados
  *    - Mesa de fretes (ofertas aceitas/contratadas)
- *    - Cadastro base de veículos/motoristas vinculados
  *    - Propostas/cargas com espaço disponível
  * 3. Estoque Projetado D+1 = Estoque Atual SAP - Qtde Comprometida em Remessas + Produção Prevista PCP até D+1
  *    - Se estoque projetado < 0: alerta "⚠ Estoque projetado insuficiente"
@@ -29,8 +28,6 @@ import {
   PcpProductionOrderEntity,
   SapItineraryEntity,
   QueueEntryEntity,
-  VehicleEntity,
-  DriverEntity,
   PreRegistrationEntity,
   ChicaoFreightOfferEntity,
   FreightOfferEntity,
@@ -58,7 +55,7 @@ export type OccupancyBandClassification =
 
 export interface VehicleD1PlanItem {
   id: string
-  source: 'queue' | 'prereg' | 'mesa' | 'proposal' | 'vehicle'
+  source: 'queue' | 'prereg' | 'mesa' | 'proposal'
   sourceId?: string
   date: string
   scheduledTime: string
@@ -489,8 +486,6 @@ export function aggregateVehiclesD1(params: {
   chicaoOffers: ChicaoFreightOfferEntity[]
   freightOffers: FreightOfferEntity[]
   proposals: LoadProposalEntity[]
-  registeredVehicles: VehicleEntity[]
-  drivers: DriverEntity[]
   itineraries: SapItineraryEntity[]
   salesOrders: SapSalesOrderEntity[]
   stockSummaries: Map<string, MaterialStockD1Summary>
@@ -503,8 +498,6 @@ export function aggregateVehiclesD1(params: {
     chicaoOffers,
     freightOffers,
     proposals,
-    registeredVehicles,
-    drivers,
     itineraries,
     salesOrders,
     stockSummaries,
@@ -757,61 +750,6 @@ export function aggregateVehiclesD1(params: {
       allocatedItems: [],
     })
   })
-
-  // 5. Se houver poucos veículos cadastrados, agrega os veículos cadastrados ativos
-  if (itemsMap.size === 0) {
-    registeredVehicles.forEach((veh, idx) => {
-      const driver = drivers.find((d) => d.id === veh.driver) || drivers[idx % drivers.length]
-      const itin = itineraries[idx % itineraries.length] || {
-        sap_code: 'MG001A',
-        description: 'Metropolitana BH',
-        region: 'MG',
-        uf: 'MG',
-      }
-      const capacityKg = veh.capacity_kg || 32000
-      const key = `veh_${veh.plate}_${veh.id}`
-
-      itemsMap.set(key, {
-        id: key,
-        source: 'vehicle',
-        sourceId: veh.id,
-        date: targetD1Date,
-        scheduledTime: `0${7 + (idx % 3)}:00`,
-        plate: veh.plate,
-        vehicleType: veh.type || 'Carreta LS 3 Eixos',
-        driverName: driver?.name || 'Motorista Ativo SAP',
-        driverPhone: driver?.whatsapp,
-        driverDocument: driver?.document,
-        carrierName: veh.carrier_name || 'Frota Própria CIAFAL',
-        itineraryCode: itin.sap_code,
-        itineraryDesc: itin.description,
-        region: itin.region || 'Região Sudeste',
-        uf: itin.uf || 'MG',
-        origin: 'Planta CIAFAL Matriz',
-        destination: itin.description,
-        dischargesCount: 1,
-        capacityKg,
-        capacityTons: formatKgToTons(capacityKg),
-        programmedWeightKg: 0,
-        programmedWeightTons: 0,
-        availableCapacityKg: capacityKg,
-        availableCapacityTons: formatKgToTons(capacityKg),
-        occupancyPct: 0,
-        occupancyBand: 'baixa',
-        compatibleWalletTons: 0,
-        currentStockTons: 0,
-        remessasGeneratedTons: 0,
-        pcpD1Tons: 0,
-        projectedStockD1Tons: 0,
-        possibleComplementTons: 0,
-        operationalStatus: 'Sem carteira compatível',
-        matchReasons: [],
-        isPcpDependent: false,
-        allocatedOrderNumbers: [],
-        allocatedItems: [],
-      })
-    })
-  }
 
   // ========================================================
   // REQUISITOS 10, 12, 13: CRUZAMENTO AUTOMÁTICO COM CARTEIRA E ESTOQUE

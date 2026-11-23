@@ -21,8 +21,6 @@ import {
   PcpProductionOrderEntity,
   SapItineraryEntity,
   QueueEntryEntity,
-  VehicleEntity,
-  DriverEntity,
   PreRegistrationEntity,
   ChicaoFreightOfferEntity,
   FreightOfferEntity,
@@ -31,6 +29,27 @@ import {
 
 describe('Torre de Programação Logística D+1 - Cenários Obrigatórios (Item 22)', () => {
   const targetD1Date = getDefaultD1Date()
+
+  it('não programa veículos cadastrados quando não há programação na data', () => {
+    const cadastroDaFrota = {
+      registeredVehicles: [{ id: 'v1', plate: 'ABC1D23', driver: 'd1', capacity_kg: 32000 }],
+      drivers: [{ id: 'd1', name: 'Motorista cadastrado' }],
+    }
+    const vehicles = aggregateVehiclesD1({
+      ...cadastroDaFrota,
+      targetD1Date,
+      queueEntries: [],
+      preRegistrations: [],
+      chicaoOffers: [],
+      freightOffers: [],
+      proposals: [],
+      itineraries: [],
+      salesOrders: [],
+      stockSummaries: new Map(),
+    })
+
+    expect(vehicles).toEqual([])
+  })
 
   // 1. Veículo D+1 sem carga
   it('Cenário 1: Veículo D+1 sem carga (0% ocupação, espaço total disponível)', () => {
@@ -69,8 +88,6 @@ describe('Torre de Programação Logística D+1 - Cenários Obrigatórios (Item 
       chicaoOffers: [],
       freightOffers: [],
       proposals: [],
-      registeredVehicles: [],
-      drivers: [],
       itineraries: [itin],
       salesOrders: [],
       stockSummaries: new Map(),
@@ -144,8 +161,6 @@ describe('Torre de Programação Logística D+1 - Cenários Obrigatórios (Item 
       chicaoOffers: [],
       freightOffers: [],
       proposals: [prop],
-      registeredVehicles: [],
-      drivers: [],
       itineraries: [itin],
       salesOrders: [],
       stockSummaries: new Map(),
@@ -215,8 +230,6 @@ describe('Torre de Programação Logística D+1 - Cenários Obrigatórios (Item 
       chicaoOffers: [],
       freightOffers: [],
       proposals: [prop],
-      registeredVehicles: [],
-      drivers: [],
       itineraries: [itin],
       salesOrders: [],
       stockSummaries: new Map(),
@@ -283,8 +296,6 @@ describe('Torre de Programação Logística D+1 - Cenários Obrigatórios (Item 
       chicaoOffers: [],
       freightOffers: [],
       proposals: [prop],
-      registeredVehicles: [],
-      drivers: [],
       itineraries: [itin],
       salesOrders: [],
       stockSummaries: new Map(),
@@ -519,8 +530,6 @@ describe('Torre de Programação Logística D+1 - Cenários Obrigatórios (Item 
       chicaoOffers: [],
       freightOffers: [],
       proposals: [],
-      registeredVehicles: [],
-      drivers: [],
       itineraries: [itin],
       salesOrders: [openOrder],
       stockSummaries,

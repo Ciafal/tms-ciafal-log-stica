@@ -62,8 +62,6 @@ import {
   SapSalesOrderEntity,
   QueueEntryEntity,
   LoadProposalEntity,
-  VehicleEntity,
-  DriverEntity,
   PreRegistrationEntity,
   ChicaoFreightOfferEntity,
   FreightOfferEntity,
@@ -105,8 +103,6 @@ export const FutureProgrammingPage: React.FC = () => {
   const [orders, setOrders] = useState<SapSalesOrderEntity[]>([])
   const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
   const [proposals, setProposals] = useState<LoadProposalEntity[]>([])
-  const [vehicles, setVehicles] = useState<VehicleEntity[]>([])
-  const [drivers, setDrivers] = useState<DriverEntity[]>([])
   const [preRegistrations, setPreRegistrations] = useState<PreRegistrationEntity[]>([])
   const [chicaoOffers, setChicaoOffers] = useState<ChicaoFreightOfferEntity[]>([])
   const [freightOffers, setFreightOffers] = useState<FreightOfferEntity[]>([])
@@ -167,8 +163,6 @@ export const FutureProgrammingPage: React.FC = () => {
           ords,
           qEntries,
           props,
-          vehs,
-          drivs,
           preregs,
           chOffers,
           fOffers,
@@ -179,8 +173,6 @@ export const FutureProgrammingPage: React.FC = () => {
           tmsService.getSapSalesOrders(),
           tmsService.getQueueEntries(),
           tmsService.getLoadProposals(),
-          tmsService.getVehicles(),
-          tmsService.getDrivers(),
           tmsService.getPreRegistrations(),
           tmsService.getChicaoOffers(),
           tmsService.getFreightOffers(),
@@ -192,8 +184,6 @@ export const FutureProgrammingPage: React.FC = () => {
         setOrders(ords || [])
         setQueueEntries(qEntries || [])
         setProposals(props || [])
-        setVehicles(vehs || [])
-        setDrivers(drivs || [])
         setPreRegistrations(preregs || [])
         setChicaoOffers(chOffers || [])
         setFreightOffers(fOffers || [])
@@ -247,8 +237,6 @@ export const FutureProgrammingPage: React.FC = () => {
       chicaoOffers,
       freightOffers,
       proposals,
-      registeredVehicles: vehicles,
-      drivers,
       itineraries,
       salesOrders: orders,
       stockSummaries,
@@ -261,8 +249,6 @@ export const FutureProgrammingPage: React.FC = () => {
     chicaoOffers,
     freightOffers,
     proposals,
-    vehicles,
-    drivers,
     itineraries,
     orders,
     stockSummaries,
