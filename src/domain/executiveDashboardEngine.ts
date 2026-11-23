@@ -288,14 +288,14 @@ export function generateAiExecutiveAnalysis(
   if (cards.totalComplaints > 0) {
     blocks.push({
       observedFact: `A avaliação média consolidada de motoristas registrou ${cards.averageDriverRating.toFixed(1)}/5,0 estrelas, com ${cards.totalComplaints} reclamações registradas no período (${cards.procedenteComplaints} procedentes).`,
-      identifiedCorrelation: `Houve concentração de apontamentos em itinerários de longo curso para São Paulo e Espírito Santo, coincidindo com picos de permanência interna.`,
+      identifiedCorrelation: `Correlação não apurada.`,
       workingHypothesis: `Possível estresse na ponta do cliente causado por atrasos de liberação na expedição que comprimem a janela de descarga agendada.`,
       suggestedAction: `Verificar se a segregação de tempo de espera interno no faturamento impactou o cumprimento do agendamento no destino antes de penalizar o prestador.`,
     })
   } else {
     blocks.push({
       observedFact: `Nenhuma reclamação registrada no período com avaliação média de ${cards.averageDriverRating.toFixed(1)} estrelas em ${cards.totalTransports} viagens.`,
-      identifiedCorrelation: `A estabilidade na nota média acompanha 100% de pontualidade nas entregas da malha regional.`,
+      identifiedCorrelation: `Correlação não apurada.`,
       workingHypothesis: `A previsibilidade nas janelas de carregamento da Matriz Contagem favoreceu a aderência às metas de entrega.`,
       suggestedAction: `Manter acompanhamento preventivo e reforçar a coleta de avaliações após o descarregamento para expandir a taxa de cobertura.`,
     })
@@ -305,13 +305,13 @@ export function generateAiExecutiveAnalysis(
   if (cards.avgInternalDwellMin > 120) {
     blocks.push({
       observedFact: `O tempo médio de permanência interna alcançou ${cards.avgInternalDwellMin} min, com carregamento médio em ${cards.avgLoadingDurationMin} min e faturamento em ${cards.avgInvoicingDurationMin} min.`,
-      identifiedCorrelation: `Transportes que excedem 150 min internos apresentam probabilidade 3x maior de registrar atraso na primeira descarga.`,
+      identifiedCorrelation: `Correlação não apurada.`,
       workingHypothesis: `Fila de espera para liberação de notas fiscais conjugadas no turno da tarde pode estar postergando a saída dos veículos.`,
       suggestedAction: `Investigar o lead-time entre o fim da amarração das bobinas e a emissão do ZSD004/MDF-e sem imputar mora ao condutor.`,
     })
   } else {
     blocks.push({
-      observedFact: `Tempo de permanência interna estabilizado em ${cards.avgInternalDwellMin} min, perfeitamente aderente ao SLA corporativo (< 150 min).`,
+      observedFact: `Tempo de permanência interna estabilizado em ${cards.avgInternalDwellMin} min, conforme os registros disponíveis.`,
       identifiedCorrelation: `A rápida liberação reflete-se em pontualidade de rota de ${cards.onTimeDeliveriesPct}%.`,
       workingHypothesis: `Eficiência das pontes rolantes e conferência ágil com coletores ZWMT001 garantiram fluxo contínuo nas docas.`,
       suggestedAction: `Compartilhar a boa prática de sequenciamento de carregamento entre as plantas Matriz e Sidercentro.`,

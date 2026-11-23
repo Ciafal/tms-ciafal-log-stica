@@ -96,9 +96,9 @@ export const FredTransport360Page: React.FC = () => {
 
   // Modal Simulação de Upload de Foto/Áudio pelo Motorista
   const [mediaUploadOpen, setMediaUploadOpen] = useState(false)
-  const [mediaFileName, setMediaFileName] = useState('foto_canhoto_entrega3.jpg')
+  const [mediaFileName, setMediaFileName] = useState('')
   const [mediaDescription, setMediaDescription] = useState(
-    'Canhoto assinado e carimbado na portaria',
+    '',
   )
   const [mediaType, setMediaType] = useState<string>('CANHOTO_ASSINADO')
 
@@ -106,53 +106,14 @@ export const FredTransport360Page: React.FC = () => {
   const [wppSimDialogOpen, setWppSimDialogOpen] = useState(false)
   const [wppSimType, setWppSimType] = useState<string>('AUDIO')
   const [wppSimAudioText, setWppSimAudioText] = useState(
-    'Vou atrasar umas duas horas por causa do trânsito na serra.',
+    '',
   )
-  const [wppSimLat, setWppSimLat] = useState('-23.5505')
-  const [wppSimLng, setWppSimLng] = useState('-46.6333')
+  const [wppSimLat, setWppSimLat] = useState('')
+  const [wppSimLng, setWppSimLng] = useState('')
 
   // Disparo do Webhook do WhatsApp Business para Homologação
   const handleSimulateWhatsAppWebhook = async () => {
-    if (!transport) return
-    setIsSending(true)
-    try {
-      let payload: any = {
-        phone: transport.driver_phone || '(11) 98765-4321',
-        sender_name: transport.driver_name,
-        sender_role: 'MOTORISTA',
-        sap_transport_number: transport.sap_transport_number,
-        type: wppSimType,
-      }
-
-      if (wppSimType === 'AUDIO') {
-        payload.audio_url = 'https://storage.usecurling.com/audios/audio_motorista_gravacao.ogg'
-        payload.audio_duration = 18
-        payload.text = wppSimAudioText
-      } else if (wppSimType === 'LOCALIZACAO') {
-        payload.latitude = parseFloat(wppSimLat) || -23.5505
-        payload.longitude = parseFloat(wppSimLng) || -46.6333
-        payload.address = 'Rod. Anhanguera, km 64 - Jundiaí/SP'
-        payload.text = 'Localização GPS compartilhada em tempo real via WhatsApp'
-      } else {
-        payload.text = wppSimAudioText
-      }
-
-      const res = await tmsService.sendWhatsAppWebhookEvent(payload)
-      toast({
-        title: 'Webhook WhatsApp Processado',
-        description: `Intenção identificada: ${res.intent} • Resposta: ${res.response_sent}`,
-      })
-      setWppSimDialogOpen(false)
-      loadTransportDetails()
-    } catch (err: any) {
-      toast({
-        title: 'Erro ao disparar webhook WhatsApp',
-        description: err.message,
-        variant: 'destructive',
-      })
-    } finally {
-      setIsSending(false)
-    }
+    toast({title:'Simulação indisponível',description:'Nenhum evento foi gravado ou enviado.',variant:'destructive'})
   }
 
   // Carregar dados completos do transporte SAP
@@ -363,47 +324,7 @@ export const FredTransport360Page: React.FC = () => {
 
   // Simular Envio de Evidência pelo Motorista com Sugestão IA
   const handleUploadEvidence = async () => {
-    if (!transport) return
-    const suggestion = analyzeImageEvidence(mediaFileName, mediaDescription)
-
-    try {
-      await pb.collection('fred_evidences').create({
-        sap_transport_number: transport.sap_transport_number,
-        evidence_type: suggestion.suggestedTag,
-        sender_role: 'MOTORISTA',
-        sender_name: transport.driver_name,
-        file_name: mediaFileName,
-        ai_vision_description: suggestion.description,
-        ai_suggested_tag: suggestion.suggestedTag,
-        ai_confidence_pct: suggestion.confidencePct,
-        is_human_validated: false,
-        validation_notes: `Sugestão IA gerada (${suggestion.confidencePct}% de confiança). Exige confirmação humana.`,
-      })
-
-      // Timeline
-      await pb.collection('fred_timeline_events').create({
-        sap_transport_number: transport.sap_transport_number,
-        event_code: 'EVIDENCE_RECEIVED',
-        event_title: `Evidência Recebida: ${mediaFileName}`,
-        event_description: `Sugestão Fred IA: ${suggestion.suggestedTag} (${suggestion.confidencePct}%).`,
-        event_source: 'MOTORISTA',
-        event_severity: 'INFO',
-        event_timestamp: new Date().toISOString(),
-      })
-
-      toast({
-        title: 'Evidência enviada com sucesso',
-        description: suggestion.questionToDriver,
-      })
-      setMediaUploadOpen(false)
-      loadTransportDetails()
-    } catch (err: any) {
-      toast({
-        title: 'Erro ao enviar evidência',
-        description: err.message,
-        variant: 'destructive',
-      })
-    }
+    toast({title:'Arquivo real obrigatório',description:'Nenhuma evidência foi gerada a partir de um nome de arquivo.',variant:'destructive'})
   }
 
   if (!transport && !isLoading) {
@@ -522,7 +443,7 @@ export const FredTransport360Page: React.FC = () => {
           <div>
             <span className="text-[10px] text-slate-400 font-bold uppercase block">Destino</span>
             <span className="font-bold text-slate-800 truncate block">
-              {transport?.destination_summary || 'Itinerário MG001A'}
+              {transport?.destination_summary || '—'}
             </span>
           </div>
 
@@ -546,7 +467,7 @@ export const FredTransport360Page: React.FC = () => {
               Próxima Parada
             </span>
             <span className="font-bold text-slate-800 truncate block">
-              {transport?.current_next_stop_name || 'Cliente ABC'}
+              {transport?.current_next_stop_name || '—'}
             </span>
           </div>
 
@@ -560,8 +481,8 @@ export const FredTransport360Page: React.FC = () => {
                     hour: '2-digit',
                     minute: '2-digit',
                   })
-                : '15:18'}{' '}
-              (🟡 +18m)
+                : '—'}{' '}
+
             </span>
           </div>
         </div>
@@ -620,11 +541,11 @@ export const FredTransport360Page: React.FC = () => {
                   <div className="relative h-72 bg-slate-50 rounded-xl overflow-hidden border border-slate-200 flex flex-col justify-between p-4 text-slate-900">
                     <div className="flex items-center justify-between z-10">
                       <span className="text-xs font-bold text-[#005596]">
-                        📍 Posição: {transport?.last_location_name || 'BR-381 km 530'}
+                        📍 Posição: {transport?.last_location_name || '—'}
                       </span>
                       <span className="text-xs text-slate-500 font-mono">
-                        Lat: {transport?.last_location_lat || -20.1438} • Lng:{' '}
-                        {transport?.last_location_lng || -44.8862}
+                        Lat: {transport?.last_location_lat ?? '—'} • Lng:{' '}
+                        {transport?.last_location_lng ?? '—'}
                       </span>
                     </div>
 
@@ -636,22 +557,8 @@ export const FredTransport360Page: React.FC = () => {
                         Fluxo de Entregas da Carga:
                       </div>
                       <div className="grid grid-cols-4 gap-2 text-center text-[10px]">
-                        <div className="p-2 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium">
-                          <div className="font-bold">1. Itaúna</div>
-                          <div>✅ 10:45</div>
-                        </div>
-                        <div className="p-2 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium">
-                          <div className="font-bold">2. Divinópolis</div>
-                          <div>✅ 13:25</div>
-                        </div>
-                        <div className="p-2 rounded bg-amber-50 border border-amber-300 text-amber-900 animate-pulse font-medium">
-                          <div className="font-bold">3. Betim</div>
-                          <div>🚚 ETA 15:18</div>
-                        </div>
-                        <div className="p-2 rounded bg-slate-100 border border-slate-200 text-slate-600 font-medium">
-                          <div className="font-bold">4. BH</div>
-                          <div>⏳ ETA 16:55</div>
-                        </div>
+                        {deliveries.map(del=><div key={del.id} className="p-2 rounded bg-slate-100 border border-slate-200 text-slate-600"><div className="font-bold">{del.destination_city || del.customer_name}</div><div>{del.status}</div></div>)}
+                        {!deliveries.length && <p>Nenhuma entrega registrada.</p>}
                       </div>
                     </div>
                   </div>
@@ -673,19 +580,19 @@ export const FredTransport360Page: React.FC = () => {
                 <CardContent className="p-4 space-y-3 text-xs">
                   <div className="p-3 rounded-lg border border-slate-100 bg-slate-50 space-y-1">
                     <div className="font-bold text-slate-800">
-                      Vendedor Responsável (Comercial ABC)
+                      Vendedor responsável
                     </div>
-                    <div className="text-slate-600">Marcos Vendas • (11) 97777-2211</div>
+                    <div className="text-slate-600">Contato não informado</div>
                     <Badge variant="outline" className="text-[9px] bg-sky-50 text-sky-700">
-                      CRM 360º Notificado sobre +18m
+                      Notificação não registrada
                     </Badge>
                   </div>
 
                   <div className="p-3 rounded-lg border border-slate-100 bg-slate-50 space-y-1">
                     <div className="font-bold text-slate-800">Recebimento no Cliente</div>
-                    <div className="text-slate-600">Valéria Recebimento • (31) 98822-3344</div>
+                    <div className="text-slate-600">Contato não informado</div>
                     <div className="text-[11px] text-amber-700 font-semibold">
-                      Janela até 16:00 (Portaria 2) • Descarga confirmada pelo Fred
+                      Janela não informada
                     </div>
                   </div>
                 </CardContent>
@@ -1099,23 +1006,19 @@ export const FredTransport360Page: React.FC = () => {
             <CardContent className="p-4 space-y-4">
               <div className="p-4 rounded-xl border border-sky-200 bg-sky-50/70 space-y-2 text-xs">
                 <div className="font-bold text-sky-950 flex items-center gap-2">
-                  <span>📊 Tempo de Descarga: Comercial ABC Metais Ltda</span>
-                  <Badge className="bg-sky-600 text-white text-[9px]">Confiança 92%</Badge>
+                  <span>📊 Tempo de descarga não apurado</span>
+                  <Badge className="bg-sky-600 text-white text-[9px]">Sem análise</Badge>
                 </div>
 
                 <div className="space-y-1 text-slate-700">
                   <div>
-                    <strong>Fato Observado:</strong> Tempo médio real de descarga nos últimos 90
-                    dias = <strong>1h37</strong> (base de 14 entregas).
+                    <strong>Fato Observado:</strong> Não há medição registrada.
                   </div>
                   <div>
-                    <strong>Hipótese da IA:</strong> Gargalo operacional de conferência manual no
-                    cliente supera a estimativa padrão cadastral.
+                    <strong>Hipótese da IA:</strong> Não registrada.
                   </div>
                   <div className="text-amber-800 font-semibold pt-1">
-                    Sugestão Fred IA: Revisar parâmetro de roteirização de 45 min para 90 min. O
-                    Fred considera 1h37 na projeção de ETA sem alterar silenciosamente o cadastro
-                    mestre.
+                    Nenhuma recomendação registrada.
                   </div>
                 </div>
               </div>
@@ -1330,7 +1233,7 @@ export const FredTransport360Page: React.FC = () => {
                     className="cursor-pointer text-[9px] hover:bg-slate-100"
                     onClick={() =>
                       setWppSimAudioText(
-                        'Vou atrasar umas duas horas por causa do trânsito na serra.',
+                        '',
                       )
                     }
                   >

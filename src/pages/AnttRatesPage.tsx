@@ -70,8 +70,8 @@ export const AnttRatesPage: React.FC = () => {
   const [isSavingSimulation, setIsSavingSimulation] = useState(false)
 
   // Interactive Calculator State (Ordem preferencial: 1. Distância, 2. Peso, 3. Eixos, 4. Tipo Carga, 5. Descargas)
-  const [calcDistance, setCalcDistance] = useState<number>(380)
-  const [calcWeightTon, setCalcWeightTon] = useState<string>('28,50')
+  const [calcDistance, setCalcDistance] = useState<number>(0)
+  const [calcWeightTon, setCalcWeightTon] = useState<string>('')
   const [calcAxles, setCalcAxles] = useState<number>(5)
   const [calcCargoType, setCalcCargoType] = useState<
     'Geral' | 'Granel Sólido' | 'Granel Líquido' | 'Frigorificada' | 'Perigosa'
@@ -79,7 +79,7 @@ export const AnttRatesPage: React.FC = () => {
   const [calcDischarges, setCalcDischarges] = useState<number>(1)
 
   // Comparação Econômica Opcional (Frete Cobrado do Cliente)
-  const [clientFreightInput, setClientFreightInput] = useState<string>('4200,00')
+  const [clientFreightInput, setClientFreightInput] = useState<string>('')
   const [includeClientComparison, setIncludeClientComparison] = useState<boolean>(true)
 
   // Parametrização Modal State

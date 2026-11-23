@@ -13,6 +13,7 @@ import {sapCollectorService} from '@/services/sapCollectorService'
 import {tmsService} from '@/services/tmsService'
 import {tmsIndicatorsService} from '@/services/tmsIndicatorsService'
 import {CrmService} from '@/domain/crmIntegration'
+import {anttEngine} from '@/domain/anttAndTollEngine'
 
 const order={id:'SAP:1/10',order_number:'1',item_number:'10',customer_code:'C1',customer_name:'Cliente SAP',destination_city:'Cidade SAP',uf:'MG',itinerary_code:'MG01',material:'SR88510100000',material_description:'B. REDONDA 220 mm - SA - 1010',weight_kg:1234,total_value:5678,production_status:'Pronto',credit_status:'Liberado',desired_date:'2026-11-19'} as SapSalesOrderEntity
 describe('TMS somente dados reais',()=>{
@@ -51,6 +52,8 @@ describe('TMS somente dados reais',()=>{
  })
  it('não declara tabela ANTT, pedágios ou endereço validados sem integração',async()=>{
    const antt=new DefaultANTTProvider();expect(antt.isConfigured()).toBe(false)
+   expect(()=>anttEngine.getActiveVersion()).toThrow('Fonte oficial ANTT não integrada')
+   expect(()=>anttEngine.calculateFloor({distanceKm:380,vehicleType:'Carreta'})).toThrow('Fonte oficial ANTT não integrada')
    expect(()=>antt.calculateFloorPrice({distanceKm:380,vehicleType:'Carreta'})).toThrow('Fonte oficial ANTT não integrada')
    await expect(new DefaultTollProvider().calculateTolls(380,'Carreta',5,'MG01')).rejects.toThrow('Pedágios não integrados')
    expect(await new DefaultRoutingProvider().validateAddress('','DIVINOPOLIS','MG')).toMatchObject({isValidated:false})
@@ -81,5 +84,17 @@ describe('CRM sem confirmação fictícia',()=>{
      await expect(crm.syncOpportunityStatus('test-only')).rejects.toThrow('não disponível')
    }
    expect(calls.create).not.toHaveBeenCalled()
+ })
+})
+
+describe('Carteira TMS sem clientes confirmados de teste',()=>{
+ it('filtra somente código e nome confirmados, preserva os demais e repete sem gravar',async()=>{
+  const testOrder={...order,customer_code:'20342',customer_name:'TESTE HUB CADASTRO CINCO LTDA'}
+  const realOrder={...order,customer_code:'20342',customer_name:'Cliente operacional'}
+  for(let i=0;i<2;i++){
+   calls.getFullList.mockResolvedValueOnce([testOrder,realOrder] as never)
+   expect(await tmsService.getSapSalesOrders()).toEqual([realOrder])
+  }
+  expect(calls.create).not.toHaveBeenCalled()
  })
 })

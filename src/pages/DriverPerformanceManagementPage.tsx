@@ -138,9 +138,9 @@ export const DriverPerformanceManagementPage: React.FC = () => {
   const avgCiafalExperience =
     scores.length > 0
       ? Math.round(
-          scores.reduce((a, b) => a + (b.ciafal_experience_score || 80), 0) / scores.length,
+          scores.reduce((a, b) => a + (b.ciafal_experience_score ?? 0), 0) / scores.length,
         )
-      : 85
+      : 0
 
   const npsRatings = surveys
     .map((s) => s.nps_recommendation_score)
@@ -484,15 +484,15 @@ export const DriverPerformanceManagementPage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="font-bold text-slate-900 text-sm">
-                      Contestação #REV-2025-081
+                      Nenhuma contestação selecionada
                     </span>
                     <span className="text-slate-500 block text-[11px]">
-                      Motorista: <strong>Carlos Eduardo Santos</strong> • Transporte SAP:{' '}
-                      <strong>10048202</strong> • Rota: SP-SJC-02
+                      Motorista: <strong>—</strong> • Transporte SAP:{' '}
+                      <strong>—</strong> • Rota: —
                     </span>
                   </div>
                   <Badge className="bg-amber-600 text-white text-[10px] font-bold">
-                    EM ANÁLISE GESTOR
+                    Sem registro
                   </Badge>
                 </div>
 
@@ -501,9 +501,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
                     Alegação do Motorista (Recebida via Fred/WhatsApp):
                   </div>
                   <p className="text-slate-800 italic">
-                    "Gostaria de pedir revisão da nota da viagem de São José dos Campos. O atraso de
-                    1h30 ocorreu porque a portaria da fábrica atrasou a liberação da nota fiscal na
-                    expedição, e não por problema na rodovia."
+                    Nenhuma alegação registrada.
                   </p>
                 </div>
 
@@ -513,14 +511,10 @@ export const DriverPerformanceManagementPage: React.FC = () => {
                     Parecer e Recomendação da IA (Fred & Torre):
                   </div>
                   <p className="text-slate-800">
-                    <strong>Evidências Cruzadas:</strong> O registro da portaria física confirmou
-                    entrada às 07:10 e saída do pátio apenas às 09:40. O trânsito na Dutra esteve
-                    livre (velocidade média 68 km/h).
+                    <strong>Evidências Cruzadas:</strong> Não disponíveis.
                   </p>
                   <p className="text-emerald-800 font-bold">
-                    <strong>Recomendação IA (Confiança 94%):</strong> PROCEDENTE. Isentar a
-                    pontualidade do motorista e transferir o desvio para a expedição interna da
-                    CIAFAL.
+                    <strong>Recomendação IA:</strong> Não registrada.
                   </p>
                 </div>
 
@@ -531,9 +525,9 @@ export const DriverPerformanceManagementPage: React.FC = () => {
                     className="text-xs text-rose-700 border-rose-200 hover:bg-rose-50"
                     onClick={() => {
                       toast({
-                        title: 'Contestação julgada Improcedente',
+                        title: 'Nenhuma contestação selecionada',
                         description:
-                          'Decisão humana registrada e comunicada ao motorista com justificativa.',
+                          'Nenhuma decisão foi gravada ou enviada.',
                       })
                     }}
                   >
@@ -544,9 +538,9 @@ export const DriverPerformanceManagementPage: React.FC = () => {
                     className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                     onClick={() => {
                       toast({
-                        title: 'Contestação Aprovada (Procedente)',
+                        title: 'Nenhuma contestação selecionada',
                         description:
-                          'Score recalculado para 92/100 e auditado no Ledger do Motorista.',
+                          'Nenhuma decisão foi gravada ou enviada.',
                       })
                     }}
                   >
@@ -594,7 +588,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
             {filteredScores.map((s) => {
               const crossMatrix = analyzeCrossExperienceMatrix(
                 s.score_consolidated,
-                s.ciafal_experience_score || 85,
+                s.ciafal_experience_score ?? 0,
               )
               return (
                 <Card
@@ -660,7 +654,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
                           </span>
                           <span className="text-xs text-slate-400 font-bold">/100</span>
                           <span className="text-amber-500 text-xs font-bold">
-                            ★ {s.stars_rating?.toFixed(1) || '4.5'}
+                            ★ {s.stars_rating?.toFixed(1) ?? '—'}
                           </span>
                         </div>
                       </div>
@@ -671,7 +665,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
                         </div>
                         <div className="flex items-baseline justify-end gap-1">
                           <span className="text-xl font-black text-indigo-700">
-                            {s.ciafal_experience_score || 85}
+                            {s.ciafal_experience_score ?? '—'}
                           </span>
                           <span className="text-xs text-slate-400 font-bold">/100</span>
                         </div>
@@ -682,20 +676,20 @@ export const DriverPerformanceManagementPage: React.FC = () => {
                     <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
                       <div>
                         <span className="text-slate-400 block text-[10px]">Pontualidade:</span>
-                        <strong className="text-slate-800">{s.score_punctuality || 95}%</strong>
+                        <strong className="text-slate-800">{s.score_punctuality ?? '—'}%</strong>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[10px]">Aderência Rota:</span>
-                        <strong className="text-slate-800">{s.score_route_adherence || 94}%</strong>
+                        <strong className="text-slate-800">{s.score_route_adherence ?? '—'}%</strong>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[10px]">Comunicação:</span>
-                        <strong className="text-slate-800">{s.score_communication || 92}%</strong>
+                        <strong className="text-slate-800">{s.score_communication ?? '—'}%</strong>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[10px]">Colaboração Fred:</span>
                         <strong className="text-slate-800">
-                          {s.score_fred_collaboration || 96}%
+                          {s.score_fred_collaboration ?? '—'}%
                         </strong>
                       </div>
                     </div>
@@ -1032,7 +1026,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
                         </span>
                         <span className="text-xs text-slate-400 font-bold">/100</span>
                         <span className="text-amber-500 text-xs font-bold ml-1">
-                          ★ {cust.stars_rating?.toFixed(1) || '4.0'}
+                          ★ {cust.stars_rating?.toFixed(1) ?? '—'}
                         </span>
                       </div>
                     </div>
@@ -1268,31 +1262,31 @@ export const DriverPerformanceManagementPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700">
                 <div>
                   • Pontualidade Atribuível (20%):{' '}
-                  <strong>{selectedScoreExplaining?.score_punctuality || 95} pts</strong>
+                  <strong>{selectedScoreExplaining?.score_punctuality ?? '—'} pts</strong>
                 </div>
                 <div>
                   • Cumprimento de Rota (15%):{' '}
-                  <strong>{selectedScoreExplaining?.score_route_adherence || 94} pts</strong>
+                  <strong>{selectedScoreExplaining?.score_route_adherence ?? '—'} pts</strong>
                 </div>
                 <div>
                   • Comunicação Qualificada (15%):{' '}
-                  <strong>{selectedScoreExplaining?.score_communication || 92} pts</strong>
+                  <strong>{selectedScoreExplaining?.score_communication ?? '—'} pts</strong>
                 </div>
                 <div>
                   • Colaboração Fred (10%):{' '}
-                  <strong>{selectedScoreExplaining?.score_fred_collaboration || 96} pts</strong>
+                  <strong>{selectedScoreExplaining?.score_fred_collaboration ?? '—'} pts</strong>
                 </div>
                 <div>
                   • Qualidade Entrega (15%):{' '}
-                  <strong>{selectedScoreExplaining?.score_delivery_quality || 98} pts</strong>
+                  <strong>{selectedScoreExplaining?.score_delivery_quality ?? '—'} pts</strong>
                 </div>
                 <div>
                   • Procedimentos e Doc (10%):{' '}
-                  <strong>{selectedScoreExplaining?.score_procedure_doc || 90} pts</strong>
+                  <strong>{selectedScoreExplaining?.score_procedure_doc ?? '—'} pts</strong>
                 </div>
                 <div>
                   • Avaliações Humanas (15%):{' '}
-                  <strong>{selectedScoreExplaining?.score_human_evaluations || 88} pts</strong>
+                  <strong>{selectedScoreExplaining?.score_human_evaluations ?? '—'} pts</strong>
                 </div>
               </div>
             </div>
@@ -1300,8 +1294,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
             <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900 space-y-1">
               <strong className="block font-bold">2. Eventos Positivos e Evidências:</strong>
               <p className="text-[11px]">
-                Canhotos digitalizados e legíveis via Fred em 100% das entregas. Comunicação prévia
-                em paradas de rodovia.
+                Evidências não disponíveis.
               </p>
             </div>
 
@@ -1310,8 +1303,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
                 3. Ocorrências Desconsideradas (Princípio de Responsabilidade):
               </strong>
               <p className="text-[11px]">
-                Atrasos causados por retenção em rodovia (obras Fernão Dias) ou espera em doca da
-                expedição foram abonados e <strong>NÃO</strong> afetaram o score do condutor.
+                Ocorrências não disponíveis.
               </p>
             </div>
           </div>

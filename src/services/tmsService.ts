@@ -1,3 +1,4 @@
+import {pedidoTesteSap} from '@/domain/testSapOrders'
 // TMS CIAFAL Centralized PocketBase Data Services
 
 import pb from '@/lib/pocketbase/client'
@@ -1069,9 +1070,10 @@ export const TmsService = {
   // ----------------------------------------------------
   async getSapSalesOrders(): Promise<SapSalesOrderEntity[]> {
     try {
-      return await pb.collection('sap_sales_orders').getFullList<SapSalesOrderEntity>({
+      const orders = await pb.collection('sap_sales_orders').getFullList<SapSalesOrderEntity>({
         sort: 'order_number',
       })
+      return orders.filter(order=>!pedidoTesteSap(order))
     } catch (err) {
       console.error('Failed to fetch sales orders from sap_sales_orders:', err)
       return []

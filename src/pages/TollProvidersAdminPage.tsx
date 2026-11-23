@@ -28,12 +28,12 @@ export const TollProvidersAdminPage: React.FC = () => {
     {
       id: 'sem_parar_api',
       name: 'Sem Parar Empresas (API de Rotas & Pedágio)',
-      coverage: 'Nacional (99.8% das concessionárias)',
+      coverage: 'A confirmar',
       vehicleCategories: 'Comerciais Pesados (2 a 9 eixos)',
       axleSupport: 'Sim (Com e sem suspensão de eixos)',
       tariffUpdateSource: 'Concessionárias / ANTT em tempo real',
       precision: 'Alta (Georreferenciamento exato de praças)',
-      costEstimate: 'R$ 0,08 por consulta de rota',
+      costEstimate: 'A confirmar',
       status: 'Em POC',
       activeStatus: 'Em Homologação',
     },
@@ -58,8 +58,8 @@ export const TollProvidersAdminPage: React.FC = () => {
       tariffUpdateSource: 'Tabela Cadastral Interna / Parametrização Manual',
       precision: 'Estimativa de Referência Operacional',
       costEstimate: 'Zero Licença (Interno)',
-      status: 'Homologado',
-      activeStatus: 'Ativo em DEV/QAS',
+      status: 'Em avaliação',
+      activeStatus: 'Integração pendente',
     },
   ]
 
@@ -123,7 +123,7 @@ export const TollProvidersAdminPage: React.FC = () => {
 
         <div className="flex items-center space-x-3">
           <Badge className="bg-emerald-600 text-white font-mono text-xs">
-            Motor Ativo: TollEngine Interno v1
+            Pedágios: integração pendente
           </Badge>
         </div>
       </div>

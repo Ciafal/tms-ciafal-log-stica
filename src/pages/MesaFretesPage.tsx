@@ -844,7 +844,7 @@ toast({title:'Integração SAP pendente',description:'A contratação só pode g
                             <span>
                               Score:{' '}
                               <strong className="text-emerald-700">
-                                {neg.eligibility_score || 94}/100
+                                {neg.eligibility_score ?? '—'}/100
                               </strong>
                             </span>
                             <span>

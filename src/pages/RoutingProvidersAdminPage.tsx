@@ -68,53 +68,7 @@ export const RoutingProvidersAdminPage: React.FC = () => {
   })
 
   // Rotas padrão oficiais de homologação conceitual (Item 21)
-  const benchmarkRoutes = [
-    {
-      id: 'BH',
-      name: 'CIAFAL Matriz → Grande BH (Betim/MG)',
-      origin: { lat: -23.5505, lng: -46.6333, name: 'CIAFAL Matriz (São Paulo/SP)' },
-      destination: { lat: -19.9678, lng: -44.1985, city: 'Betim', uf: 'MG' },
-      expectedDistanceKm: 575,
-      expectedDurationMinutes: 450,
-      expectedTollsCount: 8,
-    },
-    {
-      id: 'SP_INTERIOR',
-      name: 'CIAFAL Matriz → Interior SP (Campinas/SP)',
-      origin: { lat: -23.5505, lng: -46.6333, name: 'CIAFAL Matriz (São Paulo/SP)' },
-      destination: { lat: -22.9099, lng: -47.0626, city: 'Campinas', uf: 'SP' },
-      expectedDistanceKm: 98,
-      expectedDurationMinutes: 85,
-      expectedTollsCount: 3,
-    },
-    {
-      id: 'RJ',
-      name: 'CIAFAL Matriz → Rio de Janeiro (Duque de Caxias/RJ)',
-      origin: { lat: -23.5505, lng: -46.6333, name: 'CIAFAL Matriz (São Paulo/SP)' },
-      destination: { lat: -22.7856, lng: -43.3117, city: 'Duque de Caxias', uf: 'RJ' },
-      expectedDistanceKm: 435,
-      expectedDurationMinutes: 360,
-      expectedTollsCount: 5,
-    },
-    {
-      id: 'CENTRO_OESTE_MG',
-      name: 'CIAFAL Matriz → Centro-Oeste MG (Divinópolis/MG)',
-      origin: { lat: -23.5505, lng: -46.6333, name: 'CIAFAL Matriz (São Paulo/SP)' },
-      destination: { lat: -20.1439, lng: -44.8917, city: 'Divinópolis', uf: 'MG' },
-      expectedDistanceKm: 510,
-      expectedDurationMinutes: 410,
-      expectedTollsCount: 6,
-    },
-    {
-      id: 'SUL_MG',
-      name: 'CIAFAL Matriz → Sul MG (Pouso Alegre/MG)',
-      origin: { lat: -23.5505, lng: -46.6333, name: 'CIAFAL Matriz (São Paulo/SP)' },
-      destination: { lat: -22.2301, lng: -45.9364, city: 'Pouso Alegre', uf: 'MG' },
-      expectedDistanceKm: 205,
-      expectedDurationMinutes: 165,
-      expectedTollsCount: 3,
-    },
-  ]
+  const benchmarkRoutes: Array<{id:string;name:string;origin:{lat:number;lng:number;name:string};destination:{lat:number;lng:number;city:string;uf:string};expectedDistanceKm:number;expectedDurationMinutes:number;expectedTollsCount:number}> = []
 
   // Provedores avaliáveis (Google Maps, HERE, Mapbox, OSRM/OpenStreetMap)
   const [providers, setProviders] = useState<ProviderPocSpec[]>([
@@ -247,6 +201,7 @@ export const RoutingProvidersAdminPage: React.FC = () => {
   const handleRunPocTest = async (providerId: string) => {
     setIsTesting(true)
     const benchmark = benchmarkRoutes.find((r) => r.id === selectedRouteId) || benchmarkRoutes[0]
+    if (!benchmark) { setIsTesting(false); toast({title:'Nenhuma referência de rota cadastrada',variant:'destructive'}); return }
     const prov = providers.find((p) => p.id === providerId)
 
     try {

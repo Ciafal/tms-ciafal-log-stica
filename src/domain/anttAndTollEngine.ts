@@ -203,7 +203,8 @@ export class AnttCalculationEngine {
 
   getActiveVersion(): OfficialAnttRateVersion {
     const active = ANTT_OFFICIAL_VERSIONS.find((v) => v.isActive)
-    return active || ANTT_OFFICIAL_VERSIONS[0]
+    if (!active) throw new Error('Fonte oficial ANTT não integrada.')
+    return active
   }
 
   getVersion(versionName: string): OfficialAnttRateVersion | undefined {
