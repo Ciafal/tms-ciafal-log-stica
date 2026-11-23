@@ -297,7 +297,7 @@ export const ChicaoFreightMesaView: React.FC = () => {
     ).length
     const fullyAi = totalFinishedOrActive.length - humanIntervened
     const fullyAiPct =
-      totalFinishedOrActive.length > 0 ? (fullyAi / totalFinishedOrActive.length) * 100 : 100
+      totalFinishedOrActive.length > 0 ? (fullyAi / totalFinishedOrActive.length) * 100 : 0
     const humanPct =
       totalFinishedOrActive.length > 0 ? (humanIntervened / totalFinishedOrActive.length) * 100 : 0
 

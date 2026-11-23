@@ -319,7 +319,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
             </div>
             <p className="text-[11px] text-slate-600 leading-snug">
               {preferentialCount} motoristas preferenciais (⭐) e {observationCount} em observação.
-              Score médio de pontualidade atribuível em 94,8% e NPS de motoristas em +
+              NPS de motoristas:
               {npsData.npsScore}.
             </p>
           </div>
@@ -341,8 +341,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
               <strong>HIPÓTESE OPERACIONAL:</strong>
             </div>
             <p className="text-[11px] text-slate-600 leading-snug">
-              Adoção do canal Fred IA com acolhimento de justificativas reduz tempo de contestação
-              em 70% e preserva retenção de frotistas parceiros.
+              Nenhuma hipótese validada registrada.
             </p>
           </div>
 

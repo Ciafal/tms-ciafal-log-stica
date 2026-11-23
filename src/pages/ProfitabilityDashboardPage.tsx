@@ -154,7 +154,7 @@ export const ProfitabilityDashboardPage: React.FC = () => {
         resultado: 0,
         previsto: 0,
         negativas: 0,
-        distanciaKm: r.distance_km || 350,
+        distanciaKm: r.distance_km ?? 0,
       }
       existing.cargasCount++
       existing.pesoKg += Number(r.total_weight_kg || 0)
@@ -222,32 +222,7 @@ export const ProfitabilityDashboardPage: React.FC = () => {
     if (!q.trim()) return
 
     const userMsg = { sender: 'USER' as const, text: q }
-    let aiReply = ''
-    const qLower = q.toLowerCase()
-
-    if (
-      qLower.includes('prejuízo') ||
-      qLower.includes('cliente') ||
-      qLower.includes('menor resultado')
-    ) {
-      aiReply =
-        'FATO: No período analisado, o cliente Construtora Horizonte Minas gerou margem de apenas 4,2% (R$ 180 de resultado líquido). EXPLICAÇÃO: Ocorrência de descarga adicional (R$ 250) absorvida pela CIAFAL reduziu a rentabilidade prevista. HIPÓTESE IA: Negociar cobrança de taxa de descarga para produtos siderúrgicos acima de 12 metros neste cliente.'
-    } else if (
-      qLower.includes('espera') ||
-      qLower.includes('ocorrência') ||
-      qLower.includes('perda')
-    ) {
-      aiReply = `FATO: Custos de ocorrências totalizam R$ ${totalOccurrenceCosts.toLocaleString('pt-BR')} no período. EXPLICAÇÃO: Espera extraordinária em doca e reentregas representam 78% desse montante, sendo a maioria imputada ao cliente. HIPÓTESE IA: Clientes com tempo de descarga superior a 4h devem ter lead time de programação estendido na Mesa de Fretes.`
-    } else if (
-      qLower.includes('rota') ||
-      qLower.includes('itinerário') ||
-      qLower.includes('piorou')
-    ) {
-      aiReply =
-        'FATO: O itinerário MG001A (BH/Contagem) apresentou desvio desfavorável de R$ 420. EXPLICAÇÃO: Contratação de motoristas do grupo FORA em finais de semana com frete 8% superior ao piso parametrizado. HIPÓTESE IA: Priorizar motoristas da fila PORTA com antecedência de 24h para Belo Horizonte.'
-    } else {
-      aiReply = `FATO: A margem logística média atual é de ${agg.margemMediaPct.toFixed(1)}% com resultado realizado de R$ ${agg.totalResultadoRealizado.toLocaleString('pt-BR')}. EXPLICAÇÃO: O custo total esperado médio por tonelada entregue está em R$ ${(agg.totalFretePago / Math.max(1, agg.totalPesoTons)).toFixed(2)}/t.`
-    }
+    const aiReply = filteredResults.length ? `Resultado realizado: R$ ${agg.totalResultadoRealizado.toLocaleString('pt-BR')}. Margem média: ${agg.margemMediaPct.toFixed(1)}%.` : 'Nenhum resultado operacional disponível para análise.'
 
     setAnalystConversation((prev) => [...prev, userMsg, { sender: 'AI', text: aiReply }])
     setAnalystQuestion('')

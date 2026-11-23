@@ -143,7 +143,7 @@ export const MesaFretesPage: React.FC = () => {
 
   // Active negotiation interactive simulation
   const [activeNegotiation, setActiveNegotiation] = useState<any | null>(null)
-  const [manualCounterValue, setManualCounterValue] = useState<number>(2900)
+  const [manualCounterValue, setManualCounterValue] = useState<number>(0)
   const [manualAudioText, setManualAudioText] = useState('')
   const [isSimulatingAudio, setIsSimulatingAudio] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
@@ -218,11 +218,11 @@ export const MesaFretesPage: React.FC = () => {
           id: q.driver_id || `drv-${q.id}`,
           name: q.driver_name || q.driver_name_cached || 'Motorista Parceiro',
           document: q.driver_cpf || '---',
-          phone: q.driver_phone || '(19) 99999-0000',
+          phone: q.driver_phone || '',
           status: q.status === 'bloqueado' ? 'bloqueado' : 'ativo',
         },
         {
-          plate: q.vehicle_plate || q.vehicle_plate_cached || 'ABC1D23',
+          plate: q.vehicle_plate || q.vehicle_plate_cached || '',
           type: q.vehicle_type || q.vehicle_type_cached || 'Carreta Vanderléia 3E',
           bodyType: 'Sider/Grade Baixa',
           capacityKg: 28000,
@@ -233,7 +233,7 @@ export const MesaFretesPage: React.FC = () => {
           distanceKm: q.distance_km || (q.type === 'PORTA' ? 0 : 18),
         },
         {
-          weightKg: cargo.weight_kg || 27000,
+          weightKg: cargo.weight_kg ?? 0,
           requiredVehicleType: cargo.required_vehicle_type,
           destinationRegion: cargo.destination,
         },
@@ -253,11 +253,11 @@ export const MesaFretesPage: React.FC = () => {
           id: q.driver_id || `drv-${q.id}`,
           name: q.driver_name || q.driver_name_cached || 'Motorista Parceiro',
           document: q.driver_cpf || '---',
-          phone: q.driver_phone || '(19) 99999-0000',
+          phone: q.driver_phone || '',
           status: q.status === 'bloqueado' ? 'bloqueado' : 'ativo',
         },
         vehicle: {
-          plate: q.vehicle_plate || q.vehicle_plate_cached || 'ABC1D23',
+          plate: q.vehicle_plate || q.vehicle_plate_cached || '',
           type: q.vehicle_type || q.vehicle_type_cached || 'Carreta Vanderléia 3E',
           bodyType: 'Sider',
           capacityKg: 28000,
@@ -269,10 +269,10 @@ export const MesaFretesPage: React.FC = () => {
         },
         cargo: {
           cargoId: cargo.cargo_id,
-          weightKg: cargo.weight_kg || 27000,
+          weightKg: cargo.weight_kg ?? 0,
           requiredVehicleType: cargo.required_vehicle_type,
           destinationCity: cargo.destination,
-          targetFreight: cargo.target_freight || 2720,
+          targetFreight: cargo.target_freight ?? 0,
         },
         weights,
         templateCode: activeTplCode,
@@ -517,7 +517,7 @@ toast({title:'Integração SAP pendente',description:'A contratação só pode g
           badge={
             <Badge className="bg-[#005596] text-white text-xs font-bold px-2.5 py-0.5 flex items-center gap-1 shrink-0">
               <Bot className="w-3.5 h-3.5" />
-              Agente Chicão · IA Ativo (Nível 1)
+              Agente Chicão · Integração pendente
             </Badge>
           }
           breadcrumbs={[
@@ -593,7 +593,7 @@ toast({title:'Integração SAP pendente',description:'A contratação só pode g
                   Autonomia Chicão
                 </p>
                 <div className="text-xl sm:text-2xl font-mono font-black text-amber-700 mt-0.5">
-                  82,4 %
+                  —
                 </div>
                 <p className="text-[10px] text-amber-700 truncate">Sem intervenção humana</p>
               </div>
@@ -610,7 +610,7 @@ toast({title:'Integração SAP pendente',description:'A contratação só pode g
                   Contratadas Hoje
                 </p>
                 <div className="text-xl sm:text-2xl font-mono font-black text-emerald-700 mt-0.5">
-                  {negotiations.filter((n) => n.status === 'CONTRATADO').length + 3}
+                  {negotiations.filter((n) => n.status === 'CONTRATADO').length}
                 </div>
                 <p className="text-[10px] text-emerald-600 truncate">Com Transporte SAP</p>
               </div>
@@ -627,7 +627,7 @@ toast({title:'Integração SAP pendente',description:'A contratação só pode g
                   Tempo Médio Fechamento
                 </p>
                 <div className="text-xl sm:text-2xl font-mono font-black text-slate-800 mt-0.5">
-                  14 min 48 s
+                  —
                 </div>
                 <p className="text-[10px] text-slate-500 truncate">Agilidade Chicão</p>
               </div>
@@ -837,7 +837,7 @@ toast({title:'Integração SAP pendente',description:'A contratação só pode g
                           <p className="font-bold text-slate-800 flex items-center justify-between">
                             <span>{neg.driver_name}</span>
                             <span className="text-[11px] text-slate-500 font-mono">
-                              {neg.driver_plate || 'ABC1D23'}
+                              {neg.driver_plate || ''}
                             </span>
                           </p>
                           <div className="flex items-center justify-between text-[11px] text-slate-500">
@@ -1136,8 +1136,8 @@ toast({title:'Integração SAP pendente',description:'A contratação só pode g
                       {selectedCargoForOffer?.cargo_id}
                     </strong> •
                     Destino: {selectedCargoForOffer?.destination} • Peso:{' '}
-                    {formatWeight(selectedCargoForOffer?.weight_kg || 27000)} (
-                    {((selectedCargoForOffer?.weight_kg || 27000) / 1000).toFixed(2)} t) •
+                    {formatWeight(selectedCargoForOffer?.weight_kg ?? 0)} (
+                    {((selectedCargoForOffer?.weight_kg ?? 0) / 1000).toFixed(2)} t) •
                     Descargas:{' '}
                     {selectedCargoForOffer?.customers_count ||
                       selectedCargoForOffer?.deliveries_count ||
@@ -1244,7 +1244,7 @@ toast({title:'Integração SAP pendente',description:'A contratação só pode g
                               </Badge>
                             )}
                             <Badge variant="outline" className="text-[10px] font-mono">
-                              {cand.vehiclePlate || 'ABC1D23'}
+                              {cand.vehiclePlate || ''}
                             </Badge>
                           </div>
                           <p className="text-[11px] text-slate-500">
@@ -1503,7 +1503,7 @@ toast({title:'Integração SAP pendente',description:'A contratação só pode g
                         <td className="p-2.5 font-bold text-slate-900">
                           {cand.driverName}
                           <span className="block text-[10px] text-slate-400 font-normal font-mono">
-                            {cand.vehiclePlate || 'ABC1D23'}
+                            {cand.vehiclePlate || ''}
                           </span>
                         </td>
                         <td className="p-2.5">

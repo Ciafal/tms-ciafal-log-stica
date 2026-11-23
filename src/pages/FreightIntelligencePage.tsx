@@ -74,44 +74,7 @@ export const FreightIntelligencePage: React.FC = () => {
     return calculateExecutiveSavingsSummary(savingsRecords)
   }, [savingsRecords])
 
-  const sampleRoutes = [
-    {
-      itineraryCode: 'ITIN-SP-CPS-01',
-      region: 'Campinas / RMC',
-      cargasCount: 42,
-      toneladas: 1150,
-      freteMedio: 2750,
-      pedagioMedio: 428.4,
-      custoKm: 7.8,
-      custoTon: 100.3,
-      taxaAceitePct: 74.5,
-      indiceSustentavel: 94,
-    },
-    {
-      itineraryCode: 'ITIN-SP-SJC-02',
-      region: 'Vale do Paraíba',
-      cargasCount: 31,
-      toneladas: 880,
-      freteMedio: 3100,
-      pedagioMedio: 512.0,
-      custoKm: 9.8,
-      custoTon: 109.1,
-      taxaAceitePct: 48.2, // Anomalia de queda de aceite
-      indiceSustentavel: 88,
-    },
-    {
-      itineraryCode: 'ITIN-SP-SAN-03',
-      region: 'Baixada Santista',
-      cargasCount: 18,
-      toneladas: 490,
-      freteMedio: 2450,
-      pedagioMedio: 380.0,
-      custoKm: 8.2,
-      custoTon: 90.0,
-      taxaAceitePct: 82.0,
-      indiceSustentavel: 92,
-    },
-  ]
+  const sampleRoutes: Array<{itineraryCode:string;region:string;cargasCount:number;toneladas:number;freteMedio:number;pedagioMedio:number;custoKm:number;custoTon:number;taxaAceitePct:number;indiceSustentavel:number}> = []
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
@@ -578,39 +541,33 @@ export const FreightIntelligencePage: React.FC = () => {
             <div className="space-y-3 text-xs">
               <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/40 space-y-2">
                 <div className="flex items-center justify-between font-bold text-rose-900">
-                  <span>Queda na Taxa de Aceite — Rota ITIN-SP-SJC-02 (Vale do Paraíba)</span>
-                  <Badge className="bg-rose-600 text-white text-[10px]">Confiança 92 %</Badge>
+                  <span>Taxa de aceite não apurada</span>
+                  <Badge className="bg-rose-600 text-white text-[10px]">Sem análise</Badge>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  <strong>Fato / Observação:</strong> A taxa de aceite de ofertas caiu de 74 % para
-                  48,2 % nas últimas duas semanas.{' '}
+                  <strong>Fato / Observação:</strong> Nenhuma medição registrada.{' '}
                 </p>
                 <p className="text-slate-700">
-                  <strong>Hipótese IA:</strong> Ofertas concorrentes na região do Vale estão pagando
-                  acima de R$ 9,50/km para retornos em aço.
+                  <strong>Hipótese IA:</strong> Não registrada.
                 </p>
                 <p className="text-emerald-800 font-bold">
-                  <strong>Recomendação de Investigação:</strong> Reavaliar a referência de mercado
-                  da rota e consultar os motoristas parceiros habituais.
+                  <strong>Recomendação de Investigação:</strong> Não registrada.
                 </p>
               </div>
 
               <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/40 space-y-2">
                 <div className="flex items-center justify-between font-bold text-amber-900">
-                  <span>Concentração de Contratações em Horário Não Habitual (Madrugada)</span>
-                  <Badge className="bg-amber-600 text-white text-[10px]">Confiança 81 %</Badge>
+                  <span>Horário de contratações não apurado</span>
+                  <Badge className="bg-amber-600 text-white text-[10px]">Sem análise</Badge>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  <strong>Fato / Observação:</strong> 4 cargas noturnas consecutivas foram fechadas
-                  manualmente com valor 12 % acima da tabela entre 01:00 e 03:00.{' '}
+                  <strong>Fato / Observação:</strong> Nenhuma medição registrada.{' '}
                 </p>
                 <p className="text-slate-700">
-                  <strong>Hipótese IA:</strong> Cargas urgentes de reposição PCP com negociação fora
-                  do padrão de fila de chegada.
+                  <strong>Hipótese IA:</strong> Não registrada.
                 </p>
                 <p className="text-amber-900 font-bold">
-                  <strong>Recomendação de Investigação:</strong> Gestor de fretes deve validar se
-                  houve aprovação formal de plantão.
+                  <strong>Recomendação de Investigação:</strong> Não registrada.
                 </p>
               </div>
             </div>

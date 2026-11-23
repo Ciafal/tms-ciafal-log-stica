@@ -1340,7 +1340,7 @@ export const ComplementCargosPage: React.FC = () => {
                                 : 'A definir'}
                             </strong>{' '}
                             • Veículo: {opp.vehicle_type || 'Carreta 5 Eixos'} (
-                            {((opp.vehicle_capacity_kg || 27000) / 1000).toFixed(1)} t)
+                            {((opp.vehicle_capacity_kg ?? 0) / 1000).toFixed(1)} t)
                           </CardDescription>
                         </div>
                       </div>
@@ -2225,7 +2225,7 @@ export const ComplementCargosPage: React.FC = () => {
                           <td className="p-2 font-mono font-bold">{ord.order_number}</td>
                           <td className="p-2">{ord.customer_name}</td>
                           <td className="p-2 text-right font-mono font-bold">
-                            {((ord.weight_kg || 5000) / 1000).toFixed(1)} t
+                            {((ord.weight_kg ?? 0) / 1000).toFixed(1)} t
                           </td>
                           <td className="p-2">
                             <Badge
@@ -2313,7 +2313,7 @@ export const ComplementCargosPage: React.FC = () => {
                       <span className="text-slate-500 block text-[10px]">Veículo Programado:</span>
                       <strong className="truncate block">
                         {financialTargetOpp.vehicle_type || 'Carreta'} (
-                        {((financialTargetOpp.vehicle_capacity_kg || 27000) / 1000).toFixed(1)}t)
+                        {((financialTargetOpp.vehicle_capacity_kg ?? 0) / 1000).toFixed(1)}t)
                       </strong>
                     </div>
                     <div>

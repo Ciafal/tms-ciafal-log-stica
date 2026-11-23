@@ -512,7 +512,7 @@ export const ExpeditionManagementPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="p-3 font-bold text-slate-800">
-                      {((item.weightTotalKg || 27000) / 1000).toLocaleString('pt-BR', {
+                      {((item.weightTotalKg ?? 0) / 1000).toLocaleString('pt-BR', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}{' '}
@@ -611,7 +611,7 @@ export const ExpeditionManagementPage: React.FC = () => {
                 <div>
                   Peso Total:{' '}
                   <strong>
-                    {((selectedExpedition.weightTotalKg || 27000) / 1000).toLocaleString('pt-BR', {
+                    {((selectedExpedition.weightTotalKg ?? 0) / 1000).toLocaleString('pt-BR', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}{' '}
