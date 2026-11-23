@@ -17,47 +17,7 @@ export interface OfficialAnttRateVersion {
   ratesByAxles: Record<number, { ccd: number; cc: number }>
 }
 
-export const ANTT_OFFICIAL_VERSIONS: OfficialAnttRateVersion[] = [
-  {
-    version: '2024-V2-PORTARIA-12',
-    resolutionNumber: 'Resolução ANTT nº 5.867/2019 / Portaria SUROC nº 12/2024',
-    effectiveDateStart: '2024-07-01',
-    source: 'Diário Oficial da União (DOU) / ANTT Oficial',
-    hash: 'SHA256-ANTT-2024V2-SUROC12-88B9A0',
-    importDate: '2024-07-02',
-    isActive: true,
-    fixedCostBase: 310.0,
-    ratesByAxles: {
-      2: { ccd: 2.85, cc: 1.45 },
-      3: { ccd: 3.65, cc: 1.95 },
-      4: { ccd: 4.4, cc: 2.4 },
-      5: { ccd: 5.15, cc: 2.9 },
-      6: { ccd: 5.95, cc: 3.4 },
-      7: { ccd: 6.7, cc: 3.9 },
-      9: { ccd: 7.95, cc: 4.6 },
-    },
-  },
-  {
-    version: '2024-V1-PORTARIA-04',
-    resolutionNumber: 'Resolução ANTT nº 5.867/2019 / Portaria SUROC nº 04/2024',
-    effectiveDateStart: '2024-01-15',
-    effectiveDateEnd: '2024-06-30',
-    source: 'Diário Oficial da União (DOU)',
-    hash: 'SHA256-ANTT-2024V1-SUROC04-77A1F2',
-    importDate: '2024-01-16',
-    isActive: false,
-    fixedCostBase: 295.0,
-    ratesByAxles: {
-      2: { ccd: 2.72, cc: 1.38 },
-      3: { ccd: 3.48, cc: 1.85 },
-      4: { ccd: 4.2, cc: 2.28 },
-      5: { ccd: 4.92, cc: 2.76 },
-      6: { ccd: 5.68, cc: 3.24 },
-      7: { ccd: 6.4, cc: 3.72 },
-      9: { ccd: 7.6, cc: 4.38 },
-    },
-  },
-]
+export const ANTT_OFFICIAL_VERSIONS: OfficialAnttRateVersion[] = []
 
 export interface AnttCalculationInput {
   distanceKm: number
@@ -337,7 +297,7 @@ export interface TollProviderEvaluation {
 
 export class TollCalculationEngine {
   private isConnected = false
-  private homologationStatus: 'Homologado' | 'Em avaliação' | 'POC' = 'Homologado'
+  private homologationStatus: 'Homologado' | 'Em avaliação' | 'POC' = 'Em avaliação'
 
   isConfigured(): boolean {
     return this.isConnected
@@ -353,41 +313,7 @@ export class TollCalculationEngine {
     axlesCount = 5,
     itineraryCode = 'SP001A',
   ): TollEngineResult {
-    const effectiveAxles =
-      axlesCount > 0 ? axlesCount : vehicleType.toLowerCase().includes('bitrem') ? 7 : 5
-    const plazasCount = Math.max(1, Math.floor(distanceKm / 55))
-    const baseRatePerAxle = 4.2
-
-    const tollPlazas: TollEngineResult['tollPlazas'] = []
-    let totalValue = 0
-
-    for (let i = 1; i <= plazasCount; i++) {
-      const plazaVal = baseRatePerAxle * effectiveAxles
-      totalValue += plazaVal
-      tollPlazas.push({
-        plazaName: `Praça P${i} - Km ${i * 55}`,
-        highway: itineraryCode.startsWith('MG')
-          ? 'BR-381 / Fernão Dias'
-          : itineraryCode.startsWith('RJ')
-            ? 'BR-116 / Dutra'
-            : 'SP-330 / Anhanguera',
-        ratePerAxle: baseRatePerAxle,
-        axlesCount: effectiveAxles,
-        totalValue: plazaVal,
-      })
-    }
-
-    return {
-      providerName: 'CIAFAL Toll Estimator (Concessionárias / ANTT)',
-      isLiveProvider: this.isConfigured(),
-      totalTollsCount: plazasCount,
-      totalTollCost: Math.round(totalValue * 100) / 100,
-      tollPlazas,
-      calculatedAt: new Date().toISOString(),
-      statusText: this.isConfigured()
-        ? 'PEDÁGIO ONLINE CONECTADO'
-        : 'PEDÁGIO — PROVIDER PENDENTE (Cálculo Parametrizado por Eixos)',
-    }
+throw new Error('Pedágios não integrados.');
   }
 }
 

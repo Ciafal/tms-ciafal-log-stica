@@ -189,24 +189,7 @@ export const RoutingProvidersAdminPage: React.FC = () => {
   ])
 
   // Registro de execuções de testes do POC por provedor
-  const [testRecords, setTestRecords] = useState<any[]>([
-    {
-      id: 'poc-run-01',
-      providerId: 'google_maps',
-      providerName: 'Google Maps Platform',
-      routeId: 'BH',
-      routeName: 'CIAFAL Matriz → Grande BH (Betim/MG)',
-      calculatedKm: 576.4,
-      durationMinutes: 442,
-      tollIdentified: true,
-      tollValueEst: 142.5,
-      responseTimeMs: 340,
-      isValidRoute: true,
-      evaluator: 'Engenharia Logística TMS',
-      notes: 'Traçado de alta fidelidade pela Rodovia Fernão Dias (BR-381). Sem incidentes.',
-      executedAt: new Date().toISOString(),
-    },
-  ])
+  const [testRecords, setTestRecords] = useState<any[]>([])
 
   // Cálculo de Score Ponderado
   const calculateScore = (p: ProviderPocSpec) => {

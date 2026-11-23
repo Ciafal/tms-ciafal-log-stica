@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Calendar,
@@ -1697,7 +1698,7 @@ export const FutureProgrammingPage: React.FC = () => {
                             {cand.orderNumber}
                           </td>
                           <td className="p-2 truncate max-w-[150px] font-mono text-[11px]">
-                            {cand.material}
+                            {materialLabel(cand.material, cand.materialDescription)}
                           </td>
                           <td className="p-2 text-right font-mono font-semibold">
                             {formatTons(cand.walletBalanceTons)}

@@ -586,7 +586,7 @@ export const ExpeditionManagementPage: React.FC = () => {
             <DialogTitle className="text-lg font-black text-slate-900 flex items-center justify-between">
               <span>Detalhes da Expedição: {selectedExpedition?.cargoId}</span>
               <Badge className="bg-[#005596] text-white">
-                SAP: {selectedExpedition?.sapTransportNumber || '1004829102'}
+                SAP: {selectedExpedition?.sapTransportNumber || 'Não informado no SAP'}
               </Badge>
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
@@ -667,7 +667,7 @@ export const ExpeditionManagementPage: React.FC = () => {
                     <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                     <span>
                       <strong>13:21</strong> — Transporte SAP Nº{' '}
-                      {selectedExpedition.sapTransportNumber || '1004829102'} gerado com sucesso
+                      {selectedExpedition.sapTransportNumber || 'Não informado no SAP'} gerado com sucesso
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

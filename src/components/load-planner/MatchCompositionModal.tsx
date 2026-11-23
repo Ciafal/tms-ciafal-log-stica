@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 import React from 'react'
 import {
   Dialog,
@@ -111,7 +112,7 @@ export const MatchCompositionModal: React.FC<MatchCompositionModalProps> = ({
                       </td>
                       <td className="py-2.5 px-3">
                         <div className="text-slate-800 font-medium truncate max-w-[180px]">
-                          {ord.material_description || ord.material || 'Laminados de Aço'}
+                          {materialLabel(ord.material, ord.material_description)}
                         </div>
                         <div className="text-[10px] text-slate-400">
                           {ord.family || ord.line || 'Aço Comercial'}

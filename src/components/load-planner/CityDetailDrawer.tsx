@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 // TMS CIAFAL — Painel Lateral de Detalhamento da Cidade e Pedidos da Carteira SAP (#9)
 // Abre sem sair do mapa, com:
 // - Resumo: tonelagem total, disponível, pedidos, clientes, cargas estimadas, valor, data mais antiga
@@ -319,8 +320,8 @@ export const CityDetailDrawer: React.FC<CityDetailDrawerProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 bg-slate-50 p-2 rounded-lg border border-slate-100 text-[11px]">
                 <div>
                   <span className="text-slate-400 block text-[9px] uppercase">Material</span>
-                  <span className="text-slate-700 truncate font-mono block" title={order.material}>
-                    {order.material || 'Material Padrão'}
+                  <span className="text-slate-700 whitespace-normal break-words font-mono block" title={materialLabel(order.material, order.material_description)}>
+                    {materialLabel(order.material, order.material_description)}
                   </span>
                 </div>
                 <div>

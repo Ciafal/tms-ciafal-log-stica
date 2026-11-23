@@ -25,7 +25,7 @@ export const FredChatPage: React.FC = () => {
   const { user } = useAuth()
   const { toast } = useToast()
 
-  const [sapTransportInput, setSapTransportInput] = useState('123456')
+  const [sapTransportInput, setSapTransportInput] = useState('')
   const [inputText, setInputText] = useState('')
   const [messages, setMessages] = useState<
     Array<{ id: string; sender: 'user' | 'fred'; text: string; time: string; citations?: any[] }>
@@ -86,7 +86,7 @@ export const FredChatPage: React.FC = () => {
         {
           id: String(Date.now() + 1),
           sender: 'fred',
-          text: `Transporte SAP ${sapTransportInput || '123456'} / Motorista: João Carlos Silva / Placa: BRA2E19 / Status: Em rota / Última posição: próximo a Divinópolis/MG / Última atualização: 14:32 / Próxima entrega: Comercial ABC Metais / ETA atual: 15:18 / Previsão inicial: 15:00 / Situação: 🟡 +18 minutos / Entregas concluídas: 2 de 4 / Ocorrências: Obras na BR-381 km 530.`,
+          text: 'Consulta operacional indisponível. Nenhum dado de transporte foi simulado.',
           time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         },
       ])
@@ -174,7 +174,7 @@ export const FredChatPage: React.FC = () => {
         <div className="px-4 py-2 border-t border-slate-100 flex flex-wrap gap-1.5 bg-slate-50/50">
           <button
             onClick={() =>
-              setInputText(`Fred, onde está o transporte ${sapTransportInput || '123456'}?`)
+              setInputText(`Fred, onde está o transporte ${sapTransportInput || ''}?`)
             }
             className="text-[11px] px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 font-medium"
           >

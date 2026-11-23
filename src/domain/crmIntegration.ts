@@ -102,82 +102,17 @@ export class CrmService implements CrmIntegrationContract {
     correlationId: string
     message: string
   }> {
-    const correlationId = `CRM-TEST-${Date.now()}`
-    return {
-      success: true,
-      endpoint: 'https://crm360.ciafal.corp/api/v2/***',
-      webhookStatus: 'Webhook Operacional (HMAC SHA-256)',
-      responseCode: 200,
-      latencyMs: 112,
-      timestamp: new Date().toISOString(),
-      correlationId,
-      message:
-        'Conexão com CRM 360° testada com sucesso. Webhook respondendo HTTP 200 com validação de assinatura.',
-    }
+    throw new Error('Integração CRM não configurada. Conectividade não foi simulada.')
   }
 
   async sendComplementOpportunity(
     payload: CrmComplementOpportunityPayload,
   ): Promise<CrmComplementOpportunityResponse> {
-    const correlationId = payload.correlationId || `CRM-OPP-${Date.now()}`
-
-    if (!this.circuitBreaker.canExecute()) {
-      return {
-        success: false,
-        status: 'Em análise',
-        feedbackMessage: 'CRM 360° temporariamente indisponível. Fila de retentativa ativa.',
-        crmTimestamp: new Date().toISOString(),
-        correlationId,
-      }
-    }
-
-    if (!this.isConfigured()) {
-      // Retorno padronizado de integração aguardando configuração
-      const pendingRes: CrmComplementOpportunityResponse = {
-        success: true,
-        crmOpportunityId: `CRM-PENDING-${Date.now().toString().slice(-6)}`,
-        status: 'Em análise',
-        feedbackMessage:
-          'Oportunidade registrada no TMS e enfileirada para envio ao CRM 360° (Aguardando homologação de API comercial).',
-        salesRepAssigned: payload.salesRep || 'Representante da Região',
-        crmTimestamp: new Date().toISOString(),
-        correlationId,
-      }
-      this.localOpportunityStore.set(pendingRes.crmOpportunityId!, pendingRes)
-      eventBus.publish(
-        'OportunidadeComplemento',
-        { payload, pendingRes },
-        'CrmService',
-        correlationId,
-      )
-      return pendingRes
-    }
-
-    const res: CrmComplementOpportunityResponse = {
-      success: true,
-      crmOpportunityId: `CRM-OPP-LIVE-${Date.now()}`,
-      status: 'Cliente contatado',
-      feedbackMessage: 'Oportunidade de complemento despachada para o CRM 360° com sucesso.',
-      salesRepAssigned: payload.salesRep,
-      crmTimestamp: new Date().toISOString(),
-      correlationId,
-    }
-    this.localOpportunityStore.set(res.crmOpportunityId!, res)
-    eventBus.publish('OportunidadeComplemento', { payload, res }, 'CrmService', correlationId)
-    return res
+    throw new Error('Integração CRM indisponível. Nenhuma oportunidade foi enviada.')
   }
 
   async syncOpportunityStatus(crmOpportunityId: string): Promise<CrmComplementOpportunityResponse> {
-    if (this.localOpportunityStore.has(crmOpportunityId)) {
-      return this.localOpportunityStore.get(crmOpportunityId)!
-    }
-    return {
-      success: true,
-      crmOpportunityId,
-      status: 'Em análise',
-      crmTimestamp: new Date().toISOString(),
-      correlationId: `SYNC-${crmOpportunityId}`,
-    }
+    throw new Error('Status CRM não disponível. Nenhum retorno foi simulado.')
   }
 }
 

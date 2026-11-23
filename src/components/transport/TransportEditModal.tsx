@@ -251,55 +251,7 @@ export const TransportEditModal: React.FC<TransportEditModalProps> = ({
 
   // Inclusão simulada de remessa disponível (respeitando integridade SAP)
   const handleAddRemessaModal = () => {
-    if (!canAddRemessaPerm || isRemessasReadOnly) {
-      toast({
-        title: 'Permissão negada',
-        description: 'Seu perfil não autoriza inclusão de remessas neste transporte.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    const newDeliveryNumber = (10048000 + Math.floor(Math.random() * 9000)).toString()
-    const newOrderNumber = (4508000 + Math.floor(Math.random() * 9000)).toString()
-    const addedWeight = 8500
-
-    const newRemessa: RemessaRelated = {
-      delivery_number: newDeliveryNumber,
-      order_number: newOrderNumber,
-      sequence: remessas.length + 1,
-      customer_code: 'CLI-5540',
-      customer_name: 'CIAFAL Distribuidora Regional Sul',
-      customer_cnpj: '45.123.456/0008-12',
-      destination_city: 'Juiz de Fora',
-      destination_uf: 'MG',
-      weight_kg: addedWeight,
-      weight_ton: 8.5,
-      credit_status: 'LIBERADO',
-      status: originalRecord?.status || 'Planejado',
-      can_remove: true,
-      can_edit_sequence: true,
-      items: [
-        {
-          item_number: '000010',
-          material_code: 'BARRA-CHATA-2X14',
-          material_description: 'Barra Chata Laminada 2x1/4 6m',
-          quantity: addedWeight,
-          unit: 'KG',
-          weight_kg: addedWeight,
-        },
-      ],
-    }
-
-    const updated = [...remessas, newRemessa]
-    setRemessas(updated)
-    setTotalWeightKg((prev) => prev + addedWeight)
-    setDischargesCount(updated.length)
-
-    toast({
-      title: 'Remessa adicionada',
-      description: `Remessa ${newDeliveryNumber} inserida na carga. Justifique a inclusão ao salvar.`,
-    })
+toast({title:'Consulta SAP necessária',description:'Inclusão de remessas aguardando consulta SAP. Nenhuma remessa foi gerada.',variant:'destructive'});
   }
 
   // Iniciar fluxo de salvamento (Item 4: NUNCA salva imediatamente)

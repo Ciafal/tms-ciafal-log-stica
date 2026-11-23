@@ -193,23 +193,11 @@ class CarrierHistoryService {
             customer_code: rem.customer_code || '',
             customer_name: rem.customer_name || '',
           }))
-        } else {
-          // Extrair remessas padrão baseadas nos registros existentes
-          const baseRem = (10040000 + idx).toString()
-          const cust = r.customers_summary || 'CIAFAL Distribuidora Matriz'
-          remessas = [
-            {
-              delivery_number: baseRem,
-              order_number: (4500000 + idx).toString(),
-              customer_code: 'CLI-' + (1000 + idx),
-              customer_name: cust,
-            },
-          ]
-        }
+        } else { remessas = []; }
 
         const otNumber =
           r.transport_order_number ||
-          (r.sap_transport_number ? `OT-${r.sap_transport_number}` : `OT-80010${idx + 1}`)
+          (r.sap_transport_number ? `OT-${r.sap_transport_number}` : '')
 
         return {
           transport_order_number: otNumber,

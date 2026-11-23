@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 import React, { useState, useMemo } from 'react'
 import {
   Dialog,
@@ -443,7 +444,7 @@ export const CarteiraEstoqueSemCreditoModal: React.FC<CarteiraEstoqueSemCreditoM
                   {reassessmentOrder.customer_name} ({reassessmentOrder.customer_code})
                 </div>
                 <div>
-                  <strong className="text-slate-800">Material:</strong> {reassessmentOrder.material}
+                  <strong className="text-slate-800">Material:</strong> {materialLabel(reassessmentOrder.material, reassessmentOrder.material_description)}
                 </div>
                 <div>
                   <strong className="text-slate-800">Peso:</strong>{' '}

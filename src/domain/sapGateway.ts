@@ -340,28 +340,28 @@ export class SapGateway {
     }
   > = {
     DEV: {
-      host: 'sap-dev.ciafal.corp (10.10.1.20)',
+      host: '',
       systemNumber: '00',
-      client: '100',
-      technicalUser: 'TMS_INT_DEV',
+      client: '',
+      technicalUser: '',
       contractVersion: 'RFC-ZSD35-V2.4',
-      status: 'Conectado (Leitura)',
+      status: 'Aguardando configuração',
       writeAllowed: false,
     },
     HOMOLOGACAO: {
-      host: 'sap-qas.ciafal.corp (10.10.1.30)',
+      host: '',
       systemNumber: '01',
-      client: '200',
-      technicalUser: 'TMS_INT_QAS',
+      client: '',
+      technicalUser: '',
       contractVersion: 'RFC-ZSD35-V2.4',
       status: 'Aguardando Homologação',
       writeAllowed: false,
     },
     PRODUCAO: {
-      host: 'sap-prd.ciafal.corp (10.10.1.40)',
+      host: '',
       systemNumber: '02',
-      client: '400',
-      technicalUser: 'TMS_INT_PRD',
+      client: '',
+      technicalUser: '',
       contractVersion: 'RFC-ZSD35-V2.4',
       status: 'Bloqueado até Homologação Formal',
       writeAllowed: false,
@@ -430,27 +430,14 @@ export class SapGateway {
     writeEnabled: boolean
   }> {
     const env = targetEnv || this.environment
-    const envCfg = this.environmentConfigs[env]
-    const correlationId = `TEST-SAP-${Date.now()}`
-    const start = Date.now()
-
-    // Simula validação de conectividade real com medição de latência
-    const latencyMs = Math.floor(Math.random() * 35) + 85
-    const isSuccess = env !== 'PRODUCAO' // DEV e QAS conectáveis
-
     return {
-      success: isSuccess,
-      system: 'SAP ECC 6.0 EHP8',
-      client: envCfg.client,
-      latencyMs,
+      success: false,
+      system: '', client: '', technicalUser: '', latencyMs: 0,
       timestamp: new Date().toISOString(),
-      correlationId,
-      message: isSuccess
-        ? `Conexão validada com sucesso no ambiente ${env} (Mandante ${envCfg.client}). RFC Ping Z_RFC_PING OK.`
-        : `Ambiente ${env} aguardando liberação formal de credenciais de produção no SAP.`,
-      technicalUser: envCfg.technicalUser,
+      correlationId: 'TEST-SAP-' + Date.now(),
+      message: 'Integração SAP pendente.',
       environment: env,
-      writeEnabled: this.isWriteEnabled,
+      writeEnabled: false,
     }
   }
 
@@ -483,18 +470,16 @@ export class SapGateway {
       } as unknown as T
     }
 
-    try {
-      this.circuitBreaker.recordSuccess()
-      return {
-        success: true,
-        rfcName,
-        correlationId,
-        items: [],
-      } as unknown as T
-    } catch (err: any) {
-      this.circuitBreaker.recordFailure()
-      throw err
-    }
+    return {
+      success: false,
+      isConfigured: false,
+      status: 'Aguardando configuração',
+      rfcName,
+      environment: this.environment,
+      items: [],
+      timestamp: new Date().toISOString(),
+      correlationId,
+    } as unknown as T
   }
 
   // Criação de Transporte Oficial no SAP (VT01N / BAPI_SHIPMENT_CREATE)
@@ -569,18 +554,14 @@ export class SapGateway {
       return pendingResult
     }
 
-    // 5. Sucesso quando homologado
-    const successResult: SapTransportCreationResult = {
-      success: true,
-      sapTransportNumber: `100${Date.now().toString().slice(-7)}`, // Número retornado pelo SAP
-      status: 'CRIADO_SAP',
+    return {
+      success: false,
+      status: 'TRANSPORTE_SAP_PENDENTE',
+      errorMessage: 'Integração SAP pendente. Nenhum transporte foi gerado.',
       correlationId,
       sapTimestamp: new Date().toISOString(),
       environment: this.environment,
     }
-    this.processedIdempotencyKeys.set(idempotencyKey, successResult)
-    eventBus.publish('TransporteSAPConfirmado', successResult, 'SapGateway', correlationId)
-    return successResult
   }
 }
 

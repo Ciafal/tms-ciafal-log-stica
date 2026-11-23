@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 // TMS CIAFAL — Modal de Criação de Carga Mista (Passo 2 do Planejador)
 // Permite criação e simulação de carga Mista ou Convencional com múltiplos itinerários / rotas,
 // integração com a carteira SAP, aviso quando TVRO (sap_routes) estiver vazia no QAS,
@@ -218,24 +219,11 @@ export const CreateMixedLoadModal: React.FC<CreateMixedLoadModalProps> = ({
   }, [selectedOrdersList])
 
   // Estimativa de distância e custos
-  const estimatedDistanceKm = useMemo(() => {
-    // Base do itinerário principal + 35km por rota adicional + 25km por cliente adicional
-    const baseKm = 240
-    const addRoutesKm = additionalRoutes.length * 45
-    const custKm = Math.max(0, distinctCustomers.length - 1) * 25
-    return baseKm + addRoutesKm + custKm
-  }, [additionalRoutes.length, distinctCustomers.length])
+  const estimatedDistanceKm = Number.NaN
 
-  const estimatedFreightBrl = useMemo(() => {
-    // Fórmula padrão CIAFAL: peso * R$ 165 + km * R$ 3,80 + taxa adicional de carga mista se houver rotas adicionais
-    const baseFreight = totalWeightTon * 165 + estimatedDistanceKm * 3.8
-    const mixedAddition = additionalRoutes.length > 0 ? additionalRoutes.length * 350 : 0
-    return Math.round(baseFreight + mixedAddition)
-  }, [totalWeightTon, estimatedDistanceKm, additionalRoutes.length])
+  const estimatedFreightBrl = Number.NaN
 
-  const estimatedTollBrl = useMemo(() => {
-    return Math.round(180 + additionalRoutes.length * 60 + (estimatedDistanceKm / 100) * 45)
-  }, [additionalRoutes.length, estimatedDistanceKm])
+  const estimatedTollBrl = Number.NaN
 
   // Adicionar rota adicional
   const handleAddRoute = (routeCodeToAdd: string) => {
@@ -287,16 +275,7 @@ export const CreateMixedLoadModal: React.FC<CreateMixedLoadModalProps> = ({
   }
 
   // Ação 1: Simular Carga
-  const handleSimulateLoad = () => {
-    setIsSimulating(true)
-    setTimeout(() => {
-      setIsSimulating(false)
-      toast({
-        title: 'Simulação de Carga Mista Concluída',
-        description: `Peso: ${formatTons(totalWeightTon)} | Ocupação: ${formatPercent(occupancyPct, 1)} | Distância: ${formatDistance(estimatedDistanceKm, 0)} | Frete: ${formatCurrency(estimatedFreightBrl)}.`,
-      })
-    }, 450)
-  }
+  const handleSimulateLoad = () => { toast({title:'Integração logística pendente',description:'Distância, pedágio, piso ANTT e veículo precisam de fonte real.',variant:'destructive'}); }
 
   // Ação 2: Otimizar Sequência de Descargas
   const handleOptimizeSequence = () => {
@@ -320,246 +299,10 @@ export const CreateMixedLoadModal: React.FC<CreateMixedLoadModalProps> = ({
   }
 
   // Ação 3: Salvar Rascunho
-  const handleSaveDraft = async () => {
-    if (selectedOrdersList.length === 0) {
-      toast({
-        title: 'Nenhum pedido selecionado',
-        description: 'Selecione ao menos um pedido para salvar o rascunho da carga.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    setIsSubmitting(true)
-    const proposalNumber = `PROP-MISTA-${Date.now().toString().slice(-6)}`
-
-    try {
-      // 1. Gravar em load_proposals
-      await pb.collection('load_proposals').create({
-        proposal_number: proposalNumber,
-        correlation_id: `CORR-${proposalNumber}`,
-        itinerary_code: primaryItineraryCode,
-        itinerary_description: selectedPrimaryItinerary?.description || primaryItineraryCode,
-        uf: selectedOrdersList[0]?.uf || 'MG',
-        region: selectedPrimaryItinerary?.region || 'Sudeste',
-        planned_dispatch_date: new Date().toISOString(),
-        vehicle_plate: 'FROTA-CIAFAL',
-        vehicle_type: vehicleType,
-        vehicle_capacity_kg: vehicleCapacityKg,
-        current_weight_kg: totalWeightKg,
-        current_occupancy_pct: Math.round(occupancyPct),
-        classification_status:
-          occupancyPct > 105
-            ? 'Capacidade excedida — Reotimizar'
-            : occupancyPct < 75
-              ? 'Carga parcial — Complemento Comercial'
-              : 'Carga dentro da faixa',
-        lifecycle_stage: 'Simulação',
-        orders_count: selectedOrdersList.length,
-        customers_count: distinctCustomers.length,
-        discharges_count: distinctCustomers.length,
-        estimated_freight_cost: estimatedFreightBrl,
-        antt_floor_value: Math.round(estimatedFreightBrl * 0.85),
-        tolls_value: estimatedTollBrl,
-        score: 85,
-        why_proposed: `Rascunho de Carga Mista ${cargoType} com itinerário ${primaryItineraryCode} + rotas adicionais (${additionalRoutes.join(', ') || 'Nenhuma'}).`,
-        reasons: [
-          `Tipo de carga: ${cargoType}`,
-          `Rotas adicionais: ${additionalRoutes.join(', ') || 'Nenhuma'}`,
-          `Ocupação calculada: ${occupancyPct.toFixed(1)}%`,
-        ],
-        created_by: userEmail,
-      })
-
-      // 2. Registrar em audit_logs
-      await TmsService.logAudit({
-        user_name: userName,
-        user_email: userEmail,
-        user_role: 'planejador_cargas',
-        action: 'SAVE_MIXED_LOAD_DRAFT',
-        resource: 'load_proposals',
-        resource_id: proposalNumber,
-        details: {
-          cargoType,
-          primaryItineraryCode,
-          additionalRoutes,
-          ordersCount: selectedOrdersList.length,
-          totalWeightKg,
-          occupancyPct,
-        },
-      })
-
-      toast({
-        title: 'Rascunho Salvo com Sucesso',
-        description: `Proposta ${proposalNumber} registrada como rascunho de simulação.`,
-      })
-
-      onOpenChange(false)
-      if (onLoadCreated) onLoadCreated(proposalNumber)
-    } catch (err: any) {
-      toast({
-        title: 'Erro ao Salvar Rascunho',
-        description: err?.message || 'Falha ao registrar rascunho em load_proposals.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+  const handleSaveDraft = async () => { toast({title:'Integração logística pendente',description:'Distância, pedágio, piso ANTT e veículo precisam de fonte real.',variant:'destructive'}); }
 
   // Ação 4: Confirmar Carga e Enviar para Mesa de Fretes
-  const handleConfirmLoad = async () => {
-    if (selectedOrdersList.length === 0) {
-      toast({
-        title: 'Nenhum pedido selecionado',
-        description: 'Selecione pedidos da carteira para montar e confirmar a carga.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    if (occupancyPct > 110) {
-      toast({
-        title: 'Capacidade Excedida',
-        description: `Peso de ${formatTons(totalWeightTon)} excede o limite máximo aceitável para o veículo ${vehicleType} (${formatTons(vehicleCapacityKg, { fromKg: true })}).`,
-        variant: 'destructive',
-      })
-      return
-    }
-
-    setIsSubmitting(true)
-    const cargoId = `CARGA-MISTA-${Date.now().toString().slice(-6)}`
-
-    try {
-      // 1. Salvar proposta em load_proposals
-      await pb.collection('load_proposals').create({
-        proposal_number: cargoId,
-        correlation_id: `CORR-${cargoId}`,
-        itinerary_code: primaryItineraryCode,
-        itinerary_description: selectedPrimaryItinerary?.description || primaryItineraryCode,
-        uf: selectedOrdersList[0]?.uf || 'MG',
-        region: selectedPrimaryItinerary?.region || 'Sudeste',
-        planned_dispatch_date: new Date().toISOString(),
-        vehicle_plate: 'PORTA-01',
-        vehicle_type: vehicleType,
-        vehicle_capacity_kg: vehicleCapacityKg,
-        current_weight_kg: totalWeightKg,
-        current_occupancy_pct: Math.round(occupancyPct),
-        classification_status: 'Carga dentro da faixa',
-        lifecycle_stage: 'Carga consolidada',
-        orders_count: selectedOrdersList.length,
-        customers_count: distinctCustomers.length,
-        discharges_count: distinctCustomers.length,
-        estimated_freight_cost: estimatedFreightBrl,
-        antt_floor_value: Math.round(estimatedFreightBrl * 0.85),
-        tolls_value: estimatedTollBrl,
-        score: 92,
-        why_proposed: `Carga Mista ${cargoType} consolidada com itinerário principal ${primaryItineraryCode} e rotas: ${additionalRoutes.join(', ') || 'Nenhuma'}.`,
-        reasons: [
-          `Itinerário Principal: ${primaryItineraryCode}`,
-          `Rotas Adicionais: ${additionalRoutes.join(', ') || 'Nenhuma'}`,
-          `Total Clientes: ${distinctCustomers.length}`,
-        ],
-        created_by: userEmail,
-      })
-
-      // 2. Se houver rotas adicionais, persistir em route_additions para preservar governança
-      if (additionalRoutes.length > 0) {
-        for (const addedRoute of additionalRoutes) {
-          try {
-            await pb.collection('route_additions').create({
-              load_id: cargoId,
-              cargo_number: cargoId,
-              original_itinerary_id: primaryItineraryCode,
-              original_itinerary_description:
-                selectedPrimaryItinerary?.description || primaryItineraryCode,
-              added_itinerary_id: addedRoute,
-              added_itinerary_description: `Rota Adicional ${addedRoute}`,
-              reason_code: '5',
-              reason_description: '5. Complementação de carga',
-              user_observation: 'Adicionado no fluxo de Carga Mista do Planejador',
-              weight_before: totalWeightKg - 4000,
-              weight_after: totalWeightKg,
-              occupancy_before: Math.max(10, Math.round(occupancyPct - 15)),
-              occupancy_after: Math.round(occupancyPct),
-              vehicle_capacity_kg: vehicleCapacityKg,
-              freight_before: Math.max(100, estimatedFreightBrl - 500),
-              freight_after: estimatedFreightBrl,
-              status: 'ATIVA',
-              created_by: userEmail,
-              created_by_role: 'planejador_cargas',
-              created_at_dt: new Date().toISOString(),
-            })
-          } catch (e) {
-            console.warn('Erro ao salvar route_addition unitária:', e)
-          }
-        }
-      }
-
-      // 3. Atualizar sap_sales_orders para marcar alocação e evitar duplicidade
-      for (const ord of selectedOrdersList) {
-        try {
-          await pb.collection('sap_sales_orders').update(ord.id, {
-            assigned_load_id: cargoId,
-            status: 'em_montagem',
-          })
-        } catch (ordErr) {
-          console.warn(`Erro ao vincular pedido ${ord.order_number}:`, ordErr)
-        }
-      }
-
-      // 4. Injetar oferta na Mesa de Fretes pelo fluxo existente (createFreightOffer)
-      await TmsService.createFreightOffer({
-        cargo_id: cargoId,
-        cargo_description: `Carga Mista ${cargoId} (${primaryItineraryCode}${additionalRoutes.length > 0 ? ` + ${additionalRoutes.join('/')}` : ''})`,
-        origin: 'Planta CIAFAL Matriz (Contagem/MG)',
-        destination: `${distinctCities.slice(0, 2).join(', ')}${distinctCities.length > 2 ? ` (+${distinctCities.length - 2})` : ''}`,
-        weight_kg: totalWeightKg,
-        required_vehicle_type: vehicleType,
-        current_group: 'PORTA',
-        status: 'janela_porta_aberta' as any,
-        floor_value: Math.round(estimatedFreightBrl * 0.85),
-        correlation_id: `CORR-${cargoId}`,
-      })
-
-      // 5. Registrar auditoria imutável
-      await TmsService.logAudit({
-        user_name: userName,
-        user_email: userEmail,
-        user_role: 'planejador_cargas',
-        action: 'CONFIRM_MIXED_LOAD_TO_MESA',
-        resource: 'load_proposals',
-        resource_id: cargoId,
-        details: {
-          cargoId,
-          cargoType,
-          primaryItineraryCode,
-          additionalRoutes,
-          ordersAllocated: selectedOrdersList.map((o) => o.order_number),
-          totalWeightKg,
-          occupancyPct,
-          estimatedFreightBrl,
-          mesaOfferCreated: true,
-        },
-      })
-
-      toast({
-        title: 'Carga Mista Confirmada com Sucesso!',
-        description: `${cargoId} criada com ${selectedOrdersList.length} pedidos e enviada à Mesa de Fretes.`,
-      })
-
-      onOpenChange(false)
-      if (onLoadCreated) onLoadCreated(cargoId)
-    } catch (err: any) {
-      toast({
-        title: 'Erro ao Confirmar Carga',
-        description: err?.message || 'Falha ao processar confirmação de carga.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+  const handleConfirmLoad = async () => { toast({title:'Integração logística pendente',description:'Distância, pedágio, piso ANTT e veículo precisam de fonte real.',variant:'destructive'}); }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -855,7 +598,7 @@ export const CreateMixedLoadModal: React.FC<CreateMixedLoadModalProps> = ({
                               </Badge>
                             </td>
                             <td className="p-2 text-slate-600 truncate max-w-[120px]">
-                              {ord.material_description || ord.material}
+                              {materialLabel(ord.material, ord.material_description)}
                             </td>
                             <td className="p-2 font-mono font-bold text-right text-slate-900">
                               {formatTons(ord.weight_kg, { fromKg: true, decimals: 2 })}
@@ -924,7 +667,7 @@ export const CreateMixedLoadModal: React.FC<CreateMixedLoadModalProps> = ({
                 Distância Prevista
               </span>
               <strong className="text-base font-black font-mono text-white">
-                {formatDistance(estimatedDistanceKm, 0)}
+                {'Não integrado'}
               </strong>
             </div>
 
@@ -933,7 +676,7 @@ export const CreateMixedLoadModal: React.FC<CreateMixedLoadModalProps> = ({
                 Frete Estimado
               </span>
               <strong className="text-base font-black font-mono text-emerald-400">
-                {formatCurrency(estimatedFreightBrl)}
+                {'Não integrado'}
               </strong>
             </div>
           </div>

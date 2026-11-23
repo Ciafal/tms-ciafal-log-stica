@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
@@ -1296,7 +1297,7 @@ export const CollectorPage: React.FC = () => {
                     Remessa {selectedDelivery.deliveryNumber} • Item {selectedItem.itemNumber}
                   </div>
                   <div className="font-mono font-black text-base leading-tight">
-                    {selectedItem.materialCode}
+                    {materialLabel(selectedItem.materialCode, selectedItem.materialDescription)}
                   </div>
                 </div>
               </div>
@@ -1594,7 +1595,7 @@ export const CollectorPage: React.FC = () => {
                       >
                         <div>
                           <div className="font-bold text-slate-800">
-                            Remessa {div.vbeln} • Item {div.posnr} ({div.materialCode})
+                            Remessa {div.vbeln} • Item {div.posnr} ({materialLabel(div.materialCode, div.materialDescription)})
                           </div>
                           <div className="text-[11px] text-slate-500">
                             Coletado: {formatWeightPtBr(div.collectedWeightKg)} de{' '}

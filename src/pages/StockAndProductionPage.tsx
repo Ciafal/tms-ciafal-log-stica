@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   Boxes,
@@ -1250,7 +1251,7 @@ export const StockAndProductionPage: React.FC = () => {
                               Pedido {req.order_number}
                             </div>
                             <div className="font-mono text-[10px] text-[#005596] font-semibold">
-                              {req.material_code}
+                              {materialLabel(req.material_code, req.material_description)}
                             </div>
                           </td>
                           <td className="p-2.5 text-right font-mono font-bold text-slate-800">

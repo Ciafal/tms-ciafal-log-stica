@@ -131,9 +131,9 @@ class SapCollectorAdapter implements SapCollectorIntegrationContract {
         const data = await res.json()
         return {
           valid: true,
-          matricula: data.operator?.matricula || 'EXP-1044',
+          matricula: data.operator?.matricula || '',
           name: data.operator?.name || 'Operador Expedição',
-          plant: data.operator?.plant || 'WSTL',
+          plant: data.operator?.plant || '',
           sapConnected: !!data.sapConnected,
           sapStatusMessage: data.sapStatusMessage || 'Ambiente SAP não conectado.',
         }
@@ -144,9 +144,9 @@ class SapCollectorAdapter implements SapCollectorIntegrationContract {
 
     return {
       valid: true,
-      matricula: 'EXP-1044',
+      matricula: '',
       name: pb.authStore.model?.name || 'Operador Expedição CIAFAL',
-      plant: 'WSTL',
+      plant: '',
       sapConnected: false,
       sapStatusMessage: 'Ambiente SAP não conectado.',
     }
@@ -159,69 +159,7 @@ class SapCollectorAdapter implements SapCollectorIntegrationContract {
    * - Encerrado: "Transporte XXXXX já foi finalizado." (regra VTTK-STLAD)
    */
   async getTransport(rawTknum: string): Promise<CollectorTransport> {
-    const tknum = padSapNumber(rawTknum, 10)
-    if (!tknum || tknum === '0000000000') {
-      throw new Error('Transporte informado inválido.')
-    }
-
-    // Consultar se o transporte existe em sessões ou coletas prévias
-    let existingSession: any = null
-    try {
-      existingSession = await pb
-        .collection('tms_collector_sessions')
-        .getFirstListItem(`tknum = "${tknum}"`)
-    } catch {
-      /* intentionally ignored */
-    }
-
-    // Consultar tracking se disponível
-    let tracking: any = null
-    try {
-      tracking = await pb
-        .collection('expedition_tracking')
-        .getFirstListItem(`sap_transport_number = "${tknum}"`)
-    } catch {
-      /* intentionally ignored */
-    }
-
-    // Validação de encerramento
-    if (existingSession && existingSession.status === 'FINALIZADO') {
-      throw new Error(`Transporte ${tknum} já foi finalizado.`)
-    }
-
-    // Buscar coletas já realizadas no banco
-    let confirmedPickings: any[] = []
-    try {
-      confirmedPickings = await pb.collection('tms_collector_pickings').getFullList({
-        filter: `tknum = "${tknum}" && status = "CONFIRMADO"`,
-      })
-    } catch {
-      /* intentionally ignored */
-    }
-
-    const collectedTotal = confirmedPickings.reduce((sum, p) => sum + (p.weight_kg || 0), 0)
-
-    // Remessas vinculadas (simuladas a partir da base oficial ou geradas deterministicamente pelo TKNUM)
-    const seedDeliveries = this.buildTransportDeliveries(tknum, confirmedPickings)
-    const plannedTotal = seedDeliveries.reduce((sum, d) => sum + d.plannedWeightKg, 0)
-    const pctLoaded = plannedTotal > 0 ? (collectedTotal / plannedTotal) * 100 : 0
-
-    return {
-      transportNumber: tknum,
-      capacityKg: 32000, // Capacidade nominal padrão carreta sider CIAFAL (VTTK-ADD01)
-      plannedWeightKg: plannedTotal,
-      collectedWeightKg: collectedTotal,
-      percentageLoaded: Math.min(100, Math.round(pctLoaded * 10) / 10),
-      deliveriesCount: seedDeliveries.length,
-      deliveriesCompleted: seedDeliveries.filter((d) => d.status === 'CONCLUIDO').length,
-      tareWeightKg: 14500, // VTTK-DAREG preenchido (se fosse zero, lançaria "Transporte não possui peso de TARA.")
-      isFinished: existingSession?.status === 'FINALIZADO',
-      finishedAt: existingSession?.finished_at,
-      startedAt: existingSession?.started_at,
-      operatorName: existingSession?.operator_name || 'Operador CIAFAL',
-      operatorMatricula: existingSession?.operator_matricula || 'EXP-1044',
-      deliveries: seedDeliveries,
-    }
+throw new Error('Integração SAP pendente. Nenhum dado ou documento foi gerado.');
   }
 
   /**
@@ -279,36 +217,7 @@ class SapCollectorAdapter implements SapCollectorIntegrationContract {
    * Retorna remessa específica com validação de vínculo (ZF_VALIDAR_FORNECIMENTO)
    */
   async getDelivery(rawVbeln: string, tknum?: string): Promise<CollectorDelivery> {
-    const vbeln = padSapNumber(rawVbeln, 10)
-    if (!vbeln) {
-      throw new Error('Remessa inválida.')
-    }
-
-    let confirmedPickings: any[] = []
-    try {
-      confirmedPickings = await pb.collection('tms_collector_pickings').getFullList({
-        filter: `vbeln = "${vbeln}" && status = "CONFIRMADO"`,
-      })
-    } catch {
-      /* intentionally ignored */
-    }
-
-    const dummyTknum = tknum ? padSapNumber(tknum, 10) : '100482901'
-    const deliveries = this.buildTransportDeliveries(dummyTknum, confirmedPickings)
-    const match = deliveries.find((d) => d.deliveryNumber === vbeln)
-
-    if (!match) {
-      if (tknum) {
-        throw new Error('Remessa não vinculada ao transporte selecionado.')
-      }
-      throw new Error('Remessa inválida.')
-    }
-
-    if (match.pickingCompleted) {
-      throw new Error('Picking já concluído para a remessa informada.')
-    }
-
-    return match
+throw new Error('Integração SAP pendente. Nenhum dado ou documento foi gerado.');
   }
 
   /**
@@ -377,25 +286,7 @@ class SapCollectorAdapter implements SapCollectorIntegrationContract {
         parsed,
         message: err.userMessage || 'Cod. de barras inválido.',
       }
-    } catch (_) {
-      // Se backend offline momentaneamente, checar material local
-      if (expectedMaterial) {
-        const cleanExpected = expectedMaterial.replace(/^0+/, '')
-        const cleanScanned = parsed.material.replace(/^0+/, '')
-        if (cleanExpected !== cleanScanned && !parsed.material.includes(cleanExpected)) {
-          return {
-            valid: false,
-            parsed,
-            message: 'Material lido diferente do item da remessa.',
-          }
-        }
-      }
-      return {
-        valid: true,
-        parsed,
-        message: 'Etiqueta validada localmente.',
-      }
-    }
+    } catch (_) { return {valid:false, parsed, message:'Validação SAP indisponível. Etiqueta não validada.'}; }
   }
 
   /**
@@ -598,117 +489,7 @@ class SapCollectorAdapter implements SapCollectorIntegrationContract {
    * Constrói remessas e itens canônicos associados ao transporte para carregamento e validação
    */
   private buildTransportDeliveries(tknum: string, confirmedPickings: any[]): CollectorDelivery[] {
-    // Conjunto de remessas canônicas de transporte de aço da CIAFAL
-    const baseDeliveries = [
-      {
-        vbeln: '0080014520',
-        customerCode: 'CLI-30441',
-        customerName: 'CONSTRUTORA ANDRADE GUTIERREZ S/A',
-        items: [
-          {
-            itemNumber: '000010',
-            materialCode: 'ACO-CA50-100',
-            materialDescription: 'VERGALHAO ACO CA-50 10.0MM BARRA 12M',
-            plannedWeightKg: 8500,
-          },
-          {
-            itemNumber: '000020',
-            materialCode: 'ACO-CA50-125',
-            materialDescription: 'VERGALHAO ACO CA-50 12.5MM BARRA 12M',
-            plannedWeightKg: 6200,
-          },
-        ],
-      },
-      {
-        vbeln: '0080014521',
-        customerCode: 'CLI-18920',
-        customerName: 'METRO SP CONSORCIO LINHA 6',
-        items: [
-          {
-            itemNumber: '000010',
-            materialCode: 'TELA-SOLD-Q196',
-            materialDescription: 'TELA SOLDADA NERVURADA Q-196 PAINEL 2.45X6M',
-            plannedWeightKg: 5400,
-          },
-          {
-            itemNumber: '000020',
-            materialCode: 'ACO-CA60-50',
-            materialDescription: 'ARAME RECOZIDO TORCIDO BWG 18 ROLO 1KG',
-            plannedWeightKg: 1200,
-          },
-        ],
-      },
-      {
-        vbeln: '0080014522',
-        customerCode: 'CLI-55021',
-        customerName: 'MENDES JUNIOR TRADING ENGENHARIA',
-        items: [
-          {
-            itemNumber: '000010',
-            materialCode: 'ACO-CA50-160',
-            materialDescription: 'VERGALHAO ACO CA-50 16.0MM BARRA 12M',
-            plannedWeightKg: 7800,
-          },
-        ],
-      },
-    ]
-
-    return baseDeliveries.map((b) => {
-      const items: CollectorDeliveryItem[] = b.items.map((it) => {
-        const itemPickings = confirmedPickings.filter(
-          (p) => p.vbeln === b.vbeln && p.posnr === it.itemNumber,
-        )
-        const collectedWeight = itemPickings.reduce((sum, p) => sum + (p.weight_kg || 0), 0)
-        const balance = Math.max(0, it.plannedWeightKg - collectedWeight)
-        const pct = it.plannedWeightKg > 0 ? (collectedWeight / it.plannedWeightKg) * 100 : 0
-
-        let status: 'PENDENTE' | 'PARCIAL' | 'CONCLUIDO' = 'PENDENTE'
-        if (pct >= 90) {
-          status = 'CONCLUIDO'
-        } else if (collectedWeight > 0) {
-          status = 'PARCIAL'
-        }
-
-        return {
-          itemNumber: it.itemNumber,
-          materialCode: it.materialCode,
-          materialDescription: it.materialDescription,
-          plannedWeightKg: it.plannedWeightKg,
-          collectedWeightKg: collectedWeight,
-          balanceKg: balance,
-          batchesCount: itemPickings.length,
-          status,
-          isMainItem: true,
-          storageLocation: 'DP34',
-          percentage: Math.min(100, Math.round(pct * 10) / 10),
-        }
-      })
-
-      const totalPlanned = items.reduce((sum, i) => sum + i.plannedWeightKg, 0)
-      const totalCollected = items.reduce((sum, i) => sum + i.collectedWeightKg, 0)
-      const pctDelivery = totalPlanned > 0 ? (totalCollected / totalPlanned) * 100 : 0
-      const pickingCompleted = items.every((i) => i.status === 'CONCLUIDO')
-
-      let deliveryStatus: 'PENDENTE' | 'PARCIAL' | 'CONCLUIDO' = 'PENDENTE'
-      if (pickingCompleted) {
-        deliveryStatus = 'CONCLUIDO'
-      } else if (totalCollected > 0) {
-        deliveryStatus = 'PARCIAL'
-      }
-
-      return {
-        deliveryNumber: b.vbeln,
-        transportNumber: tknum,
-        customerCode: b.customerCode,
-        customerName: b.customerName,
-        plannedWeightKg: totalPlanned,
-        collectedWeightKg: totalCollected,
-        percentageLoaded: Math.min(100, Math.round(pctDelivery * 10) / 10),
-        pickingCompleted,
-        items,
-        status: deliveryStatus,
-      }
-    })
+return [];
   }
 }
 

@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 // TMS CIAFAL — Visão de Comparação de Cenários de Carga (Simulação Multicritério)
 // Permite comparar lado a lado cenários de simulação gerados pelo motor (Máxima Ocupação, Menor Custo,
 // Menor Lead Time, Prioridade Crítica e Veículos PORTA), avaliando peso, ocupação, frete, pedágio e margem.
@@ -352,7 +353,7 @@ export const ScenarioComparisonView: React.FC<ScenarioComparisonViewProps> = ({
                       <td className="p-2 font-mono text-slate-600">
                         {ord.itinerary_code || 'S/I'}
                       </td>
-                      <td className="p-2 text-slate-600 truncate max-w-[150px]">{ord.material}</td>
+                      <td className="p-2 text-slate-600 truncate max-w-[150px]">{materialLabel(ord.material, ord.material_description)}</td>
                       <td className="p-2 font-mono font-bold text-right text-slate-900">
                         {((ord.weight_kg || 0) / 1000).toFixed(1)} t
                       </td>

@@ -93,7 +93,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
 
   // Modal de Simulação de Avaliação Pós-Viagem Fred
   const [isEvaluatingTrip, setIsEvaluatingTrip] = useState(false)
-  const [simSapNumber, setSimSapNumber] = useState('123456')
+  const [simSapNumber, setSimSapNumber] = useState('')
 
   const loadAllData = async () => {
     setIsLoading(true)
@@ -225,27 +225,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
 
   // Handler para rodar o motor de avaliação do transporte pós-Fred
   const handleRunEvaluationEngine = async () => {
-    setIsEvaluatingTrip(true)
-    try {
-      const res = await tmsService.runTransportEvaluationEngine(
-        simSapNumber,
-        'drv-001',
-        'João Carlos Silva',
-      )
-      toast({
-        title: 'Motor de Avaliação Executado',
-        description: `Transporte SAP ${res.sap_transport_number} avaliado! Score da viagem: ${res.trip_score}/100. Score consolidado atualizado para ${res.driver_consolidated_score}/100.`,
-      })
-      await loadAllData()
-    } catch (err: any) {
-      toast({
-        title: 'Falha no Motor',
-        description: err.message || 'Erro ao processar avaliação.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsEvaluatingTrip(false)
-    }
+    toast({title:'Avaliação indisponível',description:'Transporte e motorista reais ainda não vinculados. Nenhum score foi simulado.',variant:'destructive'})
   }
 
   return (
@@ -293,7 +273,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
             className="bg-[#005596] hover:bg-[#004070] text-white text-xs gap-1.5 shadow-sm"
           >
             <Sparkles className={`w-3.5 h-3.5 ${isEvaluatingTrip ? 'animate-spin' : ''}`} />
-            {isEvaluatingTrip ? 'Avaliando Fred...' : 'Rodar Avaliação pós-Fred (SAP 123456)'}
+            {isEvaluatingTrip ? 'Avaliando Fred...' : 'Avaliar transporte'}
           </Button>
         </div>
       </div>
@@ -1111,63 +1091,7 @@ export const DriverPerformanceManagementPage: React.FC = () => {
         {/* ----------------------------------------------------------------- */}
         {/* ABA 5: ANÁLISES & INTELIGÊNCIA IA                                 */}
         {/* ----------------------------------------------------------------- */}
-        <TabsContent value="analises-ia" className="space-y-4">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-indigo-600" />
-              <h2 className="text-base font-bold text-slate-900">
-                Detecção de Anomalias & Mudança de Contexto (Não confundir Correlação com Causa)
-              </h2>
-            </div>
-            <p className="text-xs text-slate-600">
-              A inteligência logística analisa toda a cadeia antes de tirar conclusões precipitadas.
-              Se a pontualidade de um motorista cai mas 100% dos seus transportes recentes foram
-              para um cliente com fila crítica, a IA identifica a causa raiz real no cliente,
-              preservando a reputação do condutor.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/40 space-y-2">
-                <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider block">
-                  Caso Real Analisado: Motorista Carlos Eduardo
-                </span>
-                <div className="text-xs text-slate-700 space-y-1">
-                  <div>
-                    <strong>Fato Observado:</strong> Score caiu de 82 para 67 nos últimos 3 meses.
-                  </div>
-                  <div>
-                    <strong>Investigação de Contexto IA:</strong> O motorista atendeu 4 descargas
-                    consecutivas no Cliente Betim onde a espera média subiu +220%.
-                  </div>
-                  <div>
-                    <strong>Diagnóstico:</strong> Atraso atribuível ao cliente desconsiderado no
-                    score do motorista; mantida observação apenas para resposta em WhatsApp.
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl border border-emerald-100 bg-emerald-50/40 space-y-2">
-                <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider block">
-                  Reconhecimento Positivo de Performance
-                </span>
-                <div className="text-xs text-slate-700 space-y-1">
-                  <div>
-                    🏆 <strong>João Carlos Silva:</strong> 34 transportes consecutivos com 100% de
-                    canhotos digitalizados sem avarias.
-                  </div>
-                  <div>
-                    ⭐ <strong>Antônio Marcos Pereira:</strong> Especialista com maior índice de
-                    agilidade na rota MG002B.
-                  </div>
-                  <div>
-                    ⭐ <strong>Destaque Colaboração:</strong> 96% de resposta rápida às checagens do
-                    Fred.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
+        <TabsContent value="analises-ia" className="space-y-4"><p className="rounded-xl border bg-white p-6 text-sm text-slate-500">Nenhuma análise de desempenho disponível.</p></TabsContent>
 
         {/* ----------------------------------------------------------------- */}
         {/* ABA 6: CONFIGURAÇÃO DE FÓRMULAS & PESOS                           */}

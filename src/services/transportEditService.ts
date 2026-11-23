@@ -145,47 +145,7 @@ class TransportEditService {
         let remessas: RemessaRelated[] = []
         if (r.deliveries_json && Array.isArray(r.deliveries_json) && r.deliveries_json.length > 0) {
           remessas = r.deliveries_json
-        } else {
-          // Gerar estrutura consistente de remessas com base no histórico
-          const baseRemessa = (10040000 + idx).toString()
-          const baseOrder = (4500000 + idx).toString()
-          remessas = [
-            {
-              delivery_number: baseRemessa,
-              order_number: baseOrder,
-              sequence: 1,
-              customer_code: 'CLI-' + (1000 + idx),
-              customer_name: r.customers_summary || 'CIAFAL Distribuidora Matriz',
-              customer_cnpj: '45.123.456/0001-' + String(idx).padStart(2, '0'),
-              destination_city: r.destination_city || 'Belo Horizonte',
-              destination_uf: r.destination_uf || 'MG',
-              weight_kg: Number(r.weight_kg) || 24000,
-              weight_ton: Number(r.weight_ton) || 24,
-              credit_status: 'LIBERADO',
-              status: mappedStatus,
-              can_remove: mappedStatus === 'Planejado' || mappedStatus === 'Frete aceito',
-              can_edit_sequence: true,
-              items: [
-                {
-                  item_number: '000010',
-                  material_code: 'AÇO-VERG-10MM',
-                  material_description: 'Vergalhão CA-50 10.0mm 12m',
-                  quantity: 12000,
-                  unit: 'KG',
-                  weight_kg: 12000,
-                },
-                {
-                  item_number: '000020',
-                  material_code: 'PERFIL-U-6POL',
-                  material_description: 'Perfil U Enrijecido 150x60mm',
-                  quantity: 12000,
-                  unit: 'KG',
-                  weight_kg: 12000,
-                },
-              ],
-            },
-          ]
-        }
+        } else { remessas = []; }
 
         const sapTransport = (r.trip_id || `00${900000 + idx}`).toString()
 

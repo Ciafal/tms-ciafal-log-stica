@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -1457,7 +1458,7 @@ export const ItineraryHeatmapPage: React.FC = () => {
                     <Badge className="bg-sky-100 text-sky-800 border-sky-300">
                       Estoque: {order.production_status || 'Pronto'}
                     </Badge>
-                    <span className="text-slate-500 truncate">Material: {order.material}</span>
+                    <span className="text-slate-500 truncate">Material: {materialLabel(order.material, order.material_description)}</span>
                   </div>
                 </div>
               )),

@@ -48,10 +48,7 @@ export const SapImportPage: React.FC = () => {
   const downloadSampleTemplate = () => {
     const csvContent =
       'data:text/csv;charset=utf-8,' +
-      'SAP_ID;NOME_MOTORISTA;CPF_CNPJ;TELEFONE_WHATSAPP;PLACA_VEICULO;TIPO_VEICULO;CNH;CATEGORIA_CNH;STATUS_SAP\n' +
-      'SAP-0091;Marcos Silva Ferreira;12345678909;11987654321;ABC1D23;Carreta LS;98765432100;E;ATIVO\n' +
-      'SAP-0092;Roberto Almeida Santos;98765432100;11976543210;XYZ9E87;Bitrem;12345678900;E;ATIVO\n' +
-      'SAP-0093;Julio Cesar Ramos;11144477735;11965432109;FGH3J45;Truck;45678901234;D;ATIVO'
+      'SAP_ID;NOME_MOTORISTA;CPF_CNPJ;TELEFONE_WHATSAPP;PLACA_VEICULO;TIPO_VEICULO;CNH;CATEGORIA_CNH;STATUS_SAP\n'
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)

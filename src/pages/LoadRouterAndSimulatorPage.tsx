@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   Sparkles,
@@ -233,6 +234,8 @@ export function LoadRouterAndSimulatorPage() {
       setGlobalResult(result)
       setOptimizing(false)
       setOptimizationStep('')
+
+      if (!result.allProposedCargos.length) return
 
       // Persistir em load_proposals e gerar oportunidades de complemento no backend
       try {
@@ -991,12 +994,12 @@ export function LoadRouterAndSimulatorPage() {
               <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">
                 {orders.length === 0
                   ? 'Não existem pedidos na Carteira Única para roteirização.'
-                  : 'Nenhuma carga proposta encontrada com os filtros selecionados.'}
+                  : 'Aguardando dados reais de rota, pedágio, piso ANTT e veículo.'}
               </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
                 {orders.length === 0
                   ? 'Sincronize a carteira SAP via RFC no menu Análises > Carteira de Vendas.'
-                  : 'Experimente selecionar "Todos os Itinerários" ou ajustar a data prevista.'}
+                  : 'Consulte os pedidos reais na aba Conciliação 100%.'}
               </p>
             </Card>
           ) : (
@@ -1753,7 +1756,7 @@ export function LoadRouterAndSimulatorPage() {
                           <td className="py-2.5 px-3">
                             {ord.destination_city || 'N/I'}/{ord.uf || 'SP'}
                           </td>
-                          <td className="py-2.5 px-3">{ord.material}</td>
+                          <td className="py-2.5 px-3">{materialLabel(ord.material, ord.material_description)}</td>
                           <td className="py-2.5 px-3 text-right font-mono font-bold">
                             {((ord.weight_kg || 0) / 1000).toLocaleString('pt-BR', {
                               minimumFractionDigits: 2,

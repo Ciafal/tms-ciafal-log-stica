@@ -1,3 +1,4 @@
+import {hasRealLogistics, requireRealLogistics, type RealLogistics} from './realLogistics'
 /**
  * MOTOR DE OTIMIZAÇÃO LEXICOGRÁFICO DE CARGAS (TMS CIAFAL)
  *
@@ -119,6 +120,7 @@ export interface CandidateLoadCombination {
 }
 
 export interface LexicographicOptimizationInput {
+  realLogistics?: RealLogistics
   itineraryCode: string
   itineraryDescription?: string
   uf?: string
@@ -244,6 +246,7 @@ export function calculateCandidateLogistics(
   vehicleType: string,
   vehicleCapacityKg: number,
   negotiatedFreightCost?: number,
+  quote?: RealLogistics,
 ): {
   distanceKm: number
   additionalKm: number
@@ -276,24 +279,14 @@ export function calculateCandidateLogistics(
   )
   const dischargesCount = Math.max(customersCount, deliveryPoints.size, explicitDischarges)
 
-  const axles = getAxlesForVehicle(vehicleType)
-  const baseDistance = 380
-  // Penalidade de km por cliente adicional (desvio de rota)
-  const additionalKm =
-    Math.max(0, customersCount - 1) * 18 + Math.max(0, dischargesCount - customersCount) * 8
-  const distanceKm = baseDistance + additionalKm
-  const durationMinutes = Math.round((distanceKm / 65) * 60)
-
-  // Cálculo ANTT pela tabela e fórmula oficial vigente no sistema
-  const anttCalculation = anttService.calculateFloorPrice({
-    distanceKm,
-    vehicleType,
-    axlesCount: axles,
-  })
+  const logistics = requireRealLogistics(quote)
+  const axles = logistics.antt.axlesCount
+  const additionalKm = 0
+  const distanceKm = logistics.distanceKm
+  const durationMinutes = logistics.durationMinutes
+  const anttCalculation = logistics.antt
   const anttFloorValue = anttCalculation.floorValue
-
-  const tollsCount = Math.max(1, Math.floor(distanceKm / 55))
-  const tollsValue = Math.round(tollsCount * (4.2 * axles) * 100) / 100
+  const tollsValue = logistics.tollsValue
 
   // Se houver valor negociado pelo comercial/mesa, validar estritamente contra o piso ANTT
   let estimatedCost = anttFloorValue + tollsValue
@@ -441,7 +434,9 @@ export function generateCandidateCombinations(
   maxOccupancyPct: number,
   occupancyBands: OccupancyBandConfig,
   negotiatedFreightCost?: number,
+  quote?: RealLogistics,
 ): CandidateLoadCombination[] {
+  if (!hasRealLogistics(quote)) return []
   const eligibleOrders = evaluatedOrders.filter(
     (e) => !e.isIncompatibleVehicle && e.isDesiredDateValid,
   )
@@ -605,6 +600,7 @@ export function generateCandidateCombinations(
       vehicleType,
       vehicleCapacityKg,
       negotiatedFreightCost,
+      quote,
     )
 
     const isStockReady = combEvaluated.every((e) => e.isStockAvailable)
@@ -829,6 +825,7 @@ export function runLexicographicOptimizerForItinerary(
     maxOccupancyPct,
     occupancyBands,
     negotiatedFreightCost,
+    input.realLogistics,
   )
 
   const combinationsEvaluated = candidates.length
@@ -883,6 +880,8 @@ export function runLexicographicOptimizerForItinerary(
     return {
       id: cargoNumber,
       cargoNumber,
+      logisticsSourceReference: input.realLogistics?.sourceReference,
+      scheduledVehiclePlate: input.realLogistics?.vehiclePlate,
       itineraryCode,
       itineraryDescription,
       uf,
@@ -907,7 +906,7 @@ export function runLexicographicOptimizerForItinerary(
         scheduledFuture?.calculated_logistics_date ||
         scheduledFuture?.scheduled_arrival_date ||
         scheduledFuture?.entry_time?.split('T')[0],
-      scheduledVehiclePlate: scheduledFuture?.vehicle_plate_cached,
+
       orders: cand.orders,
       customersCount: cand.customersCount,
       ordersCount: cand.orders.length,

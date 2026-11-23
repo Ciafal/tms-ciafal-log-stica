@@ -33,63 +33,7 @@ export const SapReceivedDataPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFluxo, setSelectedFluxo] = useState('todos')
 
-  const receivedRecords: SapReceivedDataRecord[] = [
-    {
-      id: 'REC-001',
-      fluxo: 'Carteira (ZSD35)',
-      sapCode: 'PED-45008912',
-      maskedDescription: 'PERFIL I 200X200 MM (Cliente: Construtora A***)',
-      quantity: '45 000 kg',
-      weight: '45,00 t',
-      receivedAt: 'Hoje, 15:42',
-      status: 'Novo',
-      notes: 'Importado com sucesso via RFC ZSD35. Endereço WE mapeado.',
-    },
-    {
-      id: 'REC-002',
-      fluxo: 'Carteira (ZSD35)',
-      sapCode: 'PED-45008913',
-      maskedDescription: 'TUBO ESTRUTURAL 150X150 (Cliente: Metalúrgica B***)',
-      quantity: '28 000 kg',
-      weight: '28,00 t',
-      receivedAt: 'Hoje, 15:42',
-      status: 'Atualizado',
-      notes: 'Saldo residual recalculado após faturamento parcial.',
-    },
-    {
-      id: 'REC-003',
-      fluxo: 'Motoristas/Veículos (ZSD004V_V2)',
-      sapCode: 'MOT-***.***.892-01',
-      maskedDescription: 'Motorista: Carlos *** | Placa: ABC-*** | Cavalo Mecânico',
-      quantity: '1 veículo',
-      weight: '32,00 t cap.',
-      receivedAt: 'Hoje, 15:30',
-      status: 'Novo',
-      notes: 'Registro cadastral validado com chave CPF + Placa.',
-    },
-    {
-      id: 'REC-004',
-      fluxo: 'Itinerários (TVROT)',
-      sapCode: 'ROU-SP01',
-      maskedDescription: 'ROTA GRANDE SP & VALE DO PARAÍBA',
-      quantity: '1 ROTA',
-      weight: '120 KM',
-      receivedAt: 'Hoje, 12:00',
-      status: 'Novo',
-      notes: 'Itinerário standard TVROT sincronizado.',
-    },
-    {
-      id: 'REC-005',
-      fluxo: 'Carteira (ZSD35)',
-      sapCode: 'PED-45008919',
-      maskedDescription: 'CANTONEIRA DE ACO (Cliente: Industria C***)',
-      quantity: '12 000 kg',
-      weight: '12,00 t',
-      receivedAt: 'Hoje, 15:42',
-      status: 'Inconsistência',
-      notes: 'Aviso: Texto livre STXH/STXL contém menção a endereço divergente do Ship-to oficial.',
-    },
-  ]
+  const receivedRecords: SapReceivedDataRecord[] = []
 
   const filtered = receivedRecords.filter((r) => {
     const matchesSearch =

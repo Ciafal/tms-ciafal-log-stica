@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 // TMS CIAFAL — Componente Geográfico Real com MapLibre GL e Tiles OpenStreetMap
 //
 // Substitui a cartografia simplificada por base geográfica real com OpenStreetMap tiles (sem API key).
@@ -1125,7 +1126,7 @@ export const RealGeographicMap: React.FC<RealGeographicMapProps> = ({
                     >
                       <span className="truncate max-w-[240px]">
                         Ped {ord.order_number}:{' '}
-                        {ord.material_description || ord.material || 'Material Aço CIAFAL'}
+                        {materialLabel(ord.material, ord.material_description)}
                       </span>
                       <strong className="font-mono text-slate-900">
                         {formatTons((ord.weight_kg || 0) / 1000)}

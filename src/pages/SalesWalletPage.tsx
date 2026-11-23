@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   Search,
@@ -42,109 +43,8 @@ import {
 import { exportToCsv } from '@/lib/exportUtils'
 import { formatWeight } from '@/lib/utils'
 
-// Mock inicial de fallback espelhando o formato SAP ECC RFC da CIAFAL
-const INITIAL_PREVIEW_RECORDS: Partial<SapSalesOrderEntity>[] = [
-  {
-    order_number: '258477',
-    uf: 'AL',
-    destination_city: 'MACEIO',
-    weight_kg: 2000,
-    stock_sider: 158.565,
-    material: 'B. CH. 1 X 1/8 - 6,00M - 10',
-    material_description: 'B. CH. 1 X 1/8 - 6,00M - 10',
-    freight_value: 531,
-    credit_limit: 104944.72,
-    balance_quantity_kg: 2000,
-    order_date: '2026-08-20',
-    delivery_week: '34.2026',
-    desired_date: '2026-08-20',
-    itinerary_code: 'AL001C',
-    credit_reason: 'CRÉDITO OK/CHECAR LIMITE',
-    credit_status: 'Liberado',
-    stock_total: 159.825,
-    q_dias: 9,
-    production_status: 'Pronto',
-    customer_name: 'METALURGICA ALAGOAS S.A.',
-    customer_code: 'CLI-258477',
-    total_value: 12500,
-    origem_dado: 'SAP',
-  },
-  {
-    order_number: '258506',
-    uf: 'AL',
-    destination_city: 'MACEIO',
-    weight_kg: 2000,
-    stock_sider: 0.0,
-    material: 'B. CH. 2 X 1/8 - 6,00 M - 10',
-    material_description: 'B. CH. 2 X 1/8 - 6,00 M - 10',
-    freight_value: 531,
-    credit_limit: 104944.72,
-    balance_quantity_kg: 2000,
-    order_date: '2026-08-20',
-    delivery_week: '34.2026',
-    desired_date: '2026-08-20',
-    itinerary_code: 'AL001C',
-    credit_reason: 'CRÉDITO OK/CHECAR LIMITE',
-    credit_status: 'Liberado',
-    stock_total: 68.192,
-    q_dias: 9,
-    production_status: 'Pronto',
-    customer_name: 'CONSTRUTORA NORDESTE LTDA',
-    customer_code: 'CLI-258506',
-    total_value: 13200,
-    origem_dado: 'SAP',
-  },
-  {
-    order_number: '258520',
-    uf: 'AL',
-    destination_city: 'MACEIO',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'CANT. 2 X 3/16 - 6,00 M - 1',
-    material_description: 'CANT. 2 X 3/16 - 6,00 M - 1',
-    freight_value: 531,
-    credit_limit: 104944.72,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-20',
-    delivery_week: '34.2026',
-    desired_date: '2026-08-20',
-    itinerary_code: 'AL001C',
-    credit_reason: 'CRÉDITO OK/CHECAR LIMITE',
-    credit_status: 'Liberado',
-    stock_total: 242.595,
-    q_dias: 9,
-    production_status: 'Pronto',
-    customer_name: 'DISTRIBUIDORA MACEIO AÇOS',
-    customer_code: 'CLI-258520',
-    total_value: 6800,
-    origem_dado: 'SAP',
-  },
-  {
-    order_number: '257690',
-    uf: 'CE',
-    destination_city: 'FORTALEZA',
-    weight_kg: 1000,
-    stock_sider: 0.0,
-    material: 'B. QUAD. 2" - 6,00 M - 102',
-    material_description: 'B. QUAD. 2" - 6,00 M - 102',
-    freight_value: 640,
-    credit_limit: 70000.0,
-    balance_quantity_kg: 1000,
-    order_date: '2026-08-05',
-    delivery_week: '32.2026',
-    desired_date: '2026-08-05',
-    itinerary_code: 'CE001C',
-    credit_reason: 'DATA SEGUINTE P/ REVISÃO',
-    credit_status: 'Em Análise',
-    stock_total: 94.142,
-    q_dias: 24,
-    production_status: 'Pronto',
-    customer_name: 'FORTALEZA SIDERURGIA CE',
-    customer_code: 'CLI-257690',
-    total_value: 7800,
-    origem_dado: 'SAP',
-  },
-]
+// A carteira exibe exclusivamente os registros retornados pelo SAP.
+
 
 export const SalesWalletPage: React.FC = () => {
   const { user, permissions } = useAuth()
@@ -184,50 +84,7 @@ export const SalesWalletPage: React.FC = () => {
         TmsService.getSapItineraries(),
       ])
 
-      if (ords.length === 0) {
-        const seeded = INITIAL_PREVIEW_RECORDS.map((rec, idx) => ({
-          id: `seed-sap-${idx}`,
-          order_number: rec.order_number || `PED-${idx}`,
-          item_number: '000010',
-          customer_code: rec.customer_code || `CLI-${rec.order_number}`,
-          customer_name: rec.customer_name || 'CLIENTE CIAFAL',
-          customer_tier: 'B (Corporativo)',
-          destination_city: rec.destination_city || 'SÃO PAULO',
-          uf: rec.uf || 'SP',
-          itinerary_code: rec.itinerary_code || 'SP001A',
-          weight_kg: rec.weight_kg || 2000,
-          total_value: rec.total_value || 10000,
-          material: rec.material || 'LAMINADO DE AÇO',
-          material_description: rec.material_description || rec.material || 'LAMINADO',
-          order_date: rec.order_date || '2026-08-20',
-          desired_date: rec.desired_date || '2026-08-20',
-          delivery_week: rec.delivery_week || '34.2026',
-          credit_status: rec.credit_status || 'Liberado',
-          credit_reason: rec.credit_reason || 'CRÉDITO OK',
-          credit_limit: rec.credit_limit || 100000,
-          freight_value: rec.freight_value || 500,
-          stock_sider: rec.stock_sider || 0,
-          stock_total: rec.stock_total || 100,
-          production_status: rec.production_status || 'Pronto',
-          q_dias: rec.q_dias || 5,
-          origem_dado: 'SAP' as const,
-          status: 'disponivel' as const,
-        }))
-        setOrders(seeded as SapSalesOrderEntity[])
-      } else {
-        const mapped = ords.map((o) => ({
-          ...o,
-          origem_dado: 'SAP' as const,
-          q_dias: o.q_dias !== undefined ? o.q_dias : o.raw_q_dias || 5,
-          freight_value: o.freight_value || 500,
-          credit_limit: o.credit_limit || 50000,
-          credit_reason:
-            o.credit_reason || (o.credit_status === 'Liberado' ? 'CRÉDITO OK' : 'CHECAR LIMITE'),
-          stock_total: o.stock_total || (o.stock_quantity_kg ? o.stock_quantity_kg / 1000 : 120.5),
-          stock_sider: o.stock_sider || (o.is_sidercentro ? 50.0 : 0.0),
-        }))
-        setOrders(mapped)
-      }
+      setOrders(ords)
 
       setItineraries(itins)
     } catch (err: any) {
@@ -484,7 +341,7 @@ export const SalesWalletPage: React.FC = () => {
     setStockModalOrder(order)
     setStockReason('Confirmação de saldo físico em estoque para carregamento')
     setStockNotes(
-      `Pedido ${order.order_number} (${order.material}). Solicitado saldo para liberação de transporte.`,
+      `Pedido ${order.order_number} (${materialLabel(order.material, order.material_description)}). Solicitado saldo para liberação de transporte.`,
     )
   }
 
@@ -1008,19 +865,19 @@ export const SalesWalletPage: React.FC = () => {
                     minimumFractionDigits: 1,
                     maximumFractionDigits: 3,
                   })
-                  const estSiderFormatted = (order.stock_sider || 0).toLocaleString('pt-BR', {
+                  const estSiderFormatted = order.stock_sider == null ? '—' : order.stock_sider.toLocaleString('pt-BR', {
                     minimumFractionDigits: 1,
                     maximumFractionDigits: 3,
                   })
                   const saldoFormatted = (
-                    order.balance_quantity_kg
+                    order.balance_quantity_kg != null
                       ? order.balance_quantity_kg / 1000
                       : order.weight_kg / 1000
                   ).toLocaleString('pt-BR', {
                     minimumFractionDigits: 1,
                     maximumFractionDigits: 3,
                   })
-                  const estoqueTotalFormatted = (order.stock_total || 0).toLocaleString('pt-BR', {
+                  const estoqueTotalFormatted = order.stock_total == null ? '—' : order.stock_total.toLocaleString('pt-BR', {
                     minimumFractionDigits: 1,
                     maximumFractionDigits: 3,
                   })
@@ -1029,7 +886,7 @@ export const SalesWalletPage: React.FC = () => {
                     ? order.order_date.includes(' ')
                       ? order.order_date
                       : `${order.order_date} 00:00:00`
-                    : '2026-08-20 00:00:00'
+                    : '—'
 
                   return (
                     <tr
@@ -1089,15 +946,15 @@ export const SalesWalletPage: React.FC = () => {
                       </td>
 
                       {/* Texto breve de material */}
-                      <td className="p-2.5 font-sans text-slate-800 max-w-[220px] truncate">
+                      <td className="p-2.5 font-sans text-slate-800 min-w-[220px] whitespace-normal break-words">
                         <span className="font-medium text-[#005596] font-mono text-xs">
-                          {order.material}
+                          {materialLabel(order.material, order.material_description)}
                         </span>
                       </td>
 
                       {/* Valor do Frete */}
                       <td className="p-2.5 text-right text-slate-800">
-                        {order.freight_value !== undefined ? order.freight_value : 500}
+                        {order.freight_value != null ? order.freight_value : '—'}
                       </td>
 
                       {/* Limite de Crédito */}
@@ -1110,7 +967,7 @@ export const SalesWalletPage: React.FC = () => {
                               : 'text-slate-700'
                         }`}
                       >
-                        {(order.credit_limit || 0).toLocaleString('pt-BR', {
+                        {order.credit_limit == null ? '—' : order.credit_limit.toLocaleString('pt-BR', {
                           minimumFractionDigits: 1,
                           maximumFractionDigits: 2,
                         })}
@@ -1132,7 +989,7 @@ export const SalesWalletPage: React.FC = () => {
                           {order.delivery_week ||
                             (order.desired_date
                               ? `${order.desired_date} (${order.delayText})`
-                              : '34.2026')}
+                              : '—')}
                         </div>
                         {order.isOverdue && (
                           <Badge className="bg-rose-600 text-white text-[8px] px-1 py-0 mt-0.5">
@@ -1227,7 +1084,7 @@ export const SalesWalletPage: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-slate-400 text-[10px] block">Material</span>
-                  <strong className="text-[#005596]">{stockModalOrder.material}</strong>
+                  <strong className="text-[#005596]">{materialLabel(stockModalOrder.material, stockModalOrder.material_description)}</strong>
                 </div>
                 <div>
                   <span className="text-slate-400 text-[10px] block">Quantidade Necessária</span>

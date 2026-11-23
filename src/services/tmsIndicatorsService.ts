@@ -240,39 +240,7 @@ class TmsIndicatorsService {
       console.warn('[tmsIndicatorsService] Erro ao buscar usuários no PocketBase:', err)
     }
 
-    // Se a query falhar ou estiver sem auth no momento, retornar usuários canônicos reais do seed
-    return [
-      {
-        id: '262z1iy838v6k7v',
-        name: 'Administrador Master CIAFAL',
-        email: 'ciafal@ciafal.com.br',
-        role: 'admin_master',
-      },
-      {
-        id: 'cujqrj5hci8z8ox',
-        name: 'Carlos Eduardo (Gestor Logística)',
-        email: 'gestor.logistica@ciafal.com.br',
-        role: 'gestor_logistica',
-      },
-      {
-        id: 'nrjlmcc8o3hzuux',
-        name: 'Marcos Vinicius (Operador Pátio)',
-        email: 'operador.patio@ciafal.com.br',
-        role: 'operador_logistica',
-      },
-      {
-        id: '032q7s05orqg3q4',
-        name: 'Portaria Central CIAFAL',
-        email: 'portaria@ciafal.com.br',
-        role: 'portaria',
-      },
-      {
-        id: 'w58071dtlf0hdl5',
-        name: 'Helena Siqueira (Auditoria Interna)',
-        email: 'auditor@ciafal.com.br',
-        role: 'auditor',
-      },
-    ]
+    return [];
   }
 
   /**

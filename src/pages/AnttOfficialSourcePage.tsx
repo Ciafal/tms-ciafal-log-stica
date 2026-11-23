@@ -42,108 +42,15 @@ export const AnttOfficialSourcePage: React.FC = () => {
   const [importJsonText, setImportJsonText] = useState('')
 
   // Tabela de Fontes / Resoluções ANTT com identificação mandatória de NÃO OFICIAL / SIMULAÇÃO
-  const [sources, setSources] = useState<AnttOfficialSourceMetadata[]>([
-    {
-      id: 'SRC-ANTT-SIMULACAO-01',
-      sourceName: 'Tabela Paramétrica de Referência Operacional (Simulação)',
-      responsibleEntity: 'Engenharia de Custos TMS CIAFAL (Parametrização Interna)',
-      sourceUrl: 'https://dados.antt.gov.br/dataset/piso-minimo-frete (AGUARDANDO FONTE OFICIAL)',
-      sourceFormat: 'JSON',
-      updateFrequency: 'Semestral / Reajuste Diesel > 5%',
-      effectiveDateStart: '2026-01-01',
-      version: 'v2026.1-SIMULACAO',
-      integrityHash: 'sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-      status: 'AGUARDANDO FONTE OFICIAL',
-      isOfficialProductionReady: false,
-      notes:
-        'IDENTIFICAÇÃO MANDATÓRIA: Esta fonte é tratada como "NÃO OFICIAL / SIMULAÇÃO" para fins de leilão até o fornecimento e validação formal da API/Fonte oficial da ANTT. Nenhuma tabela é inventada.',
-    },
-    {
-      id: 'SRC-ANTT-HIST-02',
-      sourceName: 'Resolução ANTT nº 5.867/2019 / Portaria SUROC nº 12/2024 (Histórico)',
-      responsibleEntity: 'Agência Nacional de Transportes Terrestres (ANTT)',
-      sourceUrl: 'https://www.in.gov.br/antt',
-      sourceFormat: 'PDF Diário Oficial',
-      updateFrequency: 'Conforme Portaria Extraordinária',
-      effectiveDateStart: '2024-07-01',
-      effectiveDateEnd: '2025-12-31',
-      version: 'v2024.2-HISTORICO',
-      integrityHash: 'sha256-8a7c1b3d5e7f9a2b4c6d8e0f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a9b',
-      status: 'HOMOLOGADA',
-      isOfficialProductionReady: false,
-      notes: 'Tabela histórica encerrada para fins de auditoria e cálculo de períodos pretéritos.',
-    },
-  ])
+  const [sources, setSources] = useState<AnttOfficialSourceMetadata[]>([])
 
   // Workflow de importação e validação da fonte
   const handleValidateAndImport = () => {
-    setIsProcessing(true)
-    try {
-      if (!importJsonText.trim()) {
-        toast({
-          variant: 'destructive',
-          title: 'Payload Vazio',
-          description: 'Insira a estrutura JSON da tabela tarifária para validar o schema.',
-        })
-        return
-      }
-
-      // Validação de integridade e cálculo de hash
-      const dummyHash = `sha256-calc-${Date.now().toString(16)}`
-      const newSource: AnttOfficialSourceMetadata = {
-        id: `SRC-ANTT-${Date.now().toString().slice(-4)}`,
-        sourceName: 'Nova Tabela ANTT Importada',
-        responsibleEntity: 'ANTT / Ministério dos Transportes',
-        sourceUrl: 'https://dados.antt.gov.br/api/tabelas/piso-minimo',
-        sourceFormat: 'JSON',
-        updateFrequency: 'Quadrimestral',
-        effectiveDateStart: new Date().toISOString().split('T')[0],
-        version: `v${new Date().getFullYear()}.${sources.length + 1}`,
-        integrityHash: dummyHash,
-        status: 'SCHEMA_VALIDADO',
-        isOfficialProductionReady: false,
-        notes:
-          'Schema e vigência validados com sucesso. Pendente teste de cálculo de piso mínimo para homologação.',
-      }
-
-      setSources([newSource, ...sources])
-      setImportJsonText('')
-
-      toast({
-        title: 'Fonte Importada & Schema Validado',
-        description: `Tabela ${newSource.version} validada com hash de integridade gerado. Status: SCHEMA_VALIDADO.`,
-      })
-    } catch (err: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro de Validação de Schema',
-        description: err?.message || 'A fonte fornecida não atende ao schema obrigatório da ANTT.',
-      })
-    } finally {
-      setIsProcessing(false)
-    }
+toast({variant:'destructive',title:'Fonte oficial não integrada',description:'Nenhuma tabela foi importada ou homologada.'});
   }
 
   const handleHomologateSource = (id: string) => {
-    setSources(
-      sources.map((s) => {
-        if (s.id === id) {
-          return {
-            ...s,
-            status: 'HOMOLOGADA',
-            isOfficialProductionReady: true,
-            notes: 'Fonte oficial homologada pela diretoria e compliance TMS CIAFAL.',
-          }
-        }
-        return s
-      }),
-    )
-
-    toast({
-      title: 'Fonte ANTT Homologada',
-      description:
-        'A tabela agora está formalmente habilitada para cálculo de piso mínimo de frete.',
-    })
+toast({variant:'destructive',title:'Fonte oficial não integrada',description:'Nenhuma tabela foi importada ou homologada.'});
   }
 
   return (

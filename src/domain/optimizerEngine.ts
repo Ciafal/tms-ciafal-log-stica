@@ -1,3 +1,4 @@
+import {hasRealLogistics, LOGISTICS_PENDING, type RealLogistics} from './realLogistics'
 // TMS CIAFAL — Sprint 5: Motor de Otimização Multicritério Determinístico
 // Arquitetura: O agente conversa. O motor de regras decide. O SAP registra. O TMS orquestra.
 
@@ -433,6 +434,7 @@ export interface ProposedCargoEntity {
   isFutureMatch?: boolean
   scheduledVehicleDate?: string
   scheduledVehiclePlate?: string
+  logisticsSourceReference?: string
   orders: SapSalesOrderEntity[]
   customersCount: number
   ordersCount: number
@@ -485,6 +487,7 @@ export interface GlobalOptimizerResult {
 }
 
 export interface OptimizerEngineInput {
+  logisticsByItinerary?: Record<string, RealLogistics>
   itineraryCode?: string // Se vazio ou "ALL", otimiza todos os itinerários
   plannedDate: string
   orders: SapSalesOrderEntity[]
@@ -721,6 +724,11 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
   targetItinCodes.forEach((itin) => {
     const itinData = discoveredItinerariesMap[itin]
     if (!itinData) return
+    const logistics = input.logisticsByItinerary?.[itin]
+    if (!hasRealLogistics(logistics) || !queueEntries.some(q=>q.vehicle_plate_cached===logistics.vehiclePlate && q.status==='disponivel')) {
+      itinData.orders.forEach(o=>orderRoutingStatusMap.set(o.id,{status:'RESTRICAO_LOGISTICA',label:'Integração logística pendente',detail:LOGISTICS_PENDING,reasons:[LOGISTICS_PENDING]}))
+      return
+    }
 
     const itinOrders = itinData.orders
     const meta = (itinerariesMetadata && itinerariesMetadata[itin]) || {
@@ -849,19 +857,10 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
       else if (hasApprovalNeeded) creditClassification = 'LIBERADO_COM_APROVACAO'
 
       // Distância, ANTT e Pedágio
-      const baseDistance = 380
-      const extraStopsDist = Math.max(0, customersCount - 1) * 18
-      const distanceKm = baseDistance + extraStopsDist
-      const durationMinutes = Math.round((distanceKm / 65) * 60)
-
-      const antt = anttService.calculateFloorPrice({
-        distanceKm,
-        vehicleType,
-        axlesCount: axles,
-      })
-
-      const tollsCount = Math.max(1, Math.floor(distanceKm / 55))
-      const tollsValue = Math.round(tollsCount * (4.2 * axles) * 100) / 100
+      const distanceKm = logistics.distanceKm
+      const durationMinutes = logistics.durationMinutes
+      const antt = logistics.antt
+      const tollsValue = logistics.tollsValue
       const estimatedCost = antt.floorValue + tollsValue
       const costPerTon =
         totalWeightKg > 0 ? Math.round((estimatedCost / (totalWeightKg / 1000)) * 100) / 100 : 0
@@ -1082,6 +1081,7 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
     // MOTOR DE OTIMIZAÇÃO LEXICOGRÁFICO DETERMINÍSTICO (P1 a P8):
     // 1 Itinerário -> 1 Veículo -> Mínimo possível de Clientes -> Mínimo de Descargas -> Custo ANTT
     const lexicoResult = runLexicographicOptimizerForItinerary({
+      realLogistics: logistics,
       itineraryCode: itin,
       itineraryDescription: itinDescription,
       uf: itinUf,
@@ -1457,7 +1457,8 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
   const validForExpedition = evaluatedOrders.filter((e) => e.dateCheck.isValid)
 
   // Base de cálculo de rotas e ANTT
-  const baseDistance = 380
+  const logistics = input.logisticsByItinerary?.[itineraryCode]
+  if (!hasRealLogistics(logistics)) return {scenarios:[],immediateExitCargos:[],summary:{totalOrdersEvaluated:itinOrders.length,validOrdersCount:validForExpedition.length,blockedFutureDateCount,blockedCreditCount,blockedStockCount,portaDriversAvailableCount:portaDrivers.length}}
   let axles = 5
   if (vehicleType.toLowerCase().includes('toco')) axles = 2
   else if (vehicleType.toLowerCase().includes('truck')) axles = 3
@@ -1528,18 +1529,10 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
     else if (hasApprovalNeeded) creditClassification = 'LIBERADO_COM_APROVACAO'
 
     // Rota, ANTT e Pedágio
-    const extraStopsDist = Math.max(0, customersCount - 1) * 18
-    const distanceKm = baseDistance + extraStopsDist
-    const durationMinutes = Math.round((distanceKm / 65) * 60)
-
-    const antt = anttService.calculateFloorPrice({
-      distanceKm,
-      vehicleType,
-      axlesCount: axles,
-    })
-
-    const tollsCount = Math.max(1, Math.floor(distanceKm / 55))
-    const tollsValue = Math.round(tollsCount * (4.2 * axles) * 100) / 100
+    const distanceKm = logistics.distanceKm
+    const durationMinutes = logistics.durationMinutes
+    const antt = logistics.antt
+    const tollsValue = logistics.tollsValue
     const estimatedCost = antt.floorValue + tollsValue
     const costPerTon =
       totalWeightKg > 0 ? Math.round((estimatedCost / (totalWeightKg / 1000)) * 100) / 100 : 0
@@ -1557,7 +1550,7 @@ export function runCiafalOptimizer(input: OptimizerEngineInput): {
 
     // Resultado econômico previsto da carga (Sprint 6)
     const totalOrderValue = selected.reduce((sum, o) => sum + (o.total_value || 0), 0)
-    const revenueEst = (totalWeightKg / 1000) * 210.0 // Base comercial média
+    const revenueEst = totalOrderValue // Receita efetiva dos pedidos selecionados, sem preço médio inventado.
     const predictedResult = Math.round((revenueEst - estimatedCost) * 100) / 100
 
     // Score Explícito (0 a 100)
@@ -1959,27 +1952,27 @@ export function evaluateComplementCandidates(
       { count: number; totalWeight: number; desc: string; lastDate: string }
     >()
     orders.forEach((o) => {
-      const mat = (o.material || 'CA-50').trim()
+      const mat = (o.material || '').trim(); if (!mat) return
       const desc = o.material_description || mat
       const prev = productCounts.get(mat) || {
         count: 0,
         totalWeight: 0,
         desc,
-        lastDate: o.desired_date || '',
+        lastDate: o.order_date || '',
       }
       prev.count++
       prev.totalWeight += o.weight_kg || 0
-      if (o.desired_date && o.desired_date > prev.lastDate) {
-        prev.lastDate = o.desired_date
+      if (o.order_date && o.order_date > prev.lastDate) {
+        prev.lastDate = o.order_date
       }
       productCounts.set(mat, prev)
     })
 
     // Produto com maior recorrência
-    let topMaterial = 'CA-50 10 mm'
-    let topDesc = 'Vergalhão CA-50 10 mm'
-    let avgWeight = 5000
-    let lastDate = '2026-08-15'
+    let topMaterial = ''
+    let topDesc = ''
+    let avgWeight = 0
+    let lastDate = ''
     let maxCount = -1
 
     productCounts.forEach((info, mat) => {
@@ -1988,9 +1981,11 @@ export function evaluateComplementCandidates(
         topMaterial = mat
         topDesc = info.desc
         avgWeight = Math.round(info.totalWeight / Math.max(1, info.count))
-        lastDate = info.lastDate || '2026-08-15'
+        lastDate = info.lastDate || ''
       }
     })
+
+    if (!topMaterial) return
 
     // 3. Crédito do cliente
     const creditClass = classifyCredit(first)

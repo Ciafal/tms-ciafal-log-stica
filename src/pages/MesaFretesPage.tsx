@@ -406,229 +406,10 @@ export const MesaFretesPage: React.FC = () => {
   }, [])
 
   // Disparar negociação do Carlão com o motorista selecionado
-  const handleStartCarlaoNegotiation = async () => {
-    if (!selectedCargoForOffer || !selectedDriverForCarlao) return
-    setActionLoading(true)
-
-    try {
-      const weightTon = (selectedCargoForOffer.weight_kg || 27000) / 1000
-      const dischargesCount =
-        selectedCargoForOffer.customers_count || selectedCargoForOffer.deliveries_count || 1
-
-      const band = calculateSmartPriceBand(
-        120,
-        selectedCargoForOffer.weight_kg || 27000,
-        selectedCargoForOffer.floor_value || 2532,
-        2720,
-        6.5,
-      )
-
-      const pedagio = 428.4
-      const opDetail =
-        dischargesCount > 1
-          ? ` (${weightTon.toFixed(2)} t · ${dischargesCount} descargas)`
-          : ` (${weightTon.toFixed(2)} t)`
-
-      const initialMessage = `Olá, ${selectedDriverForCarlao.driverName}! Tudo bem? Temos uma carga CIAFAL (${selectedCargoForOffer.cargo_id})${opDetail} para ${selectedCargoForOffer.destination || 'Campinas/SP'} com previsão de carregamento hoje. Vi que seu veículo (${selectedDriverForCarlao.vehiclePlate || '---'}) atende perfeitamente. Frete proposto de ${formatCurrency(band.metaCiafal)} líquido + Pedágio integral de ${formatCurrency(pedagio)}. Deseja que eu passe todos os detalhes?`
-
-      const newNegData = {
-        cargo_id: selectedCargoForOffer.cargo_id,
-        driver_name: selectedDriverForCarlao.driverName,
-        driver_phone: selectedDriverForCarlao.driverPhone || '(19) 98765-4321',
-        driver_plate: selectedDriverForCarlao.vehiclePlate || 'ABC1D23',
-        channel: 'WHATSAPP',
-        channel_status: 'WhatsApp Preparado / Mensagem Registrada no TMS',
-        status: 'EM_NEGOCIACAO',
-        active_actor: 'CARLAO',
-        eligibility_score: selectedDriverForCarlao.score,
-        score_breakdown: selectedDriverForCarlao.scoreBreakdown,
-        offer_wave: selectedDriverForCarlao.suggestedWave,
-        current_round: 1,
-        initial_offer_value: band.metaCiafal,
-        current_counter_value: band.metaCiafal,
-        pedagio_value: pedagio,
-        outros_custos_value: 0,
-        total_contract_value: band.metaCiafal + pedagio,
-        target_value: band.metaCiafal,
-        reference_value: band.referenciaMercado,
-        max_autonomy_value: band.autonomiaMaximaCarlao,
-        floor_antt_value: band.pisoAntt,
-        ai_autonomous_completion: false,
-        rounds_data: [
-          {
-            round: 1,
-            actor: 'CARLAO',
-            proposed_freight: band.metaCiafal,
-            pedagio: pedagio,
-            total: band.metaCiafal + pedagio,
-            timestamp: new Date().toISOString(),
-          },
-        ],
-        messages_history: [
-          {
-            sender: 'CARLAO',
-            text: initialMessage,
-            timestamp: new Date().toISOString(),
-          },
-        ],
-        explicabilidade_json: {
-          piso: band.pisoAntt,
-          meta: band.metaCiafal,
-          referencia: band.referenciaMercado,
-          autonomia: band.autonomiaMaximaCarlao,
-          score: selectedDriverForCarlao.score,
-          motivo: `Abertura de Onda ${selectedDriverForCarlao.suggestedWave} com motorista de score ${selectedDriverForCarlao.score}/100. Separação obrigatória de frete e pedágio conforme política CIAFAL.`,
-        },
-      }
-
-      const created = await tmsService.createFreightNegotiation(newNegData)
-
-      // Notificar gateway WhatsApp (registra log estruturado e informa status honesto)
-      await tmsService.sendWhatsAppMessage({
-        driver_name: selectedDriverForCarlao.driverName,
-        driver_id: selectedDriverForCarlao.driverId,
-        phone_number: selectedDriverForCarlao.driverPhone || '(19) 98765-4321',
-        content: initialMessage,
-        message_type: 'OFFER',
-        agent_sender: 'CARLAO',
-        cargo_id: selectedCargoForOffer.cargo_id,
-        negotiation_id: created?.id,
-      })
-
-      toast({
-        title: 'Negociação Iniciada com Chicão',
-        description: `Chicão abriu negociação com ${selectedDriverForCarlao.driverName} para a carga ${selectedCargoForOffer.cargo_id}. Registrado no TMS e aguardando WhatsApp.`,
-        className: 'bg-[#005596] text-white',
-      })
-      setCarlaoModalOpen(false)
-      await loadData()
-      setActiveTab('negociacoes')
-      setActiveNegotiation(created)
-    } catch (err: any) {
-      toast({
-        title: 'Erro ao Iniciar Negociação',
-        description: err?.message || 'Falha na inicialização do Chicão.',
-        variant: 'destructive',
-      })
-    } finally {
-      setActionLoading(false)
-    }
-  }
+  const handleStartCarlaoNegotiation = async () => { toast({title:'Integração de negociação pendente',description:'Nenhum frete, pedágio ou mensagem foi simulado.',variant:'destructive'}); }
 
   // Simulação / Envio de contraproposta do motorista (Texto ou Áudio)
-  const handleDriverCounterProposal = async (isAudio: boolean = false) => {
-    if (!activeNegotiation) return
-    setActionLoading(true)
-
-    try {
-      const counterVal = manualCounterValue
-      const audioText = isAudio
-        ? manualAudioText ||
-          'Por R$ 2.700 não consigo. Se chegar em R$ 2.900 consigo carregar hoje.'
-        : ''
-
-      const carlaoRes = await tmsService.callCarlaoNegotiate({
-        cargo_id: activeNegotiation.cargo_id,
-        driver_name: activeNegotiation.driver_name,
-        driver_counter_value: counterVal,
-        target_value: activeNegotiation.target_value || 2650,
-        reference_value: activeNegotiation.reference_value || 2720,
-        max_autonomy_value: activeNegotiation.max_autonomy_value || 2820,
-        floor_value: activeNegotiation.floor_antt_value || 2532,
-        pedagio_value: activeNegotiation.pedagio_value || 428.4,
-        round_number: activeNegotiation.current_round || 1,
-        is_audio: isAudio,
-        audio_transcription: audioText,
-        driver_score: activeNegotiation.eligibility_score || 94,
-        weight_ton: 28.5,
-        discharges_count: 2,
-      })
-
-      const updatedRounds = [
-        ...(activeNegotiation.rounds_data || []),
-        {
-          round: activeNegotiation.current_round + 1,
-          actor: 'MOTORISTA',
-          proposed_freight: counterVal,
-          pedagio: activeNegotiation.pedagio_value,
-          total: counterVal + activeNegotiation.pedagio_value,
-          is_audio: isAudio,
-          transcription: audioText,
-          timestamp: new Date().toISOString(),
-        },
-        {
-          round: activeNegotiation.current_round + 1,
-          actor: 'CARLAO',
-          proposed_freight: carlaoRes.proposed_freight_value,
-          pedagio: carlaoRes.pedagio_value,
-          total: carlaoRes.total_proposed_value,
-          timestamp: new Date().toISOString(),
-        },
-      ]
-
-      const updatedMessages = [
-        ...(activeNegotiation.messages_history || []),
-        {
-          sender: 'MOTORISTA',
-          text: isAudio
-            ? `[Áudio Transcrito: "${audioText}"] Proposta: R$ ${counterVal.toLocaleString('pt-BR')}`
-            : `Contraproposta: R$ ${counterVal.toLocaleString('pt-BR')}`,
-          timestamp: new Date().toISOString(),
-          isAudio,
-        },
-        {
-          sender: 'CARLAO',
-          text: carlaoRes.carlao_message,
-          timestamp: new Date().toISOString(),
-        },
-      ]
-
-      const nextStatus =
-        carlaoRes.decision === 'ACCEPT'
-          ? 'CONTRATADO'
-          : carlaoRes.decision === 'ESCALATE_HUMAN'
-            ? 'PAUSADO_HUMANO'
-            : 'EM_NEGOCIACAO'
-      const activeActor = carlaoRes.decision === 'ESCALATE_HUMAN' ? 'HUMANO' : 'CARLAO'
-
-      const updated = await tmsService.updateFreightNegotiation(activeNegotiation.id, {
-        current_round: activeNegotiation.current_round + 1,
-        current_counter_value: counterVal,
-        final_freight_value:
-          carlaoRes.decision === 'ACCEPT' ? carlaoRes.proposed_freight_value : undefined,
-        total_contract_value: carlaoRes.total_proposed_value,
-        rounds_data: updatedRounds,
-        messages_history: updatedMessages,
-        status: nextStatus,
-        active_actor: activeActor,
-        ai_autonomous_completion: carlaoRes.decision === 'ACCEPT',
-      })
-
-      setActiveNegotiation(updated)
-      await loadData()
-
-      toast({
-        title:
-          carlaoRes.decision === 'ACCEPT'
-            ? 'Contratação Confirmada!'
-            : 'Resposta do Chicão Registrada',
-        description:
-          carlaoRes.decision === 'ACCEPT'
-            ? 'Valores confirmados e separados. Ordem pronta para envio ao SAP.'
-            : `Chicão propôs R$ ${carlaoRes.proposed_freight_value.toLocaleString('pt-BR')} + pedágio.`,
-        className:
-          carlaoRes.decision === 'ACCEPT' ? 'bg-emerald-600 text-white' : 'bg-[#005596] text-white',
-      })
-    } catch (err: any) {
-      toast({
-        title: 'Erro na Negociação',
-        description: err?.message || 'Falha ao processar rodada do Carlão.',
-        variant: 'destructive',
-      })
-    } finally {
-      setActionLoading(false)
-    }
-  }
+  const handleDriverCounterProposal = async (isAudio: boolean = false) => { toast({title:'Integração de negociação pendente',description:'Nenhum frete, pedágio ou mensagem foi simulado.',variant:'destructive'}); }
 
   // Ação: Assumir Conversa (Intervenção Humana)
   const handleTakeoverConversation = async () => {
@@ -716,63 +497,7 @@ export const MesaFretesPage: React.FC = () => {
 
   // Ação: Confirmar Contratação e Gerar Transporte SAP ECC
   const handleConfirmAndCreateSapTransport = async (neg: any) => {
-    setActionLoading(true)
-    try {
-      const sapTransportNumber = `1004829${Math.floor(100 + Math.random() * 899)}`
-      await tmsService.updateFreightNegotiation(neg.id, {
-        status: 'CONTRATADO',
-        sap_transport_number: sapTransportNumber,
-        sap_status: 'CRIADO_SAP_ECC',
-      })
-
-      // Criar também entrada no workflow de expedição
-      await tmsService.createExpeditionTracking({
-        cargo_id: neg.cargo_id,
-        sap_transport_number: sapTransportNumber,
-        driver_name: neg.driver_name,
-        driver_phone: neg.driver_phone,
-        vehicle_plate: neg.driver_plate || 'ABC1D23',
-        destination_cities: 'Campinas / Interior SP',
-        weight_total_kg: 27500,
-        deliveries_count: 2,
-        operational_status: 'MOTORISTA_CONFIRMADO',
-        current_stage_name: 'Motorista Confirmado • A Caminho CIAFAL',
-        current_stage_start: new Date().toISOString(),
-        current_stage_duration_min: 0,
-        total_lead_time_min: 0,
-        target_lead_time_min: 145,
-        sla_status: 'NORMAL',
-        delay_risk_pct: 12,
-        priority_level: 'NORMAL',
-        wms_status_detail: 'Estoque disponível 27.5t no DP34',
-        wms_available_weight_kg: 27500,
-        wms_pending_weight_kg: 0,
-        source_system: 'Mesa de Fretes / Chicão IA',
-      })
-
-      toast({
-        title: 'Transporte SAP Criado com Sucesso!',
-        description: `Transporte SAP Nº ${sapTransportNumber} gerado e encaminhado para a Gestão da Expedição.`,
-        className: 'bg-emerald-700 text-white',
-      })
-      await loadData()
-      if (activeNegotiation && activeNegotiation.id === neg.id) {
-        setActiveNegotiation({
-          ...activeNegotiation,
-          status: 'CONTRATADO',
-          sap_transport_number: sapTransportNumber,
-          sap_status: 'CRIADO_SAP_ECC',
-        })
-      }
-    } catch (err: any) {
-      toast({
-        title: 'Falha na Geração SAP',
-        description: 'Transporte enfileirado na Fila de Reprocessamento SAP para retry automático.',
-        variant: 'destructive',
-      })
-    } finally {
-      setActionLoading(false)
-    }
+toast({title:'Integração SAP pendente',description:'A contratação só pode gerar um transporte confirmado pelo SAP.',variant:'destructive'});
   }
 
   // Filtragem de ondas
@@ -996,13 +721,7 @@ export const MesaFretesPage: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {offers.map((offer) => {
-                  const band = calculateSmartPriceBand(
-                    120,
-                    offer.weight_kg || 27000,
-                    offer.floor_value || 2532,
-                    2720,
-                    6.5,
-                  )
+                  const band = calculateSmartPriceBand(Number.NaN, offer.weight_kg ?? Number.NaN, offer.floor_value ?? Number.NaN, Number.NaN, Number.NaN)
 
                   return (
                     <Card
@@ -1015,7 +734,7 @@ export const MesaFretesPage: React.FC = () => {
                             {offer.cargo_id}
                           </Badge>
                           <span className="text-[11px] font-bold text-slate-500">
-                            {formatWeight(offer.weight_kg || 27000)} •{' '}
+                            {formatWeight(offer.weight_kg ?? Number.NaN)} •{' '}
                             {offer.required_vehicle_type || 'Carreta'}
                           </span>
                         </div>
@@ -1294,7 +1013,7 @@ export const MesaFretesPage: React.FC = () => {
                               Pedágio:{' '}
                               <strong>
                                 R${' '}
-                                {(activeNegotiation.pedagio_value || 428.4).toLocaleString('pt-BR')}
+                                {(activeNegotiation.pedagio_value ?? Number.NaN).toLocaleString('pt-BR')}
                               </strong>
                             </div>
                             <div>
@@ -1304,7 +1023,7 @@ export const MesaFretesPage: React.FC = () => {
                                 {(
                                   (activeNegotiation.final_freight_value ||
                                     activeNegotiation.target_value) +
-                                  (activeNegotiation.pedagio_value || 428.4)
+                                  (activeNegotiation.pedagio_value ?? Number.NaN)
                                 ).toLocaleString('pt-BR')}
                               </strong>
                             </div>
@@ -1398,98 +1117,7 @@ export const MesaFretesPage: React.FC = () => {
           </TabsContent>
 
           {/* TAB 3: SUPERVISÃO IA & EXPLICABILIDADE */}
-          <TabsContent value="carlao_supervisao" className="space-y-4 mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="border border-slate-200 bg-white shadow-sm p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs uppercase text-slate-400">
-                    Autonomia Sem Intervenção
-                  </span>
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                </div>
-                <div className="text-3xl font-black text-[#005596]">82,4 %</div>
-                <p className="text-xs text-slate-500">
-                  42 de 51 negociações fechadas sem intervenção humana.
-                </p>
-              </Card>
-
-              <Card className="border border-slate-200 bg-white shadow-sm p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs uppercase text-slate-400">
-                    Taxa de Aceite Onda 1
-                  </span>
-                  <Users className="w-4 h-4 text-emerald-600" />
-                </div>
-                <div className="text-3xl font-black text-emerald-700">68,2 %</div>
-                <p className="text-xs text-slate-500">
-                  Motoristas com score &gt; 90 aceitando na 1ª ou 2ª rodada.
-                </p>
-              </Card>
-
-              <Card className="border border-slate-200 bg-white shadow-sm p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs uppercase text-slate-400">
-                    Economia Sustentável
-                  </span>
-                  <TrendingDown className="w-4 h-4 text-[#005596]" />
-                </div>
-                <div className="text-3xl font-black text-slate-800">R$ 24,8k</div>
-                <p className="text-xs text-slate-500">
-                  Economia acumulada vs teto máximo nos últimos 30 dias.
-                </p>
-              </Card>
-            </div>
-
-            {/* Diagnóstico Analítico Permanente */}
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-              <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                <Bot className="w-5 h-5 text-[#005596]" />
-                Diagnóstico Analítico do Agente Chicão & Anomalias
-              </h3>
-              <p className="text-xs text-slate-500">
-                Supervisão contínua para garantir que a IA não aumente recusas nem prejudique os
-                motoristas parceiros estratégicos.
-              </p>
-
-              <div className="space-y-3 pt-2">
-                <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50 space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between font-bold text-amber-900">
-                    <span>Aumento de 13 % nas contrapropostas no Vale do Paraíba</span>
-                    <Badge className="bg-amber-600 text-white text-[10px]">
-                      Confiança Alta (88 %)
-                    </Badge>
-                  </div>
-                  <p className="text-slate-700">
-                    <strong>Fato:</strong> 72 % dos motoristas da região responderam acima da meta
-                    inicial da CIAFAL.
-                  </p>
-                  <p className="text-slate-700">
-                    <strong>Ação Proposta pelo Chicão:</strong> Ajustar meta de referência para R$
-                    2.780 na faixa inteligente ou acionar motoristas cadastrados com frete de
-                    retorno.
-                  </p>
-                </div>
-
-                <div className="p-3.5 rounded-xl border border-sky-200 bg-sky-50/50 space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between font-bold text-[#005596]">
-                    <span>Cruzamento: Preço x Custo Operacional Total</span>
-                    <Badge className="bg-[#005596] text-white text-[10px]">
-                      Índice Sustentável
-                    </Badge>
-                  </div>
-                  <p className="text-slate-700">
-                    <strong>Evidência:</strong> Motorista João Silva (R$ 2.750) apresenta índice
-                    96/100 (98 % pontualidade, 0 cancelamentos), enquanto propostas R$ 80 mais
-                    baratas causaram +42 min de espera em doca.
-                  </p>
-                  <p className="text-emerald-800 font-semibold">
-                    <strong>Recomendação:</strong> Manter priorização do João Silva na Onda 1 pela
-                    eficiência global.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
+          <TabsContent value="carlao_supervisao" className="space-y-4 mt-4"><p className="rounded-xl border bg-white p-6 text-sm text-slate-500">Nenhuma análise operacional disponível.</p></TabsContent>
         </Tabs>
 
         {/* MODAL: SELEÇÃO MULTICRITÉRIO INTELIGENTE & SCORE DE ADEQUAÇÃO À CARGA */}

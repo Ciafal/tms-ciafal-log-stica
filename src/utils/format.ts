@@ -39,7 +39,7 @@ export interface FormatNumberOptions {
 export function formatAbntNumber(
   value: number | null | undefined,
   decimals = 2,
-  fallback = '0,00',
+  fallback = '—',
 ): string {
   if (value === null || value === undefined || isNaN(value)) {
     return fallback
@@ -60,7 +60,7 @@ export function formatTons(
   value: number | null | undefined,
   options?: { decimals?: number; fromKg?: boolean; fallback?: string },
 ): string {
-  const fallback = options?.fallback ?? '0,00 t'
+  const fallback = options?.fallback ?? '—'
   if (value === null || value === undefined || isNaN(value)) {
     return fallback
   }
@@ -134,7 +134,7 @@ export function formatWeight(
 export function formatKg(
   value: number | null | undefined,
   decimals = 0,
-  fallback = '0 kg',
+  fallback = '—',
 ): string {
   if (value === null || value === undefined || isNaN(value)) {
     return fallback
@@ -152,7 +152,7 @@ export function formatKg(
 export function formatDistance(
   km: number | null | undefined,
   decimals = 2,
-  fallback = '0,00 km',
+  fallback = '—',
 ): string {
   if (km === null || km === undefined || isNaN(km)) {
     return fallback
@@ -187,7 +187,7 @@ export function formatSpeed(
  */
 export function formatDurationMinutes(
   minutes: number | null | undefined,
-  fallback = '0 min',
+  fallback = '—',
 ): string {
   if (minutes === null || minutes === undefined || isNaN(minutes)) {
     return fallback
@@ -248,7 +248,7 @@ export function formatPercent(
  * Moeda Real Brasileiro (BRL / R$)
  * Ex: 2450.75 -> "R$ 2.450,75"
  */
-export function formatCurrency(value?: number | null, fallback = 'R$ 0,00'): string {
+export function formatCurrency(value?: number | null, fallback = '—'): string {
   if (value === null || value === undefined || isNaN(value)) {
     return fallback
   }

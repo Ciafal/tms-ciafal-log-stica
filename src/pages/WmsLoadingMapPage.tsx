@@ -71,20 +71,21 @@ export const WmsLoadingMapPage: React.FC = () => {
     }
 
     const payloadOrders = Array.isArray(cargo.orders_payload) ? cargo.orders_payload : []
+    if (!payloadOrders.length || !cargo.vehicle_plate || !cargo.vehicle_capacity_kg || payloadOrders.some((o:any)=>!o.id || !o.order_number || !o.customer_code || !o.material || !o.weight_kg || !o.plant || !o.storage_location || !o.wms_address || !o.distance_km)) { setLoadingLayout(null); return }
     const mappedOrders = payloadOrders.map((o: any, idx: number) => ({
       id: o.id || `ORD-${idx + 1}`,
-      order_number: o.order_number || `PED-${idx + 1}`,
-      customer_code: o.customer_code || 'CLI-001',
+      order_number: o.order_number,
+      customer_code: o.customer_code,
       customer_name: o.customer_name || 'Cliente',
       destination_city: o.destination_city || 'Destino',
       uf: o.uf || 'SP',
-      material: o.material || 'Material Aço',
-      material_description: o.material_description || o.material || 'Material Laminado',
-      weight_kg: o.weight_kg || 10000,
-      plant: '1000',
-      storage_location: 'DP34',
-      wms_address: 'DP34-DOCA-01',
-      distance_km: 150,
+      material: o.material,
+      material_description: o.material_description || o.material,
+      weight_kg: o.weight_kg,
+      plant: o.plant,
+      storage_location: o.storage_location,
+      wms_address: o.wms_address,
+      distance_km: o.distance_km,
     }))
 
     const layout = generateWmsLoadingMap({

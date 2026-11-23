@@ -57,8 +57,8 @@ export const negociacoesService = {
           return {
             ...neg,
             messages_history: msgs,
-            max_autonomy_value: Math.round((neg.initial_freight_value || 5000) * 1.03),
-            minutes_without_reply: neg.status === 'EM_NEGOCIACAO' ? 12 : 0,
+            max_autonomy_value: undefined,
+            minutes_without_reply: neg.updated ? Math.max(0,Math.floor((Date.now()-Date.parse(neg.updated))/60000)) : 0,
           }
         }
 
@@ -68,11 +68,11 @@ export const negociacoesService = {
           counter_value_requested: linkedChicao.counter_value_requested,
           max_autonomy_value:
             linkedChicao.max_autonomy_value ||
-            Math.round((neg.initial_freight_value || 5000) * 1.03),
+            undefined,
           messages_history: linkedChicao.messages_history || [],
           refusal_reason: linkedChicao.refusal_reason,
           refusal_category: linkedChicao.refusal_category,
-          minutes_without_reply: 15,
+          minutes_without_reply: neg.updated ? Math.max(0,Math.floor((Date.now()-Date.parse(neg.updated))/60000)) : 0,
         }
       })
     } catch (err) {

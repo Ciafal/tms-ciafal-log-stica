@@ -246,7 +246,7 @@ export const ProfitabilityDashboardPage: React.FC = () => {
       aiReply =
         'FATO: O itinerário MG001A (BH/Contagem) apresentou desvio desfavorável de R$ 420. EXPLICAÇÃO: Contratação de motoristas do grupo FORA em finais de semana com frete 8% superior ao piso parametrizado. HIPÓTESE IA: Priorizar motoristas da fila PORTA com antecedência de 24h para Belo Horizonte.'
     } else {
-      aiReply = `FATO: A margem logística média atual é de ${agg.margemMediaPct.toFixed(1)}% com resultado realizado de R$ ${agg.totalResultadoRealizado.toLocaleString('pt-BR')}. EXPLICAÇÃO: O custo total esperado médio por tonelada entregue está em R$ ${(agg.totalFretePago / Math.max(1, agg.totalPesoTons)).toFixed(2)}/t. HIPÓTESE IA: O motorista João Carlos Silva apresenta o melhor custo total esperado consolidado devido a zero ocorrências atribuídas.`
+      aiReply = `FATO: A margem logística média atual é de ${agg.margemMediaPct.toFixed(1)}% com resultado realizado de R$ ${agg.totalResultadoRealizado.toLocaleString('pt-BR')}. EXPLICAÇÃO: O custo total esperado médio por tonelada entregue está em R$ ${(agg.totalFretePago / Math.max(1, agg.totalPesoTons)).toFixed(2)}/t.`
     }
 
     setAnalystConversation((prev) => [...prev, userMsg, { sender: 'AI', text: aiReply }])

@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 // TMS CIAFAL — Central Visual de Roteirização e Clusterização Geográfica de Cargas
 //
 // Atende integralmente aos requisitos do usuário:
@@ -1315,7 +1316,7 @@ export const LogisticalCargoMap: React.FC<LogisticalCargoMapProps> = ({
                     >
                       <span className="truncate max-w-[240px]">
                         Ped {ord.order_number}:{' '}
-                        {ord.material_description || ord.material || 'Material Aço CIAFAL'}
+                        {materialLabel(ord.material, ord.material_description)}
                       </span>
                       <strong className="font-mono text-slate-900">
                         {((ord.weight_kg || 0) / 1000).toFixed(1)} t

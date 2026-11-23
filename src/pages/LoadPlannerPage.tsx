@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   CalendarCheck,
@@ -1015,7 +1016,7 @@ export const LoadPlannerPage: React.FC = () => {
                           </strong>
                         </div>
                         <div>
-                          Material: <span className="text-slate-600">{order.material}</span>
+                          Material: <span className="text-slate-600">{materialLabel(order.material, order.material_description)}</span>
                         </div>
                         <div>
                           Descarga: <span className="text-slate-600">{order.discharge_type}</span>
@@ -1365,7 +1366,7 @@ export const LoadPlannerPage: React.FC = () => {
                           <strong className="font-mono text-slate-900">{order.order_number}</strong>{' '}
                           — <span className="text-slate-700">{order.customer_name}</span>
                           <div className="text-[10px] text-slate-500">
-                            {formatTons(order.weight_kg, { fromKg: true })} • {order.material}
+                            {formatTons(order.weight_kg, { fromKg: true })} • {materialLabel(order.material, order.material_description)}
                           </div>
                         </div>
                         <Button

@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 // TMS CIAFAL — Visão em Lista Tabular da Carteira SAP (ZSD35)
 // Exibe a carteira única completa de pedidos/itens para conferência operacional detalhada,
 // filtros de busca rápida e seleção direta para a montagem de carga.
@@ -249,7 +250,7 @@ export const OrdersListView: React.FC<OrdersListViewProps> = ({
                         {ord.itinerary_code || 'S/I'}
                       </td>
                       <td className="p-2.5 text-slate-600 truncate max-w-[140px]">
-                        {ord.material}
+                        {materialLabel(ord.material, ord.material_description)}
                       </td>
                       <td className="p-2.5 font-mono font-bold text-right text-slate-900">
                         {((ord.weight_kg || 0) / 1000).toFixed(1)} t

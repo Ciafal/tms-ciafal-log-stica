@@ -1,3 +1,4 @@
+import { materialLabel } from '@/utils/material'
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   Layers,
@@ -1412,7 +1413,7 @@ export const ComplementCargosPage: React.FC = () => {
                         <div>
                           Produto sugerido:{' '}
                           <strong className="text-slate-800 dark:text-slate-200">
-                            {opp.material_description || opp.material_id || 'Laminados CA-50'}
+                            {materialLabel(opp.material_id, opp.material_description)}
                           </strong>
                         </div>
                         <div className="sm:text-right">
@@ -1743,7 +1744,7 @@ export const ComplementCargosPage: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700 dark:text-slate-300">
                       <div>
-                        Produto: <strong>{item.material_description || item.material_id}</strong>
+                        Produto: <strong>{materialLabel(item.material_id, item.material_description)}</strong>
                       </div>
                       <div className="text-right">
                         Quantidade Potencial:{' '}
@@ -2080,7 +2081,7 @@ export const ComplementCargosPage: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span>Produto Recomendado:</span>
-                    <span>{detailOpp.material_description || detailOpp.material_id}</span>
+                    <span>{materialLabel(detailOpp.material_id, detailOpp.material_description)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Status Atual:</span>
@@ -2698,7 +2699,7 @@ export const ComplementCargosPage: React.FC = () => {
                           </td>
                           <td className="p-2.5">
                             <span className="block text-slate-700 dark:text-slate-300">
-                              {req.material_description || req.material_id || 'Laminados CA-50'}
+                              {materialLabel(req.material_id, req.material_description)}
                             </span>
                             <span className="font-mono text-amber-700 font-bold text-[10px]">
                               {(

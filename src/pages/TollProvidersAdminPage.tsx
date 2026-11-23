@@ -64,47 +64,7 @@ export const TollProvidersAdminPage: React.FC = () => {
   ]
 
   // 2. Registro de Testes de Pedágio em Rotas Conhecidas (Item 26)
-  const [tollTestRecords, setTollTestRecords] = useState<any[]>([
-    {
-      id: 'toll-test-01',
-      routeName: 'CIAFAL Matriz → Grande BH (Betim/MG)',
-      itineraryCode: 'MG001A',
-      distanceKm: 575,
-      axlesCount: 5,
-      vehicleType: 'Carreta LS',
-      tollBoothsCount: 8,
-      calculatedValue: 142.5,
-      expectedValue: 140.0,
-      diffValue: 2.5,
-      status: 'APROVADO (Diferença < 5%)',
-    },
-    {
-      id: 'toll-test-02',
-      routeName: 'CIAFAL Matriz → Rio de Janeiro (RJ)',
-      itineraryCode: 'RJ001A',
-      distanceKm: 435,
-      axlesCount: 5,
-      vehicleType: 'Carreta LS',
-      tollBoothsCount: 5,
-      calculatedValue: 98.0,
-      expectedValue: 95.0,
-      diffValue: 3.0,
-      status: 'APROVADO (Diferença < 5%)',
-    },
-    {
-      id: 'toll-test-03',
-      routeName: 'CIAFAL Matriz → Campinas (SP)',
-      itineraryCode: 'SP001A',
-      distanceKm: 98,
-      axlesCount: 5,
-      vehicleType: 'Carreta LS',
-      tollBoothsCount: 3,
-      calculatedValue: 46.5,
-      expectedValue: 46.5,
-      diffValue: 0.0,
-      status: 'EXATO (0% Desvio)',
-    },
-  ])
+  const [tollTestRecords, setTollTestRecords] = useState<any[]>([])
 
   const handleRunTollTest = () => {
     setIsTesting(true)

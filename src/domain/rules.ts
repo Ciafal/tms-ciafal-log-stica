@@ -2608,128 +2608,13 @@ export class DefaultRoutingProvider implements RoutingProvider {
     return !!this.apiKey
   }
 
-  async validateAddress(rawAddress: string, city: string, uf: string): Promise<GeoCoordinate> {
-    if (!city || !uf) {
-      return {
-        latitude: 0,
-        longitude: 0,
-        isValidated: false,
-        address: rawAddress,
-      }
-    }
-    // Determinação determinística baseada na cidade/UF de entrega
-    const cityNorm = city.toLowerCase().trim()
-    const ufNorm = uf.toUpperCase().trim()
-
-    if (cityNorm.includes('belo horizonte') || ufNorm === 'MG') {
-      return {
-        latitude: -19.9167,
-        longitude: -43.9345,
-        city,
-        uf,
-        address: rawAddress || 'Distrito Industrial, Belo Horizonte - MG',
-        isValidated: true,
-      }
-    }
-    if (cityNorm.includes('campinas')) {
-      return {
-        latitude: -22.9056,
-        longitude: -47.0608,
-        city,
-        uf,
-        address: rawAddress || 'Distrito Industrial, Campinas - SP',
-        isValidated: true,
-      }
-    }
-    if (cityNorm.includes('são paulo') || (ufNorm === 'SP' && !cityNorm.includes('campinas'))) {
-      return {
-        latitude: -23.5505,
-        longitude: -46.6333,
-        city,
-        uf,
-        address: rawAddress || 'Distrito Industrial, São Paulo - SP',
-        isValidated: true,
-      }
-    }
-    if (cityNorm.includes('rio') || ufNorm === 'RJ') {
-      return {
-        latitude: -22.9068,
-        longitude: -43.1729,
-        city,
-        uf,
-        address: rawAddress || 'Distrito Industrial, Rio de Janeiro - RJ',
-        isValidated: true,
-      }
-    }
-
-    return {
-      latitude: 0,
-      longitude: 0,
-      isValidated: false,
-      address: rawAddress,
-      city,
-      uf,
-    }
-  }
+  async validateAddress(rawAddress: string, city: string, uf: string): Promise<GeoCoordinate> { return {latitude:0,longitude:0,isValidated:false,address:rawAddress,city,uf}; }
 
   async calculateRoute(
     origin: GeoCoordinate,
     destinations: RouteWayPoint[],
   ): Promise<RouteSimulationResult> {
-    const isLive = this.isConfigured()
-    let currentLat = origin.latitude
-    let currentLon = origin.longitude
-    let currentName = origin.address || 'Planta CIAFAL (Matriz)'
-    let totalDist = 0
-    const segments: RouteSimulationResult['segments'] = []
-    const polyline: Array<[number, number]> = [[currentLat, currentLon]]
-
-    for (let i = 0; i < destinations.length; i++) {
-      const dest = destinations[i]
-      const destLat = dest.location.latitude
-      const destLon = dest.location.longitude
-      const destName = dest.customerName || `Destino ${i + 1}`
-
-      let dist = 0
-      if (dest.location.isValidated && destLat !== 0 && destLon !== 0) {
-        dist = calculateDistanceKm(currentLat, currentLon, destLat, destLon) * 1.25 // Fator de sinuosidade rodoviária 1.25
-      } else {
-        dist = 120 // estimativa padrão por trecho
-      }
-
-      totalDist += dist
-      const durationMin = Math.round((dist / 65) * 60) // Velocidade média caminhão 65 km/h
-
-      segments.push({
-        from: currentName,
-        to: destName,
-        distanceKm: Math.round(dist * 10) / 10,
-        durationMinutes: durationMin,
-      })
-
-      if (destLat !== 0 && destLon !== 0) {
-        polyline.push([destLat, destLon])
-        currentLat = destLat
-        currentLon = destLon
-        currentName = destName
-      }
-    }
-
-    const totalDuration = Math.round((totalDist / 65) * 60)
-
-    return {
-      providerName: this.providerName,
-      isLiveProvider: isLive,
-      origin,
-      destinations,
-      totalDistanceKm: Math.round(totalDist * 10) / 10,
-      totalDurationMinutes: totalDuration,
-      polylineCoords: polyline,
-      segments,
-      statusText: isLive
-        ? 'ROTEIRIZAÇÃO ONLINE ATIVA'
-        : 'ROTEIRIZAÇÃO GEOGRÁFICA — PROVIDER NÃO CONFIGURADO (Cálculo Estimado Haversine x1.25)',
-    }
+throw new Error('Distância rodoviária não integrada.');
   }
 }
 
@@ -2778,42 +2663,7 @@ export class DefaultTollProvider implements TollProvider {
     axlesCount = 5,
     itineraryCode = 'SP001A',
   ): Promise<TollCalculationResult> {
-    // Estimativa por praça de pedágio (1 praça a cada ~55 km em rodovias concedidas SP/MG/RJ)
-    const effectiveAxles =
-      axlesCount > 0 ? axlesCount : vehicleType.toLowerCase().includes('bitrem') ? 7 : 5
-    const plazasCount = Math.max(1, Math.floor(distanceKm / 55))
-    const baseRatePerAxle = 4.2 // R$ 4,20 por eixo por praça
-
-    const tollPlazas: TollCalculationResult['tollPlazas'] = []
-    let totalValue = 0
-
-    for (let i = 1; i <= plazasCount; i++) {
-      const plazaVal = baseRatePerAxle * effectiveAxles
-      totalValue += plazaVal
-      tollPlazas.push({
-        plazaName: `Praça P${i} - Km ${i * 55}`,
-        highway: itineraryCode.startsWith('MG')
-          ? 'BR-381 / Fernão Dias'
-          : itineraryCode.startsWith('RJ')
-            ? 'BR-116 / Dutra'
-            : 'SP-330 / Anhanguera',
-        ratePerAxle: baseRatePerAxle,
-        axlesCount: effectiveAxles,
-        totalValue: plazaVal,
-      })
-    }
-
-    return {
-      providerName: this.providerName,
-      isLiveProvider: this.isConfigured(),
-      totalTollsCount: plazasCount,
-      totalTollCost: Math.round(totalValue * 100) / 100,
-      tollPlazas,
-      calculatedAt: new Date().toISOString(),
-      statusText: this.isConfigured()
-        ? 'PEDÁGIO ONLINE CONECTADO'
-        : 'PEDÁGIO — PROVIDER PENDENTE (Cálculo Parametrizado por Eixos)',
-    }
+throw new Error('Pedágios não integrados.');
   }
 }
 
@@ -2858,64 +2708,11 @@ export class DefaultANTTProvider implements ANTTProvider {
   private isConnected = true
 
   isConfigured(): boolean {
-    return this.isConnected
+return false;
   }
 
   calculateFloorPrice(params: AnttCalculationParams): AnttCalculationResult {
-    const {
-      distanceKm,
-      vehicleType,
-      cargoType = 'Geral',
-      tableVersion = '2024-V2-PORTARIA-12',
-    } = params
-
-    let axles = params.axlesCount || 5
-    if (!params.axlesCount) {
-      const v = (vehicleType || '').toLowerCase()
-      if (v.includes('toco') || v.includes('3/4') || v.includes('2 eixos')) axles = 2
-      else if (v.includes('truck') || v.includes('3 eixos')) axles = 3
-      else if (v.includes('bitruck') || v.includes('4 eixos')) axles = 4
-      else if (v.includes('carreta') || v.includes('ls') || v.includes('5 eixos')) axles = 5
-      else if (v.includes('vanderleia') || v.includes('6 eixos')) axles = 6
-      else if (v.includes('bitrem') || v.includes('7 eixos')) axles = 7
-      else if (v.includes('rodotrem') || v.includes('9 eixos')) axles = 9
-    }
-
-    // Coeficientes oficiais ANTT (Resolução 5.867/2019 atualizada)
-    const ratesMap: Record<number, { ccd: number; cc: number }> = {
-      2: { ccd: 2.85, cc: 1.45 },
-      3: { ccd: 3.65, cc: 1.95 },
-      4: { ccd: 4.4, cc: 2.4 },
-      5: { ccd: 5.15, cc: 2.9 },
-      6: { ccd: 5.95, cc: 3.4 },
-      7: { ccd: 6.7, cc: 3.9 },
-      9: { ccd: 7.95, cc: 4.6 },
-    }
-
-    const rates = ratesMap[axles] || ratesMap[5]
-    const fixedBase = 310.0
-    // Fórmula ANTT: Piso = (Distância * CCD) + CC_base + Carga_Descarga
-    const floor = Math.max(
-      650,
-      Math.round((distanceKm * rates.ccd + fixedBase + rates.cc * distanceKm * 0.15) * 100) / 100,
-    )
-
-    return {
-      floorValue: floor,
-      tableVersion,
-      resolutionNumber: 'Resolução ANTT nº 5.867/2019 / Portaria SUROC nº 12/2024',
-      effectiveDate: '2024-07-01',
-      distanceKm,
-      axlesCount: axles,
-      cargoType,
-      ccd: rates.ccd,
-      cc: rates.cc,
-      fixedBase,
-      formulaDetails: `Piso ANTT = (${distanceKm} km * R$ ${rates.ccd}/km [CCD]) + R$ ${fixedBase} + Adicional CC (R$ ${rates.cc})`,
-      calculatedAt: new Date().toISOString(),
-      isOfficialSourceConnected: true,
-      statusText: 'ANTT — TABELA OFICIAL VIGENTE APLICADA (Resolução 5.867)',
-    }
+throw new Error('Fonte oficial ANTT não integrada.');
   }
 }
 
