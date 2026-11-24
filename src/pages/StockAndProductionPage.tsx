@@ -1,5 +1,5 @@
 import { materialLabel } from '@/utils/material'
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useId, useState, useEffect, useMemo } from 'react'
 import {
   Boxes,
   Factory,
@@ -42,6 +42,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { TmsService } from '@/services/tmsService'
+import { getStockLocations } from '@/services/stockFilterService'
 import {
   SapStockCurrentEntity,
   PcpProductionOrderEntity,
@@ -54,25 +55,60 @@ import {
   ConsolidatedMaterialStockRow,
 } from '@/domain/stockIndicatorsEngine'
 import { StockLotDrillDownModal } from '@/components/StockLotDrillDownModal'
+import {
+  matchesStockLocation,
+  matchesStockStatus,
+  stockStatuses,
+  type StockLocation,
+} from '@/domain/stockFilters'
 import { formatWeight } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+
+interface StockFilterInputProps {
+  label: string
+  placeholder: string
+  value: string
+  options: readonly { code: string; name?: string }[]
+  onChange: (value: string) => void
+}
+
+function StockFilterInput({ label, placeholder, value, options, onChange }: StockFilterInputProps) {
+  const listId = useId()
+
+  return (
+    <>
+      <Input
+        type="search"
+        aria-label={label}
+        placeholder={placeholder}
+        list={listId}
+        autoComplete="off"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-8 text-xs bg-slate-50/50"
+      />
+      <datalist id={listId}>
+        {options.map(({ code, name }) => <option key={code} value={code} label={name} />)}
+      </datalist>
+    </>
+  )
+}
 
 export const StockAndProductionPage: React.FC = () => {
   const { user, permissions } = useAuth()
   const { toast } = useToast()
 
   const [stocks, setStocks] = useState<SapStockCurrentEntity[]>([])
+  const [stockLocations, setStockLocations] = useState<StockLocation[]>([])
   const [pcpOrders, setPcpOrders] = useState<PcpProductionOrderEntity[]>([])
   const [stockRequests, setStockRequests] = useState<StockConfirmationRequestEntity[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   // Filters
   const [search, setSearch] = useState('')
-  const [filterPlant, setFilterPlant] = useState('ALL')
-  const [filterStorageLocation, setFilterStorageLocation] = useState('ALL')
-  const [filterStatus, setFilterStatus] = useState<
-    'ALL' | 'DISPONIVEL' | 'BLOQUEADO' | 'RESERVADO'
-  >('ALL')
+  const [filterPlant, setFilterPlant] = useState('')
+  const [filterStorageLocation, setFilterStorageLocation] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
   const [filterPcpStatus, setFilterPcpStatus] = useState('ALL')
 
   // Drill-down Modal State
@@ -108,14 +144,23 @@ export const StockAndProductionPage: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const [stk, pcp, reqs] = await Promise.all([
+      const [stk, pcp, reqs, locations] = await Promise.all([
         TmsService.getStockCurrent(),
         TmsService.getPcpProductionOrders(),
         TmsService.getStockRequests(),
+        getStockLocations().catch((error: Error) => {
+          toast({
+            title: 'Erro ao carregar filtros de estoque do SAP',
+            description: error.message,
+            variant: 'destructive',
+          })
+          return null
+        }),
       ])
       setStocks(stk)
       setPcpOrders(pcp)
       setStockRequests(reqs)
+      if (locations) setStockLocations(locations)
     } catch (err: any) {
       toast({
         title: 'Erro ao carregar dados de Estoque & PCP',
@@ -148,7 +193,23 @@ export const StockAndProductionPage: React.FC = () => {
     }
   }, [stocks, pcpOrders, stockRequests])
 
-  // Filtered Stock (Recalcula dinamicamente sobre qualquer alteração de filtros)
+  const { plants, locations } = useMemo(() => {
+    const plants = new Map<string, string | undefined>()
+    const locations = new Map<string, StockLocation>()
+    for (const stock of stocks) {
+      const { plant, storage_location: storageLocation } = stock
+      if (plant) plants.set(plant, undefined)
+      if (storageLocation) locations.set(JSON.stringify([plant, storageLocation]), { plant, storageLocation })
+    }
+    for (const location of stockLocations) {
+      const { plant, plantName, storageLocation } = location
+      if (plant) plants.set(plant, plantName)
+      if (storageLocation) locations.set(JSON.stringify([plant, storageLocation]), location)
+    }
+    return { plants, locations }
+  }, [stocks, stockLocations])
+
+  // Recalcula os indicadores sobre os registros que atendem aos filtros.
   const filteredStock = useMemo(() => {
     return stocks.filter((s) => {
       if (search) {
@@ -160,15 +221,12 @@ export const StockAndProductionPage: React.FC = () => {
           (s.storage_bin && s.storage_bin.toLowerCase().includes(q))
         if (!match) return false
       }
-      if (filterPlant !== 'ALL' && s.plant !== filterPlant) return false
-      if (filterStorageLocation !== 'ALL' && s.storage_location !== filterStorageLocation)
-        return false
-      if (filterStatus === 'DISPONIVEL' && (s.available_qty || 0) <= 0) return false
-      if (filterStatus === 'BLOQUEADO' && (s.blocked_qty || 0) <= 0) return false
-      if (filterStatus === 'RESERVADO' && (s.reserved_qty || 0) <= 0) return false
-      return true
+      const location = locations.get(JSON.stringify([s.plant, s.storage_location]))
+      return matchesStockLocation(filterPlant, s.plant, plants.get(s.plant)) &&
+        matchesStockLocation(filterStorageLocation, s.storage_location, location?.storageLocationName) &&
+        matchesStockStatus(s, filterStatus)
     })
-  }, [stocks, search, filterPlant, filterStorageLocation, filterStatus])
+  }, [stocks, search, filterPlant, filterStorageLocation, filterStatus, plants, locations])
 
   // 6 Indicadores Estatísticos Canônicos sobre os lotes filtrados (Cards superiores)
   const stockMetrics = useMemo(() => {
@@ -181,21 +239,22 @@ export const StockAndProductionPage: React.FC = () => {
   }, [filteredStock])
 
   // Lista única de Centros e Depósitos para os seletores de filtro
-  const availablePlants = useMemo(() => {
-    const set = new Set<string>()
-    stocks.forEach((s) => {
-      if (s.plant) set.add(s.plant)
-    })
-    return Array.from(set).sort()
-  }, [stocks])
+  const availablePlants = useMemo(() =>
+    [...plants.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([code, name]) => ({ code, name })),
+  [plants])
 
   const availableStorageLocations = useMemo(() => {
-    const set = new Set<string>()
-    stocks.forEach((s) => {
-      if (s.storage_location) set.add(s.storage_location)
-    })
-    return Array.from(set).sort()
-  }, [stocks])
+    const namesByCode = new Map<string, Set<string>>()
+    for (const { plant, storageLocation, storageLocationName } of locations.values()) {
+      if (matchesStockLocation(filterPlant, plant, plants.get(plant))) {
+        const names = namesByCode.get(storageLocation) ?? new Set<string>()
+        if (storageLocationName) names.add(storageLocationName)
+        namesByCode.set(storageLocation, names)
+      }
+    }
+    return [...namesByCode.entries()].sort(([a], [b]) => a.localeCompare(b))
+      .map(([code, names]) => ({ code, name: [...names].join(' / ') || undefined }))
+  }, [locations, plants, filterPlant])
 
   const openDrillDown = (
     title: string,
@@ -412,18 +471,15 @@ export const StockAndProductionPage: React.FC = () => {
               sap_stock_current
             </Badge>
           </div>
-          {(search ||
-            filterPlant !== 'ALL' ||
-            filterStorageLocation !== 'ALL' ||
-            filterStatus !== 'ALL') && (
+          {(search || filterPlant || filterStorageLocation || filterStatus) && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 setSearch('')
-                setFilterPlant('ALL')
-                setFilterStorageLocation('ALL')
-                setFilterStatus('ALL')
+                setFilterPlant('')
+                setFilterStorageLocation('')
+                setFilterStatus('')
               }}
               className="h-6 px-2 text-[10px] text-slate-500 hover:text-slate-900"
             >
@@ -443,45 +499,27 @@ export const StockAndProductionPage: React.FC = () => {
             />
           </div>
 
-          <Select value={filterPlant} onValueChange={setFilterPlant}>
-            <SelectTrigger className="h-8 text-xs bg-slate-50/50">
-              <SelectValue placeholder="Centro (WERKS)" />
-            </SelectTrigger>
-            <SelectContent className="text-xs">
-              <SelectItem value="ALL">Todos os Centros</SelectItem>
-              {availablePlants.map((plant) => (
-                <SelectItem key={plant} value={plant}>
-                  Centro: {plant}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={filterStorageLocation} onValueChange={setFilterStorageLocation}>
-            <SelectTrigger className="h-8 text-xs bg-slate-50/50">
-              <SelectValue placeholder="Depósito (LGORT)" />
-            </SelectTrigger>
-            <SelectContent className="text-xs">
-              <SelectItem value="ALL">Todos os Depósitos</SelectItem>
-              {availableStorageLocations.map((lgort) => (
-                <SelectItem key={lgort} value={lgort}>
-                  Depósito: {lgort}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={filterStatus} onValueChange={(val: any) => setFilterStatus(val)}>
-            <SelectTrigger className="h-8 text-xs bg-slate-50/50">
-              <SelectValue placeholder="Status do Estoque" />
-            </SelectTrigger>
-            <SelectContent className="text-xs">
-              <SelectItem value="ALL">Todos os Status</SelectItem>
-              <SelectItem value="DISPONIVEL">Apenas Disponível</SelectItem>
-              <SelectItem value="RESERVADO">Com Reserva</SelectItem>
-              <SelectItem value="BLOQUEADO">Com Bloqueio</SelectItem>
-            </SelectContent>
-          </Select>
+          <StockFilterInput
+            label="Centro (WERKS)"
+            placeholder="Todos os Centros"
+            value={filterPlant}
+            options={availablePlants}
+            onChange={setFilterPlant}
+          />
+          <StockFilterInput
+            label="Depósito (LGORT)"
+            placeholder="Todos os Depósitos"
+            value={filterStorageLocation}
+            options={availableStorageLocations}
+            onChange={setFilterStorageLocation}
+          />
+          <StockFilterInput
+            label="Status do Estoque"
+            placeholder="Todos os Status"
+            value={filterStatus}
+            options={stockStatuses.map(({ code, label }) => ({ code: label, name: code }))}
+            onChange={setFilterStatus}
+          />
         </div>
       </div>
 
