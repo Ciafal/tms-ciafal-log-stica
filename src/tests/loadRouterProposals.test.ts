@@ -295,3 +295,14 @@ describe('CORREÇÃO FUNCIONAL — PROPOSTA AUTOMÁTICA DE CARGAS POR ITINERÁRI
     expect(result.allProposedCargos[0].itineraryCode).toBe('MG001A')
   })
 })
+
+describe('data desejada na formação da carga', () => {
+  it('rejeita a data futura mesmo quando o usuário escolhe uma expedição futura', () => {
+    const hoje = '2026-11-24'
+    expect(validateDesiredDate('2026-11-24', '2026-11-27', hoje).isValid).toBe(true)
+    expect(validateDesiredDate('2026-11-23T00:00:00Z', '2026-11-27', hoje).overdueDays).toBe(1)
+    expect(validateDesiredDate('2026-11-25', '2026-11-27', hoje).isValid).toBe(false)
+    expect(validateDesiredDate('2026-11-24', '2026-11-23', hoje).isValid).toBe(false)
+    expect(validateDesiredDate(undefined, '2026-11-27', hoje).isValid).toBe(false)
+  })
+})

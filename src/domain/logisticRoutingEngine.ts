@@ -1,4 +1,4 @@
-import { limiteDosItens, type VeiculoDePlanejamento } from './planejamentoDeCargas'
+import { dataDesejadaApta, diaOperacionalTms, limiteDosItens, type VeiculoDePlanejamento } from './planejamentoDeCargas'
 // TMS CIAFAL — Motor de Clusterização Multicritério e Roteirização Logística Avançada
 //
 // Atende integralmente aos requisitos:
@@ -275,7 +275,7 @@ export function haversineDistanceKm(
 /**
  * 1. Consolida pedidos por Cliente / Endereço de Descarga (Requisito #2)
  */
-export function buildClientDeliveryStops(orders: SapSalesOrderEntity[]): ClientDeliveryStop[] {
+export function buildClientDeliveryStops(orders: SapSalesOrderEntity[], hoje = diaOperacionalTms()): ClientDeliveryStop[] {
   const map = new Map<string, ClientDeliveryStop>()
 
   const now = new Date()
@@ -289,7 +289,8 @@ export function buildClientDeliveryStops(orders: SapSalesOrderEntity[]): ClientD
     const uf = (o.uf || 'MG').trim().toUpperCase()
 
     // Chave única: cliente + cidade + uf (consolida pedidos no mesmo local)
-    const key = `${custCode}__${city}__${uf}`
+    const pendente = dataDesejadaApta(o.desired_date, hoje) ? '' : '__data-pendente'
+    const key = `${custCode}__${city}__${uf}${pendente}`
 
     const loc = resolveOrderLocation(o)
     const weightTon = (o.weight_kg || 0) / 1000
@@ -432,6 +433,7 @@ export function runMulticriteriaClusterization(params: {
   stops: ClientDeliveryStop[]
   priorityMode?: ClusterPriorityMode
   veiculos?: VeiculoDePlanejamento[]
+  hoje?: string
   maxDischargesPerLoad?: number
   originHub?: OriginHub
 }): {
@@ -442,6 +444,7 @@ export function runMulticriteriaClusterization(params: {
     stops,
     priorityMode = 'EQUILIBRIO_GERAL',
     veiculos = [],
+    hoje = diaOperacionalTms(),
     maxDischargesPerLoad = 5,
     originHub = OFFICIAL_ORIGIN_HUBS[0], // CIAFAL Matriz Contagem
   } = params
@@ -490,7 +493,7 @@ export function runMulticriteriaClusterization(params: {
 
     if (!Number.isFinite(seed.totalWeightTon) || seed.totalWeightTon <= 0) continue
     const veiculo = veiculos.find(v =>
-      !placasEmUso.has(v.placa) && seed.totalWeightTon * 1000 <= limiteDosItens(v, seed.orders) + 0.000001,
+      !placasEmUso.has(v.placa) && seed.totalWeightTon * 1000 <= limiteDosItens(v, seed.orders, hoje) + 0.000001,
     )
     if (!veiculo) continue
 
@@ -510,7 +513,7 @@ export function runMulticriteriaClusterization(params: {
       if (assignedStopIds.has(candidate.id) || !Number.isFinite(candidate.totalWeightTon) || candidate.totalWeightTon <= 0) continue
 
       const testWeight = currentWeight + candidate.totalWeightTon
-      if (testWeight * 1000 > limiteDosItens(veiculo, [...itens, ...candidate.orders]) + 0.000001) continue
+      if (testWeight * 1000 > limiteDosItens(veiculo, [...itens, ...candidate.orders], hoje) + 0.000001) continue
 
       // Cálculo de afinidade multicritério entre o grupo atual e o candidato
       const distFromSeed = haversineDistanceKm(seed.lat, seed.lng, candidate.lat, candidate.lng)

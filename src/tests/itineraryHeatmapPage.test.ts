@@ -13,6 +13,7 @@ import {
   buildClientDeliveryStops,
   runMulticriteriaClusterization,
 } from '../domain/logisticRoutingEngine.ts'
+import { dataDesejadaApta, diaOperacionalTms } from '../domain/planejamentoDeCargas'
 import { SapSalesOrderEntity } from '../domain/rules.ts'
 
 describe('Validação da Página "Mapa de Calor por Itinerário" no TMS CIAFAL', () => {
@@ -138,12 +139,24 @@ describe('Validação da Página "Mapa de Calor por Itinerário" no TMS CIAFAL',
   })
 
   describe('5. Invariante Contábil e Agrupamento Multicritério', () => {
+    const hoje = '2026-11-24'
+
+    it('usa o dia de São Paulo e mantém a data civil enviada pelo SAP', () => {
+      expect(diaOperacionalTms(new Date('2026-11-25T02:59:59Z'))).toBe(hoje)
+      expect(diaOperacionalTms(new Date('2026-11-25T03:00:00Z'))).toBe('2026-11-25')
+      expect(dataDesejadaApta('2026-11-24T00:00:00Z', hoje)).toBe(true)
+      expect(dataDesejadaApta('2026-11-25T00:00:00Z', hoje)).toBe(false)
+      expect(dataDesejadaApta('2026-02-30', hoje)).toBe(false)
+      expect(dataDesejadaApta(undefined, hoje)).toBe(false)
+    })
+
     it('Invariante: Carteira Liberada = Planejadas + Saldo Pendente sem duplicidade', () => {
       const orders: SapSalesOrderEntity[] = [
         {
           id: 'ord-1',
           order_number: '1',
           item_number: '000010',
+          desired_date: hoje,
           customer_code: '1',
           customer_name: 'CLI 1',
           destination_city: 'BETIM',
@@ -156,6 +169,7 @@ describe('Validação da Página "Mapa de Calor por Itinerário" no TMS CIAFAL',
           id: 'ord-2',
           order_number: '2',
           item_number: '000010',
+          desired_date: hoje,
           customer_code: '2',
           customer_name: 'CLI 2',
           destination_city: 'CONTAGEM',
@@ -168,6 +182,7 @@ describe('Validação da Página "Mapa de Calor por Itinerário" no TMS CIAFAL',
           id: 'ord-3',
           order_number: '3',
           item_number: '000010',
+          desired_date: hoje,
           customer_code: '3',
           customer_name: 'CLI 3',
           destination_city: 'BELO HORIZONTE',
@@ -178,24 +193,36 @@ describe('Validação da Página "Mapa de Calor por Itinerário" no TMS CIAFAL',
         } as any,
       ]
 
-      const stops = buildClientDeliveryStops(orders)
-      const semFila = runMulticriteriaClusterization({ stops })
+      const stops = buildClientDeliveryStops(orders, hoje)
+      const semFila = runMulticriteriaClusterization({ stops, hoje })
       expect(semFila.clusters).toHaveLength(0)
       expect(semFila.unplannedStops).toHaveLength(3)
 
       const veiculo = { id: 'fila', placa: 'ABC1D23', tipo: 'Carreta', capacidadeKg: 25000, limitesPorItem: {
         '1/10': 25000, '2/10': 10000, '3/10': 25000,
       } }
-      const res = runMulticriteriaClusterization({ stops, veiculos: [veiculo, { ...veiculo, id: 'entrada-repetida' }] })
+      const res = runMulticriteriaClusterization({ stops, hoje, veiculos: [veiculo, { ...veiculo, id: 'entrada-repetida' }] })
       expect(res.clusters).toHaveLength(1)
       expect(res.clusters[0]).toMatchObject({ veiculo, totalWeightTon: 25, capacityTon: 25, occupancyPct: 100 })
       expect(res.unplannedStops.map(s => s.customerCode)).toEqual(['2'])
 
       // Uma parada acima da capacidade não pode inaugurar uma carga por conta própria.
       const pesada = [{ ...stops[0], totalWeightTon: 112 }]
-      const foraDaCapacidade = runMulticriteriaClusterization({ stops: pesada, veiculos: [veiculo] })
+      const foraDaCapacidade = runMulticriteriaClusterization({ stops: pesada, hoje, veiculos: [veiculo] })
       expect(foraDaCapacidade.clusters).toHaveLength(0)
       expect(foraDaCapacidade.unplannedStops.map(s => s.totalWeightTon)).toEqual([112])
+
+      // Um pedido futuro do mesmo cliente não prende o pedido de hoje nem ocupa capacidade.
+      const futuro = { ...orders[0], id: 'ord-futura', order_number: '4', desired_date: '2026-11-25' }
+      const semData = { ...orders[1], id: 'ord-sem-data', order_number: '5', desired_date: undefined }
+      const misturadas = buildClientDeliveryStops([...orders, futuro, semData], hoje)
+      const conferido = runMulticriteriaClusterization({
+        stops: misturadas,
+        hoje,
+        veiculos: [{ ...veiculo, limitesPorItem: { ...veiculo.limitesPorItem, '4/10': 25000, '5/10': 25000 } }],
+      })
+      expect(conferido.clusters[0].stops.flatMap(s => s.orders.map(o => o.id))).toContain('ord-1')
+      expect(conferido.unplannedStops.flatMap(s => s.orders.map(o => o.id))).toEqual(expect.arrayContaining(['ord-futura', 'ord-sem-data']))
 
       const totalStopsTon = stops.reduce((a, b) => a + b.totalWeightTon, 0)
       const plannedTon = res.clusters.reduce((a, b) => a + b.totalWeightTon, 0)

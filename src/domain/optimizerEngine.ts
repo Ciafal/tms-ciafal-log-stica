@@ -1,3 +1,4 @@
+import { dataCivilTms, diaOperacionalTms } from './planejamentoDeCargas'
 import {hasRealLogistics, LOGISTICS_PENDING, type RealLogistics} from './realLogistics'
 // TMS CIAFAL — Sprint 5: Motor de Otimização Multicritério Determinístico
 // Arquitetura: O agente conversa. O motor de regras decide. O SAP registra. O TMS orquestra.
@@ -111,14 +112,11 @@ export function classifyOccupancyBand(
   }
 }
 
-/**
- * REGRA ABSOLUTA DE DATA DESEJADA:
- * Formalmente: data_expedicao >= data_desejada
- * Carga NUNCA pode ser expedida antes da data desejada sem alteração oficial.
- */
+/** A data desejada precisa estar vencida ou ser hoje, e a expedição não pode antecipá-la. */
 export function validateDesiredDate(
   orderDesiredDate: string | undefined,
   plannedExpeditionDate: string,
+  hoje = diaOperacionalTms(),
 ): {
   isValid: boolean
   isAnticipated: boolean
@@ -126,48 +124,23 @@ export function validateDesiredDate(
   overdueDays: number
   rejectionReason?: string
 } {
-  if (!orderDesiredDate) {
+  const desejada = dataCivilTms(orderDesiredDate)
+  const expedicao = dataCivilTms(plannedExpeditionDate)
+  if (!desejada || !expedicao) {
     return {
-      isValid: true,
-      isAnticipated: false,
-      isOverdue: false,
-      overdueDays: 0,
+      isValid: false, isAnticipated: false, isOverdue: false, overdueDays: 0,
+      rejectionReason: 'Pedido sem data desejada válida ou expedição sem data válida.',
+    }
+  }
+  if (desejada > hoje || desejada > expedicao) {
+    return {
+      isValid: false, isAnticipated: true, isOverdue: false, overdueDays: 0,
+      rejectionReason: `Data desejada (${desejada}) posterior ao limite de planejamento (${hoje < expedicao ? hoje : expedicao}).`,
     }
   }
 
-  const desiredStr = orderDesiredDate.split('T')[0]
-  const plannedStr = plannedExpeditionDate.split('T')[0]
-
-  const desiredTime = new Date(desiredStr).getTime()
-  const plannedTime = new Date(plannedStr).getTime()
-  const todayStr = new Date().toISOString().split('T')[0]
-  const todayTime = new Date(todayStr).getTime()
-
-  // Tentativa de antecipação
-  if (plannedTime < desiredTime) {
-    return {
-      isValid: false,
-      isAnticipated: true,
-      isOverdue: false,
-      overdueDays: 0,
-      rejectionReason: `DATA_ANTECIPADA_NAO_PERMITIDA: Pedido programado para ${plannedStr}, antes da data desejada pelo cliente (${desiredStr}).`,
-    }
-  }
-
-  // Pedido atrasado em relação a hoje
-  let isOverdue = false
-  let overdueDays = 0
-  if (todayTime > desiredTime) {
-    isOverdue = true
-    overdueDays = Math.floor((todayTime - desiredTime) / (1000 * 60 * 60 * 24))
-  }
-
-  return {
-    isValid: true,
-    isAnticipated: false,
-    isOverdue,
-    overdueDays,
-  }
+  const overdueDays = (Date.parse(hoje) - Date.parse(desejada)) / 86400000
+  return { isValid: true, isAnticipated: false, isOverdue: overdueDays > 0, overdueDays }
 }
 
 /**
@@ -784,7 +757,7 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
       orderRoutingStatusMap.set(item.order.id, {
         status: 'AGUARDANDO_DATA_DESEJADA',
         label: 'Aguardando Data Desejada',
-        detail: `Data desejada (${item.order.desired_date?.split('T')[0] || 'N/I'}) é posterior à data prevista (${plannedDate}). Anti-antecipação ativa.`,
+        detail: item.dateCheck.rejectionReason || 'Pedido pendente pela data desejada.',
         reasons: ['Anti-antecipação: Data desejada futura.'],
       })
     })
@@ -1187,7 +1160,7 @@ export function runGlobalCiafalOptimizer(input: OptimizerEngineInput): GlobalOpt
       if (!dateCheck.isValid) {
         status = 'AGUARDANDO_DATA_DESEJADA'
         statusLabel = 'Aguardando Data Desejada'
-        statusDetail = `Data desejada (${ord.desired_date?.split('T')[0] || 'N/I'}) posterior a ${plannedDate}.`
+        statusDetail = dateCheck.rejectionReason || 'Pedido pendente pela data desejada.'
         reasons.push('Anti-antecipação: Data futura')
       } else if (creditCheck.classification === 'BLOQUEADO') {
         status = 'AGUARDANDO_CREDITO'
