@@ -304,5 +304,6 @@ describe('data desejada na formação da carga', () => {
     expect(validateDesiredDate('2026-11-25', '2026-11-27', hoje).isValid).toBe(false)
     expect(validateDesiredDate('2026-11-24', '2026-11-23', hoje).isValid).toBe(false)
     expect(validateDesiredDate(undefined, '2026-11-27', hoje).isValid).toBe(false)
+    expect(validateDesiredDate('2027-01-01', '2027-01-05', '2026-12-31').isValid).toBe(false)
   })
 })
