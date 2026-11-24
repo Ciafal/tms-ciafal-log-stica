@@ -12,7 +12,8 @@
 // #19: IA Explicável com justificativa específica e quantitativa
 // #21: Transformar proposta em carga do Planejador ("Simular / Injetar Carga")
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo } from 'react'
+import { limiteDosItens, type VeiculoDePlanejamento } from '@/domain/planejamentoDeCargas'
 import {
   MapPin,
   Package,
@@ -34,7 +35,6 @@ import {
   Clock,
   Search,
   Scale,
-  Plus,
   ArrowUpDown,
   Building2,
   HelpCircle,
@@ -68,15 +68,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MapPinOff } from 'lucide-react'
 import { CityDetailDrawer } from '@/components/load-planner/CityDetailDrawer'
 import { CityDemandCluster } from '@/domain/geographicClusterEngine'
-import { RouteAdditionModal } from '@/components/load-planner/RouteAdditionModal'
-import { CreateMixedLoadModal } from '@/components/load-planner/CreateMixedLoadModal'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { tmsService } from '@/services/tmsService'
 import { useToast } from '@/hooks/use-toast'
 import { formatTons, formatPercent } from '@/utils/format'
 
 interface LogisticalMapTowerViewProps {
   orders: SapSalesOrderEntity[]
+  veiculos?: VeiculoDePlanejamento[]
+  onRecalcular?: () => void
   itineraries: SapItineraryEntity[]
   selectedItinerary?: string
   onSelectItinerary?: (itineraryCode: string) => void
@@ -87,6 +85,8 @@ interface LogisticalMapTowerViewProps {
 
 export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
   orders,
+  veiculos,
+  onRecalcular,
   itineraries,
   selectedItinerary,
   onSelectItinerary,
@@ -187,63 +187,33 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
   const baseClusterResult = useMemo(() => {
     return runMulticriteriaClusterization({
       stops: rawStops,
+      veiculos,
       priorityMode,
     })
-  }, [rawStops, priorityMode])
+  }, [rawStops, priorityMode, veiculos])
 
   // 4. Aplicação de Ajustes Manuais do Usuário com Recálculo Instantâneo (#15, #16)
   const { baseClusters, stops, unplannedStops } = useMemo(() => {
-    const clusterMap = new Map<string, ProposedLoadCluster>()
-    baseClusterResult.clusters.forEach((c) => {
-      clusterMap.set(c.id, {
-        ...c,
-        stops: [...c.stops],
-      })
+    // Overrides referenciam a entrada da fila. Reaplica a regra mesmo após novos dados.
+    const allStops = rawStops.map(st => {
+      const original = baseClusterResult.clusters.find(c => c.stops.some(s => s.id === st.id))
+      return { ...st, assignedClusterId: original?.id, isPlanned: Boolean(original) }
     })
-
-    const allStops = rawStops.map((st) => {
-      // Verifica se houve override manual do usuário
-      const manualAssigned = manualStopAssignments[st.id]
-      if (manualAssigned !== undefined) {
-        if (manualAssigned === null) {
-          // Removido da carga -> vai para não planejado
-          return {
-            ...st,
-            assignedClusterId: undefined,
-            isPlanned: false,
-            stopSequence: undefined,
-          }
-        } else {
-          // Atribuído para outro cluster
-          return {
-            ...st,
-            assignedClusterId: manualAssigned,
-            isPlanned: true,
-          }
-        }
+    for (const stop of allStops) {
+      const destino = manualStopAssignments[stop.id]
+      if (destino === undefined || destino === stop.assignedClusterId) continue
+      if (destino === null) {
+        stop.assignedClusterId = undefined
+        stop.isPlanned = false
+        continue
       }
-
-      // Procura cluster original sugerido pela IA
-      const origCluster = baseClusterResult.clusters.find((c) =>
-        c.stops.some((s) => s.id === st.id),
-      )
-      if (origCluster) {
-        const origStop = origCluster.stops.find((s) => s.id === st.id)
-        return {
-          ...st,
-          assignedClusterId: origCluster.id,
-          clusterIndex: origCluster.stops.findIndex((s) => s.id === st.id) + 1,
-          stopSequence: origStop?.stopSequence || 1,
-          isPlanned: true,
-        }
-      }
-
-      return {
-        ...st,
-        assignedClusterId: undefined,
-        isPlanned: false,
-      }
-    })
+      const veiculo = baseClusterResult.clusters.find(c => c.id === destino)?.veiculo
+      const paradas = allStops.filter(s => s.assignedClusterId === destino).concat(stop)
+      const pesoKg = paradas.reduce((total, s) => total + s.totalWeightTon * 1000, 0)
+      if (!veiculo || pesoKg > limiteDosItens(veiculo, paradas.flatMap(s => s.orders)) + 0.000001) continue
+      stop.assignedClusterId = destino
+      stop.isPlanned = true
+    }
 
     const unplanned = allStops.filter((s) => !s.isPlanned || !s.assignedClusterId)
 
@@ -254,97 +224,21 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
     }
   }, [baseClusterResult, rawStops, manualStopAssignments])
 
-  // Adições excepcionais de rotas ativas (tmsService / collection route_additions)
-  const [activeAdditions, setActiveAdditions] = useState<
-    Record<string, import('@/domain/routeAdditionEngine').RouteAdditionEntity>
-  >({})
-  const [routeAdditionModalOpen, setRouteAdditionModalOpen] = useState(false)
-  const [clusterForRouteAddition, setClusterForRouteAddition] =
-    useState<ProposedLoadCluster | null>(null)
-  const [createMixedLoadModalOpen, setCreateMixedLoadModalOpen] = useState(false)
-
-  const loadRouteAdditions = useCallback(async () => {
-    try {
-      const list = await tmsService.getRouteAdditions("status = 'ATIVA'")
-      const map: Record<string, import('@/domain/routeAdditionEngine').RouteAdditionEntity> = {}
-      list.forEach((item) => {
-        if (item.load_id) {
-          map[item.load_id] = item
-        }
-      })
-      setActiveAdditions(map)
-    } catch (e) {
-      console.warn('Erro ao carregar route_additions ativas no LogisticalMapTowerView', e)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadRouteAdditions()
-  }, [loadRouteAdditions])
-
-  // Reconstrói clusters atualizados com métricas recalculadas instantaneamente e adições ativas (#16)
-  const clusters = useMemo(() => {
-    const updatedClusters: ProposedLoadCluster[] = []
-    baseClusters.forEach((baseC) => {
-      const stopsForThisCluster = stops.filter((s) => s.assignedClusterId === baseC.id)
-
-      if (stopsForThisCluster.length > 0) {
-        const addition = activeAdditions[baseC.id] || activeAdditions[baseC.code]
-        const hasAddition = !!addition
-
-        let weightTon =
-          Math.round(stopsForThisCluster.reduce((a, b) => a + b.totalWeightTon, 0) * 10) / 10
-        let distanceKm = baseC.estimatedDistanceKm
-        let discharges = stopsForThisCluster.length
-        let estimatedFreight = Math.round(weightTon * 165 + distanceKm * 3.8)
-        let estimatedToll = baseC.estimatedTollBrl
-
-        if (hasAddition && addition) {
-          const wAfter = addition.weight_after ?? addition.weight_after_kg
-          if (wAfter !== undefined) weightTon = Math.round((wAfter / 1000) * 10) / 10
-          const dAfter = addition.distance_after ?? addition.distance_after_km
-          if (dAfter !== undefined) distanceKm = dAfter
-          const discAfter = addition.deliveries_after ?? addition.discharges_after
-          if (discAfter !== undefined) discharges = discAfter
-          const fAfter = addition.freight_after ?? addition.freight_after_brl
-          if (fAfter !== undefined) estimatedFreight = fAfter
-          const tAfter = addition.toll_after ?? addition.toll_after_brl
-          if (tAfter !== undefined) estimatedToll = tAfter
-        }
-
-        const capacity = weightTon > 28.5 ? 32 : 28
-        const occAfter = addition
-          ? (addition.occupancy_after ?? addition.occupancy_after_pct)
-          : undefined
-        const occupancy =
-          hasAddition && occAfter !== undefined
-            ? occAfter
-            : Math.min(100, Math.round((weightTon / capacity) * 1000) / 10)
-
-        // Sequencia as paradas
-        stopsForThisCluster.forEach((s, idx) => {
-          s.stopSequence = idx + 1
-        })
-
-        updatedClusters.push({
-          ...baseC,
-          stops: stopsForThisCluster,
-          totalWeightTon: weightTon,
-          capacityTon: capacity,
-          occupancyPct: occupancy,
-          estimatedDistanceKm: distanceKm,
-          clientsCount: stopsForThisCluster.length,
-          ordersCount: stopsForThisCluster.reduce((a, b) => a + b.ordersCount, 0),
-          dischargesCount: discharges,
-          estimatedFreightBrl: estimatedFreight,
-          estimatedTollBrl: estimatedToll,
-          hasRouteAddition: hasAddition,
-          routeAdditionData: addition || null,
-        })
-      }
-    })
-    return updatedClusters
-  }, [baseClusters, stops, activeAdditions])
+  const clusters = useMemo(() => baseClusters.flatMap(base => {
+    const paradas = stops.filter(s => s.assignedClusterId === base.id)
+    if (!paradas.length) return []
+    const paradasOrdenadas = paradas.map((s, i) => ({ ...s, stopSequence: i + 1 }))
+    const peso = paradas.reduce((total, s) => total + s.totalWeightTon, 0)
+    return [{
+      ...base,
+      stops: paradasOrdenadas,
+      totalWeightTon: peso,
+      occupancyPct: Math.min(100, Math.round(peso / base.capacityTon * 1000) / 10),
+      clientsCount: paradas.length,
+      ordersCount: paradas.reduce((total, s) => total + s.ordersCount, 0),
+      dischargesCount: paradas.length,
+    }]
+  }), [baseClusters, stops])
 
   // 5. Comparação de Cenários (A vs B) (#5)
   const scenarioComparison: RoutingScenarioComparison = useMemo(() => {
@@ -449,6 +343,7 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
   // Handler de Recalcular Clusterização com simulação visual
   const handleRecalculate = (newMode?: ClusterPriorityMode) => {
     setIsRecalculating(true)
+    onRecalcular?.()
     if (newMode) setPriorityMode(newMode)
     // Limpa ajustes manuais para que a IA recalcule do zero
     setManualStopAssignments({})
@@ -466,6 +361,15 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
   }
 
   const handleMoveStopToCluster = (stopId: string, targetClusterId: string) => {
+    const destino = clusters.find(c => c.id === targetClusterId)
+    const origem = stops.find(s => s.id === stopId)
+    if (!origem || !destino?.veiculo || origem.assignedClusterId === targetClusterId) return
+    const paradas = [...destino.stops, origem]
+    const pesoKg = paradas.reduce((peso, s) => peso + s.totalWeightTon * 1000, 0)
+    if (pesoKg > limiteDosItens(destino.veiculo, paradas.flatMap(s => s.orders)) + 0.000001) {
+      toast({ title: 'Carga incompatível', description: 'Confira o peso do veículo e as restrições dos clientes.', variant: 'destructive' })
+      return
+    }
     setManualStopAssignments((prev) => ({
       ...prev,
       [stopId]: targetClusterId,
@@ -605,17 +509,6 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
           {/* CONTAINER EXCLUSIVO 2: BARRA DE AÇÕES INDEPENDENTE (Linha própria sem sobreposição) */}
           <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5 w-full min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              {/* Botão + Criar Carga Mista (Passo 2) */}
-              <Button
-                size="sm"
-                onClick={() => setCreateMixedLoadModalOpen(true)}
-                className="h-9 text-xs font-bold bg-[#005596] hover:bg-[#004275] text-white shadow-xs px-3.5 shrink-0"
-                title="Criar carga mista combinando múltiplos itinerários ou rotas SAP"
-              >
-                <Plus className="w-3.5 h-3.5 mr-1.5" />
-                <span>+ Criar Carga Mista</span>
-              </Button>
-
               {/* Botão Comparar Roteirização (A vs B) (#5) */}
               <Button
                 size="sm"
@@ -864,47 +757,9 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                               <span className="text-[10px] text-slate-500">
                                 ({cl.destinationCities.slice(0, 2).join('/')})
                               </span>
-                              {cl.hasRouteAddition && (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Badge className="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold text-[9px] px-1.5 py-0">
-                                        + Rota
-                                      </Badge>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="max-w-xs text-xs p-2 bg-slate-900 text-white">
-                                      <p className="font-bold text-amber-300">ROTA ADICIONADA</p>
-                                      <p>
-                                        Original: {cl.routeAdditionData?.original_itinerary_code}
-                                      </p>
-                                      <p>
-                                        Adicional:{' '}
-                                        {cl.routeAdditionData?.complementary_itinerary_code}
-                                      </p>
-                                      <p>Motivo: {cl.routeAdditionData?.reason_description}</p>
-                                      <p>
-                                        Usuário: {cl.routeAdditionData?.user_name || 'Operador'}
-                                      </p>
-                                      <p>
-                                        Data/hora:{' '}
-                                        {cl.routeAdditionData?.created
-                                          ? new Date(cl.routeAdditionData.created).toLocaleString(
-                                              'pt-BR',
-                                            )
-                                          : '-'}
-                                      </p>
-                                      {cl.routeAdditionData?.ai_analysis && (
-                                        <p className="text-amber-200 text-[10px] pt-1">
-                                          IA: {cl.routeAdditionData.ai_analysis}
-                                        </p>
-                                      )}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              )}
                             </div>
                             <div className="text-[10px] text-slate-400">
-                              {cl.clientsCount} clientes • {cl.dischargesCount} descargas • ~
+                              {cl.veiculo?.placa} · {cl.clientsCount} clientes • {cl.dischargesCount} descargas • ~
                               {cl.estimatedDistanceKm} km
                             </div>
                           </div>
@@ -947,53 +802,6 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
                   <span>Detalhamento: {activeCluster.code}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {activeCluster.hasRouteAddition ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={async () => {
-                        const confirmed = window.confirm(
-                          'Deseja remover esta rota adicional do itinerário?',
-                        )
-                        if (!confirmed) return
-                        const addition = activeCluster.routeAdditionData
-                        if (addition?.id) {
-                          try {
-                            await tmsService.removeRouteAddition(addition.id)
-                            toast({
-                              title: 'Rota adicional removida',
-                              description:
-                                'A rota adicional foi removida mantendo o histórico de auditoria.',
-                            })
-                            loadRouteAdditions()
-                          } catch (err: any) {
-                            toast({
-                              title: 'Erro ao remover rota',
-                              description: err?.message || 'Falha ao remover.',
-                              variant: 'destructive',
-                            })
-                          }
-                        }
-                      }}
-                      className="h-6 text-[10px] font-bold text-rose-700 border-rose-300 hover:bg-rose-50 px-2"
-                      title="Remover rota adicional do itinerário"
-                    >
-                      Remover rota
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setClusterForRouteAddition(activeCluster)
-                        setRouteAdditionModalOpen(true)
-                      }}
-                      className="h-6 text-[10px] font-bold text-[#005596] border-[#005596]/40 hover:bg-sky-50 px-2"
-                      title="Adicionar rotas complementares ao itinerário"
-                    >
-                      + Adicionar Rotas
-                    </Button>
-                  )}
                   <Button
                     size="sm"
                     onClick={() => handleSendLoadToPlanner(activeCluster)}
@@ -1254,41 +1062,6 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
         </div>
       </div>
 
-      {/* MODAL DE ADIÇÃO EXCEPCIONAL DE ROTA AO ITINERÁRIO */}
-      {clusterForRouteAddition && (
-        <RouteAdditionModal
-          open={routeAdditionModalOpen}
-          onOpenChange={(isOpen) => {
-            setRouteAdditionModalOpen(isOpen)
-            if (!isOpen) setClusterForRouteAddition(null)
-          }}
-          candidateLoad={{
-            id: clusterForRouteAddition.id,
-            title: `Carga ${clusterForRouteAddition.code} - ${clusterForRouteAddition.destinationCities.join('/')}`,
-            itineraryCode: clusterForRouteAddition.code.replace('CL-', '') || '',
-            itineraryDescription: `Itinerário ${clusterForRouteAddition.code}`,
-            originPlant: clusterForRouteAddition.originHub.plantCode || '1010',
-            destinationCity: clusterForRouteAddition.destinationCities[0] || 'Belo Horizonte',
-            destinationUf: 'MG',
-            totalWeightKg: Math.round(clusterForRouteAddition.totalWeightTon * 1000),
-            capacityKg: clusterForRouteAddition.capacityTon * 1000,
-            occupancyPct: clusterForRouteAddition.occupancyPct,
-            dischargesCount: clusterForRouteAddition.dischargesCount,
-            customersCount: clusterForRouteAddition.clientsCount,
-            distanceKm: clusterForRouteAddition.estimatedDistanceKm,
-            estimatedTimeHours: Math.round(clusterForRouteAddition.estimatedDistanceKm / 60),
-            suggestedFreightBrl: clusterForRouteAddition.estimatedFreightBrl,
-            tollCostBrl: clusterForRouteAddition.estimatedTollBrl,
-            orders: clusterForRouteAddition.stops.flatMap((s) => s.orders),
-          }}
-          onSuccess={() => {
-            loadRouteAdditions()
-            setRouteAdditionModalOpen(false)
-            setClusterForRouteAddition(null)
-          }}
-        />
-      )}
-
       {/* 4. MODAL DE COMPARAÇÃO DE CENÁRIOS (A vs B) COM JUSTIFICATIVA IA E APROVAÇÃO HUMANA OBRIGATÓRIA */}
       {isComparisonModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
@@ -1541,24 +1314,6 @@ export const LogisticalMapTowerView: React.FC<LogisticalMapTowerViewProps> = ({
           </div>
         </div>
       )}
-
-      {/* MODAL DE CRIAÇÃO DE CARGA MISTA (Passo 2) */}
-      <CreateMixedLoadModal
-        open={createMixedLoadModalOpen}
-        onOpenChange={setCreateMixedLoadModalOpen}
-        orders={orders}
-        itineraries={itineraries}
-        defaultItinerary={filterItinerary}
-        userEmail="operador@ciafal.logistica"
-        userName="Operador Logístico"
-        onLoadCreated={(loadId) => {
-          loadRouteAdditions()
-          toast({
-            title: 'Carga Mista Integrada',
-            description: `Carga ${loadId} gerada e pronta na carteira de simulações.`,
-          })
-        }}
-      />
 
       {/* Drawer de Cidade mantido para retrocompatibilidade */}
       <CityDetailDrawer

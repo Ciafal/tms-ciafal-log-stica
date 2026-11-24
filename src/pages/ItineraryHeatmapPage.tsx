@@ -1,3 +1,5 @@
+import { consultarVeiculosDePlanejamento } from '@/services/planejamento-de-cargas'
+import type { VeiculoDePlanejamento } from '@/domain/planejamentoDeCargas'
 import { materialLabel } from '@/utils/material'
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -95,6 +97,7 @@ export const ItineraryHeatmapPage: React.FC = () => {
 
   // Estados principais
   const [orders, setOrders] = useState<SapSalesOrderEntity[]>([])
+  const [veiculos, setVeiculos] = useState<VeiculoDePlanejamento[]>([])
   const [itineraries, setItineraries] = useState<SapItineraryEntity[]>([])
   const [selectedItinerary, setSelectedItinerary] = useState<string>('ALL')
   const [isLoading, setIsLoading] = useState<boolean>(true)
@@ -146,15 +149,21 @@ export const ItineraryHeatmapPage: React.FC = () => {
         setIsLoading(true)
       }
 
+      setVeiculos([])
       try {
-        const [walletOrders, itinList, meta] = await Promise.all([
+        const [walletOrders, itinList, meta, fila] = await Promise.all([
           tmsService.getUnifiedSalesWallet(),
           tmsService.getSapItineraries(),
           tmsService.getLatestWalletMetadata().catch(() => null),
+          consultarVeiculosDePlanejamento().catch((e: Error) => {
+            toast({ title: 'Planejamento indisponível', description: e.message, variant: 'destructive' })
+            return []
+          }),
         ])
 
         setOrders(walletOrders || [])
         setItineraries(itinList || [])
+        setVeiculos(fila)
 
         if (meta?.lastSyncDate) {
           setLastSyncDate(meta.lastSyncDate)
@@ -284,9 +293,10 @@ export const ItineraryHeatmapPage: React.FC = () => {
   const clusterResult = useMemo(() => {
     return runMulticriteriaClusterization({
       stops: deliveryStops,
+      veiculos,
       priorityMode: 'EQUILIBRIO_GERAL',
     })
-  }, [deliveryStops])
+  }, [deliveryStops, veiculos])
 
   const proposedClusters = clusterResult.clusters
   const unplannedStops = clusterResult.unplannedStops
@@ -937,6 +947,8 @@ export const ItineraryHeatmapPage: React.FC = () => {
           {/* Componente Homologado de Torre e Mapa */}
           <LogisticalMapTowerView
             orders={filteredOrders}
+            veiculos={veiculos}
+            onRecalcular={() => { void loadData(true) }}
             itineraries={itineraries}
             selectedItinerary={selectedItinerary}
             onSelectItinerary={(code) => setSelectedItinerary(code)}

@@ -142,8 +142,9 @@ describe('Validação da Página "Mapa de Calor por Itinerário" no TMS CIAFAL',
       const orders: SapSalesOrderEntity[] = [
         {
           id: 'ord-1',
-          order_number: 1,
-          customer_code: 1,
+          order_number: '1',
+          item_number: '000010',
+          customer_code: '1',
           customer_name: 'CLI 1',
           destination_city: 'BETIM',
           uf: 'MG',
@@ -153,8 +154,9 @@ describe('Validação da Página "Mapa de Calor por Itinerário" no TMS CIAFAL',
         } as any,
         {
           id: 'ord-2',
-          order_number: 2,
-          customer_code: 2,
+          order_number: '2',
+          item_number: '000010',
+          customer_code: '2',
           customer_name: 'CLI 2',
           destination_city: 'CONTAGEM',
           uf: 'MG',
@@ -164,8 +166,9 @@ describe('Validação da Página "Mapa de Calor por Itinerário" no TMS CIAFAL',
         } as any,
         {
           id: 'ord-3',
-          order_number: 3,
-          customer_code: 3,
+          order_number: '3',
+          item_number: '000010',
+          customer_code: '3',
           customer_name: 'CLI 3',
           destination_city: 'BELO HORIZONTE',
           uf: 'MG',
@@ -176,7 +179,17 @@ describe('Validação da Página "Mapa de Calor por Itinerário" no TMS CIAFAL',
       ]
 
       const stops = buildClientDeliveryStops(orders)
-      const res = runMulticriteriaClusterization({ stops })
+      const semFila = runMulticriteriaClusterization({ stops })
+      expect(semFila.clusters).toHaveLength(0)
+      expect(semFila.unplannedStops).toHaveLength(3)
+
+      const veiculo = { id: 'fila', placa: 'ABC1D23', tipo: 'Carreta', capacidadeKg: 25000, limitesPorItem: {
+        '1/10': 25000, '2/10': 10000, '3/10': 25000,
+      } }
+      const res = runMulticriteriaClusterization({ stops, veiculos: [veiculo, { ...veiculo, id: 'entrada-repetida' }] })
+      expect(res.clusters).toHaveLength(1)
+      expect(res.clusters[0]).toMatchObject({ veiculo, totalWeightTon: 25, capacityTon: 25, occupancyPct: 100 })
+      expect(res.unplannedStops.map(s => s.customerCode)).toEqual(['2'])
 
       const totalStopsTon = stops.reduce((a, b) => a + b.totalWeightTon, 0)
       const plannedTon = res.clusters.reduce((a, b) => a + b.totalWeightTon, 0)

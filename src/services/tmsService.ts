@@ -1290,6 +1290,7 @@ export const TmsService = {
             vehicle_type: p.vehicleType,
             vehicle_capacity_kg: p.vehicleCapacityKg,
             current_weight_kg: p.totalWeightKg,
+            planejamento_itens: p.orders.map(o => ({ order_number: o.order_number, item_number: o.item_number })),
             current_occupancy_pct: p.occupancyPct,
             min_occupancy_pct: p.minOccupancyPct || params.minOccupancyPct,
             max_occupancy_pct: p.maxOccupancyPct || params.maxOccupancyPct,
@@ -1340,6 +1341,8 @@ export const TmsService = {
             /* ignore */
           }
         }
+
+        if (!savedProposalRecord) throw new Error('A proposta não passou pela validação da fila e do SAP.')
 
         // Itens da proposta
         for (const ord of p.orders) {

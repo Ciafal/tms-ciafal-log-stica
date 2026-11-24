@@ -1,3 +1,4 @@
+import { limiteDosItens, type VeiculoDePlanejamento } from './planejamentoDeCargas'
 // TMS CIAFAL — Motor de Clusterização Multicritério e Roteirização Logística Avançada
 //
 // Atende integralmente aos requisitos:
@@ -183,6 +184,7 @@ export interface ProposedLoadCluster {
   originHub: OriginHub
   totalWeightTon: number
   capacityTon: number
+  veiculo?: VeiculoDePlanejamento
   occupancyPct: number
   clientsCount: number
   ordersCount: number
@@ -429,7 +431,7 @@ export function buildClientDeliveryStops(orders: SapSalesOrderEntity[]): ClientD
 export function runMulticriteriaClusterization(params: {
   stops: ClientDeliveryStop[]
   priorityMode?: ClusterPriorityMode
-  vehicleTargetCapacityTon?: number
+  veiculos?: VeiculoDePlanejamento[]
   maxDischargesPerLoad?: number
   originHub?: OriginHub
 }): {
@@ -439,7 +441,7 @@ export function runMulticriteriaClusterization(params: {
   const {
     stops,
     priorityMode = 'EQUILIBRIO_GERAL',
-    vehicleTargetCapacityTon = 28, // Carreta LS Padrão 28t a 32t
+    veiculos = [],
     maxDischargesPerLoad = 5,
     originHub = OFFICIAL_ORIGIN_HUBS[0], // CIAFAL Matriz Contagem
   } = params
@@ -480,16 +482,24 @@ export function runMulticriteriaClusterization(params: {
   const assignedStopIds = new Set<string>()
 
   let clusterIndex = 0
+  const placasEmUso = new Set<string>()
 
   for (let i = 0; i < workingStops.length; i++) {
     const seed = workingStops[i]
     if (assignedStopIds.has(seed.id)) continue
 
-    // Ignora paradas bloqueadas por crédito se houver regra rígida, mas mantém na lista
-    // Seed inicia uma nova carga
+    if (!Number.isFinite(seed.totalWeightTon) || seed.totalWeightTon <= 0) continue
+    const veiculo = veiculos.find(v =>
+      !placasEmUso.has(v.placa) && seed.totalWeightTon * 1000 <= limiteDosItens(v, seed.orders) + 0.000001,
+    )
+    if (!veiculo) continue
+
     const currentStops: ClientDeliveryStop[] = [seed]
+    const itens = [...seed.orders]
+    const vehicleTargetCapacityTon = veiculo.capacidadeKg / 1000
     let currentWeight = seed.totalWeightTon
     assignedStopIds.add(seed.id)
+    placasEmUso.add(veiculo.placa)
 
     // Procura outros clientes compatíveis para agrupar
     for (let j = 0; j < workingStops.length; j++) {
@@ -497,11 +507,10 @@ export function runMulticriteriaClusterization(params: {
       if (currentWeight >= vehicleTargetCapacityTon * 0.98) break // Carga já cheia
 
       const candidate = workingStops[j]
-      if (assignedStopIds.has(candidate.id)) continue
+      if (assignedStopIds.has(candidate.id) || !Number.isFinite(candidate.totalWeightTon) || candidate.totalWeightTon <= 0) continue
 
       const testWeight = currentWeight + candidate.totalWeightTon
-      // Não ultrapassa limite máximo absoluto do veículo (ex. 32t)
-      if (testWeight > 32.5) continue
+      if (testWeight * 1000 > limiteDosItens(veiculo, [...itens, ...candidate.orders]) + 0.000001) continue
 
       // Cálculo de afinidade multicritério entre o grupo atual e o candidato
       const distFromSeed = haversineDistanceKm(seed.lat, seed.lng, candidate.lat, candidate.lng)
@@ -545,92 +554,90 @@ export function runMulticriteriaClusterization(params: {
       // Se passou da nota de corte, incorpora à carga
       if (score >= 45) {
         currentStops.push(candidate)
+        itens.push(...candidate.orders)
         currentWeight += candidate.totalWeightTon
         assignedStopIds.add(candidate.id)
       }
     }
 
-    // Se o grupo tem peso mínimo viável para carga (ou é carga única de grande porte > 14t)
-    // Se for < 10t e só 1 cliente, deixamos não planejado para posterior consolidação
-    if (currentWeight >= 10 || currentStops.length >= 2) {
-      clusterIndex++
-      const color =
-        CLUSTER_COLOR_PALETTE[(clusterIndex - 1) % CLUSTER_COLOR_PALETTE.length] ||
-        CLUSTER_COLOR_PALETTE[0]
+    clusterIndex++
+    const color =
+      CLUSTER_COLOR_PALETTE[(clusterIndex - 1) % CLUSTER_COLOR_PALETTE.length] ||
+      CLUSTER_COLOR_PALETTE[0]
 
-      const clusterId = `cluster-${clusterIndex}`
-      const loadCode = `Carga ${clusterIndex.toString().padStart(2, '0')}`
+    const clusterId = `fila-${veiculo.id}`
+    const loadCode = `Carga ${clusterIndex.toString().padStart(2, '0')}`
 
-      // Ordena as paradas da carga pela rota lógica partindo da Origem Contagem
-      const sequencedStops = sequenceStopsFromOrigin(originHub, currentStops)
-      sequencedStops.forEach((st, sIdx) => {
-        st.assignedClusterId = clusterId
-        st.clusterIndex = clusterIndex
-        st.stopSequence = sIdx + 1
-        st.isPlanned = true
-      })
+    // Ordena as paradas da carga pela rota lógica partindo da Origem Contagem
+    const sequencedStops = sequenceStopsFromOrigin(originHub, currentStops)
+    sequencedStops.forEach((st, sIdx) => {
+      st.assignedClusterId = clusterId
+      st.clusterIndex = clusterIndex
+      st.stopSequence = sIdx + 1
+      st.isPlanned = true
+    })
 
-      // Cálculo de distância total do circuito (Origem -> Parada 1 -> Parada 2... -> Origem)
-      let totalDistKm = 0
-      let prevLat = originHub.lat
-      let prevLng = originHub.lng
+    // Cálculo de distância total do circuito (Origem -> Parada 1 -> Parada 2... -> Origem)
+    let totalDistKm = 0
+    let prevLat = originHub.lat
+    let prevLng = originHub.lng
 
-      sequencedStops.forEach((st) => {
-        totalDistKm += haversineDistanceKm(prevLat, prevLng, st.lat, st.lng)
-        prevLat = st.lat
-        prevLng = st.lng
-      })
-      // Retorno à base
-      totalDistKm += haversineDistanceKm(prevLat, prevLng, originHub.lat, originHub.lng)
-      const estimatedDistKm = Math.round(totalDistKm)
+    sequencedStops.forEach((st) => {
+      totalDistKm += haversineDistanceKm(prevLat, prevLng, st.lat, st.lng)
+      prevLat = st.lat
+      prevLng = st.lng
+    })
+    // Retorno à base
+    totalDistKm += haversineDistanceKm(prevLat, prevLng, originHub.lat, originHub.lng)
+    const estimatedDistKm = Math.round(totalDistKm)
 
-      const capacity = currentWeight > 28.5 ? 32 : 28
-      const occupancy = Math.min(100, Math.round((currentWeight / capacity) * 1000) / 10)
+    const capacity = veiculo.capacidadeKg / 1000
+    const occupancy = Math.min(100, Math.round((currentWeight / capacity) * 1000) / 10)
 
-      // Custo estimado de frete e pedágio
-      const estimatedFreight = Math.round(currentWeight * 165 + estimatedDistKm * 3.8)
-      const estimatedToll = Math.round((estimatedDistKm / 55) * 22)
+    // Custo estimado de frete e pedágio
+    const estimatedFreight = Math.round(currentWeight * 165 + estimatedDistKm * 3.8)
+    const estimatedToll = Math.round((estimatedDistKm / 55) * 22)
 
-      const cities = Array.from(new Set(sequencedStops.map((s) => s.city)))
-      const primaryItin = sequencedStops[0].itineraryCode || 'MG001A'
-      const primaryReg = sequencedStops[0].uf || 'MG'
+    const cities = Array.from(new Set(sequencedStops.map((s) => s.city)))
+    const primaryItin = sequencedStops[0].itineraryCode || 'MG001A'
+    const primaryReg = sequencedStops[0].uf || 'MG'
 
-      // Justificativa Explicável e Quantitativa da IA (#19)
-      const distSavingsEstimated = Math.round(sequencedStops.length * 110 - estimatedDistKm * 0.25)
-      const aiRationale = `Carga formada por ${sequencedStops.length} clientes no eixo ${cities.slice(0, 3).join('–')}, datas compatíveis e ${currentWeight.toFixed(1)} t disponíveis. Consolidação utiliza ${occupancy}% da capacidade estimada e reduz ~${Math.max(45, distSavingsEstimated)} km comparativamente ao atendimento separado.`
+    // Justificativa Explicável e Quantitativa da IA (#19)
+    const distSavingsEstimated = Math.round(sequencedStops.length * 110 - estimatedDistKm * 0.25)
+    const aiRationale = `Carga formada por ${sequencedStops.length} clientes no eixo ${cities.slice(0, 3).join('–')}, datas compatíveis e ${currentWeight.toFixed(1)} t disponíveis. Consolidação utiliza ${occupancy}% da capacidade do veículo e reduz ~${Math.max(45, distSavingsEstimated)} km comparativamente ao atendimento separado.`
 
-      clusters.push({
-        id: clusterId,
-        code: loadCode,
-        label: `${loadCode} (${cities.slice(0, 2).join('/')})`,
-        color,
-        originHub,
-        totalWeightTon: Math.round(currentWeight * 10) / 10,
-        capacityTon: capacity,
-        occupancyPct: occupancy,
-        clientsCount: sequencedStops.length,
-        ordersCount: sequencedStops.reduce((acc, s) => acc + s.ordersCount, 0),
-        dischargesCount: sequencedStops.length,
-        estimatedDistanceKm: estimatedDistKm,
-        estimatedFreightBrl: estimatedFreight,
-        estimatedTollBrl: estimatedToll,
-        stops: sequencedStops,
-        primaryItinerary: primaryItin,
-        primaryRegion: primaryReg,
-        destinationCities: cities,
-        earliestRequestedDate: sequencedStops[0]?.requestedDate || '',
-        latestRequestedDate: sequencedStops[sequencedStops.length - 1]?.requestedDate || '',
-        aiRationale,
-        scoreDetails: {
-          geoScore: 88,
-          itineraryScore: 92,
-          dateScore: 85,
-          occupancyScore: Math.round(occupancy),
-          stockScore: sequencedStops.every((s) => !s.hasStockShortage) ? 100 : 70,
-          totalScore: Math.round((88 + 92 + 85 + occupancy) / 4),
-        },
-      })
-    }
+    clusters.push({
+      id: clusterId,
+      code: loadCode,
+      label: `${loadCode} (${cities.slice(0, 2).join('/')})`,
+      color,
+      originHub,
+      totalWeightTon: currentWeight,
+      capacityTon: capacity,
+      veiculo,
+      occupancyPct: occupancy,
+      clientsCount: sequencedStops.length,
+      ordersCount: sequencedStops.reduce((acc, s) => acc + s.ordersCount, 0),
+      dischargesCount: sequencedStops.length,
+      estimatedDistanceKm: estimatedDistKm,
+      estimatedFreightBrl: estimatedFreight,
+      estimatedTollBrl: estimatedToll,
+      stops: sequencedStops,
+      primaryItinerary: primaryItin,
+      primaryRegion: primaryReg,
+      destinationCities: cities,
+      earliestRequestedDate: sequencedStops[0]?.requestedDate || '',
+      latestRequestedDate: sequencedStops[sequencedStops.length - 1]?.requestedDate || '',
+      aiRationale,
+      scoreDetails: {
+        geoScore: 88,
+        itineraryScore: 92,
+        dateScore: 85,
+        occupancyScore: Math.round(occupancy),
+        stockScore: sequencedStops.every((s) => !s.hasStockShortage) ? 100 : 70,
+        totalScore: Math.round((88 + 92 + 85 + occupancy) / 4),
+      },
+    })
   }
 
   // Identifica pedidos / clientes não planejados (#13)

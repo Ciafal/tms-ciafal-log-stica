@@ -1,3 +1,5 @@
+import { consultarVeiculosDePlanejamento } from '@/services/planejamento-de-cargas'
+import type { VeiculoDePlanejamento } from '@/domain/planejamentoDeCargas'
 import { materialLabel } from '@/utils/material'
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
@@ -81,6 +83,7 @@ export const LoadPlannerPage: React.FC = () => {
 
   const [orders, setOrders] = useState<SapSalesOrderEntity[]>([])
   const [itineraries, setItineraries] = useState<SapItineraryEntity[]>([])
+  const [veiculosPlanejaveis, setVeiculosPlanejaveis] = useState<VeiculoDePlanejamento[]>([])
   const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
   const [stockCurrent, setStockCurrent] = useState<SapStockCurrentEntity[]>([])
   const [pcpOrders, setPcpOrders] = useState<PcpProductionOrderEntity[]>([])
@@ -181,6 +184,7 @@ export const LoadPlannerPage: React.FC = () => {
         drvData,
         ruleData,
         custProfilesData,
+        veiculosParaMapa,
       ] = await Promise.all([
         TmsService.getUnifiedSalesWallet(),
         TmsService.getSapItineraries(),
@@ -192,8 +196,10 @@ export const LoadPlannerPage: React.FC = () => {
         TmsService.getDrivers(),
         TmsService.getFreightRuleParameters(),
         customerLogisticInfoService.getAllCustomers().catch(() => []),
+        consultarVeiculosDePlanejamento().catch(() => []),
       ])
       setCustomerProfiles(custProfilesData || [])
+      setVeiculosPlanejaveis(veiculosParaMapa)
       setOrders(ordData)
       setItineraries(itinData)
       setQueueEntries(qData)
@@ -844,6 +850,11 @@ export const LoadPlannerPage: React.FC = () => {
       {plannerViewMode === 'MAPA_LOGISTICO' && (
         <LogisticalMapTowerView
           orders={orders}
+          veiculos={veiculosPlanejaveis}
+          onRecalcular={() => {
+            setVeiculosPlanejaveis([])
+            void consultarVeiculosDePlanejamento().then(setVeiculosPlanejaveis, () => setVeiculosPlanejaveis([]))
+          }}
           itineraries={itineraries}
           selectedItinerary={filterItinerary}
           onSelectItinerary={setFilterItinerary}
