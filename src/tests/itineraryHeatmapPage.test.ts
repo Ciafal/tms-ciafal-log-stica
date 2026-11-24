@@ -191,6 +191,12 @@ describe('Validação da Página "Mapa de Calor por Itinerário" no TMS CIAFAL',
       expect(res.clusters[0]).toMatchObject({ veiculo, totalWeightTon: 25, capacityTon: 25, occupancyPct: 100 })
       expect(res.unplannedStops.map(s => s.customerCode)).toEqual(['2'])
 
+      // Uma parada acima da capacidade não pode inaugurar uma carga por conta própria.
+      const pesada = [{ ...stops[0], totalWeightTon: 112 }]
+      const foraDaCapacidade = runMulticriteriaClusterization({ stops: pesada, veiculos: [veiculo] })
+      expect(foraDaCapacidade.clusters).toHaveLength(0)
+      expect(foraDaCapacidade.unplannedStops.map(s => s.totalWeightTon)).toEqual([112])
+
       const totalStopsTon = stops.reduce((a, b) => a + b.totalWeightTon, 0)
       const plannedTon = res.clusters.reduce((a, b) => a + b.totalWeightTon, 0)
       const unplannedTon = res.unplannedStops.reduce((a, b) => a + b.totalWeightTon, 0)
