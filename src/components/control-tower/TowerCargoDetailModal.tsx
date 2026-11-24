@@ -3,7 +3,7 @@
 // Inclui deep link direto para o módulo correspondente (Editar Transporte, Mesa de Fretes, Negociações, Expedição)
 // Zero mocks / dados reais
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,11 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
+  ControlTowerService,
   TowerCargoItem,
+  type TowerTimePeriod,
+  type FaturadasSap,
+  formatBrazilianTons,
   formatBrazilianCurrency,
   formatBrazilianDateTime,
 } from '@/services/controlTowerService'
@@ -43,6 +47,7 @@ interface TowerCargoDetailModalProps {
   bucketColor: string
   badgeText?: string
   periodLabel: string
+  periodoSap?: TowerTimePeriod
   items: TowerCargoItem[]
 }
 
@@ -54,11 +59,30 @@ export const TowerCargoDetailModal: React.FC<TowerCargoDetailModalProps> = ({
   bucketColor,
   badgeText,
   periodLabel,
+  periodoSap,
   items,
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
+  const [pagina, setPagina] = useState(1)
+  const [dadosSap, setDadosSap] = useState<FaturadasSap | null>(null)
+  const [erroSap, setErroSap] = useState('')
+  useEffect(() => {
+    if (!open || !periodoSap) return
+    let ativa = true
+    setDadosSap(null)
+    setErroSap('')
+    const timer = setTimeout(() => {
+      void ControlTowerService.consultarFaturadas(periodoSap, pagina, searchTerm).then(
+        dados => { if (ativa) setDadosSap(dados) },
+        () => { if (ativa) setErroSap('Não foi possível consultar os transportes faturados no SAP QAS.') },
+      )
+    }, searchTerm ? 200 : 0)
+    return () => { ativa = false; clearTimeout(timer) }
+  }, [open, periodoSap, pagina, searchTerm])
 
-  const filteredItems = items.filter((item) => {
+  const paginasSap = dadosSap ? Math.max(1, Math.ceil(dadosSap.loads / dadosSap.perPage)) : 1
+
+  const filteredItems = periodoSap ? dadosSap?.items || [] : items.filter((item) => {
     if (!searchTerm.trim()) return true
     const term = searchTerm.toLowerCase()
     return (
@@ -116,18 +140,14 @@ export const TowerCargoDetailModal: React.FC<TowerCargoDetailModalProps> = ({
               <div className="text-right">
                 <div className="text-xs font-bold text-slate-500 uppercase">Cargas</div>
                 <div className="text-sm font-black text-slate-900">
-                  {filteredItems.length} {filteredItems.length === 1 ? 'carga' : 'cargas'}
+                  {periodoSap ? dadosSap?.loads_formatted || '—' : `${filteredItems.length} ${filteredItems.length === 1 ? 'carga' : 'cargas'}`}
                 </div>
               </div>
               <div className="h-6 w-px bg-slate-200" />
               <div className="text-right">
                 <div className="text-xs font-bold text-slate-500 uppercase">Peso Total</div>
                 <div className="text-sm font-black text-[#005596]">
-                  {totalFilteredTons.toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}{' '}
-                  t
+                  {periodoSap ? dadosSap?.tons_formatted || '—' : formatBrazilianTons(totalFilteredTons)}
                 </div>
               </div>
             </div>
@@ -138,9 +158,9 @@ export const TowerCargoDetailModal: React.FC<TowerCargoDetailModalProps> = ({
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
               type="text"
-              placeholder="Buscar por nº carga, transporte SAP, cliente, cidade, placa, motorista ou rota..."
+              placeholder={periodoSap ? 'Buscar por transporte SAP, placa ou itinerário' : 'Buscar por nº carga, transporte SAP, cliente, cidade, placa, motorista ou rota...'}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setPagina(1) }}
               className="pl-9 text-xs bg-white border-slate-300 h-9"
             />
           </div>
@@ -148,7 +168,11 @@ export const TowerCargoDetailModal: React.FC<TowerCargoDetailModalProps> = ({
 
         {/* Lista com scroll independente */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 bg-slate-100/50">
-          {filteredItems.length === 0 ? (
+          {periodoSap && !dadosSap ? (
+            <p className="rounded bg-white p-4 text-sm" role={erroSap ? 'alert' : 'status'}>
+              {erroSap || 'Consultando transportes faturados no SAP QAS…'}
+            </p>
+          ) : filteredItems.length === 0 ? (
             <div className="py-12 text-center bg-white rounded-xl border border-dashed border-slate-300 p-8 space-y-2">
               <Layers className="w-10 h-10 text-slate-300 mx-auto" />
               <div className="text-sm font-bold text-slate-700">Nenhuma carga encontrada</div>
@@ -183,7 +207,7 @@ export const TowerCargoDetailModal: React.FC<TowerCargoDetailModalProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] text-slate-400 flex items-center gap-1">
                       <Calendar className="w-3 h-3 text-slate-400" />
-                      {formatBrazilianDateTime(item.last_movement_at)}
+                      {periodoSap ? item.last_movement_at.split('-').reverse().join('/') : formatBrazilianDateTime(item.last_movement_at)}
                     </span>
                     <Link
                       to={item.edit_transport_url || '/tms/editar-transporte'}
@@ -200,8 +224,13 @@ export const TowerCargoDetailModal: React.FC<TowerCargoDetailModalProps> = ({
                   </div>
                 </div>
 
-                {/* Grid de dados operacionais e comerciais */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                {periodoSap ? (
+                  <dl className="grid grid-cols-3 gap-3 text-xs">
+                    <div><dt>Placa</dt><dd className="font-semibold">{item.vehicle_plate || '—'}</dd></div>
+                    <div><dt>Itinerário</dt><dd className="font-semibold">{item.itinerary || '—'}</dd></div>
+                    <div><dt>Peso faturado</dt><dd className="font-semibold">{item.weight_confirmed === false ? '—' : formatBrazilianTons(item.weight_ton)}</dd></div>
+                  </dl>
+                ) : <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                   {/* Cliente e Destino */}
                   <div className="space-y-1">
                     <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
@@ -298,7 +327,7 @@ export const TowerCargoDetailModal: React.FC<TowerCargoDetailModalProps> = ({
                       Módulo: {item.source_module || 'TMS Central'}
                     </div>
                   </div>
-                </div>
+                </div>}
               </div>
             ))
           )}
@@ -319,6 +348,13 @@ export const TowerCargoDetailModal: React.FC<TowerCargoDetailModalProps> = ({
             Fechar
           </Button>
         </div>
+        {periodoSap && dadosSap && paginasSap > 1 && (
+          <div className="flex items-center justify-end gap-3 border-t p-3 text-xs">
+            <Button variant="outline" size="sm" disabled={dadosSap.page === 1} onClick={() => setPagina(dadosSap.page - 1)}>Anterior</Button>
+            <span>Página {dadosSap.page} de {paginasSap}</span>
+            <Button variant="outline" size="sm" disabled={dadosSap.page === paginasSap} onClick={() => setPagina(dadosSap.page + 1)}>Próxima</Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

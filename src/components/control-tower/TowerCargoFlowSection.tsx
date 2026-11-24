@@ -26,13 +26,15 @@ import {
 import {
   TowerBucketSummary,
   TowerCargoItem,
-  formatBrazilianLoads,
+  TowerTimePeriod,
   formatBrazilianTons,
 } from '@/services/controlTowerService'
 import { TowerCargoDetailModal } from './TowerCargoDetailModal'
 
 interface TowerCargoFlowSectionProps {
   periodLabel: string
+  period?: TowerTimePeriod
+  carregandoFaturadas?: boolean
   fluxo: {
     em_negociacao: TowerBucketSummary
     com_contraproposta: TowerBucketSummary
@@ -53,6 +55,8 @@ interface SelectedModalState {
 
 export const TowerCargoFlowSection: React.FC<TowerCargoFlowSectionProps> = ({
   periodLabel,
+  period,
+  carregandoFaturadas,
   fluxo,
 }) => {
   const [modalState, setModalState] = useState<SelectedModalState>({
@@ -138,7 +142,7 @@ export const TowerCargoFlowSection: React.FC<TowerCargoFlowSectionProps> = ({
     {
       key: 'faturadas',
       title: 'CARGAS FATURADAS',
-      subtitle: 'Faturadas no período (SAP/TMS)',
+      subtitle: 'Faturadas no período · SAP QAS',
       badge: 'Concluídas',
       accentColor: '#16a34a', // Verde
       lightBg: 'bg-emerald-50/70',
@@ -164,18 +168,20 @@ export const TowerCargoFlowSection: React.FC<TowerCargoFlowSectionProps> = ({
           const Icon = c.icon
           const loadsCount = c.data?.loads || 0
           const tonsVal = c.data?.tons || 0
-          const loadsFormatted = c.data?.loads_formatted || formatBrazilianLoads(loadsCount)
           const tonsFormatted = c.data?.tons_formatted || formatBrazilianTons(tonsVal)
           const items = c.data?.items || []
+          const faturadas = c.key === 'faturadas'
+          const pendente = faturadas && (carregandoFaturadas || c.data?.indisponivel)
 
           return (
             <Card
               key={c.key}
-              onClick={() => openBucketModal(c.key, c.title, c.accentColor, c.badge, items)}
-              tabIndex={0}
+              onClick={() => !pendente && openBucketModal(c.key, c.title, c.accentColor, c.badge, items)}
+              tabIndex={pendente ? -1 : 0}
               role="button"
+              aria-disabled={Boolean(pendente)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
+                if (!pendente && (e.key === 'Enter' || e.key === ' ')) {
                   e.preventDefault()
                   openBucketModal(c.key, c.title, c.accentColor, c.badge, items)
                 }
@@ -210,23 +216,23 @@ export const TowerCargoFlowSection: React.FC<TowerCargoFlowSectionProps> = ({
                 <div className="my-auto py-1">
                   <div className="flex items-baseline gap-1.5 flex-wrap">
                     <span className="text-2xl font-black text-slate-900 tracking-tight leading-none">
-                      {loadsCount}
+                      {pendente ? '—' : loadsCount.toLocaleString('pt-BR')}
                     </span>
                     <span className="text-xs font-bold text-slate-500">
-                      {loadsCount === 1 ? 'carga' : 'cargas'}
+                      {!pendente && (loadsCount === 1 ? 'carga' : 'cargas')}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className="text-sm font-extrabold text-[#005596] tracking-tight">
-                      {tonsFormatted}
+                      {pendente ? (carregandoFaturadas ? 'Consultando SAP QAS…' : 'SAP QAS indisponível') : tonsFormatted}
                     </span>
                   </div>
                 </div>
 
                 {/* Rodapé do Card com indicação interativa de clique */}
                 <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-slate-500 group-hover:text-[#005596] transition-colors">
-                  <span className="truncate">Ver detalhamento</span>
+                  <span className="truncate">{pendente ? "" : "Ver detalhamento"}</span>
                   <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform shrink-0" />
                 </div>
               </CardContent>
@@ -244,6 +250,7 @@ export const TowerCargoFlowSection: React.FC<TowerCargoFlowSectionProps> = ({
         bucketColor={modalState.bucketColor}
         badgeText={modalState.badgeText}
         periodLabel={periodLabel}
+        periodoSap={modalState.bucketKey === 'faturadas' ? period : undefined}
         items={modalState.items}
       />
     </div>

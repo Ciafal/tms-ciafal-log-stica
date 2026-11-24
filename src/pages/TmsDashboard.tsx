@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Layers,
   Truck,
@@ -71,7 +71,8 @@ export const TmsDashboard: React.FC = () => {
 
   // Estado do Filtro Temporal da Torre de Controle (Default: 'today' / HOJE)
   const [selectedPeriod, setSelectedPeriod] = useState<TowerTimePeriod>('today')
-  const [isRefreshingTower, setIsRefreshingTower] = useState(false)
+  const [isRefreshingTower, setIsRefreshingTower] = useState(true)
+  const consultaTorreAtual = useRef(0)
   const [towerData, setTowerData] = useState<TowerSummaryResponse>({
     period: 'today',
     period_label: new Date().toLocaleDateString('pt-BR'),
@@ -157,14 +158,15 @@ export const TmsDashboard: React.FC = () => {
 
   // Carregar dados agregados do Fluxo das Cargas para o período selecionado
   const fetchTowerSummary = useCallback(async (period: TowerTimePeriod) => {
+    const consulta = ++consultaTorreAtual.current
     setIsRefreshingTower(true)
     try {
       const summary = await ControlTowerService.getTowerSummary(period)
-      setTowerData(summary)
+      if (consulta === consultaTorreAtual.current) setTowerData(summary)
     } catch (err) {
       console.error('Error fetching tower summary:', err)
     } finally {
-      setIsRefreshingTower(false)
+      if (consulta === consultaTorreAtual.current) setIsRefreshingTower(false)
     }
   }, [])
 
@@ -636,7 +638,8 @@ export const TmsDashboard: React.FC = () => {
       </div>
 
       {/* SEÇÃO 2: NOVA SEÇÃO — FLUXO DAS CARGAS (5 CARDS CLICÁVEIS COM HISTÓRICO REAL POR EVENTO) */}
-      <TowerCargoFlowSection periodLabel={towerData.period_label} fluxo={towerData.fluxo_cargas} />
+      <TowerCargoFlowSection periodLabel={towerData.period_label} fluxo={towerData.fluxo_cargas}
+        period={selectedPeriod} carregandoFaturadas={isRefreshingTower || towerData.period !== selectedPeriod} />
 
       {/* SEÇÃO 3: VISÃO AMANHÃ & FUTURO (PRESERVADA) */}
       <div className="space-y-3">

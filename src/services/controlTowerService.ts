@@ -18,6 +18,7 @@ export interface TowerCargoItem {
   itinerary: string
   weight_kg: number
   weight_ton: number
+  weight_confirmed?: boolean
   driver_name: string
   vehicle_plate: string
   vehicle_type?: string
@@ -36,6 +37,17 @@ export interface TowerBucketSummary {
   loads_formatted: string
   tons_formatted: string
   items: TowerCargoItem[]
+  indisponivel?: boolean
+}
+
+export interface FaturadasSap extends TowerBucketSummary {
+  page: number
+  perPage: number
+  range: { start: string; end: string }
+}
+
+const faturamentoIndisponivel: TowerBucketSummary = {
+  loads: 0, tons: 0, loads_formatted: '—', tons_formatted: '—', items: [], indisponivel: true,
 }
 
 export interface TowerSummaryResponse {
@@ -93,7 +105,21 @@ export class ControlTowerService {
    * Obtém os indicadores de fluxo de carga agregados server-side para o período selecionado
    * @param period 'today' | 'yesterday' | 'week' | 'month' | 'year'
    */
+  static consultarFaturadas(period: TowerTimePeriod, page = 1, busca = '') {
+    return pb.send<FaturadasSap>('/backend/v1/tms/control-tower/faturadas', {
+      method: 'GET', query: { period, page, busca }, requestKey: null,
+    })
+  }
+
   static async getTowerSummary(period: TowerTimePeriod = 'today'): Promise<TowerSummaryResponse> {
+    const [operacional, faturadas] = await Promise.all([
+      this.buscarResumoOperacional(period),
+      this.consultarFaturadas(period).catch(() => faturamentoIndisponivel),
+    ])
+    return { ...operacional, fluxo_cargas: { ...operacional.fluxo_cargas, faturadas } }
+  }
+
+  private static async buscarResumoOperacional(period: TowerTimePeriod): Promise<TowerSummaryResponse> {
     try {
       // 1. Tenta chamar o endpoint de agregação de alta performance no backend
       const res = await pb.send<TowerSummaryResponse>(
@@ -205,7 +231,6 @@ export class ControlTowerService {
     const withCpMap = new Map<string, TowerCargoItem>()
     const refusedMap = new Map<string, TowerCargoItem>()
     const inExpMap = new Map<string, TowerCargoItem>()
-    const invoicedMap = new Map<string, TowerCargoItem>()
 
     // Processar auditorias de recusa
     for (const al of auditLogs) {
@@ -556,109 +581,6 @@ export class ControlTowerService {
       }
     }
 
-    // 5. Cargas Faturadas
-    for (const ch of carrierHistory) {
-      const invDate = ch.invoicing_date
-      const finalSt = ch.final_status
-      if (invDate && isDateInPeriod(invDate)) {
-        const cargoId = ch.transport_order_number || ch.sap_transport_number || ch.id
-        const weightKg = Number(ch.weight_kg) || (Number(ch.weight_ton) || 0) * 1000
-        const weightTon = Number(ch.weight_ton) || Math.round((weightKg / 1000) * 100) / 100
-        invoicedMap.set(cargoId, {
-          id: ch.id,
-          cargo_id: cargoId,
-          transport_number: ch.sap_transport_number || ch.transport_order_number || cargoId,
-          sap_transport_number: ch.sap_transport_number || '',
-          customer_name: ch.customers_summary || 'Cliente CIAFAL',
-          destination_city: ch.destination_city || '',
-          destination_uf: ch.destination_uf || '',
-          itinerary: ch.itinerary_description || ch.itinerary_code || '',
-          weight_kg: weightKg,
-          weight_ton: weightTon,
-          driver_name: ch.driver_name || '',
-          vehicle_plate: ch.vehicle_plate || '',
-          vehicle_type: ch.vehicle_type || '',
-          carrier_name: ch.carrier_name || '',
-          freight_value: Number(ch.freight_cost_driver) || 0,
-          toll_value: Number(ch.toll_cost) || 0,
-          status: 'FATURADO',
-          source_module: 'carrier_operational_history',
-          last_movement_at: invDate,
-          edit_transport_url: ch.sap_transport_number
-            ? `/tms/editar-transporte?transporte=${ch.sap_transport_number}`
-            : `/tms/editar-transporte`,
-        })
-      } else if (!invDate && finalSt === 'CONCLUIDO') {
-        const tDate = ch.transport_date || ch.updated
-        if (isDateInPeriod(tDate)) {
-          const cargoId = ch.transport_order_number || ch.sap_transport_number || ch.id
-          if (!invoicedMap.has(cargoId)) {
-            const weightKg = Number(ch.weight_kg) || (Number(ch.weight_ton) || 0) * 1000
-            const weightTon = Number(ch.weight_ton) || Math.round((weightKg / 1000) * 100) / 100
-            invoicedMap.set(cargoId, {
-              id: ch.id,
-              cargo_id: cargoId,
-              transport_number: ch.sap_transport_number || ch.transport_order_number || cargoId,
-              sap_transport_number: ch.sap_transport_number || '',
-              customer_name: ch.customers_summary || 'Cliente CIAFAL',
-              destination_city: ch.destination_city || '',
-              destination_uf: ch.destination_uf || '',
-              itinerary: ch.itinerary_description || ch.itinerary_code || '',
-              weight_kg: weightKg,
-              weight_ton: weightTon,
-              driver_name: ch.driver_name || '',
-              vehicle_plate: ch.vehicle_plate || '',
-              vehicle_type: ch.vehicle_type || '',
-              carrier_name: ch.carrier_name || '',
-              freight_value: Number(ch.freight_cost_driver) || 0,
-              toll_value: Number(ch.toll_cost) || 0,
-              status: 'FATURADO',
-              source_module: 'carrier_operational_history',
-              last_movement_at: tDate,
-              edit_transport_url: ch.sap_transport_number
-                ? `/tms/editar-transporte?transporte=${ch.sap_transport_number}`
-                : `/tms/editar-transporte`,
-            })
-          }
-        }
-      }
-    }
-
-    for (const exp of expeditionTracking) {
-      const opSt = exp.operational_status
-      const relDate = exp.updated || exp.created
-      if (['FATURADO', 'LIBERADO'].includes(opSt) && isDateInPeriod(relDate)) {
-        const cargoId = exp.cargo_id || exp.sap_transport_number || exp.id
-        if (!invoicedMap.has(cargoId)) {
-          const weightKg = Number(exp.weight_total_kg) || 0
-          invoicedMap.set(cargoId, {
-            id: exp.id,
-            cargo_id: cargoId,
-            transport_number: exp.sap_transport_number || exp.cargo_id || cargoId,
-            sap_transport_number: exp.sap_transport_number || '',
-            customer_name: exp.clients_summary || 'Expedição Clientes',
-            destination_city: exp.destination_cities || 'Destino',
-            destination_uf: 'SP',
-            itinerary: exp.itinerary_code || 'Expedição Operacional',
-            weight_kg: weightKg,
-            weight_ton: Math.round((weightKg / 1000) * 100) / 100,
-            driver_name: exp.driver_name || 'Definido na Expedição',
-            vehicle_plate: exp.vehicle_plate || 'Veículo Alocado',
-            vehicle_type: 'Carreta Convencional',
-            carrier_name: exp.carrier_name || 'Frota CIAFAL',
-            freight_value: 0,
-            toll_value: 0,
-            status: 'FATURADO',
-            source_module: 'expedition_tracking',
-            last_movement_at: relDate,
-            edit_transport_url: exp.sap_transport_number
-              ? `/tms/editar-transporte?transporte=${exp.sap_transport_number}`
-              : `/tms/expedicao`,
-          })
-        }
-      }
-    }
-
     const buildBucket = (itemsMap: Map<string, TowerCargoItem>): TowerBucketSummary => {
       const items = Array.from(itemsMap.values())
       const loads = items.length
@@ -688,7 +610,7 @@ export class ControlTowerService {
         com_contraproposta: buildBucket(withCpMap),
         recusadas: buildBucket(refusedMap),
         em_expedicao: buildBucket(inExpMap),
-        faturadas: buildBucket(invoicedMap),
+        faturadas: faturamentoIndisponivel,
       },
       timestamp: new Date().toISOString(),
     }
