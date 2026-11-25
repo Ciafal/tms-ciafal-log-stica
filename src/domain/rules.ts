@@ -379,6 +379,7 @@ export interface QueueEntryEntity {
   status: QueueStatus
   entry_time: string // Data/hora real registrada
   exit_time?: string
+  indisponivel_desde?: string
   calculated_logistics_date?: string // Data logística calculada (regra corte 12:00 ou data futura)
   scheduled_arrival_date?: string // Para PROGRAMADOS
   preferred_itinerary?: string // Código SAP do itinerário (ex: TVROT ou SEM_PREFERENCIA)

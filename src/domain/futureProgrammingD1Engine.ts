@@ -1,3 +1,4 @@
+import { entradasParaDisponibilidade, placasIndisponiveisNaFila } from './disponibilidadeFila'
 /**
  * futureProgrammingD1Engine.ts
  *
@@ -509,8 +510,7 @@ export function aggregateVehiclesD1(params: {
   itineraries.forEach((it) => itinMap.set(it.sap_code, it))
 
   // 1. Veículos da Fila (Queue entries: PROGRAMADO, PORTA, FORA)
-  queueEntries.forEach((q) => {
-    if (['removido', 'bloqueado'].includes(q.status)) return
+  entradasParaDisponibilidade(queueEntries).forEach((q) => {
     const qDate =
       normalizeDateString(q.calculated_logistics_date) ||
       normalizeDateString(q.scheduled_arrival_date) ||
@@ -754,7 +754,8 @@ export function aggregateVehiclesD1(params: {
   // ========================================================
   // REQUISITOS 10, 12, 13: CRUZAMENTO AUTOMÁTICO COM CARTEIRA E ESTOQUE
   // ========================================================
-  const resultList: VehicleD1PlanItem[] = Array.from(itemsMap.values())
+  const placaIndisponivel = placasIndisponiveisNaFila(queueEntries)
+  const resultList: VehicleD1PlanItem[] = Array.from(itemsMap.values()).filter(item => !placaIndisponivel(item.plate))
 
   // Rastreamento local de estoque consumido provisoriamente para evitar dupla alocação (REQUISITO 5)
   const provisionallyReservedKg = new Map<string, number>()

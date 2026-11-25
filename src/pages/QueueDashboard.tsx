@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
+import { LogsDaFila } from '@/components/common/LogsDaFila'
+import { diaDaFila, entradaAtivaNaFila, entradasParaDisponibilidade } from '@/domain/disponibilidadeFila'
 import { useSearchParams } from 'react-router-dom'
 import {
   Layers,
@@ -82,7 +84,20 @@ export const QueueDashboard: React.FC = () => {
   const { toast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const [queueEntries, setQueueEntries] = useState<QueueEntryEntity[]>([])
+  const [entradasDaFila, setQueueEntries] = useState<QueueEntryEntity[]>([])
+  const [agora, setAgora] = useState(Date.now)
+  const [logsAbertos, setLogsAbertos] = useState(false)
+  const queueEntries = useMemo(() => entradasDaFila.filter(entrada => entradaAtivaNaFila(entrada, agora)), [entradasDaFila, agora])
+  useEffect(() => {
+    const prazo = entradasDaFila.reduce((proximo, entrada) => {
+      if (entrada.status !== 'indisponivel' || !entrada.indisponivel_desde) return proximo
+      const vencimento = Date.parse(entrada.indisponivel_desde) + 24 * 60 * 60 * 1000
+      return vencimento > agora ? Math.min(proximo, vencimento) : proximo
+    }, Infinity)
+    if (!Number.isFinite(prazo)) return
+    const timer = window.setTimeout(() => setAgora(Date.now()), Math.max(0, prazo - Date.now()))
+    return () => window.clearTimeout(timer)
+  }, [entradasDaFila, agora])
   const [preRegistrations, setPreRegistrations] = useState<PreRegistrationEntity[]>([])
   const [itineraries, setItineraries] = useState<SapItineraryEntity[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -154,6 +169,7 @@ export const QueueDashboard: React.FC = () => {
         TmsService.getPreRegistrations(),
         TmsService.getSapItineraries(),
       ])
+      setAgora(Date.now())
       setQueueEntries(queueData)
       setPreRegistrations(preRegData)
       setItineraries(itinData)
@@ -250,12 +266,8 @@ export const QueueDashboard: React.FC = () => {
       Map<string, { porta: number; fora: number; prog: number; totalCapKg: number }>
     >()
 
-    queueEntries.forEach((e) => {
-      if (['removido', 'bloqueado'].includes(e.status)) return
-      const dateKey =
-        e.calculated_logistics_date ||
-        e.scheduled_arrival_date ||
-        (e.entry_time ? e.entry_time.split('T')[0] : 'Indefinida')
+    entradasParaDisponibilidade(queueEntries).forEach((e) => {
+      const dateKey = diaDaFila(e.calculated_logistics_date) || diaDaFila(e.scheduled_arrival_date) || diaDaFila(e.entry_time)
       const itinKey = e.preferred_itinerary || 'Sem Itinerário'
 
       if (!datesMap.has(dateKey)) {
@@ -754,6 +766,9 @@ export const QueueDashboard: React.FC = () => {
         ]}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => setLogsAbertos(true)} className="h-9 text-xs">
+              Logs da fila
+            </Button>
             {permissions.canManageQueueStatus && (
               <Button
                 onClick={() => setIsManualModalOpen(true)}
@@ -778,6 +793,8 @@ export const QueueDashboard: React.FC = () => {
         }
         className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-0"
       />
+
+      {logsAbertos && <LogsDaFila fechar={() => setLogsAbertos(false)} />}
 
       {/* Top Banner: PUBLIC QUEUE LINK & QR CODE */}
       <Card className="bg-gradient-to-r from-slate-900 via-slate-800 to-[#005596] text-white border-0 shadow-lg">
@@ -1098,7 +1115,7 @@ export const QueueDashboard: React.FC = () => {
                       {matrixData.map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-50">
                           <td className="p-2.5 font-mono font-bold text-slate-900">
-                            {new Date(row.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                            {row.date ? new Date(row.date + 'T12:00:00').toLocaleDateString('pt-BR') : 'Não informada'}
                           </td>
                           <td className="p-2.5">
                             <strong className="text-[#005596] font-mono">{row.itinerary}</strong>
