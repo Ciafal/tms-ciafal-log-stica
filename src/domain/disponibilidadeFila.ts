@@ -26,3 +26,14 @@ export function entradasParaDisponibilidade(entradas: QueueEntryEntity[]) {
 export function diaDaFila(valor?: string) {
   return valor?.match(/^\d{4}-\d{2}-\d{2}/)?.[0] || ''
 }
+
+export function tempoNaFila(entrada: string | undefined, agora: number) {
+  const inicio = entrada ? Date.parse(entrada) : NaN
+  if (!Number.isFinite(inicio)) return '—'
+
+  const totalMinutos = Math.max(0, Math.floor((agora - inicio) / 60_000))
+  const dias = Math.floor(totalMinutos / 1440)
+  const horas = Math.floor((totalMinutos % 1440) / 60)
+  const minutos = totalMinutos % 60
+  return `${dias} ${dias === 1 ? 'dia' : 'dias'}, ${horas} ${horas === 1 ? 'hora' : 'horas'} e ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'}`
+}

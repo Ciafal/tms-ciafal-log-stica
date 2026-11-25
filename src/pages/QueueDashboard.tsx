@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { LogsDaFila } from '@/components/common/LogsDaFila'
-import { diaDaFila, entradaAtivaNaFila, entradasParaDisponibilidade } from '@/domain/disponibilidadeFila'
+import { diaDaFila, entradaAtivaNaFila, entradasParaDisponibilidade, tempoNaFila } from '@/domain/disponibilidadeFila'
 import { useSearchParams } from 'react-router-dom'
 import {
   Layers,
@@ -94,10 +94,12 @@ export const QueueDashboard: React.FC = () => {
       const vencimento = Date.parse(entrada.indisponivel_desde) + 24 * 60 * 60 * 1000
       return vencimento > agora ? Math.min(proximo, vencimento) : proximo
     }, Infinity)
-    if (!Number.isFinite(prazo)) return
-    const timer = window.setTimeout(() => setAgora(Date.now()), Math.max(0, prazo - Date.now()))
+    if (!queueEntries.length) return
+    const minutoSeguinte = (Math.floor(agora / 60_000) + 1) * 60_000
+    const proximaAtualizacao = Math.min(prazo, minutoSeguinte)
+    const timer = window.setTimeout(() => setAgora(Date.now()), Math.max(0, proximaAtualizacao - Date.now()))
     return () => window.clearTimeout(timer)
-  }, [entradasDaFila, agora])
+  }, [entradasDaFila, agora, queueEntries.length])
   const [preRegistrations, setPreRegistrations] = useState<PreRegistrationEntity[]>([])
   const [itineraries, setItineraries] = useState<SapItineraryEntity[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -673,6 +675,13 @@ export const QueueDashboard: React.FC = () => {
                       month: '2-digit',
                     })
                   : '---'}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-slate-500">Tempo na fila</span>
+              <span className="text-right tabular-nums font-medium text-slate-700">
+                {tempoNaFila(entry.entry_time, agora)}
               </span>
             </div>
 
